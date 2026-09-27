@@ -1,0 +1,27 @@
+# Bí mật
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+
+# Frontend
+node_modules/
+frontend/dist/
+
+# Dữ liệu (không commit)
+data/
+
+# Fixture tải bằng `make fixtures`; chỉ commit checksum
+tests/fixtures/*
+!tests/fixtures/.gitkeep
+!tests/fixtures/checksums.json
