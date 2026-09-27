@@ -6,7 +6,7 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 0 — Contract và khung dự án
 
-**Trạng thái:** đang làm. Group 1, 2, 3, 4, 5, 7, 8, 9 đã merge; Group 10 đang chờ review; Group 6 xong một phần.
+**Trạng thái:** đang làm. Group 1, 2, 3, 4, 5, 7, 8, 9, 10 đã merge; Group 6 xong một phần; còn manual check của người duyệt.
 
 Ghi chú chung: các group của người duyệt (1, 2, 8, 9) do agent soạn thay theo cho phép của người dùng; mọi nhánh được review trước khi merge, nhưng review do chính agent đã viết code thực hiện nên không phải review độc lập.
 
@@ -116,6 +116,8 @@ Ghi chú chung: các group của người duyệt (1, 2, 8, 9) do agent soạn t
 #### Thêm
 - Test nghiệm thu `tests/acceptance/phase_00/`: `test_contracts.py`, `test_database.py` (marker `db`), `test_api.py`, `test_fixtures.py`.
 - `make test-db` dựng thêm MinIO (cùng digest với compose) để test `/health` với Postgres và MinIO thật; job `acceptance` của CI chạy MinIO bằng `docker run` và chạy test nghiệm thu `db`.
+#### Thay đổi spec
+- `tech-stack.md` mục 4.1: hash ghi rõ theo RFC 8785.
 #### Thay đổi
 - `make test-acceptance` chạy `make fixtures` trước và bỏ qua test `db` (test `db` chạy trong `make test-db`).
 #### Quyết định
