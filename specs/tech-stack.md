@@ -113,6 +113,7 @@ Tầng sweep, metric, backend và frontend không được phụ thuộc vào vi
 | Driver Postgres | psycopg 3 | Một driver cho cả sync (Alembic, script) và async (API) |
 | ORM / migration | SQLAlchemy 2 + Alembic | Migration có version, review được |
 | Object storage | MinIO (API tương thích S3) | Worker ở nhiều máy cùng ghi được |
+| Client S3 | boto3 | Kiểm tra MinIO ở `/health`; presigned URL ở Phase 3 |
 | Mật khẩu | argon2 (`argon2-cffi`) | |
 | Phiên đăng nhập | JWT trong cookie httpOnly | |
 | Report PDF | WeasyPrint (render HTML → PDF ở server) | |
@@ -126,6 +127,8 @@ Tầng sweep, metric, backend và frontend không được phụ thuộc vào vi
 - User ứng dụng trong Postgres bị thu hồi quyền `UPDATE` và `DELETE` trên bảng `audit_log`.
 - Role `advertest_owner` và `advertest_app` được tạo bằng script init của Postgres (`docker/postgres/init/`), không tạo trong migration. Mỗi migration tự `GRANT` quyền cho `advertest_app` trên bảng nó tạo; test `test_every_table_is_granted_to_app` sẽ fail nếu quên.
 - Alembic đọc `MIGRATION_DATABASE_URL` (role owner); ứng dụng và script đọc `DATABASE_URL` (role app).
+- Biến môi trường khác của API: `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `GIT_COMMIT` (image Docker không có `.git`). Cookie phiên tên `advertest_session`.
+- Endpoint công khai (`/health`, `/verify`) không trả chi tiết lỗi nội bộ (host, user, stack trace); chi tiết chỉ ghi vào log server.
 - Verdict review có version, không ghi đè.
 - ID dùng UUID (uuid5 của hash nội dung khi có thể, qua `advertest_contracts.ids.content_id`). Thời gian lưu UTC; schema từ chối múi giờ khác.
 - Số tiền dùng số thập phân (`Decimal`), trong JSON là chuỗi, để tránh sai số float khi cộng dồn ledger. Chuẩn hóa số chữ số thập phân trước khi hash.
@@ -205,6 +208,7 @@ Mọi trạng thái bất thường (`failed`, `skipped`, `stopped_limit`, `canc
 Quy ước:
 - Fixture nhỏ chạy trên CPU: khoảng 5 ảnh + một model rất nhỏ, mỗi test chạy trong vài giây.
 - So metric với golden value **có sai số**, không so bằng tuyệt đối.
+- Thư viện không kèm type stub (hiện là `boto3`, `botocore`) được khai `ignore_missing_imports` trong cấu hình mypy, không dùng `# type: ignore` trong code.
 - Mỗi nguyên tắc trong `mission.md` mục 4 có ít nhất một test nghiệm thu.
 
 ## 8. Cấu trúc repo và quyền sở hữu
@@ -260,6 +264,7 @@ Nguồn sự thật là `pyproject.toml` + `uv.lock` (Python) và `frontend/pack
 | sqlalchemy | 2.1.1 |
 | alembic | 1.20.0 |
 | psycopg / argon2-cffi | 3.3.6 / 25.1.0 |
+| boto3 / httpx (dev) | 1.43.103 / 0.28.1 |
 | Postgres (image) | `postgres:17-alpine` |
 | ruff / mypy / pytest | 0.16.9 / 2.3.1 / 9.1.1 |
 
