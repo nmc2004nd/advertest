@@ -73,10 +73,15 @@ def test_live_checks_report_missing_config(monkeypatch: pytest.MonkeyPatch) -> N
     assert checks.minio() == DependencyStatus(ok=False, detail="Thiếu MINIO_ENDPOINT")
 
 
-def test_live_checks_report_unreachable(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_live_checks_report_unreachable_without_leaking(monkeypatch: pytest.MonkeyPatch) -> None:
     # Cổng 1 trên localhost không có dịch vụ: kết nối bị từ chối ngay.
-    monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://x:y@127.0.0.1:1/x")
+    monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://secretuser:pw@127.0.0.1:1/secretdb")
     monkeypatch.setenv("MINIO_ENDPOINT", "http://127.0.0.1:1")
     checks = health.LiveChecks()
-    assert checks.postgres().ok is False
-    assert checks.minio().ok is False
+    results = [checks.postgres(), checks.minio()]
+    assert all(r.ok is False for r in results)
+    # /health là endpoint công khai: không lộ user, tên DB, host hay cổng nội bộ.
+    for result in results:
+        assert result.detail is not None
+        for secret in ("secretuser", "secretdb", "127.0.0.1", ":1"):
+            assert secret not in result.detail

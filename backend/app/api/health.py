@@ -1,7 +1,11 @@
-"""GET /health: phiên bản, git commit, trạng thái Postgres và MinIO. Luôn trả 200."""
+"""GET /health: phiên bản, git commit, trạng thái Postgres và MinIO. Luôn trả 200.
+
+Endpoint công khai: `detail` chỉ chứa thông báo chung; lỗi đầy đủ (host, user) chỉ ghi vào log.
+"""
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 import subprocess
@@ -19,6 +23,7 @@ from sqlalchemy import create_engine, text
 from advertest_contracts.models import DependencyStatus, HealthResponse
 
 TIMEOUT_S = 2
+logger = logging.getLogger(__name__)
 _SHA1 = re.compile(r"^[0-9a-f]{40}$")
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 
@@ -42,8 +47,9 @@ class LiveChecks:
         try:
             with engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
-        except Exception as exc:
-            return DependencyStatus(ok=False, detail=f"{type(exc).__name__}: {exc}"[:300])
+        except Exception:
+            logger.warning("Health check Postgres thất bại", exc_info=True)
+            return DependencyStatus(ok=False, detail="Không kết nối được Postgres")
         finally:
             engine.dispose()
         return DependencyStatus(ok=True)
@@ -63,8 +69,9 @@ class LiveChecks:
         )
         try:
             client.list_buckets()
-        except Exception as exc:
-            return DependencyStatus(ok=False, detail=f"{type(exc).__name__}: {exc}"[:300])
+        except Exception:
+            logger.warning("Health check MinIO thất bại", exc_info=True)
+            return DependencyStatus(ok=False, detail="Không kết nối được MinIO")
         return DependencyStatus(ok=True)
 
 
