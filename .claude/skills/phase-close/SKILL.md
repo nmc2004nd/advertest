@@ -5,11 +5,13 @@ description: Đóng một group hoặc một phase của AdverTest sau khi đã 
 
 # Đóng group hoặc phase
 
+Khi cần người dùng xác nhận hay chọn, dùng `AskUserQuestion` theo quy tắc trong `CLAUDE.md`; nếu công cụ không khả dụng hoặc trả về rỗng, hỏi bằng văn bản và dừng, **không** tự coi là đã xác nhận.
+
 Skill này chỉ được sửa ba loại file: `CHANGELOG.md`, các ô đánh dấu `[ ]`/`[x]` trong `plan.md`, `validation.md`, `roadmap.md`. Nó không sửa code, contract hay nội dung spec. Đề xuất thay đổi spec luôn ở dạng diff chờ duyệt.
 
 ## Chế độ 1: Đóng một group
 
-Điều kiện: người dùng đã xác nhận nhánh được review (skill `phase-review`) và đồng ý merge. Nếu chưa có xác nhận này, hỏi trước.
+Điều kiện: người dùng đã xác nhận nhánh được review (skill `phase-review`) và đồng ý merge. Nếu prompt chưa nói rõ điều này, hỏi bằng `AskUserQuestion`: "Đã review và đồng ý merge" / "Chưa review, dừng lại" (khuyến nghị chạy `phase-review` trước).
 
 1. Đọc `git log --oneline main..<nhánh>` và báo cáo kết quả của agent (nếu người dùng cung cấp).
 2. Thêm mục vào `CHANGELOG.md` theo mẫu:
@@ -40,7 +42,8 @@ Skill này chỉ được sửa ba loại file: `CHANGELOG.md`, các ô đánh d
 1. Kiểm tra mọi group của phase đã đóng (plan.md đủ `[x]`).
 2. Đi qua **Definition of Done** trong `validation.md` từng mục:
    - mục tự động: xác minh bằng bằng chứng hoặc chạy `make check`;
-   - Manual Checks và các mục cần người duyệt: **hỏi người dùng xác nhận từng mục**, kèm số liệu họ đo được nếu mục đó yêu cầu ghi lại.
+   - Manual Checks và các mục cần người duyệt: hỏi bằng `AskUserQuestion` với `multiSelect: true`, mỗi câu gom tối đa 4 mục kiểm tra liên quan (ví dụ "Kiểm tra trên điện thoại"), `question` là "Những mục nào đã làm và đạt?". Mục không được chọn coi là **chưa đạt**. Cần nhiều câu thì dùng nhiều lượt gọi (tối đa 4 câu mỗi lượt).
+   - Với mục yêu cầu **ghi số liệu** (baseline, thời gian, batch size...): công cụ không phù hợp cho số liệu tự do, nên sau khi hỏi xác nhận, yêu cầu người dùng gõ số liệu bằng văn bản theo danh sách bạn liệt kê. Không tự điền số liệu.
 3. Chỉ khi mọi mục đã thỏa: thêm mục tổng kết phase vào `CHANGELOG.md`, đánh dấu phase hoàn thành trong `roadmap.md`.
 4. Nếu còn mục chưa thỏa: liệt kê và dừng, không đánh dấu phase.
 
@@ -70,4 +73,5 @@ Mục đích: spec là nguồn sự thật sống; những gì học được �
    ## Rủi ro mới cho các phase sau
    ```
 
-4. Không áp dụng diff khi người dùng chưa đồng ý.
+4. Hỏi bằng `AskUserQuestion`: "Áp dụng toàn bộ đề xuất" / "Chọn từng file" / "Không áp dụng". Nếu chọn từng file, hỏi tiếp bằng `multiSelect` danh sách file (tối đa 4 mỗi câu). Chỉ áp dụng đúng phần được chọn.
+5. Với mỗi câu hỏi mở đã có câu trả lời nhưng chưa được ghi ở đâu, đề xuất vị trí ghi trong spec; không để câu trả lời chỉ nằm trong chat.

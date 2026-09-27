@@ -53,7 +53,7 @@ Chỉ báo những dòng **thiếu** một trong hai. Không liệt kê những 
 | Group | Agent | Thư mục được sửa | Phụ thuộc |
 
 ## Chỗ mơ hồ hoặc mâu thuẫn (tối đa 5, quan trọng nhất trước)
-1. <mô tả> — trích: <file:mục> — Câu hỏi: <câu hỏi cụ thể, có lựa chọn nếu được>
+1. <mô tả> — trích: <file:mục> — Các phương án: A) ... B) ... — Khuyến nghị: ... vì ...
 
 ## Lỗ hổng độ phủ
 | Requirement | Thiếu trong plan? | Thiếu trong validation? |
@@ -62,10 +62,34 @@ Chỉ báo những dòng **thiếu** một trong hai. Không liệt kê những 
 <1–3 rủi ro kỹ thuật, cách phát hiện sớm>
 ```
 
-Sau báo cáo, hỏi người dùng trả lời các câu hỏi. **Không** viết code, **không** sửa spec.
+**Không** viết code, **không** sửa spec ở bước này.
 
-## 6. Sau khi người dùng trả lời
+## 6. Hỏi người dùng bằng `AskUserQuestion`
 
-- Đề xuất thay đổi spec dưới dạng diff cho từng file (requirements, plan, validation), để người dùng áp dụng hoặc cho phép bạn áp dụng.
-- Chỉ sửa file spec khi người dùng nói rõ cho phép. Khi sửa, chỉ sửa đúng những chỗ đã thống nhất.
+Sau khi báo cáo, hỏi các chỗ mơ hồ bằng công cụ `AskUserQuestion` (theo quy tắc "Cách hỏi người dùng" trong `CLAUDE.md`):
+
+- **Lượt 1:** tối đa 4 câu quan trọng nhất trong danh sách chỗ mơ hồ. Nếu có câu thứ 5, hỏi ở lượt 2.
+- Mỗi câu: `header` là chủ đề ngắn (ví dụ "Model", "Fixture", "Tiền tệ"); `question` nêu vấn đề kèm nguồn (ví dụ "requirements.md mục Decisions chưa chốt phiên bản YOLO. Dùng bản nào?"); 2–4 lựa chọn, khuyến nghị đứng đầu có " (Khuyến nghị)", mô tả mỗi lựa chọn nói rõ hệ quả với phase này và phase sau.
+- Lỗ hổng độ phủ và điều kiện tiên quyết **không** hỏi bằng công cụ; chúng đã nằm trong báo cáo để người dùng tự xử lý.
+- Nếu điều kiện tiên quyết chưa thỏa (phase phụ thuộc chưa xong, Group 0 chưa merge), hỏi thêm một câu: "Tiếp tục kickoff để chuẩn bị trước" hay "Dừng, quay lại sau khi điều kiện thỏa".
+
+Ví dụ một câu hỏi:
+
+```text
+header:   Fixture
+question: requirements.md Phase 0 chưa chốt nguồn 5 ảnh fixture. Dùng nguồn nào?
+options:
+  - label: COCO val2017 (Khuyến nghị)
+    description: Tải trực tiếp bằng script, CI chạy được; cần ghi giấy phép từng ảnh.
+  - label: KITTI
+    description: Cùng miền với dữ liệu đánh giá, nhưng cần đăng nhập để tải nên CI không tự tải được.
+```
+
+Nếu công cụ không khả dụng hoặc trả về rỗng: hỏi bằng văn bản theo phương án dự phòng trong `CLAUDE.md` và dừng. Không tự chọn thay người dùng.
+
+## 7. Sau khi người dùng trả lời
+
+- Đề xuất thay đổi spec dưới dạng diff cho từng file (requirements, plan, validation), mỗi thay đổi ghi rõ nó đến từ câu trả lời nào.
+- Hỏi bằng `AskUserQuestion` một câu: "Áp dụng toàn bộ diff (Khuyến nghị)" / "Chỉ áp dụng một số file" / "Không áp dụng, mình tự sửa". Nếu người dùng chọn một số file, hỏi tiếp bằng `multiSelect` danh sách file.
+- Chỉ sửa file spec theo đúng lựa chọn. Khi sửa, chỉ sửa đúng những chỗ đã thống nhất.
 - Nếu câu trả lời đòi thay đổi contract: không sửa `contracts/`; ghi chú rằng Group 0 cần cập nhật, hoặc dùng skill `contract-proposal`.

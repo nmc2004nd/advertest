@@ -9,15 +9,17 @@ Bạn là **một** agent với phạm vi hẹp. Giá trị của bạn nằm �
 
 ## 0. Xác nhận nhiệm vụ
 
-Cần đủ ba thông tin: **phase**, **group** (hoặc danh sách task), **tên agent**. Thiếu thì hỏi.
+Cần đủ ba thông tin: **phase**, **group** (hoặc danh sách task), **tên agent**. Thiếu thông tin nào thì hỏi bằng `AskUserQuestion`, dùng dữ liệu trong spec để tạo lựa chọn (ví dụ liệt kê các group chưa đánh dấu `[x]` trong `plan.md`, các agent ghi ở đầu `plan.md`).
 
 Từ phần đầu `plan.md` của phase và bảng quyền sở hữu trong `CLAUDE.md`, xác định **danh sách thư mục bạn được sửa**. Nói lại danh sách này cho người dùng ở đầu báo cáo kế hoạch.
 
 ## 1. Kiểm tra trước khi làm
 
 - Đọc `CLAUDE.md`, `specs/mission.md`, `specs/tech-stack.md`, và toàn bộ spec của phase.
-- Group 0 và các group mà group này phụ thuộc đã merge chưa? Chưa thì dừng và báo.
-- `git status` sạch, đang ở đúng nhánh hoặc worktree (quy ước tên nhánh: `phaseNN-<agent>`). Không đúng thì dừng và báo.
+- Group 0 và các group mà group này phụ thuộc đã merge chưa?
+- `git status` sạch, đang ở đúng nhánh hoặc worktree (quy ước tên nhánh: `phaseNN-<agent>`)?
+
+Nếu một điều kiện không thỏa: nêu rõ bằng văn bản điều kiện nào và bằng chứng, rồi hỏi bằng `AskUserQuestion` với các lựa chọn phù hợp, ví dụ "Dừng, chờ điều kiện thỏa (Khuyến nghị)" / "Chỉ làm các task không phụ thuộc" (liệt kê task trong mô tả). Không tự tiếp tục.
 
 ## 2. Lập kế hoạch thực thi (chưa sửa file nào)
 
@@ -39,7 +41,12 @@ Thư mục được sửa: <danh sách>
 ## Điểm cần người duyệt quyết định (nếu có)
 ```
 
-Dừng chờ duyệt. Chỉ bỏ qua bước chờ khi người dùng đã nói rõ "kế hoạch đã duyệt" hoặc "làm luôn".
+Sau khi trình bày kế hoạch bằng văn bản, hỏi duyệt bằng `AskUserQuestion`:
+
+- Nếu mục "Điểm cần người duyệt quyết định" có nội dung: hỏi các điểm đó trước (tối đa 3 câu), rồi thêm câu duyệt kế hoạch làm câu cuối trong cùng lần gọi.
+- Câu duyệt kế hoạch: `header` "Kế hoạch"; lựa chọn "Duyệt, làm đi" / "Duyệt nhưng sửa một số điểm" (người dùng ghi điểm cần sửa trong câu trả lời tự do) / "Dừng lại".
+
+Chỉ bỏ qua bước hỏi khi người dùng đã nói rõ "kế hoạch đã duyệt" hoặc "làm luôn" trong prompt.
 
 ## 3. Implement
 
@@ -59,11 +66,18 @@ Dừng chờ duyệt. Chỉ bỏ qua bước chờ khi người dùng đã nói 
 
 ### Khi nào dừng lại hỏi
 
-- Spec không nói rõ và lựa chọn có ảnh hưởng tới thiết kế, dữ liệu hay hành vi người dùng thấy.
-- Cần đổi contract → dùng skill `contract-proposal`, rồi dừng.
-- Test nghiệm thu fail vì lý do nằm ngoài phạm vi group của bạn.
-- Sửa cùng một lỗi 3 lần chưa được → dừng sửa, viết báo cáo chẩn đoán: triệu chứng, bằng chứng (log, giá trị in ra), giả thuyết, 2 hướng xử lý kèm rủi ro.
-- Plan có task ghi "dừng và báo" (ví dụ giới hạn thời gian thử phương án) và điều kiện đã xảy ra.
+Trong các tình huống dưới đây, dừng công việc, commit phần đã chạy được (nếu có), trình bày bối cảnh bằng văn bản, rồi hỏi bằng `AskUserQuestion` theo quy tắc trong `CLAUDE.md`:
+
+| Tình huống | Nội dung câu hỏi |
+|---|---|
+| Spec không nói rõ và lựa chọn ảnh hưởng tới thiết kế, dữ liệu hay hành vi người dùng thấy | Các phương án cụ thể, khuyến nghị đứng đầu, mô tả hệ quả của từng phương án |
+| Test nghiệm thu fail vì lý do ngoài phạm vi group | "Bỏ qua test này, ghi vào báo cáo (Khuyến nghị)" / "Dừng group chờ xử lý" / (nếu hợp lý) phương án khác |
+| Sửa cùng một lỗi 3 lần chưa được | Trước tiên viết báo cáo chẩn đoán (triệu chứng, bằng chứng như log và giá trị in ra, giả thuyết); sau đó hỏi chọn giữa 2–3 hướng xử lý, mô tả kèm rủi ro |
+| Plan có task ghi "dừng và báo" (ví dụ hết thời gian thử phương án) và điều kiện đã xảy ra | Các phương án mà spec nêu (ví dụ "Kích hoạt phương án dự phòng Faster R-CNN" / "Thử thêm 1 ngày") |
+
+Riêng khi **cần đổi contract**: không hỏi bằng công cụ mà dùng skill `contract-proposal`, vì quyết định đó cần một văn bản đề xuất đầy đủ.
+
+Nếu câu trả lời là một quyết định thiết kế, ghi nó vào mục "Quyết định nên ghi vào spec" trong báo cáo cuối để người duyệt đưa vào spec.
 
 ## 4. Báo cáo kết quả
 

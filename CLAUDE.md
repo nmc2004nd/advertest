@@ -37,6 +37,18 @@ Dự án phát triển theo spec-driven development. Spec là nguồn sự thậ
 - Test nghiệm thu fail vì lý do ngoài phạm vi được giao.
 - Sửa cùng một lỗi 3 lần chưa được → viết báo cáo chẩn đoán thay vì thử tiếp.
 
+## Cách hỏi người dùng
+
+Khi cần người dùng quyết định, dùng công cụ **`AskUserQuestion`** thay vì hỏi bằng văn bản tự do.
+
+- **Chỉ hỏi khi thật sự bị chặn** bởi một quyết định thuộc về người dùng: điều mà spec, code và các giá trị mặc định hợp lý trong `tech-stack.md` không trả lời được. Đừng hỏi những gì spec đã nói.
+- **Giới hạn của công cụ:** mỗi lần gọi 1–4 câu hỏi; mỗi câu 2–4 lựa chọn; `header` tối đa 12 ký tự. Có nhiều hơn 4 câu thì hỏi câu quan trọng nhất trước, hỏi tiếp ở lượt sau.
+- **Câu hỏi** nêu ngắn gọn nguồn gốc vấn đề (file và mục), để người dùng biết đang quyết định điều gì.
+- **Lựa chọn** loại trừ lẫn nhau (trừ khi dùng `multiSelect`); mô tả của mỗi lựa chọn nói rõ hệ quả. Nếu bạn có khuyến nghị, đặt nó **đầu tiên** và thêm " (Khuyến nghị)" vào cuối nhãn. Không cần tạo lựa chọn "Khác": người dùng luôn gõ được câu trả lời tự do.
+- **Nội dung dài** (kế hoạch, báo cáo, diff) trình bày bằng văn bản trước, rồi mới gọi `AskUserQuestion` để hỏi quyết định.
+- **Sau khi có câu trả lời:** nếu đó là quyết định thiết kế, đề xuất ghi vào spec (dạng diff). Quyết định không được chỉ nằm trong lịch sử chat.
+- **Phương án dự phòng:** nếu công cụ không khả dụng (ví dụ đang chạy trong subagent) hoặc trả về câu trả lời rỗng, **không được tự giả định câu trả lời**. Hỏi lại bằng văn bản: đánh số câu hỏi, liệt kê lựa chọn A/B/C, rồi dừng chờ.
+
 ## Lệnh
 
 | Lệnh | Dùng khi |

@@ -11,7 +11,9 @@ Nên chạy skill này trong một phiên khác với phiên đã code nhánh đ
 
 ## 1. Xác định đối tượng review
 
-Cần: **tên nhánh** (hoặc thư mục worktree), **phase**, **group**. Thiếu thì hỏi. Base mặc định là `main`.
+Cần: **tên nhánh** (hoặc thư mục worktree), **phase**, **group**. Base mặc định là `main`.
+
+Thiếu thông tin nào thì hỏi bằng `AskUserQuestion`, tạo lựa chọn từ dữ liệu thật: `git branch --list 'phase*'` cho tên nhánh (tối đa 4 nhánh mới nhất; người dùng gõ tên khác nếu cần), các group chưa đánh dấu `[x]` trong `plan.md` cho group.
 
 ## 2. Đọc
 
@@ -65,3 +67,14 @@ Mức độ: **chặn** (phải sửa trước khi merge), **nên sửa**, **ghi
 ```
 
 Kết luận là "SẴN SÀNG MERGE" chỉ khi không có phát hiện mức **chặn** và `make check` pass. Bất kỳ phát hiện nào ở mục 3, 4 hoặc 5 mặc định là mức **chặn**.
+
+## 6. Khi cần người duyệt quyết định
+
+Reviewer không tự quyết thay người duyệt. Nếu kết luận là "CẦN NGƯỜI DUYỆT QUYẾT ĐỊNH" (ví dụ code đúng nhưng có một quyết định ngầm mà spec chưa nói, hoặc một phát hiện có thể là **chặn** hay **nên sửa** tùy cách hiểu spec), sau báo cáo hãy hỏi từng điểm bằng `AskUserQuestion` (tối đa 4 điểm mỗi lần gọi):
+
+- `question` nêu phát hiện số mấy, file và dòng;
+- lựa chọn thường là: "Yêu cầu sửa trước khi merge" / "Chấp nhận, ghi quyết định vào spec" / "Chấp nhận, không cần ghi"; đặt khuyến nghị của bạn lên đầu.
+
+Sau khi có câu trả lời, cập nhật kết luận cuối (SẴN SÀNG MERGE hoặc CẦN SỬA) và liệt kê các quyết định cần ghi vào spec. Bạn vẫn **không** sửa code hay spec.
+
+Nếu công cụ không khả dụng hoặc trả về rỗng: hỏi bằng văn bản theo phương án dự phòng trong `CLAUDE.md` và để kết luận ở "CẦN NGƯỜI DUYỆT QUYẾT ĐỊNH".

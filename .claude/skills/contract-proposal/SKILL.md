@@ -44,4 +44,9 @@ Commit phần việc đang dở (nếu ở trạng thái chạy được) với 
 
 Tóm tắt đề xuất trong 3–5 dòng, đường dẫn file, và phần việc nào của group đang bị chặn. **Không** sửa `contracts/`, **không** tiếp tục phần việc phụ thuộc vào đề xuất.
 
-Nếu còn phần việc của group không phụ thuộc vào đề xuất, hỏi người dùng có muốn tiếp tục phần đó trong lúc chờ không.
+Sau phần tóm tắt, hỏi bằng `AskUserQuestion` (một lần gọi, tối đa 2 câu):
+
+1. `header` "Đề xuất": "Mình sẽ duyệt đề xuất sau, bạn chờ" / "Chọn phương án thay thế trong đề xuất, không đổi contract" (chỉ khi đề xuất có phương án thay thế khả thi).
+2. Nếu còn phần việc của group không phụ thuộc vào đề xuất: `header` "Tiếp tục": "Làm tiếp các task không phụ thuộc (Khuyến nghị)" / "Dừng toàn bộ group"; mô tả liệt kê các task đó.
+
+Nếu người dùng chọn phương án thay thế, cập nhật trạng thái trong file đề xuất thành "không áp dụng – dùng phương án thay thế" và tiếp tục theo phương án đó. Nếu công cụ không khả dụng hoặc trả về rỗng: hỏi bằng văn bản và dừng.

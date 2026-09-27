@@ -23,7 +23,18 @@ Tài liệu này hướng dẫn dùng 5 skill trong `.claude/skills/` và `CLAUD
 
 Claude Code đọc `CLAUDE.md` khi bắt đầu phiên, và tự dùng skill khi yêu cầu của bạn khớp với mô tả của skill. Bạn cũng có thể gọi đích danh bằng cách nêu tên skill trong prompt, ví dụ *"dùng skill phase-review cho nhánh phase01-model"*. Gọi đích danh là cách chắc chắn nhất.
 
-## 2. Vai trò của bạn và của agent
+## 2. Khi agent hỏi bạn
+
+Các skill dùng công cụ `AskUserQuestion` của Claude Code mỗi khi cần bạn quyết định: agent trình bày bối cảnh bằng văn bản trước, rồi hiện câu hỏi trắc nghiệm (mỗi lần tối đa 4 câu, mỗi câu 2–4 lựa chọn). Lựa chọn agent khuyến nghị đứng đầu và có chữ "(Khuyến nghị)".
+
+- **Chọn một lựa chọn**, hoặc **gõ câu trả lời riêng** nếu không lựa chọn nào phù hợp (ô trả lời tự do luôn có).
+- Với câu hỏi chọn nhiều (ví dụ xác nhận manual check khi đóng phase), mục nào bạn **không** chọn sẽ bị coi là **chưa đạt**.
+- Số liệu (baseline mAP, thời gian mỗi ảnh...) agent sẽ đề nghị bạn gõ bằng văn bản sau khi hỏi xác nhận.
+- Sau mỗi quyết định mang tính thiết kế, agent sẽ đề xuất ghi vào spec. Hãy duyệt đề xuất đó; đừng để quyết định chỉ nằm trong chat.
+
+**Khi câu hỏi không hiện ra hoặc bị bỏ qua:** công cụ này có thể không khả dụng trong subagent, và đã có báo lỗi về trường hợp nó trả về câu trả lời rỗng. Skill đã được dặn không tự đoán câu trả lời mà hỏi lại bằng văn bản. Nếu bạn thấy agent vẫn tiếp tục như thể bạn đã trả lời, dừng nó lại và gõ: *"Mình chưa trả lời câu hỏi nào. Hỏi lại bằng văn bản và dừng chờ."* Khi điều khiển phiên từ điện thoại, nên trả lời câu hỏi ở terminal nếu giao diện điện thoại không hiển thị câu hỏi.
+
+## 2b. Vai trò của bạn và của agent
 
 | Việc | Ai làm |
 |---|---|
