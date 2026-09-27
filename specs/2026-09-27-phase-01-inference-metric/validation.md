@@ -45,7 +45,7 @@
 - [ ] Không có prediction nào → mAP@0.5 = 0.
 - [ ] Một prediction nằm hoàn toàn trong ignore region không làm giảm mAP (so với khi không có prediction đó).
 - [ ] Prediction thuộc class không có trong mapping (ví dụ `traffic light`) không làm thay đổi mAP.
-- [ ] `per_class` có đủ các class đích `car`, `truck`, `person` với `num_gt` đúng.
+- [ ] `per_class` có đủ các class đích `car`, `truck`, `person` với `num_gt` đúng; trên fixture (sau mapping `kitti-coco` và lọc Moderate) là `car = 14`, `truck = 1`, `person = 6`.
 
 ### Đánh giá và cache — `test_eval.py`
 - [ ] `advertest eval` trên fixture xuất file validate được theo `CleanEvalResult`.
