@@ -9,6 +9,7 @@ from advertest_contracts.hashing import sha256_of
 from advertest_contracts.models import (
     AttackConfig,
     AttackSpec,
+    DatasetManifest,
     ErrorResponse,
     ExperimentConfig,
     HealthResponse,
@@ -394,3 +395,38 @@ def test_error_response_only_known_codes() -> None:
     ErrorResponse.model_validate({"error": {"code": "not_implemented", "message": "x"}})
     with pytest.raises(ValidationError):
         ErrorResponse.model_validate({"error": {"code": "teapot", "message": "x"}})
+
+
+def _dataset_manifest() -> dict[str, Any]:
+    import json
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[2] / "mocks/dataset_manifest/kitti_small.json"
+    data: dict[str, Any] = json.loads(path.read_text())
+    return data
+
+
+def test_dataset_manifest_mock_valid() -> None:
+    DatasetManifest.model_validate(_dataset_manifest())
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda d: d["images"].append(copy.deepcopy(d["images"][0])),  # image_id trùng
+        lambda d: d["images"].reverse(),  # không sắp theo image_id
+        lambda d: d["annotations"].reverse(),  # annotations không sắp
+        lambda d: d["annotations"][0].update(image_id="999999"),  # ảnh không tồn tại
+        lambda d: d["annotations"][0].update(category="DontCare"),  # category lạ
+        lambda d: d["annotations"][0].update(bbox=[10, 10, 5, 20]),  # x2 < x1
+        lambda d: d["annotations"][0].update(bbox=[0, 0, 1300, 20]),  # vượt khung ảnh
+        lambda d: d["ignore_regions"][0].update(source="difficulty:Car"),  # sinh khi áp mapping
+        lambda d: d["categories"].append("Car"),  # categories trùng
+        lambda d: d["source"].update(format="voc"),
+    ],
+)
+def test_dataset_manifest_rejects_inconsistent(mutate: Any) -> None:
+    data = _dataset_manifest()
+    mutate(data)
+    with pytest.raises(ValidationError):
+        DatasetManifest.model_validate(data)

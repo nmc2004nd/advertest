@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "images": [
+    {
+      "image_id": "000001",
+      "file_name": "image_2/000001.png",
+      "sha256": "4a44dc15364204a80fe80e9039455cc1608281820fe2b24f1e5233ade6af1dd5",
+      "width": 1242,
+      "height": 375,
+      "attributes": {}
+    },
+    {
+      "image_id": "000002",
+      "file_name": "image_2/000002.png",
+      "sha256": "4fc82b26aecb47d2868c4efbe3581732a3e7cbcc6c2efb32062c08170a05eeb8",
+      "width": 1242,
+      "height": 375,
+      "attributes": {}
+    }
+  ],
+  "annotations": [
+    {
+      "image_id": "000001",
+      "bbox": [599.41, 156.4, 629.75, 189.25],
+      "category": "Car",
+      "attributes": { "truncated": 0.0, "occluded": 0 }
+    },
+    {
+      "image_id": "000001",
+      "bbox": [387.63, 181.54, 423.81, 203.12],
+      "category": "Van",
+      "attributes": { "truncated": 0.0, "occluded": 1 }
+    },
+    {
+      "image_id": "000002",
+      "bbox": [712.4, 143.0, 810.73, 307.92],
+      "category": "Pedestrian",
+      "attributes": { "truncated": 0.0, "occluded": 0 }
+    }
+  ],
+  "ignore_regions": [
+    {
+      "image_id": "000001",
+      "bbox": [1106.0, 166.0, 1204.0, 197.0],
+      "source": "dont_care"
+    }
+  ],
+  "categories": ["Car", "Van", "Truck", "Pedestrian", "Person_sitting", "Cyclist", "Tram", "Misc"],
+  "source": {
+    "format": "kitti",
+    "split": "training",
+    "converter": { "name": "kitti-label-2", "version": "1" }
+  }
+}

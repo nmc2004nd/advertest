@@ -155,6 +155,8 @@ Mỗi schema có trường `schema_version` (bắt đầu từ `1`). Mô tả d�
 | `git_commit` | string | ✓ | 40 ký tự hex, hoặc `unknown` |
 | `postgres`, `minio` | object | ✓ | `ok` (bool), `detail` (lý do khi không ok) |
 
+**`DatasetManifest`** — manifest dataset nội bộ (đề xuất contract 002); định nghĩa trường theo bảng "Manifest dataset nội bộ" của `requirements.md` Phase 1. Dataset version = `sha256_of(manifest)`.
+
 ### DB schema (bảng và cột chính)
 
 | Bảng | Cột chính |

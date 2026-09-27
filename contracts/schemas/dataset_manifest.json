@@ -1,0 +1,243 @@
+{
+  "$defs": {
+    "ConverterInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "title": "ConverterInfo",
+      "type": "object"
+    },
+    "IgnoreRegion": {
+      "additionalProperties": false,
+      "properties": {
+        "image_id": {
+          "title": "Image Id",
+          "type": "string"
+        },
+        "bbox": {
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Bbox",
+          "type": "array"
+        },
+        "source": {
+          "pattern": "^(dont_care|unmapped:.+)$",
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "image_id",
+        "bbox",
+        "source"
+      ],
+      "title": "IgnoreRegion",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "ManifestAnnotation": {
+      "additionalProperties": false,
+      "properties": {
+        "image_id": {
+          "title": "Image Id",
+          "type": "string"
+        },
+        "bbox": {
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Bbox",
+          "type": "array"
+        },
+        "category": {
+          "description": "Class gốc của dataset, phải có trong categories",
+          "title": "Category",
+          "type": "string"
+        },
+        "attributes": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "description": "KITTI: truncated (0-1), occluded (0-3)",
+          "title": "Attributes",
+          "type": "object"
+        }
+      },
+      "required": [
+        "image_id",
+        "bbox",
+        "category"
+      ],
+      "title": "ManifestAnnotation",
+      "type": "object"
+    },
+    "ManifestImage": {
+      "additionalProperties": false,
+      "properties": {
+        "image_id": {
+          "minLength": 1,
+          "title": "Image Id",
+          "type": "string"
+        },
+        "file_name": {
+          "minLength": 1,
+          "title": "File Name",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "width": {
+          "exclusiveMinimum": 0,
+          "title": "Width",
+          "type": "integer"
+        },
+        "height": {
+          "exclusiveMinimum": 0,
+          "title": "Height",
+          "type": "integer"
+        },
+        "attributes": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Attributes",
+          "type": "object"
+        }
+      },
+      "required": [
+        "image_id",
+        "file_name",
+        "sha256",
+        "width",
+        "height"
+      ],
+      "title": "ManifestImage",
+      "type": "object"
+    },
+    "ManifestSource": {
+      "additionalProperties": false,
+      "properties": {
+        "format": {
+          "enum": [
+            "kitti",
+            "yolo",
+            "coco"
+          ],
+          "title": "Format",
+          "type": "string"
+        },
+        "split": {
+          "minLength": 1,
+          "title": "Split",
+          "type": "string"
+        },
+        "converter": {
+          "$ref": "#/$defs/ConverterInfo"
+        }
+      },
+      "required": [
+        "format",
+        "split",
+        "converter"
+      ],
+      "title": "ManifestSource",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Manifest dataset nội bộ. Dataset version = sha256_of(manifest).",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "images": {
+      "items": {
+        "$ref": "#/$defs/ManifestImage"
+      },
+      "minItems": 1,
+      "title": "Images",
+      "type": "array"
+    },
+    "annotations": {
+      "items": {
+        "$ref": "#/$defs/ManifestAnnotation"
+      },
+      "title": "Annotations",
+      "type": "array"
+    },
+    "ignore_regions": {
+      "items": {
+        "$ref": "#/$defs/IgnoreRegion"
+      },
+      "title": "Ignore Regions",
+      "type": "array"
+    },
+    "categories": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Categories",
+      "type": "array"
+    },
+    "source": {
+      "$ref": "#/$defs/ManifestSource"
+    }
+  },
+  "required": [
+    "images",
+    "annotations",
+    "ignore_regions",
+    "categories",
+    "source"
+  ],
+  "title": "DatasetManifest",
+  "type": "object"
+}

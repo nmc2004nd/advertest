@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from advertest_contracts.models import (
     AttackConfig,
     AttackSpec,
+    DatasetManifest,
     ErrorResponse,
     ExperimentConfig,
     HealthResponse,
@@ -26,4 +27,5 @@ SCHEMAS: dict[str, type[BaseModel]] = {
     "protocol_body": ProtocolBody,
     "error_response": ErrorResponse,
     "health_response": HealthResponse,
+    "dataset_manifest": DatasetManifest,
 }

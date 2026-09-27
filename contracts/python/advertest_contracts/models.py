@@ -379,6 +379,97 @@ class SearchResult(_Model):
         return self
 
 
+# ---------------------------------------------------------------- DatasetManifest (đề xuất 002)
+
+BBox = tuple[float, float, float, float]  # xyxy, pixel của ảnh gốc
+
+
+def _check_bbox(bbox: BBox) -> BBox:
+    x1, y1, x2, y2 = bbox
+    if not (0 <= x1 <= x2 and 0 <= y1 <= y2):
+        raise ValueError("bbox phải là xyxy với 0 <= x1 <= x2 và 0 <= y1 <= y2")
+    return bbox
+
+
+PixelBBox = Annotated[BBox, AfterValidator(_check_bbox)]
+
+
+class ManifestImage(_Model):
+    image_id: str = Field(min_length=1)
+    file_name: str = Field(min_length=1)
+    sha256: Sha256Hex
+    width: PositiveInt
+    height: PositiveInt
+    attributes: dict[str, JsonValue] = Field(default_factory=dict)
+
+
+class ManifestAnnotation(_Model):
+    image_id: str
+    bbox: PixelBBox
+    category: str = Field(description="Class gốc của dataset, phải có trong categories")
+    attributes: dict[str, JsonValue] = Field(
+        default_factory=dict, description="KITTI: truncated (0-1), occluded (0-3)"
+    )
+
+
+class IgnoreRegion(_Model):
+    image_id: str
+    bbox: PixelBBox
+    source: str = Field(pattern=r"^(dont_care|unmapped:.+)$")
+
+
+class ConverterInfo(_Model):
+    name: str = Field(min_length=1)
+    version: str = Field(min_length=1)
+
+
+class ManifestSource(_Model):
+    format: Literal["kitti", "yolo", "coco"]
+    split: str = Field(min_length=1)
+    converter: ConverterInfo
+
+
+class DatasetManifest(_Model):
+    """Manifest dataset nội bộ. Dataset version = sha256_of(manifest)."""
+
+    schema_version: Literal[1] = 1
+    images: list[ManifestImage] = Field(min_length=1)
+    annotations: list[ManifestAnnotation]
+    ignore_regions: list[IgnoreRegion]
+    categories: list[str] = Field(min_length=1)
+    source: ManifestSource
+
+    @model_validator(mode="after")
+    def _check_consistency(self) -> DatasetManifest:
+        ids = [img.image_id for img in self.images]
+        if len(set(ids)) != len(ids):
+            raise ValueError("image_id phải duy nhất")
+        # Thứ tự cố định để hash không phụ thuộc thứ tự đọc file của converter.
+        if ids != sorted(ids):
+            raise ValueError("images phải sắp theo image_id")
+        if len(set(self.categories)) != len(self.categories):
+            raise ValueError("categories không được trùng")
+        size = {img.image_id: (img.width, img.height) for img in self.images}
+        categories = set(self.categories)
+        for kind, items in (
+            ("annotations", self.annotations),
+            ("ignore_regions", self.ignore_regions),
+        ):
+            order = [item.image_id for item in items]
+            if order != sorted(order):
+                raise ValueError(f"{kind} phải sắp theo image_id")
+            for item in items:
+                if item.image_id not in size:
+                    raise ValueError(f"{kind}: image_id {item.image_id} không có trong images")
+                width, height = size[item.image_id]
+                if item.bbox[2] > width or item.bbox[3] > height:
+                    raise ValueError(f"{kind}: bbox vượt khung ảnh {item.image_id}")
+        for ann in self.annotations:
+            if ann.category not in categories:
+                raise ValueError(f"category {ann.category} không có trong categories")
+        return self
+
+
 # ---------------------------------------------------------------- API chung
 
 

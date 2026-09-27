@@ -110,6 +110,13 @@ export interface components {
          * @enum {string}
          */
         ComputeKind: "local" | "rented";
+        /** ConverterInfo */
+        ConverterInfo: {
+            /** Name */
+            name: string;
+            /** Version */
+            version: string;
+        };
         /** Cost */
         Cost: {
             /** Amount */
@@ -130,6 +137,27 @@ export interface components {
              * @default false
              */
             cpu_only: boolean;
+        };
+        /**
+         * DatasetManifest
+         * @description Manifest dataset nội bộ. Dataset version = sha256_of(manifest).
+         */
+        DatasetManifest: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /** Images */
+            images: components["schemas"]["ManifestImage"][];
+            /** Annotations */
+            annotations: components["schemas"]["ManifestAnnotation"][];
+            /** Ignore Regions */
+            ignore_regions: components["schemas"]["IgnoreRegion"][];
+            /** Categories */
+            categories: string[];
+            source: components["schemas"]["ManifestSource"];
         };
         /** DependencyStatus */
         DependencyStatus: {
@@ -283,6 +311,20 @@ export interface components {
             postgres: components["schemas"]["DependencyStatus"];
             minio: components["schemas"]["DependencyStatus"];
         };
+        /** IgnoreRegion */
+        IgnoreRegion: {
+            /** Image Id */
+            image_id: string;
+            /** Bbox */
+            bbox: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /** Source */
+            source: string;
+        };
         JsonValue: unknown;
         /** LibVersions */
         LibVersions: {
@@ -336,6 +378,58 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /** ManifestAnnotation */
+        ManifestAnnotation: {
+            /** Image Id */
+            image_id: string;
+            /** Bbox */
+            bbox: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /**
+             * Category
+             * @description Class gốc của dataset, phải có trong categories
+             */
+            category: string;
+            /**
+             * Attributes
+             * @description KITTI: truncated (0-1), occluded (0-3)
+             */
+            attributes?: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+        };
+        /** ManifestImage */
+        ManifestImage: {
+            /** Image Id */
+            image_id: string;
+            /** File Name */
+            file_name: string;
+            /** Sha256 */
+            sha256: string;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+            /** Attributes */
+            attributes?: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+        };
+        /** ManifestSource */
+        ManifestSource: {
+            /**
+             * Format
+             * @enum {string}
+             */
+            format: "kitti" | "yolo" | "coco";
+            /** Split */
+            split: string;
+            converter: components["schemas"]["ConverterInfo"];
         };
         /** MapPair */
         MapPair: {
@@ -650,8 +744,10 @@ export type BillingMode = components['schemas']['BillingMode'];
 export type CaseSeverity = components['schemas']['CaseSeverity'];
 export type ClassRunMetrics = components['schemas']['ClassRunMetrics'];
 export type ComputeKind = components['schemas']['ComputeKind'];
+export type ConverterInfo = components['schemas']['ConverterInfo'];
 export type Cost = components['schemas']['Cost'];
 export type CostModel = components['schemas']['CostModel'];
+export type DatasetManifest = components['schemas']['DatasetManifest'];
 export type DependencyStatus = components['schemas']['DependencyStatus'];
 export type Environment = components['schemas']['Environment'];
 export type ErrorBody = components['schemas']['ErrorBody'];
@@ -662,11 +758,15 @@ export type ExperimentStatus = components['schemas']['ExperimentStatus'];
 export type FingerprintInputs = components['schemas']['FingerprintInputs'];
 export type GridConfig = components['schemas']['GridConfig'];
 export type HealthResponse = components['schemas']['HealthResponse'];
+export type IgnoreRegion = components['schemas']['IgnoreRegion'];
 export type JsonValue = components['schemas']['JsonValue'];
 export type LibVersions = components['schemas']['LibVersions'];
 export type Limit = components['schemas']['Limit'];
 export type LimitKind = components['schemas']['LimitKind'];
 export type Manifest = components['schemas']['Manifest'];
+export type ManifestAnnotation = components['schemas']['ManifestAnnotation'];
+export type ManifestImage = components['schemas']['ManifestImage'];
+export type ManifestSource = components['schemas']['ManifestSource'];
 export type MapPair = components['schemas']['MapPair'];
 export type PassCriterion = components['schemas']['PassCriterion'];
 export type PrimaryParam = components['schemas']['PrimaryParam'];
@@ -706,6 +806,7 @@ export const errorCodeValues: ReadonlyArray<FlattenedDeepRequired<components>["s
 export const experimentStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ExperimentStatus"]> = ["draft", "queued", "running", "completed", "submitted_for_review", "in_review", "approved", "changes_requested", "rejected", "cancelled"];
 export const healthResponseStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["HealthResponse"]["status"]> = ["ok", "degraded"];
 export const limitKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["LimitKind"]> = ["budget", "time"];
+export const manifestSourceFormatValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ManifestSource"]["format"]> = ["kitti", "yolo", "coco"];
 export const primaryParamTypeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["PrimaryParam"]["type"]> = ["continuous", "discrete"];
 export const reviewDecisionValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ReviewDecision"]> = ["approve", "changes_requested", "reject"];
 export const roleValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["Role"]> = ["engineer", "reviewer", "admin"];

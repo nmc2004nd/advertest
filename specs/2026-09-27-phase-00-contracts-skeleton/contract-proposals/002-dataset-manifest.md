@@ -1,7 +1,7 @@
 # Đề xuất contract 002: DatasetManifest
 
 - Người đề xuất: agent ml-core, Phase 00, Group 6
-- Trạng thái: chờ duyệt
+- Trạng thái: đã duyệt, đã áp dụng (người dùng giao agent thay người duyệt áp dụng)
 
 ## Vấn đề
 

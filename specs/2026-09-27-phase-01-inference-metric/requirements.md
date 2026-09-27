@@ -71,7 +71,7 @@ Thêm schema mới `CleanEvalResult` vào `contracts/`, và thêm `ModelCard` đ
 | `categories` | Danh sách class gốc của dataset |
 | `source` | `format` (`kitti`), `split`, thông tin converter |
 
-Hash của dataset version là sha256 của manifest đã chuẩn hóa (`canonical_json`).
+Hash của dataset version là sha256 của manifest đã chuẩn hóa (`canonical_json`). Schema: `DatasetManifest` trong `advertest_contracts.models` (đề xuất contract 002): `images` sắp theo `image_id`, `annotations` và `ignore_regions` sắp theo `image_id`. Manifest do converter tạo chỉ chứa ignore region `dont_care`; `unmapped:<class>` và `difficulty:<class>` sinh ra khi áp mapping.
 
 ### Class mapping mặc định KITTI → COCO
 
