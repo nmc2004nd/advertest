@@ -200,7 +200,7 @@ Mọi trạng thái bất thường (`failed`, `skipped`, `stopped_limit`, `canc
 - Postgres không mở cổng ra máy chủ; các cổng khác chỉ gắn vào `127.0.0.1`.
 - Frontend gọi API cùng origin qua proxy `/api` của Vite (`VITE_API_BASE_URL=/api`); bản triển khai dùng reverse proxy tương tự.
 - Máy thuê chạy riêng container `worker`, kết nối qua Tailscale, cấu hình bằng token của compute target.
-- CI (GitHub Actions): lint, type check, unit test, test nghiệm thu chạy trên CPU.
+- CI (GitHub Actions, `.github/workflows/ci.yml`), chạy trên CPU, gồm 4 job: `python` (ruff, mypy, pytest trừ test `db`), `frontend` (ESLint, Prettier, tsc, Vitest, `verify:build`), `contracts` (`make contracts-check`, validate mock và seed), `acceptance` (Postgres service container, chạy script init role từ runner, test `db` và test nghiệm thu). Cache uv, pnpm và `tests/fixtures/`.
 
 ## 7. Kiểm thử
 
