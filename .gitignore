@@ -25,3 +25,4 @@ data/
 tests/fixtures/*
 !tests/fixtures/.gitkeep
 !tests/fixtures/checksums.json
+!tests/fixtures/LICENSE.md

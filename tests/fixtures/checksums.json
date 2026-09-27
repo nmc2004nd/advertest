@@ -5,6 +5,31 @@
       "path": "yolov8n.pt",
       "url": "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n.pt",
       "sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36"
+    },
+    {
+      "path": "kitti/image_2/000902.png",
+      "url": "https://github.com/nmc2004nd/advertest/releases/download/fixtures-v1/kitti_image_2_000902.png",
+      "sha256": "aecbb79e0ba7de1689165d748ee5af48451b5eb935f1a84ba56583d87d3ab706"
+    },
+    {
+      "path": "kitti/image_2/002571.png",
+      "url": "https://github.com/nmc2004nd/advertest/releases/download/fixtures-v1/kitti_image_2_002571.png",
+      "sha256": "126607efd54093aa98f920ddf61665d196e6b0f03f550c8db1ba5c2c7602a2b7"
+    },
+    {
+      "path": "kitti/image_2/004499.png",
+      "url": "https://github.com/nmc2004nd/advertest/releases/download/fixtures-v1/kitti_image_2_004499.png",
+      "sha256": "fe512bd4fb2acc2816a0de7cfd86e0d9afeffdf20e1bbbc0825ef37afcd2dcb2"
+    },
+    {
+      "path": "kitti/image_2/004965.png",
+      "url": "https://github.com/nmc2004nd/advertest/releases/download/fixtures-v1/kitti_image_2_004965.png",
+      "sha256": "fdf6ab8760165487a68e9beafd0cb7d8b094d4afe75a89db94e0b80bbb191197"
+    },
+    {
+      "path": "kitti/image_2/005866.png",
+      "url": "https://github.com/nmc2004nd/advertest/releases/download/fixtures-v1/kitti_image_2_005866.png",
+      "sha256": "d1a92b07aec3e810dfec38beecc283f32724d7b9c26b59e3edd1a0ae95dbc28e"
     }
   ]
 }
