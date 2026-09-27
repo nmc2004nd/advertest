@@ -30,6 +30,31 @@
       "path": "kitti/image_2/005866.png",
       "url": "https://github.com/nmc2004nd/advertest/releases/download/fixtures-v1/kitti_image_2_005866.png",
       "sha256": "d1a92b07aec3e810dfec38beecc283f32724d7b9c26b59e3edd1a0ae95dbc28e"
+    },
+    {
+      "path": "kitti/label_2/000902.txt",
+      "url": "https://github.com/nmc2004nd/advertest/releases/download/fixtures-v1/kitti_label_2_000902.txt",
+      "sha256": "30d91a75e19a7535d67db271a574063f7fe23cb4aebb0a83718e6dded744154b"
+    },
+    {
+      "path": "kitti/label_2/002571.txt",
+      "url": "https://github.com/nmc2004nd/advertest/releases/download/fixtures-v1/kitti_label_2_002571.txt",
+      "sha256": "8371ec7f93c9b45e07642f9362cb191d2f4eadf30b34e2a0fd3c635482540e52"
+    },
+    {
+      "path": "kitti/label_2/004499.txt",
+      "url": "https://github.com/nmc2004nd/advertest/releases/download/fixtures-v1/kitti_label_2_004499.txt",
+      "sha256": "30ff8d089a13097e257ba5b4e3298905918fdf8376ac125a9259aefa51ac1e17"
+    },
+    {
+      "path": "kitti/label_2/004965.txt",
+      "url": "https://github.com/nmc2004nd/advertest/releases/download/fixtures-v1/kitti_label_2_004965.txt",
+      "sha256": "5f749e1afc1ca80506bc3e7032aaa47e4ff714939f00c1771a84b56e186ea898"
+    },
+    {
+      "path": "kitti/label_2/005866.txt",
+      "url": "https://github.com/nmc2004nd/advertest/releases/download/fixtures-v1/kitti_label_2_005866.txt",
+      "sha256": "bbaa0fa3e3f9c0cef259a73d66c9ab9bc774c9743046ce507b79e18a92168832"
     }
   ]
 }
