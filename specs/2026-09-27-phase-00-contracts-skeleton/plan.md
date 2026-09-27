@@ -15,11 +15,11 @@
 
 7. Viết enum trong `contracts/python/advertest_contracts/enums.py` đúng bảng trong `requirements.md`.
 8. Viết các model Pydantic: `AttackSpec`, `AttackConfig`, `ExperimentConfig`, `RunResult`, `Manifest`, `SearchResult`, `ProtocolBody`.
-9. Viết hàm tiện ích dùng chung: `canonical_json()` và `sha256_of()` (key sắp xếp, không khoảng trắng thừa, float cố định cách biểu diễn), `compute_fingerprint(fingerprint_inputs)`.
+9. Viết hàm tiện ích dùng chung: `canonical_json()` theo RFC 8785 (JCS) và `sha256_of()`, `compute_fingerprint(fingerprint_inputs)`.
 10. Viết interface `Perturbation` (Protocol) trong `contracts/python/advertest_contracts/perturbation.py` đúng `tech-stack.md` mục 3.1.
 11. Script `scripts/gen_contracts.py`: xuất JSON Schema vào `contracts/schemas/`, sinh TypeScript type vào `frontend/src/contracts/`.
 12. Viết mock trong `contracts/mocks/`: ít nhất một mẫu cho mỗi schema, và cho `RunResult` có đủ một mẫu mỗi `RunStatus`, cho `SearchResult` có đủ một mẫu mỗi `SearchStatus`.
-13. Viết seed catalog ban đầu trong `contracts/seeds/attack_specs.json`: `fgsm`, `pgd_linf`, `pgd_l2`, `adv_patch`, `fog`, `snow`, `frost`, `motion_blur`, `contrast`, `bbox_occlusion`.
+13. Viết seed catalog ban đầu trong `contracts/seeds/attack_specs.json`: `fgsm`, `pgd_linf`, `pgd_l2` (giá trị theo Phase 2). `adv_patch`, corruption và occlusion được thêm ở Phase 6 cùng `access = not_applicable`.
 
 ## Group 3 — Database `[agent: backend]`
 

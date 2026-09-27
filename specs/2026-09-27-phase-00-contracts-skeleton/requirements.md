@@ -99,7 +99,7 @@ Mỗi schema có trường `schema_version` (bắt đầu từ `1`). Mô tả d�
 | `attack_spec_id` | uuid | ✓ | |
 | `level` | number | ✓ | Giá trị tham số chính |
 | `status` | `RunStatus` | ✓ | |
-| `status_reason` | object | nếu trạng thái bất thường | `code` (`StopReason`/`SkipReason`/`error`), `message` |
+| `status_reason` | object | nếu trạng thái bất thường | `code` (`StopReason` với `stopped_limit`, `SkipReason` với `skipped`, `error` với `failed`, `cancelled` với `cancelled`), `message` |
 | `progress` | object | ✓ | `images_done`, `images_total` |
 | `metrics` | object | nếu có dữ liệu | `clean` và `attacked` (mỗi cái gồm `map50`, `map50_95`), `relative_drop`, `absolute_drop`, `attack_success_rate`, `per_class` (tùy chọn) |
 | `gpu_seconds` | number | ✓ | |

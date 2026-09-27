@@ -165,6 +165,7 @@ Mọi trạng thái bất thường (`failed`, `skipped`, `stopped_limit`, `canc
 | Biểu đồ | Recharts |
 | Routing | React Router |
 | Zoom ảnh | `react-zoom-pan-pinch` |
+| Sinh type từ contract/OpenAPI | `openapi-typescript` (devDependency) |
 
 ### 5.1. Quy ước frontend
 
