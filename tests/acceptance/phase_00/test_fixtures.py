@@ -1,7 +1,4 @@
-"""Nghiệm thu Phase 0, mục Fixture (validation.md).
-
-Test manifest.json viết khi có label gốc KITTI (Group 6, task 31).
-"""
+"""Nghiệm thu Phase 0, mục Fixture (validation.md)."""
 
 from __future__ import annotations
 
@@ -12,9 +9,11 @@ import cv2
 import numpy as np
 import numpy.typing as npt
 import torch
+from PIL import Image
 from ultralytics import YOLO
 from ultralytics.data.augment import LetterBox
 
+from advertest_contracts.models import DatasetManifest
 from ml_core.fixtures import FIXTURES_DIR, load_checksums, sha256_file
 
 INPUT_SIZE = 640
@@ -76,3 +75,47 @@ def test_smoke_yolov8n_cpu_on_fixture_images() -> None:
         assert np.all(boxes >= 0) and np.all(boxes <= INPUT_SIZE)
         assert np.all(boxes[:, 2] >= boxes[:, 0]) and np.all(boxes[:, 3] >= boxes[:, 1])
         assert np.all((scores >= 0) & (scores <= 1))
+
+
+def test_manifest_validates_and_matches_images_and_original_labels() -> None:
+    manifest = DatasetManifest.model_validate_json((FIXTURES_DIR / "manifest.json").read_text())
+    assert manifest.source.format == "kitti"
+    assert len(manifest.images) == 5
+    expected_anns: list[tuple[str, str, tuple[float, ...], float, int]] = []
+    expected_ignores: list[tuple[str, tuple[float, ...]]] = []
+    for image in manifest.images:
+        path = FIXTURES_DIR / image.file_name
+        assert sha256_file(path) == image.sha256, image.image_id
+        assert Image.open(path).size == (image.width, image.height)
+        # Đọc lại label gốc KITTI độc lập với cách manifest được tạo.
+        label = FIXTURES_DIR / "kitti" / "label_2" / f"{image.image_id}.txt"
+        for line in label.read_text().splitlines():
+            f = line.split()
+            bbox = tuple(float(v) for v in f[4:8])
+            if f[0] == "DontCare":
+                expected_ignores.append((image.image_id, bbox))
+            else:
+                expected_anns.append((image.image_id, f[0], bbox, float(f[1]), int(f[2])))
+    actual_anns = [
+        (a.image_id, a.category, a.bbox, a.attributes["truncated"], a.attributes["occluded"])
+        for a in manifest.annotations
+    ]
+    assert actual_anns == expected_anns
+    assert [(r.image_id, r.bbox) for r in manifest.ignore_regions] == expected_ignores
+    assert all(r.source == "dont_care" for r in manifest.ignore_regions)
+
+
+def test_fixture_covers_required_kitti_cases() -> None:
+    """requirements.md Phase 0: đủ lớp yêu cầu, có DontCare và object dưới mức Moderate."""
+    manifest = DatasetManifest.model_validate_json((FIXTURES_DIR / "manifest.json").read_text())
+    categories = {a.category for a in manifest.annotations}
+    assert {"Car", "Van", "Truck", "Pedestrian", "Cyclist"} <= categories
+    assert manifest.ignore_regions, "Cần ít nhất một vùng DontCare"
+
+    def below_moderate(a: Any) -> bool:
+        height = a.bbox[3] - a.bbox[1]
+        return bool(
+            height < 25 or a.attributes["occluded"] >= 2 or a.attributes["truncated"] > 0.30
+        )
+
+    assert any(below_moderate(a) for a in manifest.annotations)

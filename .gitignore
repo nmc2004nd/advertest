@@ -26,3 +26,4 @@ tests/fixtures/*
 !tests/fixtures/.gitkeep
 !tests/fixtures/checksums.json
 !tests/fixtures/LICENSE.md
+!tests/fixtures/manifest.json
