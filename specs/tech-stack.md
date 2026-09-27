@@ -230,8 +230,32 @@ advertest/
 
 ## 10. Khoảng trống cần quyết định
 
-- [ ] Pin phiên bản cụ thể của PyTorch, ART, Ultralytics, torchmetrics (Phase 0).
+- [x] Pin phiên bản cụ thể của PyTorch, ART, Ultralytics, torchmetrics (Phase 0). Xem mục 11.
 - [ ] Chọn YOLOv8 hay YOLOv11 sau khi thử wrapper.
 - [ ] Nhà cung cấp GPU thuê.
 - [ ] Dịch vụ SMTP.
 - [ ] Nơi triển khai API, Postgres, MinIO.
+
+## 11. Phiên bản đã pin (Phase 0)
+
+Nguồn sự thật là `pyproject.toml` + `uv.lock` (Python) và `frontend/package.json` + `frontend/pnpm-lock.yaml` (frontend). Bảng dưới chỉ ghi các thư viện chính; đổi phiên bản phải cập nhật cả lockfile lẫn bảng này.
+
+| Thư viện | Phiên bản |
+|---|---|
+| Python | 3.11 |
+| torch / torchvision | 2.14.0 / 0.29.0 |
+| adversarial-robustness-toolbox | 1.20.1 |
+| ultralytics | 8.4.163 |
+| torchmetrics | 1.9.0 |
+| numpy | 2.4.6 |
+| fastapi | 0.141.1 |
+| pydantic | 2.13.5 |
+| sqlalchemy | 2.1.1 |
+| alembic | 1.20.0 |
+| ruff / mypy / pytest | 0.16.9 / 2.3.1 / 9.1.1 |
+
+Biến thể torch chọn bằng extra của uv, cùng một `uv.lock`:
+- `cpu` (index `download.pytorch.org/whl/cpu`): máy phát triển và CI. `make` dùng mặc định (`TORCH=cpu`).
+- `cuda` (index `download.pytorch.org/whl/cu126`): image Docker cho `api` và `worker`. CUDA 12.6 được chọn vì tương thích với nhiều phiên bản driver nhất trong các bản torch 2.14 phát hành (cu126, cu130, cu132).
+
+Frontend: Vite 8, React 19, TypeScript 6 (strict), Tailwind CSS 4, shadcn/ui (style `radix-nova`, icon Lucide), TanStack Query 5, React Router 8, ESLint 10, Prettier 3. Phiên bản chính xác nằm trong `frontend/pnpm-lock.yaml`.
