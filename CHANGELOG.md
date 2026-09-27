@@ -6,7 +6,7 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 0 — Contract và khung dự án
 
-**Trạng thái:** đang làm. Group 1, 2, 3, 4, 5, 7, 8 đã merge; Group 9 đang chờ review; Group 6 xong một phần; Group 10 chưa làm.
+**Trạng thái:** đang làm. Group 1, 2, 3, 4, 5, 7, 8, 9 đã merge; Group 6 xong một phần; Group 10 chưa làm.
 
 Ghi chú chung: các group của người duyệt (1, 2, 8, 9) do agent soạn thay theo cho phép của người dùng; mọi nhánh được review trước khi merge, nhưng review do chính agent đã viết code thực hiện nên không phải review độc lập.
 
