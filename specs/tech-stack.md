@@ -1,0 +1,237 @@
+# Tech Stack: AdverTest
+
+> File này ghi những gì dự án dùng, **cách dùng**, và những gì không dùng. Feature spec chỉ mô tả phần mở rộng, không lặp lại nội dung ở đây. Phiên bản cụ thể của từng thư viện được pin trong Phase 0 và ghi lại vào file này.
+
+## 1. Kiến trúc tổng thể
+
+```text
+                ┌────────────┐      ┌──────────────┐      ┌───────────┐
+                │  Frontend  │ ───▶ │ Backend API  │ ───▶ │ Postgres  │
+                │ (React)    │      │ (FastAPI)    │      │           │
+                └────────────┘      └──────┬───────┘      └───────────┘
+                                           │ đọc artifact
+                                           ▼
+   ┌──────────────┐  lấy job (token)  ┌──────────┐  lấy job (token)  ┌────────────────┐
+   │ Worker local │ ────────────────▶ │   API    │ ◀──────────────── │ Worker máy thuê│
+   └──────┬───────┘                   └──────────┘                   └───────┬────────┘
+          │ upload (presigned URL)    ┌──────────┐                           │
+          └─────────────────────────▶ │  MinIO   │ ◀─────────────────────────┘
+                                      └──────────┘
+```
+
+Quy tắc kiến trúc:
+- Frontend chỉ gọi Backend API.
+- Worker **không** kết nối trực tiếp vào Postgres. Worker gọi API nội bộ bằng token riêng của compute target.
+- Artifact (ảnh failure case, thumbnail, patch, report) lưu trong MinIO. Worker upload bằng presigned URL do API cấp.
+- Một experiment chỉ chạy trên một compute target. Máy offline thì job chờ, không tự chuyển máy.
+- Máy thuê kết nối về API qua Tailscale. Postgres và MinIO không mở ra internet.
+
+## 2. ML core
+
+| Thành phần | Lựa chọn | Ghi chú |
+|---|---|---|
+| Ngôn ngữ | Python 3.11 | Dùng chung cho ML core, attack, backend, worker |
+| Deep learning | PyTorch | |
+| Model chính | Ultralytics YOLOv8/v11 | Cần wrapper tự viết cho ART (xem 2.1) |
+| Model dự phòng | torchvision Faster R-CNN + `PyTorchFasterRCNN` của ART | Dùng nếu wrapper YOLO không cho gradient đúng sau khoảng 2 ngày |
+| Metric | `torchmetrics` `MeanAveragePrecision` | |
+| Dataset mặc định | KITTI 2D object | Tập đánh giá cố định khoảng 300 ảnh |
+
+### 2.1. Quy ước dữ liệu (bắt buộc)
+
+- Ảnh đưa vào model và attack: `numpy.float32`, **channels_first** (N, C, H, W), giá trị trong **[0, 1]**, letterbox về **640×640**.
+- Toàn bộ pipeline tính toán trong không gian ảnh đã letterbox. Chỉ chuyển ngược về tọa độ ảnh gốc khi hiển thị.
+- Box: định dạng **xyxy**, tọa độ pixel tuyệt đối trong không gian đã letterbox.
+- Label của detector (theo ART): list các dict `{"boxes", "labels", "scores"}`.
+- Định dạng dataset nội bộ: manifest JSON kiểu COCO. Mọi định dạng khác (YOLO, COCO, KITTI) phải đi qua converter.
+- Dataset version = sha256 của manifest (manifest chứa hash từng ảnh và annotation). Sửa bất kỳ thứ gì là tạo version mới.
+- Slice lưu **danh sách image ID cụ thể** kèm seed, không chỉ lưu điều kiện lọc.
+- Map class dataset → class model là bước bắt buộc khi import. Class không map được bị loại khỏi metric và phải ghi trong report.
+
+### 2.2. Wrapper model
+
+- Wrapper phải có hai chế độ: tính loss (để ART lấy gradient) và predict (trả box sau NMS).
+- Model trong registry có cờ `supports_gradients`, chỉ bật sau khi bài kiểm tra gradient tự động pass.
+
+### 2.3. Định nghĩa metric
+
+- **Metric chính:** mAP@0.5. Metric phụ: mAP@0.5:0.95.
+- **Mức sụt tương đối** (mặc định cho ngưỡng): `(mAP_sạch − mAP_tấn_công) / mAP_sạch`.
+- **Tỷ lệ tấn công thành công:** trong số object được detect đúng trên ảnh sạch (IoU ≥ 0.5, đúng class), tỷ lệ bị mất hoặc sai class sau tấn công.
+- Khoảng tin cậy: bootstrap trên prediction đã lưu, không tốn thêm GPU.
+- Prediction trên ảnh sạch được cache theo (model version, slice).
+
+## 3. Attack
+
+| Thành phần | Lựa chọn |
+|---|---|
+| Thư viện attack | Adversarial Robustness Toolbox (ART) |
+| White-box | `FastGradientMethod` (FGSM), `ProjectedGradientDescent` (L∞, L2), `AdversarialPatchPyTorch` hoặc `RobustDPatch` |
+| Corruption | `imagecorruptions`; dùng `albumentations` nếu gặp lỗi tương thích |
+| Occlusion | Tự viết, che theo tỷ lệ diện tích bounding box |
+
+### 3.1. Interface chung (bắt buộc)
+
+Mọi phép biến đổi, dù là attack ART hay corruption, đều cài đặt cùng một interface:
+
+```python
+class Perturbation(Protocol):
+    spec: AttackSpec                      # định nghĩa trong contracts/
+    def apply(self, images: np.ndarray,   # (N, C, H, W), float32, [0, 1]
+              targets: list[dict],
+              level: float,               # giá trị tham số chính đang quét
+              seed: int) -> np.ndarray: ...
+```
+
+Tầng sweep, metric, backend và frontend không được phụ thuộc vào việc bên dưới là ART hay thư viện khác.
+
+### 3.2. Quy ước attack
+
+- Mỗi attack có **một tham số chính** để quét. Các tham số còn lại cố định trong spec.
+- PGD: bước nhảy **tỷ lệ theo eps** (mặc định eps/4), 10 bước.
+- Patch attack được train một lần, lưu vào MinIO, tái sử dụng. Không train patch theo từng job.
+- Mặc định tấn công **untargeted** (làm object biến mất).
+- Attack spec có trường `access: white_box | black_box` (hiện chỉ dùng `white_box`).
+- Attack white-box trên model không có `supports_gradients` → run bị `skipped` kèm lý do.
+
+### 3.3. Tự tìm ngưỡng
+
+- Thuật toán: quét thô vài điểm để khoanh vùng → chia đôi đến độ chính xác yêu cầu → xác nhận hai đầu khoảng trên toàn slice.
+- Giai đoạn tìm kiếm chạy trên tập con cố định của slice (khoảng 100 ảnh).
+- Số điểm tối đa được tính trước để hiển thị chi phí tối đa.
+- Trạng thái kết quả: `found`, `not_reached`, `below_min`, `stopped_limit`, `non_monotonic`.
+
+## 4. Backend và worker
+
+| Thành phần | Lựa chọn | Lý do |
+|---|---|---|
+| Web framework | FastAPI | Cùng ngôn ngữ với ML core, có sẵn OpenAPI |
+| Validation | Pydantic v2 | Dùng chung schema với contract |
+| Database | PostgreSQL | Nhiều người dùng, ghi đồng thời, phân quyền ở cấp DB cho audit log |
+| ORM / migration | SQLAlchemy 2 + Alembic | Migration có version, review được |
+| Object storage | MinIO (API tương thích S3) | Worker ở nhiều máy cùng ghi được |
+| Mật khẩu | argon2 | |
+| Phiên đăng nhập | JWT trong cookie httpOnly | |
+| Report PDF | WeasyPrint (render HTML → PDF ở server) | |
+| Email | SMTP | Thông báo run xong, chờ duyệt, ngân sách |
+| Hàng đợi | Bảng job trong Postgres, worker lấy qua API | Không dùng Celery/Redis: quy mô nhỏ, ít hạ tầng |
+
+### 4.1. Quy ước backend
+
+- Mọi endpoint khai báo quyền bằng dependency `require_role(...)`. Luật "không tự review" kiểm tra ở tầng service.
+- Chỉ tài khoản hệ thống của worker được ghi metric và kết quả. API của người dùng không có endpoint ghi metric.
+- User ứng dụng trong Postgres bị thu hồi quyền `UPDATE` và `DELETE` trên bảng `audit_log`.
+- Verdict review có version, không ghi đè.
+- ID dùng UUID. Thời gian lưu UTC.
+- Hash dùng sha256 trên JSON chuẩn hóa (key sắp xếp, không khoảng trắng thừa).
+
+### 4.2. Compute target và giới hạn
+
+- Bảng `compute_targets`: tên, loại (`local` | `rented`), model GPU, VRAM, `billing_mode` (`none` | `hourly`), giá mỗi giờ, token, heartbeat.
+- `billing_mode = hourly`: ledger giữ chỗ khi submit, quyết toán khi xong, trần ngân sách bắt buộc, theo dõi uptime và thời gian chạy không.
+- `billing_mode = none`: không ghi ledger, dùng trần thời gian (mặc định 2 giờ, admin chỉnh được).
+- Cost profile (giây/ảnh, VRAM tối đa) đo bằng calibration **riêng cho từng compute target**. Batch size lấy từ cost profile, không đặt cứng.
+- Worker kiểm tra giới hạn sau mỗi batch; chạm giới hạn thì dừng với `stopped_limit` và `reason` (`budget` | `time`).
+- Worker lưu tiến độ sau mỗi batch và chạy tiếp được sau khi bị gián đoạn.
+
+### 4.3. Trạng thái (enum dùng chung)
+
+| Đối tượng | Giá trị |
+|---|---|
+| User | `pending`, `active`, `rejected`, `disabled` |
+| Run | `queued`, `running`, `completed`, `failed`, `skipped`, `stopped_limit`, `cancelled` |
+| Experiment | `draft`, `queued`, `running`, `completed`, `submitted_for_review`, `in_review`, `approved`, `changes_requested`, `rejected`, `cancelled` |
+| Kết quả tìm ngưỡng | `found`, `not_reached`, `below_min`, `stopped_limit`, `non_monotonic` |
+
+Mọi trạng thái bất thường (`failed`, `skipped`, `stopped_limit`, `cancelled`) phải có trường lý do.
+
+### 4.4. Tái lập
+
+- **Fingerprint của run** = hash của: config chuẩn hóa, hash weights, dataset version, slice ID, attack spec version, tham số, seed, git commit, phiên bản torch/ART/ultralytics, digest Docker image.
+- Fingerprint **không** gồm compute target và model GPU (để dùng lại kết quả giữa các máy). Hai thông tin này ghi trong manifest.
+- Mỗi run có `manifest.json` trong MinIO.
+- Fingerprint trùng với run đã hoàn thành → `skipped` với lý do `cached`.
+- Chỉ lưu ảnh của failure case (kèm thumbnail). Ảnh khác tái tạo được từ manifest và seed.
+
+## 5. Frontend
+
+| Thành phần | Lựa chọn |
+|---|---|
+| Build | Vite |
+| Framework | React + TypeScript (strict) |
+| UI | shadcn/ui + Tailwind CSS |
+| Dữ liệu từ server | TanStack Query (polling 2 giây, tắt khi tab ẩn) |
+| Bảng | TanStack Table |
+| Biểu đồ | Recharts |
+| Routing | React Router |
+| Zoom ảnh | `react-zoom-pan-pinch` |
+
+### 5.1. Quy ước frontend
+
+- Mobile-first. Breakpoint: điện thoại < 768px, tablet 768–1279px, desktop ≥ 1280px.
+- Box vẽ phía client trên canvas từ JSON, scale theo `devicePixelRatio`.
+- Trạng thái luôn hiển thị bằng màu + icon + chữ, dùng một component badge chung.
+- Hành động không đảo ngược (gửi duyệt, approve) có hộp xác nhận kèm tóm tắt.
+- Bản xem trước chưa duyệt có watermark "BẢN NHÁP – CHƯA DUYỆT".
+- Giao diện chỉ ẩn nút theo role cho gọn; không được coi là lớp bảo mật.
+- Vùng chạm tối thiểu 44×44px, font input tối thiểu 16px, xử lý `safe-area-inset`.
+- Ảnh dạng danh sách dùng thumbnail; ảnh gốc chỉ tải khi zoom.
+
+## 6. Hạ tầng
+
+- Docker Compose gồm: `api`, `worker`, `postgres`, `minio`, `frontend`.
+- Một image CUDA dùng chung cho `api` và `worker`.
+- Máy thuê chạy riêng container `worker`, kết nối qua Tailscale, cấu hình bằng token của compute target.
+- CI (GitHub Actions): lint, type check, unit test, test nghiệm thu chạy trên CPU.
+
+## 7. Kiểm thử
+
+| Lớp | Công cụ | Chạy ở đâu |
+|---|---|---|
+| Lint / format | ruff (Python), ESLint + Prettier (TS) | CI |
+| Type check | mypy (Python), `tsc --noEmit` (TS) | CI |
+| Unit test | pytest, Vitest | CI |
+| Test nghiệm thu | pytest trong `tests/acceptance/` | CI |
+| E2E giao diện | Playwright, 3 viewport | CI hoặc local |
+| Smoke test GPU | Script chạy tay | Máy có GPU |
+
+Quy ước:
+- Fixture nhỏ chạy trên CPU: khoảng 5 ảnh + một model rất nhỏ, mỗi test chạy trong vài giây.
+- So metric với golden value **có sai số**, không so bằng tuyệt đối.
+- Mỗi nguyên tắc trong `mission.md` mục 4 có ít nhất một test nghiệm thu.
+
+## 8. Cấu trúc repo và quyền sở hữu
+
+```text
+advertest/
+├── specs/                  # constitution + feature specs (chỉ người duyệt sửa)
+├── contracts/              # schema dùng chung, OpenAPI, enum (chỉ người duyệt sửa)
+├── ml_core/                # agent: ml-core
+├── attacks/                # agent: attack
+├── backend/                # agent: backend (gồm API, service, worker, migration)
+├── frontend/               # agent: frontend
+├── tests/
+│   ├── acceptance/         # test nghiệm thu (agent chỉ đọc)
+│   └── fixtures/           # dữ liệu nhỏ cho test
+├── docker/
+├── CLAUDE.md               # hướng dẫn cho agent
+└── CHANGELOG.md
+```
+
+## 9. Luật dành cho agent code
+
+1. Đọc `mission.md`, `tech-stack.md`, `roadmap.md` và feature spec của phase trước khi code.
+2. Chỉ sửa file trong thư mục được giao. Không sửa `specs/`, `contracts/`, `tests/acceptance/`.
+3. Không mở rộng phạm vi ngoài `requirements.md` của phase.
+4. Gặp yêu cầu mơ hồ hoặc cần đổi contract: **dừng lại và hỏi**, không tự quyết trong code.
+5. Không sửa hoặc nới test để test pass.
+6. Trước khi báo xong: chạy toàn bộ lệnh trong `validation.md` của phase và báo kết quả.
+7. Không thêm dependency ngoài file này khi chưa được duyệt.
+
+## 10. Khoảng trống cần quyết định
+
+- [ ] Pin phiên bản cụ thể của PyTorch, ART, Ultralytics, torchmetrics (Phase 0).
+- [ ] Chọn YOLOv8 hay YOLOv11 sau khi thử wrapper.
+- [ ] Nhà cung cấp GPU thuê.
+- [ ] Dịch vụ SMTP.
+- [ ] Nơi triển khai API, Postgres, MinIO.

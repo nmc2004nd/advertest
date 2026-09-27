@@ -1,0 +1,153 @@
+# Requirements: Phase 6 — Đủ attack catalog, quét lưới và làm mờ ảnh
+
+## Scope
+
+Hoàn thiện bộ phép thử cho MVP, làm cho quét lưới hiệu quả hơn, và đưa tính năng làm mờ ảnh lên trước Phase 8 để report có ảnh failure case. Kết quả của phase gồm:
+
+1. **Corruption:** `fog`, `snow`, `frost`, `motion_blur`, `contrast`, severity 1–5.
+2. **Occlusion:** che theo tỷ lệ diện tích bounding box.
+3. **Patch attack:** train một lần trên slice huấn luyện riêng, lưu lại, tái sử dụng; quét theo kích thước patch.
+4. **Quét lưới thô trước, mịn sau**, và **dừng sớm** khi model đã sụp.
+5. **Xếp hạng attack gây hại nhất** trong một experiment.
+6. **Làm mờ mặt người và biển số** trên mọi ảnh hiển thị (chuyển từ Phase 10 lên).
+7. **Trang admin xem attack catalog** (chỉ đọc).
+
+Cuối phase: một experiment quét toàn bộ catalog trên slice KITTI, ra bảng xếp hạng attack, và failure case hiển thị được với ảnh đã làm mờ.
+
+## Out of Scope
+
+- Tự tìm ngưỡng (Phase 7).
+- Patch bám theo từng object (kiểu sticker dán lên xe). Phase này dùng patch ở vị trí cố định trên ảnh.
+- Tấn công có mục tiêu, black-box.
+- Thêm, sửa, tắt attack spec qua giao diện. Catalog vẫn quản lý bằng file seed và migration.
+- Làm mờ bằng model phát hiện mặt và biển số chuyên dụng (xem Decisions).
+- Upload dataset, converter YOLO/COCO (vẫn ở Phase 10).
+
+## Data / Fields
+
+### Thay đổi constitution và contract (cần người duyệt chấp nhận)
+
+**`roadmap.md`:** chuyển mục "Làm mờ mặt và biển số" từ Phase 10 sang Phase 6; đổi tên Phase 6 thành "Đủ attack catalog, quét lưới và làm mờ ảnh".
+
+**Contract:**
+
+| Thay đổi | Nội dung |
+|---|---|
+| `AttackAccess` | Thêm `not_applicable` cho corruption và occlusion |
+| `AttackSpec` | Thêm `requires_training: bool`, `training` (tham số huấn luyện, null nếu không cần) |
+| `AttackConfig` | Thêm `training_slice_id` (bắt buộc khi spec cần huấn luyện); `grid.early_stop: bool` (mặc định `true`) |
+| `SkipReason` | Thêm `early_stop` |
+| `PatchArtifact` (mới) | `key`, `spec_sha256`, `weights_sha256`, `training_slice_sha256`, `area_ratio`, `seed`, `patch_sha256`, `png_key`, `npy_key`, `training_seconds`, `objective_history` |
+| `Manifest.fingerprint_inputs` | Thêm `patch_key` (null nếu không dùng patch) |
+| `ProgressReport` | Thêm `phase` (`training` / `evaluating`), `iterations_done`, `iterations_total` |
+| `EstimateResponse.runs[]` | Thêm `training_seconds` (null nếu patch đã có sẵn hoặc không cần) |
+| `FailureCaseRecord` | Thêm `anonymization`: `applied`, `method`, `version`, `regions_count` |
+| `ExperimentDetail` | Thêm `attack_ranking` (xem Behaviour) |
+| Interface `Perturbation` | Ghi rõ: mỗi phần tử của `targets` bắt buộc có `image_id` |
+
+### Catalog (thêm vào `contracts/seeds/attack_specs.json`)
+
+| Spec | Loại | Tham số chính | Giá trị | Tham số cố định |
+|---|---|---|---|---|
+| `fog` | corruption | `severity` | 1, 2, 3, 4, 5 | Hàm `fog` của imagecorruptions |
+| `snow` | corruption | `severity` | 1–5 | `snow` |
+| `frost` | corruption | `severity` | 1–5 | `frost` |
+| `motion_blur` | corruption | `severity` | 1–5 | `motion_blur` |
+| `contrast` | corruption | `severity` | 1–5 | `contrast` |
+| `bbox_occlusion` | occlusion | `occlusion_ratio` | 0–0.9 (liên tục) | Hình chữ nhật cùng tỉ lệ với box, màu 114/255 |
+| `adv_patch` | attack | `area_ratio` | 0.02–0.25 (liên tục) | `RobustDPatch` của ART; vị trí: tâm vùng ảnh thật; `max_iter = 200`; `brightness_range = (0.8, 1.2)`; `learning_rate` hiệu chỉnh ở manual check |
+
+Mọi spec corruption và occlusion có `requires_gradients = false`, `access = not_applicable`. `adv_patch` có `requires_gradients = true`, `requires_training = true`.
+
+### Xếp hạng attack (`attack_ranking[]`)
+
+| Field | Ý nghĩa |
+|---|---|
+| `attack_spec_id`, `name`, `kind` | |
+| `auc_drop` | Diện tích dưới đường `relative_drop` theo level đã chuẩn hóa về [0, 1] trong dải của spec |
+| `max_relative_drop` | Mức sụt lớn nhất đo được |
+| `levels_evaluated` | Số level có kết quả |
+| `partial` | Có run `stopped_limit` hoặc `metrics.partial` |
+
+## Behaviour
+
+### Seed theo từng ảnh
+- Mọi phép biến đổi có yếu tố ngẫu nhiên (vị trí che, hạt tuyết, mẫu sương giá) dùng seed riêng cho từng ảnh: `seed_i = hash(seed, image_id)`. Kết quả vì vậy không phụ thuộc batch size hay thứ tự ảnh.
+
+### Corruption
+- Áp dụng trong không gian đầu vào của model: cắt vùng ảnh thật (không gồm pad) → chuyển sang uint8 → áp corruption ở severity tương ứng → chuyển về float [0, 1] → đặt lại vào ảnh letterbox. Vùng pad không đổi.
+- Mọi hàm corruption phải chạy được với kích thước vùng ảnh thật của KITTI (khoảng 640×193). Nếu phiên bản imagecorruptions đã pin lỗi với numpy/scikit-image hiện tại, dùng bản thay thế tương đương của albumentations hoặc bản vá nội bộ, và ghi vào `tech-stack.md`.
+
+### Occlusion
+- Với mỗi object ground truth đã map: đặt một hình chữ nhật cùng tỉ lệ với box, diện tích bằng `occlusion_ratio` × diện tích box, vị trí ngẫu nhiên (theo seed ảnh) nằm hoàn toàn trong box, tô màu 114/255.
+- Điểm ảnh ngoài các box và trong ignore region không đổi. `occlusion_ratio = 0` cho ảnh không đổi.
+- Đây là phép thử chịu tải (stress test) mô phỏng vật che khuất, không phải năng lực của kẻ tấn công; report phải ghi rõ.
+
+### Patch attack
+- **Huấn luyện:** trên `training_slice_id`, slice này **không được giao** với slice đánh giá (kiểm tra khi tạo experiment). Kích thước patch vuông, diện tích = `area_ratio` × diện tích vùng ảnh thật. Patch nằm hoàn toàn trong vùng ảnh thật.
+- **Khóa patch** = hash của (`spec_sha256`, `weights_sha256`, `training_slice_sha256`, `area_ratio`, `seed`). Mỗi khóa chỉ train một lần; lần sau dùng lại từ MinIO.
+- Worker train patch khi chưa có, trước khi đánh giá run đó. Thời gian train tính vào giới hạn của experiment. Lưu checkpoint patch mỗi 50 vòng lặp; bị gián đoạn thì train tiếp từ checkpoint.
+- **Đánh giá:** dán patch vào vị trí cố định trên mọi ảnh của slice đánh giá, rồi chạy pipeline metric như các attack khác.
+- `PatchArtifact` lưu patch (PNG và mảng numpy), lịch sử giá trị mục tiêu theo vòng lặp.
+
+### Quét lưới: thứ tự và dừng sớm
+- **Thứ tự:** với mỗi attack, các level xếp tăng dần; lượt một chạy các level ở vị trí chẵn (0, 2, 4, ...), lượt hai chạy các level còn lại. Nhờ vậy khi bị dừng do giới hạn, experiment vẫn có kết quả trải trên toàn dải.
+- **Dừng sớm** (khi `grid.early_stop = true`): khi một level cho `map50_tấn_công ≤ 0.05 × map50_sạch`, mọi level **lớn hơn** của cùng attack chưa chạy được đánh dấu `skipped` với `status_reason.code = early_stop`, không chạy.
+- Dừng sớm chỉ áp dụng trong cùng một attack.
+
+### Xếp hạng attack
+- `auc_drop` tính bằng quy tắc hình thang trên các điểm (level chuẩn hóa, `relative_drop`), thêm điểm (0, 0) ở đầu.
+- Level bị `early_stop` được tính với `relative_drop` bằng giá trị của level đã kích hoạt dừng sớm.
+- Attack có ít hơn 2 level có kết quả: `auc_drop = null`, xếp cuối, ghi chú "không đủ dữ liệu".
+- Xếp giảm dần theo `auc_drop`. Hàm tính nằm trong `ml_core/metrics/ranking.py`, backend dùng lại để Phase 8 (report) cho cùng kết quả.
+
+### Làm mờ ảnh
+- Áp dụng khi **tạo ảnh hiển thị** (ảnh sạch, ảnh sau biến đổi, thumbnail) cho failure case, trên mọi dataset có `anonymized = false`.
+- Vùng làm mờ (phương pháp `rule_v1`), lấy từ hợp của ground truth, prediction trên ảnh sạch và prediction sau biến đổi (score ≥ 0.25):
+  - `person`: 1/3 phía trên của box (vùng đầu);
+  - `car`, `truck`: dải 40% phía dưới của box (vùng biển số);
+  - toàn bộ ignore region (vùng `DontCare` thường chứa người và xe ở xa).
+- Làm mờ bằng Gaussian đủ mạnh để không nhận ra chi tiết (bán kính tỉ lệ với kích thước vùng, tối thiểu 8 px) rồi pixelate.
+- **Không lưu bản chưa làm mờ** của ảnh hiển thị. Metric vẫn tính trên ảnh gốc chưa làm mờ.
+- `FailureCaseRecord.anonymization.applied = true` với mọi case mới.
+- Quy tắc hiển thị ở Phase 5 cập nhật: case có `anonymization.applied = true` → `display_mode = normal` dù dataset chưa ẩn danh. Case cũ chưa làm mờ vẫn `hidden_unanonymized` (trừ khi bật cờ dev).
+
+### Ước lượng
+- `training_seconds` của patch = `max_iter` × `sec_per_iteration` (từ cost profile của patch), null nếu patch đã có sẵn.
+- Calibration cho `adv_patch` đo thêm `sec_per_iteration` (chạy 5 vòng lặp huấn luyện).
+- Corruption và occlusion dùng `sec_per_image` của inference (chi phí biến đổi chạy trên CPU được tính gộp).
+
+### Frontend
+- **Wizard bước 4** chia ba nhóm: "Tấn công" (FGSM, PGD, Patch), "Biến đổi điều kiện" (các corruption), "Che khuất". Corruption chọn severity bằng chip 1–5. Patch yêu cầu chọn slice huấn luyện (lọc bỏ slice giao với slice đánh giá) và hiển thị thời gian train nếu cần.
+- Nút preset "Toàn bộ catalog" chọn mọi attack với level mặc định.
+- Công tắc "Dừng sớm khi model đã sụp" (bật mặc định) kèm giải thích một dòng.
+- **Tab Kết quả** thêm:
+  - bảng xếp hạng attack (tên, loại, `auc_drop`, mức sụt lớn nhất, số level, cờ partial);
+  - biểu đồ cột `auc_drop` theo attack;
+  - tùy chọn trục hoành chuẩn hóa (% dải cho phép) để so sánh các attack khác đơn vị.
+- Bảng run hiển thị lý do `early_stop` rõ ràng ("Bỏ qua: model đã sụp ở level thấp hơn").
+- Tiến độ run patch hiển thị giai đoạn "Đang train patch (x/200)" rồi "Đang đánh giá".
+- **Trình xem case:** nhãn ảnh thứ ba theo loại (Nhiễu khuếch đại / Vùng khác biệt / Vị trí patch); hiển thị dải "Đã làm mờ mặt và biển số" khi `anonymization.applied`.
+- **Trang `/admin/attacks`** (permission `attack_catalog.manage`): danh sách spec với loại, access, tham số chính và dải, tham số cố định, version, hash (rút gọn, có nút copy), trạng thái; thẻ trên điện thoại.
+
+## Decisions
+
+- **Làm mờ được chuyển lên Phase 6.** *Lý do:* report ở Phase 8 cần ảnh failure case; nếu làm mờ ở Phase 10 thì report sẽ thiếu ảnh hoặc vi phạm `mission.md` nguyên tắc 9.
+- **Làm mờ theo quy tắc từ box, không dùng model phát hiện mặt/biển số.** *Lý do:* không thêm model và giấy phép mới; quy tắc thiên về làm mờ thừa hơn thiếu, phù hợp nguyên tắc riêng tư. Có thể nâng cấp lên model chuyên dụng sau (`method` và `version` đã có trong contract).
+- **Không lưu ảnh hiển thị chưa làm mờ.** *Lý do:* thứ không lưu thì không thể lộ; ảnh gốc vẫn tái tạo được từ dataset, manifest và seed khi thật sự cần.
+- **Corruption áp trong không gian đầu vào của model, trên vùng ảnh thật.** *Lý do:* thống nhất với attack (eps cũng tính trong không gian này) và không làm nhòe vùng pad vào ảnh. Report ghi rõ điều này.
+- **Seed theo từng ảnh.** *Lý do:* giữ tính không phụ thuộc batch size đã đặt ra ở Phase 2 cho cả các phép biến đổi ngẫu nhiên.
+- **Patch cố định vị trí, train trên slice riêng.** *Lý do:* train và đánh giá trên cùng ảnh sẽ thổi phồng hiệu quả của patch. Vị trí cố định là cách làm chuẩn của DPatch và đơn giản; patch bám object để sau.
+- **Dừng sớm chỉ bỏ các level lớn hơn trong cùng attack.** *Lý do:* giả định cường độ tăng thì mức sụt không giảm chỉ hợp lý trong cùng một attack.
+- **Xếp hạng dùng diện tích dưới đường cong trên dải chuẩn hóa.** *Lý do:* so sánh được các attack khác đơn vị (eps, severity, tỉ lệ che); một con số duy nhất dễ đọc hơn so từng điểm.
+
+## Context
+
+- `mission.md` nguyên tắc 4 (tái lập), 5 (chi phí), 9 (riêng tư); mục 5 (phạm vi: thời tiết, che khuất, patch).
+- `tech-stack.md` mục 3 (attack, quy ước), 3.2 (patch train một lần).
+- Phase 2: adapter ART, mask, metric, failure case. Phase 3: executor, checkpoint, cost profile, ước lượng. Phase 5: wizard, tab Kết quả, `CaseViewer`, quy tắc `display_mode`.
+
+## Open Questions
+
+- [ ] `learning_rate` và `max_iter` của patch: hiệu chỉnh sau khi đo trên laptop (thời gian train có chấp nhận được không).
+- [ ] Quy tắc `rule_v1` có đủ che mặt và biển số trên KITTI không (trả lời ở manual check).

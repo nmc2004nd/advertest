@@ -1,0 +1,146 @@
+# Requirements: Phase 2 — Attack white-box đầu tiên
+
+## Scope
+
+Chạy được tấn công white-box FGSM và PGD từ đầu đến cuối trên CLI, đo mức suy giảm, chọn failure case, và ghi đủ thông tin để tái lập. Kết quả của phase gồm:
+
+1. **Adapter ART → `Perturbation`**: bọc attack của ART theo interface chung, có mask giới hạn vùng nhiễu.
+2. **Ba attack**: `fgsm`, `pgd_linf`, `pgd_l2` theo catalog đã seed ở Phase 0.
+3. **Metric sau tấn công**: mAP sau tấn công, mức sụt tương đối và tuyệt đối, tỷ lệ tấn công thành công.
+4. **Chọn failure case** và lưu artifact để review sau này.
+5. **Fingerprint và manifest** cho mỗi run.
+6. **CLI** `advertest run` chạy quét lưới cho một hoặc nhiều attack, xuất `RunResult` đúng contract.
+
+Cuối phase: mAP trước và sau PGD ở nhiều mức eps trên slice KITTI, và chạy lại cho kết quả khớp trong sai số.
+
+## Out of Scope
+
+- Patch attack, corruption, occlusion (Phase 6).
+- Tự tìm ngưỡng (Phase 7).
+- Worker, API, Postgres, MinIO (Phase 3). Phase này dùng `LocalStore`.
+- Giới hạn thời gian, dừng sớm khi mAP gần 0 (Phase 3 và 6).
+- Thumbnail cho failure case (Phase 3).
+- PGD có random init (xem Decisions).
+- Tấn công có mục tiêu (targeted).
+- Lượng tử hóa ảnh về 8-bit trước khi đánh giá.
+
+## Data / Fields
+
+### Thay đổi contract (cần người duyệt chấp nhận)
+
+1. **Interface `Perturbation`** thêm tham số `mask`:
+
+   ```python
+   def apply(self, images: np.ndarray, targets: list[dict], level: float,
+             seed: int, mask: np.ndarray | None = None) -> np.ndarray: ...
+   ```
+
+   `mask` có shape `(N, 1, H, W)`, giá trị 1 ở vùng ảnh thật, 0 ở vùng pad của letterbox. Cập nhật `tech-stack.md` mục 3.1 tương ứng.
+
+2. **`Manifest.fingerprint_inputs`** thêm `git_dirty: bool`. Không thay đổi cách tính fingerprint ngoài việc trường này nằm trong input.
+
+3. **Schema mới `FailureCaseRecord`**:
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `id` | uuid | ✓ | uuid5 từ `fingerprint` + `image_id` |
+| `run_id` | uuid | ✓ | |
+| `image_id` | string | ✓ | |
+| `lost_objects` | int | ✓ | Số object bị mất sau tấn công |
+| `new_false_positives` | int | ✓ | Số detection sai mới xuất hiện |
+| `severity_score` | number | ✓ | Dùng để sắp xếp (xem Behaviour) |
+| `detections` | object | ✓ | `ground_truth`, `clean`, `attacked`, `ignore_regions`, mỗi cái là list box có class và score, trong không gian letterbox |
+| `artifacts` | object | ✓ | Khóa lưu trữ của `clean_png`, `adversarial_png`, `perturbation_png` |
+
+### Catalog attack (giá trị trong `contracts/seeds/attack_specs.json`)
+
+| Spec | `art_class` | Tham số chính | Dải | Tham số cố định |
+|---|---|---|---|---|
+| `fgsm` | `FastGradientMethod` | `eps` (đơn vị 1/255) | 0–32 | `norm = inf` |
+| `pgd_linf` | `ProjectedGradientDescent` | `eps` (đơn vị 1/255) | 0–32 | `norm = inf`, `max_iter = 10`, `eps_step_ratio = 0.25`, `num_random_init = 0` |
+| `pgd_l2` | `ProjectedGradientDescent` | `eps` (chuẩn L2, ảnh [0,1]) | 0–16 | `norm = 2`, `max_iter = 10`, `eps_step_ratio = 0.25`, `num_random_init = 0` |
+
+Nếu giá trị đã seed ở Phase 0 khác bảng này, người duyệt sửa seed và tăng `version` của spec.
+
+### Cấu hình chạy local (không thuộc contract)
+
+CLI đọc file YAML theo schema `LocalRunConfig` trong `ml_core/runner/`:
+
+| Field | Notes |
+|---|---|
+| `model_id`, `slice_id`, `mapping_id` | Từ Phase 1 |
+| `attacks` | List `AttackConfig` (contract), Phase 2 chỉ hỗ trợ `mode = grid` |
+| `device`, `batch_size` | |
+| `failure_cases_per_run` | Mặc định 20 |
+
+`experiment_id` của run chạy qua CLI = uuid5 của sha256 cấu hình. `ExperimentConfig` đầy đủ (có protocol, compute target, giới hạn) chỉ dùng từ Phase 3.
+
+## Behaviour
+
+### Chạy attack
+- Mỗi cặp (attack, level) là một run.
+- Ảnh đầu vào là batch letterbox từ loader của Phase 1; nhãn đưa vào attack là **ground truth đã map class** (không gồm ignore region).
+- Đổi đơn vị: `eps = level / 255` với L∞; `eps = level` với L2. `eps_step = eps × eps_step_ratio`.
+- Nhiễu **chỉ nằm trong vùng ảnh thật**: truyền `mask` vào attack của ART; điểm ảnh ở vùng pad không đổi.
+- Ảnh sau tấn công nằm trong [0, 1] (theo `clip_values` của estimator).
+- `level = 0` cho ảnh sau tấn công trùng ảnh gốc.
+- Nếu spec yêu cầu gradient mà `ModelCard.supports_gradients = false` → run có trạng thái `skipped`, `status_reason.code = incompatible`, không chạy.
+
+### Metric
+- mAP sau tấn công tính bằng đúng pipeline của Phase 1 (cùng `inference_params`, lọc class, lọc ignore region). mAP sạch lấy từ cache của Phase 1.
+- `absolute_drop = map50_sạch − map50_tấn_công`.
+- `relative_drop = absolute_drop / map50_sạch`; nếu `map50_sạch = 0` thì trả `null`.
+- **Tỷ lệ tấn công thành công:**
+  1. Tập C = các object ground truth được detect đúng trên ảnh sạch: có prediction với score ≥ `operating_conf` (0.25), cùng class, IoU ≥ 0.5, ghép một-một theo thứ tự score giảm dần.
+  2. Một object trong C bị tính là **mất** nếu sau tấn công không còn prediction nào thỏa cùng điều kiện.
+  3. `attack_success_rate = số object mất / |C|`; nếu `|C| = 0` thì trả `null`.
+- `new_false_positives` của một ảnh = số prediction sau tấn công (score ≥ `operating_conf`) không ghép được với ground truth nào và không nằm trong ignore region, trừ đi số tương ứng trên ảnh sạch (tối thiểu 0).
+
+### Failure case
+- `severity_score = lost_objects + 0.5 × new_false_positives`.
+- Mỗi run giữ `failure_cases_per_run` ảnh có `severity_score` cao nhất (lớn hơn 0), cùng điểm thì ưu tiên `image_id` nhỏ hơn để kết quả xác định.
+- Lưu cho mỗi case: ảnh sạch và ảnh sau tấn công dạng PNG (letterbox), ảnh nhiễu khuếch đại dạng PNG (`0.5 + δ / (2·eps)` với L∞, cắt về [0, 1]), và `FailureCaseRecord`.
+- Metric luôn tính trên ảnh float, không tính lại từ PNG.
+
+### Fingerprint và manifest
+- `fingerprint_inputs` đúng như contract, trong đó `config_sha256` là hash của cấu hình **riêng run đó**: `spec_sha256`, `level`, `fixed_params`, `inference_params`, cấu hình letterbox, `class_mapping_sha256`.
+- `git_commit` lấy từ repo; nếu working tree có thay đổi chưa commit thì `git_dirty = true` và CLI in cảnh báo.
+- `docker_image_digest` là `"none"` khi chạy ngoài Docker.
+- `environment` ghi thiết bị, GPU, CUDA, driver; `compute_target_id` là `"local-cli"`.
+- Manifest lưu tại `runs/<fingerprint>/manifest.json`; `RunResult` tại `runs/<fingerprint>/result.json`; failure case tại `runs/<fingerprint>/cases/`.
+
+### Cache theo fingerprint
+- Trước khi chạy, CLI kiểm tra `runs/<fingerprint>/result.json`. Nếu đã có kết quả `completed`: không chạy lại, xuất `RunResult` mới với `status = skipped`, `status_reason.code = cached`, trỏ tới manifest cũ.
+- Cờ `--force` bỏ qua cache và chạy lại, ghi vào thư mục `runs/<fingerprint>/reruns/<run_id>/` (không ghi đè kết quả cũ).
+
+### CLI
+- `advertest run --config <yaml> [--force]`: chạy tuần tự mọi run, in tiến độ theo batch, cuối cùng in bảng tóm tắt (attack, level, mAP sạch, mAP sau tấn công, relative drop, ASR, trạng thái).
+- `advertest run show <fingerprint>`: in `RunResult` và đường dẫn artifact.
+- `gpu_seconds` = thời gian thực của phần tấn công và inference trên thiết bị; `cost = null`.
+- Một run lỗi (ngoại lệ) có `status = failed` kèm thông điệp lỗi; các run khác vẫn tiếp tục.
+
+### Tái lập
+- Sai số tái lập: `map50` ±0.005, `attack_success_rate` ±0.01.
+- Kết quả không phụ thuộc batch size (trong sai số trên).
+
+## Decisions
+
+- **PGD không dùng random init trong MVP (`num_random_init = 0`).** *Lý do:* random init của ART lấy số ngẫu nhiên theo cả batch, nên kết quả sẽ phụ thuộc batch size, mà batch size lại khác nhau giữa các máy. Điều đó phá vỡ việc dùng lại kết quả giữa các máy theo fingerprint. Biến thể có random init sẽ là một spec riêng sau này.
+- **Nhãn cho attack là ground truth, không phải prediction của model.** *Lý do:* đo khả năng làm model sai so với sự thật. Dùng prediction thì object vốn đã bị model bỏ sót sẽ không bị tấn công.
+- **Nhiễu chỉ trong vùng ảnh thật.** *Lý do:* với KITTI, vùng pad chiếm khoảng 70% ảnh letterbox. Cho phép nhiễu ở đó vừa phi thực tế (camera không chụp vùng pad) vừa làm attack mạnh giả tạo.
+- **Nhiễu áp dụng trong không gian đầu vào của model (sau letterbox).** *Lý do:* đây là mô hình tấn công số chuẩn. Report sau này phải ghi rõ eps tính trên ảnh đã thu nhỏ, không phải ảnh gốc.
+- **Metric tính trên ảnh float, PNG chỉ để hiển thị.** *Lý do:* lượng tử hóa về 8-bit làm mất nhiễu ở eps nhỏ; mô phỏng lưu ảnh thật là một tùy chọn có thể thêm sau.
+- **Chạy lại với `--force` không ghi đè kết quả cũ.** *Lý do:* nguyên tắc 3 trong `mission.md`: kết quả không bị xóa hay thay thế.
+- **`attacks/` không phụ thuộc `ml_core/`.** Adapter nhận estimator ART qua factory `build_perturbation(spec, estimator)`. *Lý do:* giữ ranh giới thư mục giữa các agent và cho phép thay model mà không sửa attack.
+
+## Context
+
+- `mission.md` nguyên tắc 3, 4 (bất biến, tái lập) và 6 (trạng thái rõ ràng).
+- `tech-stack.md` mục 2.3 (định nghĩa metric), 3 (attack), 4.3 (enum), 4.4 (fingerprint).
+- Phase 0: contract, `canonical_json`, `compute_fingerprint`, seed catalog, fixture.
+- Phase 1: loader, letterbox, estimator ART, `ModelCard`, pipeline metric, cache prediction sạch, `LocalStore`.
+
+## Open Questions
+
+- [ ] Dải `eps` của `pgd_l2` (0–16) cần hiệu chỉnh sau khi có kết quả thật trên KITTI.
+- [ ] Số failure case mỗi run (mặc định 20) có đủ cho reviewer không.

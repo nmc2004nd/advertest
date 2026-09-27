@@ -1,0 +1,226 @@
+# Roadmap: AdverTest
+
+> Roadmap trả lời "làm gì tiếp theo" ở cấp dự án. Mỗi phase là một lát cắt dọc: cuối phase luôn có thứ demo được. Chi tiết cách làm nằm trong feature spec `specs/YYYY-MM-DD-<phase>/` (requirements, plan, validation), được viết khi bắt đầu phase.
+
+## Cách dùng
+
+- Làm các phase theo thứ tự phụ thuộc. Các phase ghi "song song với" có thể giao cho các agent khác nhau cùng lúc.
+- Bên trong một phase, mỗi task group trong `plan.md` ghi rõ agent sở hữu: `ml-core`, `attack`, `backend`, `frontend`.
+- Đánh dấu `[x]` cho từng đầu việc khi hoàn thành, và đánh dấu phase xong khi đạt definition of done chung bên dưới.
+
+## Definition of done chung (áp dụng cho mọi phase)
+
+- [ ] Toàn bộ lệnh trong `validation.md` của phase pass.
+- [ ] Test nghiệm thu các phase trước vẫn pass.
+- [ ] Lint và type check sạch.
+- [ ] Spec đã cập nhật nếu cách làm thay đổi so với kế hoạch.
+- [ ] `CHANGELOG.md` đã cập nhật.
+- [ ] Đã được review (agent review + người duyệt) và merge.
+- [ ] Phase được đánh dấu hoàn thành trong file này.
+
+## Tổng quan
+
+| Phase | Kết quả demo được | Agent | Phụ thuộc | Song song với |
+|---|---|---|---|---|
+| 0 | Contract và khung dự án | Người duyệt (chính) | — | — |
+| 1 | CLI đo mAP trên slice KITTI | ml-core | 0 | — |
+| 2 | FGSM/PGD trên CLI, có manifest | ml-core, attack | 1 | 4 |
+| 3 | Job chạy qua API trên máy local | backend, attack | 2 | 4 |
+| 4 | Yêu cầu truy cập, duyệt, RBAC | backend, frontend | 0 | 2, 3 |
+| 5 | Wizard tạo experiment, theo dõi tiến độ | frontend, backend | 3, 4 | 6 |
+| 6 | Đủ catalog, quét lưới | attack | 3 | 5 |
+| 7 | Tự tìm ngưỡng | attack, frontend | 5, 6 | 8 |
+| 8 | Protocol, review, report | backend, frontend | 5 | 7 |
+| 9 | Máy thuê và ngân sách | backend | 3, 5 | 10 |
+| 10 | Dataset riêng | ml-core, frontend | 5 | 9 |
+| 11 | Hoàn thiện, responsive, hardening | frontend | 7, 8, 9, 10 | — |
+
+Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tuần 2 gồm phase 3–6, tuần 3 gồm phase 7–9, tuần 4 gồm phase 10–11. Nếu chỉ có 3 tuần, xem mục "Thứ tự cắt giảm".
+
+---
+
+## Phase 0 — Contract và khung dự án
+
+**Mục tiêu:** tạo nền tảng chung để các agent làm song song mà không phải đoán định dạng của nhau. Phase này do người duyệt viết hoặc duyệt từng dòng.
+
+- [ ] Repo theo cấu trúc trong `tech-stack.md` mục 8, kèm `CLAUDE.md`.
+- [ ] Docker Compose chạy được `postgres`, `minio`, `api` rỗng.
+- [ ] Pin phiên bản thư viện, ghi vào `tech-stack.md`.
+- [ ] `contracts/`: enum trạng thái, schema `AttackSpec`, `AttackConfig`, `RunResult`, `Manifest`, `SearchResult`.
+- [ ] DB schema đầu tiên (migration Alembic): users, roles, compute_targets, models, datasets, dataset_versions, slices, attack_specs, protocols, experiments, runs, ledger, reviews, reports, audit_log.
+- [ ] OpenAPI khung cho các nhóm endpoint chính và API nội bộ của worker.
+- [ ] Mock data theo từng schema để frontend dùng trước.
+- [ ] Fixture test: khoảng 5 ảnh và một model rất nhỏ chạy trên CPU.
+- [ ] CI chạy lint, type check, test.
+
+**Demo:** `docker compose up` chạy được; CI xanh; mock `RunResult` hợp lệ theo schema.
+
+## Phase 1 — Inference và metric
+
+**Mục tiêu:** đo được mAP của model trên ảnh sạch. Đây là mốc bắt buộc của tuần 1.
+
+- [ ] Wrapper YOLO cho ART, có chế độ loss và predict.
+- [ ] Bài kiểm tra gradient tự động cho wrapper.
+- [ ] Converter KITTI → manifest nội bộ, map class về class của model.
+- [ ] Dataset version bằng hash; tạo slice cố định khoảng 300 ảnh.
+- [ ] Metric mAP@0.5, mAP@0.5:0.95; cache prediction ảnh sạch.
+- [ ] CLI: `advertest eval --model ... --slice ...` xuất JSON.
+
+**Demo:** CLI in ra mAP của YOLO trên slice KITTI.
+
+## Phase 2 — Attack white-box đầu tiên
+
+**Mục tiêu:** chạy FGSM/PGD từ đầu đến cuối, có đủ dữ liệu để tái lập.
+
+- [ ] Interface `Perturbation` và registry attack.
+- [ ] FGSM và PGD (bước nhảy tỷ lệ theo eps).
+- [ ] Tỷ lệ tấn công thành công và mức sụt tương đối.
+- [ ] Fingerprint và `manifest.json` cho mỗi run.
+- [ ] CLI: `advertest run --config ...` xuất `RunResult` đúng schema.
+- [ ] Test: cùng config và seed cho metric nằm trong sai số.
+
+**Demo:** mAP trước và sau PGD ở vài mức eps; chạy lại cho kết quả khớp trong sai số.
+
+## Phase 3 — Worker và máy local
+
+**Mục tiêu:** chạy job qua API thay vì CLI, trên máy local.
+
+- [ ] Bảng `compute_targets`, token cho worker.
+- [ ] API nội bộ: lấy job, báo tiến độ, heartbeat, xin presigned URL.
+- [ ] Worker gọi lại logic CLI của phase 2.
+- [ ] Upload artifact lên MinIO, sinh thumbnail cho failure case.
+- [ ] Đầy đủ trạng thái run, có lý do cho trạng thái bất thường.
+- [ ] Cache theo fingerprint (`skipped` với lý do `cached`).
+- [ ] Trần thời gian cho máy local, dừng với `stopped_limit`.
+- [ ] Lưu tiến độ theo batch, chạy tiếp sau gián đoạn.
+- [ ] Calibration cost profile cho máy local.
+
+**Demo:** gửi job qua API, xem tiến độ; tắt worker giữa chừng, bật lại thì job chạy tiếp.
+
+## Phase 4 — Xác thực và phân quyền
+
+**Mục tiêu:** ba role hoạt động đúng quyền.
+
+- [ ] Yêu cầu truy cập, đăng nhập, đăng xuất (argon2, JWT cookie httpOnly).
+- [ ] Admin duyệt/từ chối tài khoản, gán role.
+- [ ] `require_role` cho mọi endpoint.
+- [ ] Audit log cho các sự kiện tài khoản; thu hồi quyền `UPDATE/DELETE` trên `audit_log`.
+- [ ] Frontend: trang giới thiệu tối giản, yêu cầu truy cập, đăng nhập, chờ duyệt, quản lý người dùng.
+- [ ] Khung điều hướng theo role, mobile-first.
+
+**Demo:** tài khoản mới ở trạng thái chờ; admin duyệt và gán role; mỗi role chỉ thấy đúng trang của mình.
+
+## Phase 5 — Wizard tạo experiment và theo dõi tiến độ
+
+**Mục tiêu:** engineer làm được việc chính trên web.
+
+- [ ] API experiment: tạo, xem, hủy.
+- [ ] Wizard: model → slice → attack và chế độ quét lưới → chọn máy và giới hạn → xác nhận.
+- [ ] Ước lượng thời gian từ cost profile.
+- [ ] Trang chi tiết: tab Tổng quan, Kết quả, Failure case (có watermark), Chi phí, Tái lập.
+- [ ] Biểu đồ đường cong metric.
+- [ ] Email khi experiment xong.
+
+**Demo:** engineer tạo experiment trên web, theo dõi tiến độ trên điện thoại, xem đường cong khi xong.
+
+## Phase 6 — Đủ attack catalog và quét lưới
+
+**Mục tiêu:** bộ attack và biến đổi đầy đủ cho MVP.
+
+- [ ] Patch attack: train một lần, lưu MinIO, quét theo kích thước.
+- [ ] Corruption: fog, snow, frost, motion blur, contrast (severity 1–5).
+- [ ] Occlusion theo tỷ lệ bounding box.
+- [ ] Quét lưới thô trước, mịn sau; dừng sớm khi mAP gần 0.
+- [ ] Trang admin xem attack catalog.
+
+**Demo:** một experiment quét toàn bộ catalog, ra bảng xếp hạng attack gây hại nhất.
+
+## Phase 7 — Tự tìm ngưỡng
+
+**Mục tiêu:** tìm điểm gãy theo ngưỡng suy giảm.
+
+- [ ] Thuật toán quét thô → chia đôi → xác nhận trên toàn slice.
+- [ ] Tính trước số điểm tối đa để ước lượng chi phí tối đa.
+- [ ] Khoảng tin cậy bootstrap.
+- [ ] Các trạng thái kết quả tìm kiếm.
+- [ ] Wizard: chế độ "Tự tìm ngưỡng".
+- [ ] Biểu đồ điểm gãy và so sánh điểm gãy giữa các attack.
+
+**Demo:** chọn ngưỡng sụt 20% cho PGD, hệ thống trả về điểm gãy kèm khoảng tin cậy.
+
+## Phase 8 — Protocol, review và report
+
+**Mục tiêu:** quy trình duyệt độc lập, chống gian lận.
+
+- [ ] Reviewer tạo protocol (có version); experiment bắt buộc gắn protocol.
+- [ ] Khóa experiment khi gửi duyệt.
+- [ ] Hàng đợi review, loại experiment do chính reviewer tạo.
+- [ ] Trang xem failure case: so sánh trước/sau, heatmap nhiễu, bật tắt lớp box, phím tắt, cử chỉ chạm.
+- [ ] Verdict có version; kết luận tổng thể và mitigation.
+- [ ] Kiểm tra điều kiện trước khi approve.
+- [ ] Report PDF/JSON sinh ở server, lưu sha256; trang `/verify/:id`.
+- [ ] Audit log cho toàn bộ vòng đời experiment.
+
+**Demo:** engineer gửi duyệt; reviewer khác review và approve; xuất report; trang xác minh báo khớp.
+
+## Phase 9 — Máy thuê và ngân sách
+
+**Mục tiêu:** chạy trên GPU thuê trong phạm vi kinh phí.
+
+- [ ] `billing_mode = hourly` cho compute target.
+- [ ] Ngân sách dự án, quota người dùng, trần experiment.
+- [ ] Ledger giữ chỗ và quyết toán.
+- [ ] Dừng khi chạm trần (`stopped_limit`, lý do `budget`).
+- [ ] Theo dõi uptime và thời gian chạy không; cảnh báo.
+- [ ] Worker từ xa qua Tailscale.
+- [ ] Trang admin: compute targets, ngân sách và quota.
+
+**Demo:** thuê máy vài giờ, chạy experiment có trần ngân sách thấp, xác nhận dừng đúng và quyết toán đúng.
+
+## Phase 10 — Dataset riêng
+
+**Mục tiêu:** người dùng kiểm thử trên dữ liệu của mình.
+
+- [ ] Converter YOLO và COCO.
+- [ ] Báo cáo kiểm tra khi import.
+- [ ] Giao diện map class.
+- [ ] Tạo slice theo bộ lọc.
+- [ ] Làm mờ mặt và biển số ở tầng hiển thị (với dataset chưa ẩn danh).
+- [ ] (Tùy chọn) Pseudo-label cho dữ liệu không có nhãn, gắn nhãn consistency metric.
+
+**Demo:** upload một dataset YOLO, map class, chạy experiment trên đó.
+
+## Phase 11 — Hoàn thiện
+
+**Mục tiêu:** sẵn sàng demo và bảo vệ.
+
+- [ ] Rà soát responsive trên cả 3 nhóm màn hình; E2E Playwright.
+- [ ] Kiểm thử trên điện thoại Android và iPhone thật.
+- [ ] Trang giới thiệu hoàn chỉnh.
+- [ ] So sánh nhiều experiment.
+- [ ] Rà soát bảo mật: quyền endpoint, token worker, cấu hình Tailscale.
+- [ ] Tài liệu cài đặt và vận hành.
+
+**Demo:** trọn luồng từ yêu cầu truy cập đến report đã xác minh, trên desktop và điện thoại.
+
+---
+
+## Thứ tự cắt giảm khi thiếu thời gian
+
+Cắt theo thứ tự sau:
+1. Pseudo-label cho dữ liệu không nhãn.
+2. So sánh nhiều experiment.
+3. Trang giới thiệu làm đẹp.
+4. Khoảng tin cậy bootstrap và giai đoạn tìm trên tập nhỏ của phase 7 (giữ lõi quét thô → chia đôi).
+5. Trang admin chỉ để dạng bảng CRUD thô.
+
+**Không cắt:** dataset riêng, attack white-box, giới hạn chi phí, trạng thái run, tái lập, tách quyền review.
+
+## Backlog (sau phạm vi hiện tại)
+
+- Tấn công black-box.
+- Segmentation (SAM2) và 3D detection.
+- Tìm kiếm nhiều tham số cùng lúc (ví dụ Optuna).
+- Tự bật/tắt máy thuê qua API nhà cung cấp.
+- PWA và push notification.
+- Adversarial training và các biện pháp phòng thủ.

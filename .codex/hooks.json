@@ -1,0 +1,31 @@
+{
+  "description": "Log Codex prompts and turn completions to .ai-log/session.jsonl.",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/scripts/_pyrun.sh\" \"$(git rev-parse --show-toplevel)/scripts/log_hook.py\" --tool=codex",
+            "commandWindows": "powershell.exe -NoProfile -Command \"$r=(git rev-parse --show-toplevel).Trim(); Set-Location $r; & './scripts/_pyrun.cmd' './scripts/log_hook.py' '--tool=codex'\"",
+            "statusMessage": "Logging Codex prompt",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/scripts/_pyrun.sh\" \"$(git rev-parse --show-toplevel)/scripts/log_hook.py\" --tool=codex",
+            "commandWindows": "powershell.exe -NoProfile -Command \"$r=(git rev-parse --show-toplevel).Trim(); Set-Location $r; & './scripts/_pyrun.cmd' './scripts/log_hook.py' '--tool=codex'\"",
+            "statusMessage": "Logging Codex turn completion",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

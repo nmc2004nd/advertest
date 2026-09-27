@@ -1,0 +1,231 @@
+# Requirements: Phase 8 — Protocol, review và report
+
+## Scope
+
+Hiện thực hóa quy trình kiểm thử độc lập: tiêu chí được chốt trước, người chạy test không tự duyệt, kết quả được khóa khi gửi duyệt, và report chính thức chỉ ra đời sau khi reviewer chấp nhận. Kết quả của phase gồm:
+
+1. **Protocol có version** do reviewer tạo: attack bắt buộc, tiêu chí đạt, số case phải review, các ràng buộc khác.
+2. **Kiểm tra tuân thủ protocol** khi tạo experiment; wizard điền sẵn và khóa phần bắt buộc.
+3. **Gửi duyệt**: điều kiện gửi, giải trình cho run không hoàn thành, khóa experiment.
+4. **Hàng đợi và không gian review**: nhận review, đánh giá tiêu chí tự động, danh sách kiểm tra trước khi duyệt, bình luận.
+5. **Verdict cho failure case** có version, với phím tắt và thao tác chạm.
+6. **Quyết định review**: chấp nhận, yêu cầu sửa, từ chối; kết luận về model.
+7. **Report chính thức** PDF và JSON sinh ở server khi được chấp nhận, có mã hash, và **trang xác minh công khai**.
+8. **Audit log** cho toàn bộ vòng đời.
+
+Cuối phase: engineer gửi duyệt; một reviewer khác review và chấp nhận; report được sinh; trang xác minh báo file khớp.
+
+## Out of Scope
+
+- Chi phí tiền trong report (Phase 9). Report chỉ ghi thời gian xử lý.
+- Thu hồi report đã phát hành.
+- Chữ ký số bằng khóa bí mật (report dùng hash và trang xác minh).
+- Phân công reviewer tự động.
+- Thông báo trong ứng dụng; email cho sự kiện review ngoài các email dưới đây.
+- So sánh nhiều experiment (Phase 11).
+
+## Data / Fields
+
+### Thay đổi contract (cần người duyệt chấp nhận)
+
+**`ProtocolBody`** (thay thế định nghĩa ở Phase 0):
+
+| Field | Type | Notes |
+|---|---|---|
+| `description` | string | Mục đích của protocol |
+| `required_attacks` | list | Mỗi phần tử: `attack_spec_name`, `spec_sha256`, `mode`; với `grid`: `levels` bắt buộc phải có; với `search`: `threshold_kind`, `threshold`, `class_filter`, `lo`, `hi`, `max_tol` |
+| `min_slice_size` | int | |
+| `pass_criteria` | list | Mỗi phần tử: `kind` (`max_drop_at_level` / `min_breaking_point`), `attack_spec_name`, `level`, `threshold_kind`, `threshold`, `class_filter` |
+| `cases_to_review_per_attack` | int | Mặc định 5 |
+| `forbid_dirty_runs` | bool | Mặc định `true` |
+
+Trường `review_severity_threshold` của Phase 0 bị bỏ.
+
+**Enum mới:**
+
+| Enum | Giá trị |
+|---|---|
+| `CaseVerdictKind` | `safety_relevant`, `acceptable`, `annotation_issue` |
+| `ModelVerdict` | `meets_criteria`, `does_not_meet`, `conditional` |
+| `CriterionStatus` | `pass`, `fail`, `inconclusive` |
+| `ReportStatus` | `generating`, `ready`, `failed` |
+
+**Schema mới:**
+
+| Schema | Nội dung chính |
+|---|---|
+| `ComplianceItem` | `code`, `satisfied`, `detail` |
+| `SubmitForReview` | `note`, `run_explanations` (map `run_id` → lời giải trình) |
+| `CaseVerdictInput` | `severity` (`CaseSeverity`), `kind` (`CaseVerdictKind`), `mitigation` |
+| `CaseVerdictView` | Input + `version`, `reviewer`, `created_at` |
+| `CriterionResult` | `index`, `status`, `value`, `detail` |
+| `ChecklistItem` | `code`, `satisfied`, `detail` |
+| `ReviewDecisionInput` | `decision` (`ReviewDecision`), `model_verdict`, `conclusion`, `mitigation`, `inconclusive_justification` |
+| `ReviewComment` | `id`, `author`, `body`, `target_type` (`experiment` / `run` / `failure_case`), `target_id`, `created_at` |
+| `ReportSnapshot` | Toàn bộ nội dung report dạng JSON (xem mục Report) |
+| `ReportView` | `id`, `experiment_id`, `status`, `approved_by`, `approved_at`, `json_sha256`, `pdf_sha256`, URL tải (chỉ khi có quyền) |
+| `VerifyInfo` | `report_id`, `issued_at`, `json_sha256`, `pdf_sha256` |
+
+`EstimateResponse` và `ExperimentDetail` thêm `compliance[]`. `ExperimentDetail` thêm `review` (người nhận review, thời điểm, quyết định, kết luận, `criteria_results`, `checklist`) và `report` (`ReportView`, nếu có).
+
+**Ma trận quyền:** thêm `review.comment` cho engineer và reviewer. Bảng trong test nghiệm thu Phase 4 được cập nhật tương ứng.
+
+### Thay đổi DB
+
+| Bảng | Thay đổi |
+|---|---|
+| `protocols` | `body` theo schema mới; migration cập nhật `dev-open` |
+| `experiments` | Thêm `submission_note`, `submitted_at`, `review_assignee_id`, `claimed_at`, `decided_at` |
+| `run_explanations` | Mới: `run_id`, `author_id`, `text`, `created_at` |
+| `case_verdicts` | Thêm `kind` |
+| `reviews` | Thêm `model_verdict`, `inconclusive_justification`, `criteria_results`, `checklist` |
+| `review_comments` | Mới: `id`, `experiment_id`, `author_id`, `target_type`, `target_id`, `body`, `created_at` |
+| `reports` | Thêm `status`, `snapshot_key`, `json_key`, `pdf_key`, `json_sha256`, `pdf_sha256`; bỏ cột `sha256` đơn |
+
+Ràng buộc DB:
+- `advertest_app` không có quyền `UPDATE`/`DELETE` trên `review_comments`, `run_explanations`.
+- Trigger: không cho thêm `case_verdicts`, `review_comments`, `run_explanations` khi experiment ở trạng thái `approved`, `changes_requested` hoặc `rejected`.
+- Trigger Phase 0 (người review ≠ người tạo) vẫn giữ; thêm tương tự cho `experiments.review_assignee_id`.
+
+## Behaviour
+
+### Protocol
+| Endpoint | Permission | Hành vi |
+|---|---|---|
+| `GET /protocols`, `GET /protocols/{id}` | `protocol.read` | |
+| `POST /protocols` | `protocol.manage` | Tạo protocol `active` version 1 |
+| `POST /protocols/{id}/versions` | `protocol.manage` | Tạo version mới (bản ghi mới, cùng `name`); version cũ giữ nguyên |
+| `POST /protocols/{id}/retire` | `protocol.manage` | `active` → `retired`; experiment đã tạo không bị ảnh hưởng |
+
+- Nội dung một version không bao giờ thay đổi sau khi tạo.
+- Kiểm tra khi tạo: attack spec tồn tại và `spec_sha256` khớp; `pass_criteria` chỉ tham chiếu attack có trong `required_attacks`, `min_breaking_point` chỉ dùng với attack ở chế độ tìm ngưỡng; `patch` không được ở chế độ tìm ngưỡng.
+
+### Tuân thủ protocol khi tạo experiment
+Experiment gắn protocol `active` phải thỏa mọi điều sau, nếu không → `422` kèm `compliance[]`:
+- mỗi attack bắt buộc có mặt với đúng `spec_sha256` và `mode`;
+- quét lưới: chứa mọi level bắt buộc (có thể thêm level khác);
+- tìm ngưỡng: cùng `threshold_kind`, `threshold`, `class_filter`; dải bao phủ `[lo, hi]` của protocol; `tol ≤ max_tol`;
+- slice có ít nhất `min_slice_size` ảnh;
+- model hỗ trợ gradient nếu có attack bắt buộc cần gradient.
+
+Engineer có thể thêm attack ngoài protocol. `compliance[]` cũng được trả trong ước lượng để wizard hiển thị trực tiếp.
+
+### Gửi duyệt (`POST /experiments/{id}/submit`, permission `experiment.submit_review`, chỉ chủ sở hữu)
+Điều kiện, sai thì `409` (hoặc `422` với lỗi dữ liệu nhập):
+- experiment `completed`;
+- protocol không ở trạng thái `dev`;
+- mọi run của attack bắt buộc có trạng thái cuối; run bắt buộc nào không `completed` (và không phải `skipped` do `cached`/`early_stop`) phải có lời giải trình trong `run_explanations`;
+- nếu `forbid_dirty_runs`: không run nào có `git_dirty = true`.
+
+Khi gửi: trạng thái `submitted_for_review`, `submitted_at`; experiment bị **khóa** (mọi endpoint thay đổi experiment trả `409`, trừ bình luận); ghi `audit_log`; email cho mọi reviewer `active` (trừ người tạo).
+
+### Nhận review
+- `POST /reviews/{experiment_id}/claim` (`review.decide`): chỉ khi `submitted_for_review`; người tạo experiment → `403`; chuyển `in_review`, gán người nhận.
+- `POST /reviews/{experiment_id}/release`: chỉ người đang nhận; trở về `submitted_for_review`.
+- Chỉ người đang nhận mới ghi verdict và ra quyết định.
+- `GET /reviews?status=` trả hàng đợi, tự loại experiment do chính người gọi tạo.
+
+### Case bắt buộc review
+- Với mỗi attack bắt buộc: `cases_to_review_per_attack` failure case có `severity_score` cao nhất trên mọi run của attack đó (cùng điểm thì theo `image_id`).
+- Reviewer có thể review thêm case khác.
+
+### Verdict
+- `POST /failure-cases/{id}/verdicts` (`review.decide`, người đang nhận): tạo verdict version mới; version mới nhất là hiện hành; mọi version được giữ.
+- `mitigation` bắt buộc khi `kind = safety_relevant`.
+
+### Đánh giá tiêu chí (tự động, chỉ mang tính tham khảo)
+| `kind` | `pass` | `fail` | `inconclusive` |
+|---|---|---|---|
+| `max_drop_at_level` | Đại lượng tại level ≤ ngưỡng | > ngưỡng | Không có run `completed` ở level đó, hoặc run `partial` |
+| `min_breaking_point` | `found`/`non_monotonic` với điểm gãy ≥ level, hoặc `not_reached` | Điểm gãy < level, hoặc `below_min` | `near_threshold`, `stopped_limit`, `failed`, hoặc khoảng tin cậy của điểm gãy chứa level |
+
+### Danh sách kiểm tra trước khi chấp nhận
+`approve` chỉ thành công khi mọi mục thỏa, nếu không → `409` kèm `checklist`:
+- người gọi là người đang nhận và không phải người tạo;
+- protocol không phải `dev`;
+- mọi case bắt buộc có verdict hiện hành;
+- có `conclusion`, `mitigation`, `model_verdict`;
+- nếu có tiêu chí `inconclusive`: có `inconclusive_justification`.
+
+`changes_requested` và `reject` chỉ bắt buộc `conclusion` (lý do).
+
+### Quyết định (`POST /reviews/{experiment_id}/decision`)
+- `approve` → `approved`; `changes_requested` → `changes_requested`; `reject` → `rejected`. Cả ba là trạng thái cuối; sau đó không thêm verdict, bình luận hay giải trình được nữa.
+- Ghi `reviews` (kèm `criteria_results`, `checklist` tại thời điểm quyết định) và `audit_log`; email cho engineer.
+- Sau `changes_requested`, engineer dùng "Nhân bản" để tạo experiment mới (`cloned_from` trỏ về experiment cũ).
+
+### Bình luận
+- `POST /experiments/{id}/comments` (`review.comment`): khi experiment `submitted_for_review` hoặc `in_review`; gắn với experiment, run hoặc failure case; chỉ thêm, không sửa, không xóa.
+
+### Report
+**Sinh report:** ngay sau `approve`, tác vụ nền trong API:
+1. Dựng `ReportSnapshot` từ DB và MinIO, chuẩn hóa bằng `canonical_json`, tính `json_sha256`.
+2. Render HTML (Jinja2) → PDF (WeasyPrint); biểu đồ vẽ bằng matplotlib thành PNG nhúng vào; ảnh case dùng thumbnail đã làm mờ.
+3. Tính `pdf_sha256`; lưu snapshot, JSON, PDF vào bucket `reports`; `status = ready`.
+4. Lỗi → thử lại tối đa 3 lần, rồi `status = failed`; experiment vẫn `approved`; reviewer có thể bấm sinh lại.
+
+**Nội dung `ReportSnapshot`:**
+1. **Tóm tắt:** model verdict, kết luận, mitigation, người duyệt, thời điểm.
+2. **Phạm vi và lưu ý bắt buộc:** chỉ là môi trường kiểm thử (`mission.md` nguyên tắc 8); eps và corruption tính trong không gian đầu vào của model; occlusion là phép thử chịu tải; patch ở vị trí cố định; phương pháp làm mờ ảnh.
+3. **Cấu hình:** protocol (tên, version, hash), model (tên, hash weights), dataset version, slice (hash, số ảnh), class mapping (hash, class bị loại), attack spec (version, hash), compute target và môi trường.
+4. **Kết quả:** metric sạch; bảng và đường cong quét lưới; xếp hạng AUC; kết quả tìm ngưỡng kèm khoảng tin cậy; kết quả từng tiêu chí.
+5. **Toàn bộ run:** mọi run kể cả `failed`, `skipped`, `stopped_limit`, `cancelled`, kèm lý do và lời giải trình.
+6. **Failure case đã review:** thumbnail đã làm mờ, verdict hiện hành, mitigation.
+7. **Lịch sử:** mọi experiment khác cùng protocol (mọi version), cùng model version và cùng dataset version, tạo trước thời điểm duyệt, kèm trạng thái và người tạo; timeline review (gửi, nhận, số bình luận, quyết định).
+8. **Tái lập:** fingerprint, git commit, cảnh báo `git_dirty`, phiên bản thư viện, Docker image của từng run.
+9. **Tài nguyên:** thời gian xử lý đã dùng so với giới hạn.
+
+Mỗi trang PDF có chân trang: mã report, "BẢN CHÍNH THỨC", hướng dẫn xác minh tại `/verify/{report_id}`.
+
+**Quyền với report:**
+| Endpoint | Permission | Hành vi |
+|---|---|---|
+| `GET /reports`, `GET /reports/{id}` | `report.read` | Xem report trong ứng dụng; URL tải chỉ trả cho người có `report.export` |
+| `GET /reports/{id}/download?format=pdf\|json` | `report.export` | URL tạm thời; ghi `audit_log` (`report.downloaded`) |
+| `POST /reports/{id}/regenerate` | `report.export` | Chỉ khi `failed` |
+| `GET /verify/{report_id}` | Công khai | `VerifyInfo`, không có tên người hay nội dung |
+
+### Audit log
+Ghi các action: `protocol.created`, `protocol.versioned`, `protocol.retired`, `experiment.submitted`, `review.claimed`, `review.released`, `case_verdict.recorded`, `review.comment_added`, `run_explanation.added`, `review.decided`, `report.generated`, `report.generation_failed`, `report.downloaded`.
+
+### Frontend
+
+**Engineer:**
+- Wizard bước 1: danh sách protocol `active` (và `dev-open`). Chọn protocol → attack bắt buộc được thêm và **khóa** (có biểu tượng khóa và chú thích "Theo protocol"); ngưỡng tìm kiếm điền sẵn và khóa; slice nhỏ hơn `min_slice_size` bị ẩn. Bảng tuân thủ (✓/✗) hiển thị trực tiếp ở cột tóm tắt.
+- Chi tiết experiment: nút "Gửi duyệt" khi đủ điều kiện; hộp gửi duyệt gồm ghi chú, ô giải trình cho từng run bắt buộc chưa hoàn thành, danh sách điều kiện. Sau khi gửi: dải "Đã khóa – đang chờ duyệt"; tab mới **Review** (trạng thái, người nhận, bình luận, quyết định). Khi `changes_requested`: nút "Nhân bản để sửa".
+
+**Reviewer:**
+- `/reviews`: hàng đợi (chờ nhận / tôi đang review / đã quyết định), sắp theo thời gian gửi hoặc mức sụt lớn nhất; bảng trên desktop, thẻ trên điện thoại.
+- `/reviews/:id`: nút Nhận / Trả lại; bảng tuân thủ và kết quả tiêu chí; danh sách kiểm tra trước khi chấp nhận (✓/✗ kèm lý do); bảng run kèm giải trình; biểu đồ kết quả (dùng lại Phase 5–7); danh sách case bắt buộc nhóm theo attack kèm tiến độ ("3/5 đã review"); bình luận; khung quyết định (kết luận, mitigation, model verdict, giải trình tiêu chí chưa kết luận) với ba nút. Nút "Chấp nhận" bị khóa cho đến khi danh sách kiểm tra đủ, kèm lý do.
+- `/reviews/:id/cases/:caseId`: `CaseViewer` + form verdict + lịch sử verdict. Phím tắt: `J`/`K` case sau/trước, `1`–`4` mức nghiêm trọng, `S`/`A`/`N` loại verdict, `Ctrl+Enter` lưu, `?` hiện bảng phím tắt. Điện thoại: vuốt chuyển case; form verdict trong bottom sheet với nút lớn.
+- `/protocols`: danh sách; form tạo và tạo version mới (xây dựng danh sách attack bắt buộc, tiêu chí, số case, `forbid_dirty_runs`); nút ngừng dùng.
+- `/reports`, `/reports/:id`: xem report dạng trang web; reviewer có nút tải PDF và JSON.
+- Trang chủ: khối reviewer (số experiment chờ nhận, danh sách tôi đang review).
+
+**Công khai:**
+- `/verify/:id`: hiển thị mã report, ngày phát hành, hai hash. Người dùng chọn file PDF hoặc JSON; hash được tính **trong trình duyệt** (Web Crypto), file không được gửi lên server; hiển thị "Khớp" hoặc "Không khớp".
+
+**Chung:** watermark "BẢN NHÁP – CHƯA DUYỆT" giữ nguyên với mọi trang ngoài report chính thức; report chính thức hiển thị "BẢN CHÍNH THỨC".
+
+## Decisions
+
+- **Chấp nhận review là chấp nhận bài test, không phải tuyên bố model đạt.** Kết luận về model nằm trong `model_verdict`. *Lý do:* reviewer có thể chấp nhận một bài test làm đúng quy trình cho thấy model **không đạt**; hai khái niệm phải tách riêng.
+- **Đánh giá tiêu chí tự động chỉ mang tính tham khảo.** *Lý do:* `mission.md` nguyên tắc 7 (con người quyết định); hệ thống đưa số liệu và cảnh báo, reviewer ký kết luận.
+- **Case bắt buộc review lấy top-N theo attack.** *Lý do:* review toàn bộ hàng trăm case là không khả thi; top-N theo mức nghiêm trọng bao phủ những case quan trọng nhất của mỗi attack.
+- **Report chứa lịch sử các experiment liên quan.** *Lý do:* chống chạy lại nhiều lần rồi chỉ gửi duyệt lần đẹp nhất; reviewer và người đọc report thấy được mọi lần thử.
+- **Cấm run có code chưa commit theo mặc định.** *Lý do:* code chưa commit không thể tái lập và có thể đã bị chỉnh để cho kết quả đẹp.
+- **Report sinh một lần khi chấp nhận, nội dung cố định; tải xuống chỉ lấy file đã lưu.** *Lý do:* mọi bản tải cùng một hash, trang xác minh có ý nghĩa.
+- **Xác minh tính hash trong trình duyệt.** *Lý do:* người xác minh không phải gửi report (có thể chứa thông tin nội bộ) lên server; trang công khai không lộ tên người hay nội dung.
+- **Nhận review trước khi quyết định.** *Lý do:* tránh hai reviewer cùng lúc ghi verdict và ra quyết định mâu thuẫn; trách nhiệm rõ ràng.
+- **Khóa bằng cả service và trigger DB.** *Lý do:* như các luật chống gian lận khác, đặt ở DB thì bug ở tầng ứng dụng cũng không phá được.
+
+## Context
+
+- `mission.md` nguyên tắc 1 (tách quyền), 2 (tiêu chí chốt trước), 3 (bất biến, truy vết), 7 (con người quyết định), 8 (chỉ là kiểm thử), 9 (riêng tư).
+- `tech-stack.md` mục 4 (WeasyPrint, email), 4.1 (quyền), 4.4 (tái lập).
+- Phase 0: trigger người review ≠ người tạo, quyền DB. Phase 3: protocol `dev`. Phase 4: phiên, ma trận quyền. Phase 5: wizard, `CaseViewer`, email outbox. Phase 6: xếp hạng AUC, làm mờ. Phase 7: kết quả tìm ngưỡng, khoảng tin cậy.
+
+## Open Questions
+
+- [ ] `cases_to_review_per_attack` mặc định 5 có phù hợp không.
+- [ ] Có cần thêm matplotlib vào `tech-stack.md` hay vẽ biểu đồ report bằng SVG tự sinh (mặc định: matplotlib, ghi vào `tech-stack.md` ở Group 0).
