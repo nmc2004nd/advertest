@@ -163,7 +163,7 @@ Class mapping là một file JSON riêng, tham chiếu đến dataset version v�
 - `mission.md` nguyên tắc 3 và 4: mọi đầu ra định danh bằng hash và tái lập được.
 - `tech-stack.md` mục 2 (ML core, quy ước dữ liệu, wrapper, metric), mục 8 (thư mục `ml_core/`), mục 9 (luật cho agent).
 - Phase 0: dùng `canonical_json`, `sha256_of` từ `advertest_contracts`; fixture YOLOv8n và 5 ảnh KITTI kèm label gốc (`tests/fixtures/kitti/`).
-- KITTI yêu cầu đăng ký để tải. Dữ liệu gốc đặt tại `data/raw/kitti/`, không commit vào repo.
+- Dữ liệu đặt tại `data/raw/kitti/training/` (không commit): `image_2/` gộp `images/train` và `images/val` của bản KITTI Ultralytics (7.481 ảnh, trùng tên với KITTI training gốc); `label_2/` giải nén từ `data_object_label_2.zip` của KITTI (cần đăng ký). Label YOLO của bản Ultralytics không được dùng.
 - Máy phát triển là laptop GPU VRAM thấp: batch size là tham số, không đặt cứng.
 
 ## Open Questions
