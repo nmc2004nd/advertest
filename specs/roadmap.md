@@ -43,13 +43,13 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 
 **Mục tiêu:** tạo nền tảng chung để các agent làm song song mà không phải đoán định dạng của nhau. Phase này do người duyệt viết hoặc duyệt từng dòng.
 
-- [ ] Repo theo cấu trúc trong `tech-stack.md` mục 8, kèm `CLAUDE.md`.
-- [ ] Docker Compose chạy được `postgres`, `minio`, `api` rỗng.
-- [ ] Pin phiên bản thư viện, ghi vào `tech-stack.md`.
-- [ ] `contracts/`: enum trạng thái, schema `AttackSpec`, `AttackConfig`, `RunResult`, `Manifest`, `SearchResult`.
-- [ ] DB schema đầu tiên (migration Alembic): users, roles, compute_targets, models, datasets, dataset_versions, slices, attack_specs, protocols, experiments, runs, ledger, reviews, reports, audit_log.
-- [ ] OpenAPI khung cho các nhóm endpoint chính và API nội bộ của worker.
-- [ ] Mock data theo từng schema để frontend dùng trước.
+- [x] Repo theo cấu trúc trong `tech-stack.md` mục 8, kèm `CLAUDE.md`.
+- [x] Docker Compose chạy được `postgres`, `minio`, `api` rỗng.
+- [x] Pin phiên bản thư viện, ghi vào `tech-stack.md`.
+- [x] `contracts/`: enum trạng thái, schema `AttackSpec`, `AttackConfig`, `RunResult`, `Manifest`, `SearchResult`.
+- [x] DB schema đầu tiên (migration Alembic): users, roles, compute_targets, models, datasets, dataset_versions, slices, attack_specs, protocols, experiments, runs, ledger, reviews, reports, audit_log.
+- [x] OpenAPI khung cho các nhóm endpoint chính và API nội bộ của worker.
+- [x] Mock data theo từng schema để frontend dùng trước.
 - [ ] Fixture test: khoảng 5 ảnh và một model rất nhỏ chạy trên CPU.
 - [ ] CI chạy lint, type check, test.
 

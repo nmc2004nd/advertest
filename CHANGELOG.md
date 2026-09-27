@@ -6,7 +6,7 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 0 — Contract và khung dự án
 
-**Trạng thái:** đang làm. Group 1, 2, 3, 4, 5, 7, 8, 9 đã merge; Group 6 xong một phần; Group 10 chưa làm.
+**Trạng thái:** đang làm. Group 1, 2, 3, 4, 5, 7, 8, 9 đã merge; Group 10 đang chờ review; Group 6 xong một phần.
 
 Ghi chú chung: các group của người duyệt (1, 2, 8, 9) do agent soạn thay theo cho phép của người dùng; mọi nhánh được review trước khi merge, nhưng review do chính agent đã viết code thực hiện nên không phải review độc lập.
 
@@ -112,6 +112,25 @@ Ghi chú chung: các group của người duyệt (1, 2, 8, 9) do agent soạn t
 #### Thêm
 - `CHANGELOG.md` (file này).
 
+### Phase 0 — Group 10 (người duyệt) — 2026-09-27
+#### Thêm
+- Test nghiệm thu `tests/acceptance/phase_00/`: `test_contracts.py`, `test_database.py` (marker `db`), `test_api.py`, `test_fixtures.py`.
+- `make test-db` dựng thêm MinIO (cùng digest với compose) để test `/health` với Postgres và MinIO thật; job `acceptance` của CI chạy MinIO bằng `docker run` và chạy test nghiệm thu `db`.
+#### Thay đổi
+- `make test-acceptance` chạy `make fixtures` trước và bỏ qua test `db` (test `db` chạy trong `make test-db`).
+#### Quyết định
+- Test manifest.json và smoke test YOLOv8n viết cùng phần còn lại của Group 6; test `/health` dùng MinIO thật (người dùng chốt, 2026-09-27).
+#### Số liệu đo được
+- Test nghiệm thu: 49 test không cần DB pass; 13 test `db` pass (cùng 28 test DB của backend: 41 pass).
+- Thử lỗi giả: cấp thêm `UPDATE` cho bảng chỉ-thêm làm 10 test fail; MinIO sai cổng làm test `/health` fail.
+- Rà `contracts/`: tên trường của 9 schema khớp bảng trong `requirements.md`; `FingerprintInputs` đủ 11 đầu vào.
+#### Manual check đã chạy (trên máy phát triển, 2026-09-27)
+- `make up`: 4 service healthy; MinIO có đủ 4 bucket; MinIO console và `/docs` trả `200`; OpenAPI có đủ các nhóm endpoint; `/dev/contracts` phục vụ được ở chế độ mock.
+#### Tồn đọng
+- Manual check người duyệt tự làm: `/dev/contracts` ở viewport 375px; CI xanh trên GitHub; đọc lại `contracts/` đối chiếu `mission.md` mục 4.
+- Group 6: 5 ảnh KITTI, `manifest.json`, smoke test và hai test nghiệm thu tương ứng.
+- Phase 0 chưa đánh dấu hoàn thành trong `roadmap.md` (còn mục fixture và CI).
+
 ### Số liệu chung của Phase 0 đến thời điểm này
-- `make check`: 176 test Python (trừ test `db`) và 36 test Vitest pass.
-- `make test-db`: 28 test pass trên Postgres 17.
+- `make check`: 176 test Python (trừ test `db`), 49 test nghiệm thu và 36 test Vitest pass.
+- `make test-db`: 41 test pass trên Postgres 17 và MinIO.
