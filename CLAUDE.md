@@ -22,6 +22,8 @@ Dự án phát triển theo spec-driven development. Spec là nguồn sự thậ
 
 `plan.md` của mỗi phase có thể thu hẹp thêm phạm vi; khi đó `plan.md` được ưu tiên.
 
+File trong `scripts/` và file ở gốc repo (`Makefile`, `pyproject.toml`, `.env.example`) chỉ được sửa khi `plan.md` giao task đó hoặc người duyệt cho phép rõ ràng.
+
 ## Không bao giờ
 
 - Sửa `specs/`, `contracts/`, `tests/acceptance/` (trừ khi người dùng giao đúng việc đó và nói rõ).
@@ -53,11 +55,14 @@ Khi cần người dùng quyết định, dùng công cụ **`AskUserQuestion`**
 
 | Lệnh | Dùng khi |
 |---|---|
-| `make check` | Bắt buộc trước khi báo xong (lint, type check, unit test, test nghiệm thu) |
+| `make check` | Bắt buộc trước khi báo xong (lint, type check, kiểm tra contract, unit test, test nghiệm thu) |
+| `make test-db` | Test cần Postgres thật (marker `db`); tự dựng container Postgres tạm |
 | `make test-acceptance` | Chạy riêng test nghiệm thu |
 | `make contracts` | Sinh lại JSON Schema, OpenAPI, TypeScript type từ contract |
-| `make up` / `make down` | Khởi động / dừng môi trường Docker |
-| `make fixtures` | Tải fixture test |
+| `make contracts-check` | Sinh lại và báo lỗi nếu file sinh ra lệch với bản đã commit |
+| `pnpm --dir frontend verify:build` | Build production và kiểm tra không chứa trang dev hay mock |
+| `make up` / `make down` | Khởi động / dừng môi trường Docker; biến lấy từ `ENV_FILE` (mặc định `.env`, mẫu ở `.env.example`) |
+| `make fixtures` | Tải fixture test, kiểm tra sha256 |
 
 ## Git
 
@@ -77,4 +82,4 @@ Khi cần người dùng quyết định, dùng công cụ **`AskUserQuestion`**
 
 ## Quy ước dữ liệu hay bị quên
 
-Ảnh `float32`, `channels_first`, giá trị `[0, 1]`, letterbox 640×640; box `xyxy` pixel trong không gian letterbox; thời gian UTC; ID là UUID (uuid5 từ hash nội dung khi có thể); hash là sha256 trên `canonical_json`.
+Ảnh `float32`, `channels_first`, giá trị `[0, 1]`, letterbox 640×640; box `xyxy` pixel trong không gian letterbox; thời gian UTC; ID là UUID (uuid5 từ hash nội dung khi có thể, qua `advertest_contracts.ids.content_id`); hash là sha256 trên `canonical_json` (RFC 8785); tiền là `Decimal`, trong JSON là chuỗi. Migration mới phải tự `GRANT` quyền cho `advertest_app` trên bảng nó tạo.
