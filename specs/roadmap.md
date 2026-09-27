@@ -22,7 +22,7 @@
 
 | Phase | Kết quả demo được | Agent | Phụ thuộc | Song song với |
 |---|---|---|---|---|
-| 0 | Contract và khung dự án | Người duyệt (chính) | — | — |
+| 0 ✅ | Contract và khung dự án | Người duyệt (chính) | — | — |
 | 1 | CLI đo mAP trên slice KITTI | ml-core | 0 | — |
 | 2 | FGSM/PGD trên CLI, có manifest | ml-core, attack | 1 | 4 |
 | 3 | Job chạy qua API trên máy local | backend, attack | 2 | 4 |
@@ -39,7 +39,7 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 
 ---
 
-## Phase 0 — Contract và khung dự án
+## Phase 0 — Contract và khung dự án ✅ Hoàn thành (2026-09-28)
 
 **Mục tiêu:** tạo nền tảng chung để các agent làm song song mà không phải đoán định dạng của nhau. Phase này do người duyệt viết hoặc duyệt từng dòng.
 
@@ -50,8 +50,8 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 - [x] DB schema đầu tiên (migration Alembic): users, roles, compute_targets, models, datasets, dataset_versions, slices, attack_specs, protocols, experiments, runs, ledger, reviews, reports, audit_log.
 - [x] OpenAPI khung cho các nhóm endpoint chính và API nội bộ của worker.
 - [x] Mock data theo từng schema để frontend dùng trước.
-- [ ] Fixture test: khoảng 5 ảnh và một model rất nhỏ chạy trên CPU.
-- [ ] CI chạy lint, type check, test.
+- [x] Fixture test: khoảng 5 ảnh và một model rất nhỏ chạy trên CPU.
+- [x] CI chạy lint, type check, test.
 
 **Demo:** `docker compose up` chạy được; CI xanh; mock `RunResult` hợp lệ theo schema.
 

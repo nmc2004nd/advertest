@@ -6,7 +6,7 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 0 — Contract và khung dự án
 
-**Trạng thái:** đang làm. Group 1–10 đã merge (Group 6 chờ tải 5 file label lên release `fixtures-v1`); còn manual check của người duyệt.
+**Trạng thái:** ✅ hoàn thành 2026-09-28. Group 1–10 đã merge; mọi mục trong `validation.md` và Definition of Done đã đạt.
 
 Ghi chú chung: các group của người duyệt (1, 2, 8, 9) do agent soạn thay theo cho phép của người dùng; mọi nhánh được review trước khi merge, nhưng review do chính agent đã viết code thực hiện nên không phải review độc lập.
 
@@ -152,6 +152,14 @@ Ghi chú chung: các group của người duyệt (1, 2, 8, 9) do agent soạn t
 ### Phase 0 — kiểm tra Definition of Done lần 2 (phase-close) — 2026-09-28
 - Đánh dấu thêm: `make fixtures` tải đủ 11 file (job acceptance của CI và tải thử từ thư mục trống); người dùng xác nhận `/dev/contracts` hiển thị badge đúng và CI xanh cả 4 job (run 36336874119, commit `7471b62`), kéo theo DoD "Automated Tests pass trên CI".
 - **Phase 0 vẫn chưa đóng.** Còn thiếu: `/dev/contracts` ở viewport 375px; đọc lại `contracts/` đối chiếu `mission.md` mục 4 và `tech-stack.md` mục 4.3, 4.4; người duyệt chấp nhận `contracts/` và migration `0001` (kéo theo DoD "Toàn bộ Manual Checks").
+
+### Phase 0 — Tổng kết (phase-close) — 2026-09-28
+- **Đóng phase.** Người dùng xác nhận 2 manual check cuối (`/dev/contracts` ở viewport 375px; đã đọc lại `contracts/`). `validation.md` đủ 44/44 mục; `roadmap.md` đánh dấu Phase 0 hoàn thành.
+- **Giao được:** monorepo với uv và pnpm; contract Pydantic (16 enum + `ErrorCode`, 10 schema, sinh JSON Schema, OpenAPI, TypeScript); DB 23 bảng với phân quyền chống sửa kết quả và trigger chặn tự review; API khung FastAPI; frontend khung; Docker Compose (Postgres, MinIO, API, frontend); CI 4 job; fixture KITTI 5 ảnh kèm manifest; 52 test nghiệm thu (13 cần DB).
+- **Contract:** đề xuất 001 (`ErrorResponse`, `HealthResponse`) và 002 (`DatasetManifest`) đã duyệt và áp dụng.
+- **Số liệu cuối:** `make check` pass; `make test-db` 41 test pass; CI run 36336874119 xanh cả 4 job.
+- **Lưu ý:** các group của người duyệt do agent soạn thay theo cho phép của người dùng; review do chính agent thực hiện nên không phải review độc lập.
+- **Tồn đọng chuyển sang phase sau:** xem `roadmap.md` (mục "Từ Phase 0" ở Phase 3, 4, 5, 11); câu hỏi mở về đơn vị tiền tệ mặc định.
 
 ### Phase 0 — kiểm tra Definition of Done lần 3 (phase-close) — 2026-09-28
 - Người duyệt chấp nhận `contracts/` và migration `0001`.

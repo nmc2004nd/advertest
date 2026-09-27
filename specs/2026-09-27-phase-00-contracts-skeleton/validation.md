@@ -54,15 +54,15 @@
 - [x] Mở MinIO console, thấy đủ 4 bucket `artifacts`, `reports`, `datasets`, `models`.
 - [x] Mở `/docs` của API, duyệt qua các nhóm endpoint và schema; tên trường nhất quán với `requirements.md`.
 - [x] Chạy frontend với `VITE_USE_MOCKS=true`, mở `/dev/contracts`, thấy danh sách run với badge trạng thái đúng.
-- [ ] Mở `/dev/contracts` ở viewport 375px: không có thanh cuộn ngang.
+- [x] Mở `/dev/contracts` ở viewport 375px: không có thanh cuộn ngang.
 - [x] CI trên GitHub chạy xanh cho cả 4 job.
-- [ ] Đọc lại toàn bộ `contracts/` một lượt, đối chiếu với `mission.md` mục 4 và `tech-stack.md` mục 4.3, 4.4.
+- [x] Đọc lại toàn bộ `contracts/` một lượt, đối chiếu với `mission.md` mục 4 và `tech-stack.md` mục 4.3, 4.4.
 
 ## Definition of Done
 
 - [x] Toàn bộ mục Automated Tests pass trên CI.
-- [ ] Toàn bộ Manual Checks đã thực hiện.
+- [x] Toàn bộ Manual Checks đã thực hiện.
 - [x] Người duyệt đã chấp nhận từng file trong `contracts/` và migration.
 - [x] `CLAUDE.md` đã có và đã được thử với ít nhất một agent (agent đọc được và làm theo quy tắc thư mục).
 - [x] `tech-stack.md` đã ghi phiên bản thư viện được pin.
-- [ ] `CHANGELOG.md` và `roadmap.md` đã cập nhật; Phase 0 được đánh dấu hoàn thành.
+- [x] `CHANGELOG.md` và `roadmap.md` đã cập nhật; Phase 0 được đánh dấu hoàn thành.
