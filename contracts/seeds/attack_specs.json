@@ -1,0 +1,86 @@
+[
+  {
+    "id": "8d15422d-f111-5c7e-96eb-e704767e6218",
+    "schema_version": 1,
+    "name": "fgsm",
+    "version": 1,
+    "kind": "attack",
+    "access": "white_box",
+    "art_class": "FastGradientMethod",
+    "primary_param": {
+      "name": "eps",
+      "type": "continuous",
+      "min": 0,
+      "max": 32,
+      "values": null,
+      "unit": "1/255"
+    },
+    "fixed_params": {
+      "norm": "inf"
+    },
+    "cost_model": {
+      "passes_per_image": 1,
+      "cpu_only": false
+    },
+    "requires_gradients": true,
+    "spec_sha256": "a6d81b6643af13e1d2f7983ce51340f54c26629304f1fdd98b954c236c1e735f"
+  },
+  {
+    "id": "449774ff-ded0-5909-b549-90a1e410bd62",
+    "schema_version": 1,
+    "name": "pgd_linf",
+    "version": 1,
+    "kind": "attack",
+    "access": "white_box",
+    "art_class": "ProjectedGradientDescent",
+    "primary_param": {
+      "name": "eps",
+      "type": "continuous",
+      "min": 0,
+      "max": 32,
+      "values": null,
+      "unit": "1/255"
+    },
+    "fixed_params": {
+      "norm": "inf",
+      "max_iter": 10,
+      "eps_step_ratio": 0.25,
+      "num_random_init": 0
+    },
+    "cost_model": {
+      "passes_per_image": 10,
+      "cpu_only": false
+    },
+    "requires_gradients": true,
+    "spec_sha256": "68fe8f72f176fe27981eadfe8b5e98bb36b8e85fc41c97b5702e2e149f52d72c"
+  },
+  {
+    "id": "9b1a8ccf-9447-5e5c-b4d3-1fa5cf5de7b8",
+    "schema_version": 1,
+    "name": "pgd_l2",
+    "version": 1,
+    "kind": "attack",
+    "access": "white_box",
+    "art_class": "ProjectedGradientDescent",
+    "primary_param": {
+      "name": "eps",
+      "type": "continuous",
+      "min": 0,
+      "max": 16,
+      "values": null,
+      "unit": "L2"
+    },
+    "fixed_params": {
+      "norm": 2,
+      "max_iter": 10,
+      "eps_step_ratio": 0.25,
+      "num_random_init": 0
+    },
+    "cost_model": {
+      "passes_per_image": 10,
+      "cpu_only": false
+    },
+    "requires_gradients": true,
+    "spec_sha256": "fb54ce834934be1340423f2fb4283b37766e2c1ca74a8fceea9b762e64f7351e"
+  }
+]
