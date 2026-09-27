@@ -689,4 +689,33 @@ export type ThresholdKind = components['schemas']['ThresholdKind'];
 export type TrajectoryPoint = components['schemas']['TrajectoryPoint'];
 export type UserStatus = components['schemas']['UserStatus'];
 export type $defs = Record<string, never>;
+type FlattenedDeepRequired<T> = {
+    [K in keyof T]-?: FlattenedDeepRequired<T[K] extends unknown[] | undefined | null ? Extract<T[K], unknown[]>[number] : T[K]>;
+};
+type ReadonlyArray<T> = [
+    Exclude<T, undefined>
+] extends [
+    unknown[]
+] ? Readonly<Exclude<T, undefined>> : Readonly<Exclude<T, undefined>[]>;
+export const attackAccessValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["AttackAccess"]> = ["white_box", "black_box"];
+export const attackKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["AttackKind"]> = ["attack", "corruption", "occlusion"];
+export const billingModeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["BillingMode"]> = ["none", "hourly"];
+export const caseSeverityValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["CaseSeverity"]> = ["critical", "major", "minor", "acceptable"];
+export const computeKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ComputeKind"]> = ["local", "rented"];
+export const errorCodeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ErrorCode"]> = ["not_implemented"];
+export const experimentStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ExperimentStatus"]> = ["draft", "queued", "running", "completed", "submitted_for_review", "in_review", "approved", "changes_requested", "rejected", "cancelled"];
+export const healthResponseStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["HealthResponse"]["status"]> = ["ok", "degraded"];
+export const limitKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["LimitKind"]> = ["budget", "time"];
+export const primaryParamTypeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["PrimaryParam"]["type"]> = ["continuous", "discrete"];
+export const reviewDecisionValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ReviewDecision"]> = ["approve", "changes_requested", "reject"];
+export const roleValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["Role"]> = ["engineer", "reviewer", "admin"];
+export const runModeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["RunMode"]> = ["grid", "search"];
+export const runStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["RunStatus"]> = ["queued", "running", "completed", "failed", "skipped", "stopped_limit", "cancelled"];
+export const searchStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["SearchStatus"]> = ["found", "not_reached", "below_min", "stopped_limit", "non_monotonic"];
+export const skipReasonValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["SkipReason"]> = ["cached", "incompatible"];
+export const statusReasonCodeAnyOf2Values: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["StatusReason"]["code"]> = ["error", "cancelled"];
+export const stopReasonValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["StopReason"]> = ["budget", "time"];
+export const thresholdKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ThresholdKind"]> = ["relative_drop", "absolute_drop", "attack_success_rate"];
+export const trajectoryPointScopeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["TrajectoryPoint"]["scope"]> = ["subset", "full"];
+export const userStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["UserStatus"]> = ["pending", "active", "rejected", "disabled"];
 export type operations = Record<string, never>;
