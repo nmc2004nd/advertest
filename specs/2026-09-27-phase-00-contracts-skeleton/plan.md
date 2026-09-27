@@ -48,7 +48,7 @@
 
 ## Group 6 — Fixture `[agent: ml-core]`
 
-30. Script `scripts/fetch_fixtures.py`: tải 5 ảnh và weights YOLOv8n, kiểm tra sha256 theo `tests/fixtures/checksums.json`, lưu vào `tests/fixtures/` (đã có trong `.gitignore`).
+30. Script `scripts/fetch_fixtures.py`: tải 5 ảnh KITTI kèm label gốc (vào `tests/fixtures/kitti/image_2/`, `label_2/`) và weights YOLOv8n từ nơi lưu do người duyệt chọn, kiểm tra sha256 theo `tests/fixtures/checksums.json`, lưu vào `tests/fixtures/` (đã có trong `.gitignore`).
 31. Viết annotation ground truth cho 5 ảnh theo định dạng manifest nội bộ (`tests/fixtures/manifest.json`).
 32. Viết smoke test: chạy YOLOv8n trên 5 ảnh bằng CPU, trả về box hợp lệ theo quy ước `tech-stack.md` mục 2.1.
 

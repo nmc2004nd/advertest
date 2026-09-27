@@ -203,7 +203,7 @@ Mọi endpoint (trừ `/health`) trả `501` trong Phase 0, nhưng request và r
 - **Ràng buộc chống gian lận đặt ở DB ngay từ Phase 0.** *Lý do:* nguyên tắc 3 trong `mission.md`; đặt ở DB thì kể cả code có bug cũng không vi phạm được.
 - **Quản lý package:** `uv` cho Python (có lockfile, nhanh), `pnpm` cho frontend. *Lý do:* lockfile bắt buộc để tái lập môi trường.
 - **Monorepo, một Makefile ở gốc.** *Lý do:* agent và CI dùng chung một bộ lệnh.
-- **Fixture không commit vào repo**, được tải bằng script có kiểm tra sha256 và cache trong CI. Gồm 5 ảnh đường phố có xe và người, cùng weights YOLOv8n. *Lý do:* tránh phình repo và vấn đề giấy phép dữ liệu; checksum đảm bảo mọi nơi dùng đúng cùng một fixture.
+- **Fixture không commit vào repo**, được tải bằng script có kiểm tra sha256 và cache trong CI. Gồm 5 ảnh KITTI (split training) kèm file label gốc, cùng weights YOLOv8n. Tổng các ảnh phải có đủ `Car`, `Van`, `Truck`, `Pedestrian`, `Cyclist`, `DontCare`, và ít nhất một object dưới mức Moderate. Giấy phép CC BY-NC-SA 3.0, ghi nguồn trong `tests/fixtures/LICENSE.md`. *Lý do:* tránh phình repo và vấn đề giấy phép dữ liệu; checksum đảm bảo mọi nơi dùng đúng cùng một fixture.
 - **Mock data nằm trong `contracts/mocks/`** và được validate theo schema trong CI. *Lý do:* mock sai schema sẽ khiến frontend làm theo dữ liệu không tồn tại.
 
 ## Context
@@ -214,5 +214,5 @@ Mọi endpoint (trừ `/health`) trả `501` trong Phase 0, nhưng request và r
 
 ## Open Questions
 
-- [ ] Nguồn 5 ảnh fixture (KITTI hay COCO val) và giấy phép tương ứng.
+- [x] Nguồn 5 ảnh fixture: KITTI training + label gốc, CC BY-NC-SA 3.0 (chốt ở kickoff Phase 1).
 - [ ] Đơn vị tiền tệ mặc định cho ngân sách (VND hay USD).
