@@ -1,0 +1,11 @@
+# Chỉ gửi vào build context những gì image cần; tuyệt đối không gửi .env hay dữ liệu.
+*
+!pyproject.toml
+!uv.lock
+!contracts/python/
+!ml_core/
+!attacks/
+!backend/
+!docker/api/entrypoint.sh
+**/__pycache__
+**/tests/

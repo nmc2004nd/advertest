@@ -15,6 +15,14 @@ export default defineConfig({
   server: {
     // Chế độ mock đọc JSON trong contracts/mocks (ngoài thư mục frontend).
     fs: { allow: [import.meta.dirname, mocksDir] },
+    // Gọi API cùng origin: /api/* chuyển sang backend, bỏ tiền tố /api.
+    proxy: {
+      '/api': {
+        target: process.env.API_PROXY_TARGET ?? 'http://127.0.0.1:8000',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/api/, ''),
+      },
+    },
   },
   test: {
     environment: 'node',

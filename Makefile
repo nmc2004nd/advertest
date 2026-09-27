@@ -6,6 +6,9 @@ TORCH ?= cpu
 UV_RUN := uv run --extra $(TORCH)
 PNPM := pnpm --dir frontend
 COMPOSE_FILE := docker/compose.yaml
+# File biến môi trường cho Docker Compose (xem .env.example).
+ENV_FILE ?= .env
+COMPOSE := docker compose -f $(COMPOSE_FILE) --env-file $(ENV_FILE)
 
 # pytest trả mã 5 khi không thu được test nào; lúc đó coi là pass nhưng in rõ.
 define pytest_allow_empty
@@ -26,11 +29,12 @@ help:
 
 up:
 	$(call require_file,$(COMPOSE_FILE),Phase 0 Group 7)
-	docker compose -f $(COMPOSE_FILE) up -d --wait
+	$(call require_file,$(ENV_FILE),tạo từ .env.example)
+	$(COMPOSE) up -d --build --wait
 
 down:
 	$(call require_file,$(COMPOSE_FILE),Phase 0 Group 7)
-	docker compose -f $(COMPOSE_FILE) down
+	$(COMPOSE) down
 
 migrate:
 	$(call require_file,backend/alembic.ini,Phase 0 Group 3)
