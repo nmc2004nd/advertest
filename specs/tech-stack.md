@@ -112,7 +112,8 @@ Tầng sweep, metric, backend và frontend không được phụ thuộc vào vi
 | Database | PostgreSQL 17 | Nhiều người dùng, ghi đồng thời, phân quyền ở cấp DB cho audit log |
 | Driver Postgres | psycopg 3 | Một driver cho cả sync (Alembic, script) và async (API) |
 | ORM / migration | SQLAlchemy 2 + Alembic | Migration có version, review được |
-| Object storage | MinIO (API tương thích S3) | Worker ở nhiều máy cùng ghi được |
+| Object storage | MinIO (API tương thích S3), image `cgr.dev/chainguard/minio` pin theo digest | Worker ở nhiều máy cùng ghi được. Image chính thức `minio/minio` đã ngừng phát hành công khai |
+| Server ASGI | uvicorn | Chạy API trong container |
 | Client S3 | boto3 | Kiểm tra MinIO ở `/health`; presigned URL ở Phase 3 |
 | Mật khẩu | argon2 (`argon2-cffi`) | |
 | Phiên đăng nhập | JWT trong cookie httpOnly | |
@@ -193,8 +194,11 @@ Mọi trạng thái bất thường (`failed`, `skipped`, `stopped_limit`, `canc
 
 ## 6. Hạ tầng
 
-- Docker Compose gồm: `api`, `worker`, `postgres`, `minio`, `frontend`.
-- Một image CUDA dùng chung cho `api` và `worker`.
+- Docker Compose (`docker/compose.yaml`) gồm: `api`, `worker` (từ Phase 3), `postgres`, `minio`, `minio-init` (tạo bucket rồi thoát), `frontend`. Biến lấy từ `ENV_FILE` (mặc định `.env`, mẫu ở `.env.example`); mật khẩu và khóa chỉ gồm chữ và số vì được ghép vào URL.
+- Một image dùng chung cho `api` và `worker`, chọn biến thể torch bằng build arg `TORCH`. Phase 0 dùng `python:3.11-slim` với `TORCH=cpu`; khi có worker (Phase 3) chuyển sang image CUDA với `TORCH=cuda`.
+- `api` chạy migration bằng role owner rồi chạy uvicorn bằng role app; URL của owner bị xóa khỏi môi trường của app.
+- Postgres không mở cổng ra máy chủ; các cổng khác chỉ gắn vào `127.0.0.1`.
+- Frontend gọi API cùng origin qua proxy `/api` của Vite (`VITE_API_BASE_URL=/api`); bản triển khai dùng reverse proxy tương tự.
 - Máy thuê chạy riêng container `worker`, kết nối qua Tailscale, cấu hình bằng token của compute target.
 - CI (GitHub Actions): lint, type check, unit test, test nghiệm thu chạy trên CPU.
 
@@ -270,6 +274,8 @@ Nguồn sự thật là `pyproject.toml` + `uv.lock` (Python) và `frontend/pack
 | alembic | 1.20.0 |
 | psycopg / argon2-cffi | 3.3.6 / 25.1.0 |
 | boto3 / httpx (dev) | 1.43.103 / 0.28.1 |
+| uvicorn | 0.54.0 |
+| Image | `python:3.11-slim`, `postgres:17-alpine`, `node:22-alpine`, `cgr.dev/chainguard/minio@sha256:6a1d0b45c8669726bba580ced0bfa4cb9fdeed1ed636dfabd81d1577beb6937b`, `cgr.dev/chainguard/minio-client@sha256:b2bd7824d23d3e3b15bedd7e87fbc3be29d2e213307b4f901e4a1d92356dc20f` |
 | Postgres (image) | `postgres:17-alpine` |
 | ruff / mypy / pytest | 0.16.9 / 2.3.1 / 9.1.1 |
 
