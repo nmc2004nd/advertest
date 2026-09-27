@@ -1,0 +1,131 @@
+# CI của AdverTest (Phase 0 Group 8): lint, type check, unit test, contract, test nghiệm thu.
+name: CI
+
+on:
+  push:
+    branches: [main, "phase*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_FROZEN: "1"
+  PNPM_VERSION: "12.6.0"
+  NODE_VERSION: "22"
+
+jobs:
+  python:
+    name: Python (ruff, mypy, pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv sync --extra cpu
+      - run: uv run --no-sync ruff check .
+      - run: uv run --no-sync ruff format --check .
+      - run: uv run --no-sync mypy
+      # Test `db` chạy ở job acceptance (cần Postgres).
+      - run: uv run --no-sync pytest --ignore=tests/acceptance -m "not db"
+
+  frontend:
+    name: Frontend (eslint, tsc, vitest, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      # Build production và kiểm tra không chứa trang dev (/dev/contracts) hay dữ liệu mock.
+      - run: pnpm verify:build
+
+  contracts:
+    name: Contracts (sinh lại, validate mock)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - uses: pnpm/action-setup@v6
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: uv sync --extra cpu
+      - run: pnpm --dir frontend install --frozen-lockfile
+      # File sinh ra (JSON Schema, OpenAPI, TypeScript) phải khớp với bản đã commit.
+      - run: make contracts-check
+      # Mock, seed catalog và ràng buộc schema.
+      - run: uv run --no-sync pytest contracts
+
+  acceptance:
+    name: Test DB và nghiệm thu (Postgres)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: pg-ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      # Mật khẩu chỉ dùng cho Postgres tạm của CI, không phải bí mật.
+      ADVERTEST_OWNER_PASSWORD: owner-ci
+      ADVERTEST_APP_PASSWORD: app-ci
+      ADVERTEST_TEST_OWNER_URL: postgresql+psycopg://advertest_owner:owner-ci@localhost:5432/advertest
+      ADVERTEST_TEST_APP_URL: postgresql+psycopg://advertest_app:app-ci@localhost:5432/advertest
+    steps:
+      - uses: actions/checkout@v7
+      # Service container khởi động trước checkout nên không mount được script init;
+      # chạy cùng script đó từ runner để tạo role advertest_owner, advertest_app và database.
+      - name: Tạo DB role
+        env:
+          PGHOST: localhost
+          PGPASSWORD: pg-ci
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+        run: bash docker/postgres/init/01-roles.sh
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv sync --extra cpu
+      - name: Cache fixture
+        uses: actions/cache@v6
+        with:
+          path: |
+            tests/fixtures
+            !tests/fixtures/checksums.json
+          key: fixtures-${{ hashFiles('tests/fixtures/checksums.json') }}
+      - run: make fixtures
+      - run: uv run --no-sync pytest -m db backend
+      - run: make test-acceptance
