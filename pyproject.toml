@@ -55,3 +55,27 @@ explicit = true
 name = "pytorch-cu126"
 url = "https://download.pytorch.org/whl/cu126"
 explicit = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["specs", "docs", "scripts/log_*.py", "scripts/submit_log.py", "frontend"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.11"
+mypy_path = "contracts/python"
+explicit_package_bases = true
+files = ["contracts/python", "ml_core", "attacks", "backend"]
+warn_unused_configs = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["advertest_contracts.*", "backend.*"]
+strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["contracts", "ml_core", "attacks", "backend", "tests"]
+addopts = "--import-mode=importlib"
