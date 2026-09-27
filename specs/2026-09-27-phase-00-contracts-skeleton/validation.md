@@ -62,7 +62,7 @@
 
 - [x] Toàn bộ mục Automated Tests pass trên CI.
 - [ ] Toàn bộ Manual Checks đã thực hiện.
-- [ ] Người duyệt đã chấp nhận từng file trong `contracts/` và migration.
+- [x] Người duyệt đã chấp nhận từng file trong `contracts/` và migration.
 - [x] `CLAUDE.md` đã có và đã được thử với ít nhất một agent (agent đọc được và làm theo quy tắc thư mục).
 - [x] `tech-stack.md` đã ghi phiên bản thư viện được pin.
 - [ ] `CHANGELOG.md` và `roadmap.md` đã cập nhật; Phase 0 được đánh dấu hoàn thành.

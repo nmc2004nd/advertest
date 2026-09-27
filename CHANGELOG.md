@@ -153,6 +153,10 @@ Ghi chú chung: các group của người duyệt (1, 2, 8, 9) do agent soạn t
 - Đánh dấu thêm: `make fixtures` tải đủ 11 file (job acceptance của CI và tải thử từ thư mục trống); người dùng xác nhận `/dev/contracts` hiển thị badge đúng và CI xanh cả 4 job (run 36336874119, commit `7471b62`), kéo theo DoD "Automated Tests pass trên CI".
 - **Phase 0 vẫn chưa đóng.** Còn thiếu: `/dev/contracts` ở viewport 375px; đọc lại `contracts/` đối chiếu `mission.md` mục 4 và `tech-stack.md` mục 4.3, 4.4; người duyệt chấp nhận `contracts/` và migration `0001` (kéo theo DoD "Toàn bộ Manual Checks").
 
+### Phase 0 — kiểm tra Definition of Done lần 3 (phase-close) — 2026-09-28
+- Người duyệt chấp nhận `contracts/` và migration `0001`.
+- **Phase 0 vẫn chưa đóng.** Còn thiếu: `/dev/contracts` ở viewport 375px; đọc lại `contracts/` đối chiếu `mission.md` mục 4 và `tech-stack.md` mục 4.3, 4.4 (kéo theo DoD "Toàn bộ Manual Checks").
+
 ### Replan sau Phase 0 (lần 2) — 2026-09-28
 - Fixture sau mapping `kitti-coco` và lọc Moderate còn `car = 14`, `truck = 1`, `person = 6` ground truth; ghi vào `validation.md` Phase 1. AP từng lớp trên fixture nhiễu (đặc biệt `truck`), golden value chỉ nên so mAP tổng.
 
