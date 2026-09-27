@@ -44,7 +44,7 @@
 - [x] Type trong `frontend/src/contracts/` được sinh ra, không có chỉnh sửa tay (kiểm tra qua `git diff --exit-code` sau `make contracts`).
 
 ### Fixture
-- [ ] `make fixtures` tải đủ file và mọi sha256 khớp với `tests/fixtures/checksums.json`.
+- [x] `make fixtures` tải đủ file và mọi sha256 khớp với `tests/fixtures/checksums.json`.
 - [x] `tests/fixtures/manifest.json` validate được theo định dạng manifest nội bộ.
 - [x] Smoke test: YOLOv8n chạy trên 5 ảnh bằng CPU trong dưới 60 giây; box trả về đúng định dạng xyxy, nằm trong khung 640×640.
 
@@ -53,14 +53,14 @@
 - [x] `make up` trên máy phát triển: cả 4 service healthy.
 - [x] Mở MinIO console, thấy đủ 4 bucket `artifacts`, `reports`, `datasets`, `models`.
 - [x] Mở `/docs` của API, duyệt qua các nhóm endpoint và schema; tên trường nhất quán với `requirements.md`.
-- [ ] Chạy frontend với `VITE_USE_MOCKS=true`, mở `/dev/contracts`, thấy danh sách run với badge trạng thái đúng.
+- [x] Chạy frontend với `VITE_USE_MOCKS=true`, mở `/dev/contracts`, thấy danh sách run với badge trạng thái đúng.
 - [ ] Mở `/dev/contracts` ở viewport 375px: không có thanh cuộn ngang.
-- [ ] CI trên GitHub chạy xanh cho cả 4 job.
+- [x] CI trên GitHub chạy xanh cho cả 4 job.
 - [ ] Đọc lại toàn bộ `contracts/` một lượt, đối chiếu với `mission.md` mục 4 và `tech-stack.md` mục 4.3, 4.4.
 
 ## Definition of Done
 
-- [ ] Toàn bộ mục Automated Tests pass trên CI.
+- [x] Toàn bộ mục Automated Tests pass trên CI.
 - [ ] Toàn bộ Manual Checks đã thực hiện.
 - [ ] Người duyệt đã chấp nhận từng file trong `contracts/` và migration.
 - [x] `CLAUDE.md` đã có và đã được thử với ít nhất một agent (agent đọc được và làm theo quy tắc thư mục).
