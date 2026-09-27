@@ -19,10 +19,10 @@ define require_file
 	@if [ ! -e "$(1)" ]; then echo ">> Chưa có $(1) ($(2))"; exit 1; fi
 endef
 
-.PHONY: help up down migrate contracts contracts-check fixtures lint typecheck test test-acceptance check
+.PHONY: help up down migrate contracts contracts-check fixtures lint typecheck test test-db test-acceptance check
 
 help:
-	@echo "up | down | migrate | contracts | contracts-check | fixtures | lint | typecheck | test | test-acceptance | check"
+	@echo "up | down | migrate | contracts | contracts-check | fixtures | lint | typecheck | test | test-db | test-acceptance | check"
 
 up:
 	$(call require_file,$(COMPOSE_FILE),Phase 0 Group 7)
@@ -60,10 +60,14 @@ typecheck:
 	$(UV_RUN) mypy
 	$(PNPM) typecheck
 
+# Test đánh dấu `db` cần Postgres thật: chạy bằng `make test-db` (tự dựng container).
 test:
-	$(call pytest_allow_empty,--ignore=tests/acceptance)
+	$(call pytest_allow_empty,--ignore=tests/acceptance -m "not db")
 	@if grep -q '"test":' frontend/package.json; then $(PNPM) test; \
 	else echo ">> Frontend chưa có script test (Phase 0 Group 5)"; fi
+
+test-db:
+	docker/postgres/test-db.sh $(UV_RUN) pytest -m db backend
 
 test-acceptance:
 	$(call pytest_allow_empty,tests/acceptance)
