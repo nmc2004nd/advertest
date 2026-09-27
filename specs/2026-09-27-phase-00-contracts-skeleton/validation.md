@@ -45,8 +45,8 @@
 
 ### Fixture
 - [ ] `make fixtures` tải đủ file và mọi sha256 khớp với `tests/fixtures/checksums.json`.
-- [ ] `tests/fixtures/manifest.json` validate được theo định dạng manifest nội bộ.
-- [ ] Smoke test: YOLOv8n chạy trên 5 ảnh bằng CPU trong dưới 60 giây; box trả về đúng định dạng xyxy, nằm trong khung 640×640.
+- [x] `tests/fixtures/manifest.json` validate được theo định dạng manifest nội bộ.
+- [x] Smoke test: YOLOv8n chạy trên 5 ảnh bằng CPU trong dưới 60 giây; box trả về đúng định dạng xyxy, nằm trong khung 640×640.
 
 ## Manual Checks
 

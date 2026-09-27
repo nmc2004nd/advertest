@@ -49,8 +49,8 @@
 ## Group 6 — Fixture `[agent: ml-core]`
 
 30. Script `scripts/fetch_fixtures.py` (logic trong `ml_core/fixtures.py`): tải 5 ảnh KITTI kèm label gốc (vào `tests/fixtures/kitti/image_2/`, `label_2/`) từ GitHub Release `fixtures-v1` của repo, và weights YOLOv8n từ release chính thức của Ultralytics (v8.3.0), kiểm tra sha256 theo `tests/fixtures/checksums.json`, lưu vào `tests/fixtures/` (đã có trong `.gitignore`). Tên file đính kèm của release là tên phẳng (ví dụ `kitti_image_2_000123.png`), nên mỗi mục trong `checksums.json` khai `url` riêng.
-31. Viết annotation ground truth cho 5 ảnh theo định dạng manifest nội bộ (`tests/fixtures/manifest.json`).
-32. Viết smoke test: chạy YOLOv8n trên 5 ảnh bằng CPU, trả về box hợp lệ theo quy ước `tech-stack.md` mục 2.1.
+31. Viết annotation ground truth cho 5 ảnh theo định dạng manifest nội bộ (`tests/fixtures/manifest.json`, schema `DatasetManifest`). File được commit, sinh từ label gốc KITTI; test nghiệm thu đối chiếu lại với ảnh và label.
+32. Viết smoke test: chạy YOLOv8n trên 5 ảnh bằng CPU, trả về box hợp lệ theo quy ước `tech-stack.md` mục 2.1 (trong `tests/acceptance/phase_00/test_fixtures.py`, ảnh letterbox 640×640).
 
 ## Group 7 — Docker Compose `[agent: backend]`
 

@@ -6,7 +6,7 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 0 — Contract và khung dự án
 
-**Trạng thái:** đang làm. Group 1, 2, 3, 4, 5, 7, 8, 9, 10 đã merge; Group 6 xong một phần; còn manual check của người duyệt.
+**Trạng thái:** đang làm. Group 1–10 đã merge (Group 6 chờ tải 5 file label lên release `fixtures-v1`); còn manual check của người duyệt.
 
 Ghi chú chung: các group của người duyệt (1, 2, 8, 9) do agent soạn thay theo cho phép của người dùng; mọi nhánh được review trước khi merge, nhưng review do chính agent đã viết code thực hiện nên không phải review độc lập.
 
@@ -77,15 +77,24 @@ Ghi chú chung: các group của người duyệt (1, 2, 8, 9) do agent soạn t
 - Manual check: `/dev/contracts` ở viewport 375px không có thanh cuộn ngang.
 - Phase 5: `useRun` dừng polling khi run kết thúc.
 
-### Phase 0 — Group 6 (ml-core) — 2026-09-27 — xong một phần
+### Phase 0 — Group 6 (ml-core) — 2026-09-27/28
 #### Thêm
 - `ml_core/fixtures.py`, `scripts/fetch_fixtures.py` (`make fixtures`): tải, kiểm tra sha256, chỉ đặt file khi khớp.
-- `tests/fixtures/checksums.json` có weights YOLOv8n (release v8.3.0 của Ultralytics).
+- `tests/fixtures/checksums.json`: weights YOLOv8n, 5 ảnh và 5 label gốc KITTI; `tests/fixtures/LICENSE.md`.
+- `tests/fixtures/manifest.json` (schema `DatasetManifest`): 5 ảnh, 59 annotation, 7 ignore region `dont_care`.
+- Test nghiệm thu: smoke test YOLOv8n trên CPU, manifest đối chiếu với ảnh và label gốc, fixture phủ đủ trường hợp.
+#### Contract
+- Đề xuất 002 (đã duyệt): `DatasetManifest` và các model con; `schema_version = 1`.
 #### Quyết định
-- Nơi lưu fixture: GitHub Release `fixtures-v1` của repo; tên file đính kèm phẳng, mỗi mục khai `url` riêng (`plan.md`, `requirements.md` Phase 0).
+- Nơi lưu fixture: GitHub Release `fixtures-v1` của repo (repo chuyển sang public); tên file đính kèm phẳng, mỗi mục khai `url` riêng.
+- Nguồn KITTI: ảnh từ bản Ultralytics, label gốc từ KITTI (label YOLO mất `DontCare`, `truncated`, `occluded`) (`requirements.md` Phase 0, Phase 1).
+- 5 ảnh `000902`, `002571`, `004499`, `004965`, `005866` chọn tự động theo độ phủ lớp và số object.
+#### Số liệu đo được
+- Smoke test YOLOv8n trên 5 ảnh letterbox 640×640, CPU: khoảng 1,5 giây.
+- Trong 5 ảnh: 38/59 object dưới mức Moderate (sẽ thành ignore region khi áp mapping ở Phase 1).
+- `dataset_version_sha256` của fixture: `9f5b413eb8a78a6a4b216011c2cf26e5b877728f7a160bbb80964a917d976069`.
 #### Tồn đọng
-- Tạo release `fixtures-v1` với 5 ảnh KITTI và label; task 31 (`manifest.json`) và 32 (smoke test).
-- Cần quyết: vị trí smoke test; validate manifest bằng gì (có thể cần đề xuất contract `DatasetManifest`).
+- Tải 5 file `kitti_label_2_*.txt` lên release `fixtures-v1` (trước khi push, nếu không CI fail ở `make fixtures`).
 
 ### Phase 0 — Group 7 (backend) — 2026-09-27
 #### Thêm
