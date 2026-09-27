@@ -181,6 +181,10 @@ Mọi trạng thái bất thường (`failed`, `skipped`, `stopped_limit`, `canc
 - Mobile-first. Breakpoint: điện thoại < 768px, tablet 768–1279px, desktop ≥ 1280px.
 - Box vẽ phía client trên canvas từ JSON, scale theo `devicePixelRatio`.
 - Trạng thái luôn hiển thị bằng màu + icon + chữ, dùng một component badge chung.
+  Nhãn tiếng Việt, icon và tông màu định nghĩa một nơi duy nhất: `frontend/src/components/status/status-config.ts`. Bảng cấu hình khai kiểu `Record<Enum, …>` theo enum của contract, nên thiếu giá trị thì `tsc` báo lỗi; test so với mảng giá trị enum sinh từ contract.
+- Type cho response của API lấy từ `frontend/src/contracts/api.ts` (sinh từ `contracts/openapi.json`); mảng giá trị enum lấy từ `frontend/src/contracts/schemas.ts`. Cả hai là file sinh ra, không sửa tay.
+- Biến môi trường: `VITE_USE_MOCKS=true` đọc dữ liệu từ `contracts/mocks/` thay cho API; `VITE_API_BASE_URL` (mặc định rỗng, tức gọi cùng origin).
+- Trang chỉ dành cho dev (ví dụ `/dev/contracts`) chỉ đăng ký khi `import.meta.env.DEV`; `pnpm --dir frontend verify:build` kiểm tra bản build production không chứa chúng.
 - Hành động không đảo ngược (gửi duyệt, approve) có hộp xác nhận kèm tóm tắt.
 - Bản xem trước chưa duyệt có watermark "BẢN NHÁP – CHƯA DUYỆT".
 - Giao diện chỉ ẩn nút theo role cho gọn; không được coi là lớp bảo mật.
@@ -208,6 +212,7 @@ Mọi trạng thái bất thường (`failed`, `skipped`, `stopped_limit`, `canc
 Quy ước:
 - Fixture nhỏ chạy trên CPU: khoảng 5 ảnh + một model rất nhỏ, mỗi test chạy trong vài giây.
 - So metric với golden value **có sai số**, không so bằng tuyệt đối.
+- Test Vitest chạy trong môi trường node; render component bằng `react-dom/server`. Chưa dùng thư viện test DOM (Testing Library, jsdom) khi chưa được duyệt.
 - Thư viện không kèm type stub (hiện là `boto3`, `botocore`) được khai `ignore_missing_imports` trong cấu hình mypy, không dùng `# type: ignore` trong code.
 - Mỗi nguyên tắc trong `mission.md` mục 4 có ít nhất một test nghiệm thu.
 
