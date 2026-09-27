@@ -3,6 +3,7 @@
 - JSON Schema (chế độ validation) của từng schema → contracts/schemas/<tên>.json
 - TypeScript type (chế độ serialization, đúng hình dạng JSON mà API trả) →
   frontend/src/contracts/schemas.ts, qua openapi-typescript.
+- OpenAPI của backend (FastAPI) → contracts/openapi.json.
 
 Chạy bằng `make contracts`. Chạy lại khi contract không đổi không được tạo ra thay đổi nào.
 """
@@ -27,6 +28,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 SCHEMA_DIR = ROOT / "contracts" / "schemas"
 TS_OUT = ROOT / "frontend" / "src" / "contracts" / "schemas.ts"
+OPENAPI_OUT = ROOT / "contracts" / "openapi.json"
 
 
 def _dump(data: Any) -> str:
@@ -84,10 +86,21 @@ def write_typescript() -> None:
         )
 
 
+def write_backend_openapi() -> None:
+    # Import muộn: app FastAPI chỉ cần khi xuất OpenAPI, không cần khi sinh schema contract.
+    from backend.app.main import create_app
+
+    OPENAPI_OUT.write_text(_dump(create_app().openapi()))
+
+
 def main() -> None:
     write_json_schemas()
     write_typescript()
-    print(f"Đã sinh {len(SCHEMAS)} JSON Schema và {TS_OUT.relative_to(ROOT)}")
+    write_backend_openapi()
+    print(
+        f"Đã sinh {len(SCHEMAS)} JSON Schema, {TS_OUT.relative_to(ROOT)}"
+        f" và {OPENAPI_OUT.relative_to(ROOT)}"
+    )
 
 
 if __name__ == "__main__":

@@ -1,0 +1,2488 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AdverTest API",
+    "version": "0.0.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Login",
+        "operationId": "login_auth_login_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "userSession": []
+          }
+        ]
+      }
+    },
+    "/users": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "List Users",
+        "operationId": "list_users_users_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "userSession": []
+          }
+        ]
+      }
+    },
+    "/models": {
+      "get": {
+        "tags": [
+          "models"
+        ],
+        "summary": "List Models",
+        "operationId": "list_models_models_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "userSession": []
+          }
+        ]
+      }
+    },
+    "/datasets": {
+      "get": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "List Datasets",
+        "operationId": "list_datasets_datasets_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "userSession": []
+          }
+        ]
+      }
+    },
+    "/slices": {
+      "get": {
+        "tags": [
+          "slices"
+        ],
+        "summary": "List Slices",
+        "operationId": "list_slices_slices_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "userSession": []
+          }
+        ]
+      }
+    },
+    "/attack-specs": {
+      "get": {
+        "tags": [
+          "attack-specs"
+        ],
+        "summary": "List Attack Specs",
+        "operationId": "list_attack_specs_attack_specs_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AttackSpec"
+                  },
+                  "type": "array",
+                  "title": "Response List Attack Specs Attack Specs Get"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "userSession": []
+          }
+        ]
+      }
+    },
+    "/protocols": {
+      "post": {
+        "tags": [
+          "protocols"
+        ],
+        "summary": "Create Protocol",
+        "operationId": "create_protocol_protocols_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProtocolBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "userSession": []
+          }
+        ]
+      }
+    },
+    "/experiments": {
+      "post": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Create Experiment",
+        "operationId": "create_experiment_experiments_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExperimentConfig-Input"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "userSession": []
+          }
+        ]
+      }
+    },
+    "/runs/{run_id}": {
+      "get": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "Get Run",
+        "operationId": "get_run_runs__run_id__get",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunResult-Output"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/failure-cases/{case_id}": {
+      "get": {
+        "tags": [
+          "failure-cases"
+        ],
+        "summary": "Get Failure Case",
+        "operationId": "get_failure_case_failure_cases__case_id__get",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reviews": {
+      "get": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "List Reviews",
+        "operationId": "list_reviews_reviews_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "userSession": []
+          }
+        ]
+      }
+    },
+    "/reports/{report_id}": {
+      "get": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Get Report",
+        "operationId": "get_report_reports__report_id__get",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Report Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/compute-targets": {
+      "get": {
+        "tags": [
+          "compute-targets"
+        ],
+        "summary": "List Compute Targets",
+        "operationId": "list_compute_targets_compute_targets_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "userSession": []
+          }
+        ]
+      }
+    },
+    "/budget": {
+      "get": {
+        "tags": [
+          "budget"
+        ],
+        "summary": "Get Budget",
+        "operationId": "get_budget_budget_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "userSession": []
+          }
+        ]
+      }
+    },
+    "/audit-log": {
+      "get": {
+        "tags": [
+          "audit-log"
+        ],
+        "summary": "List Audit Log",
+        "operationId": "list_audit_log_audit_log_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "userSession": []
+          }
+        ]
+      }
+    },
+    "/verify/{report_id}": {
+      "get": {
+        "tags": [
+          "verify"
+        ],
+        "summary": "Verify Report",
+        "operationId": "verify_report_verify__report_id__get",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Report Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/worker/lease": {
+      "post": {
+        "tags": [
+          "internal-worker"
+        ],
+        "summary": "Lease",
+        "description": "Nhận experiment kế tiếp dành cho máy này.",
+        "operationId": "lease_internal_worker_lease_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExperimentConfig-Output"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "workerToken": []
+          }
+        ]
+      }
+    },
+    "/internal/worker/heartbeat": {
+      "post": {
+        "tags": [
+          "internal-worker"
+        ],
+        "summary": "Heartbeat",
+        "operationId": "heartbeat_internal_worker_heartbeat_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "workerToken": []
+          }
+        ]
+      }
+    },
+    "/internal/worker/runs/{run_id}/progress": {
+      "post": {
+        "tags": [
+          "internal-worker"
+        ],
+        "summary": "Report Progress",
+        "description": "Cập nhật tiến độ và checkpoint.",
+        "operationId": "report_progress_internal_worker_runs__run_id__progress_post",
+        "security": [
+          {
+            "workerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Progress"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/worker/runs/{run_id}/artifact-url": {
+      "post": {
+        "tags": [
+          "internal-worker"
+        ],
+        "summary": "Artifact Url",
+        "description": "Xin presigned URL để upload artifact.",
+        "operationId": "artifact_url_internal_worker_runs__run_id__artifact_url_post",
+        "security": [
+          {
+            "workerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/worker/runs/{run_id}/complete": {
+      "post": {
+        "tags": [
+          "internal-worker"
+        ],
+        "summary": "Complete Run",
+        "description": "Gửi RunResult cuối cùng.",
+        "operationId": "complete_run_internal_worker_runs__run_id__complete_post",
+        "security": [
+          {
+            "workerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunResult-Input"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/worker/experiments/{experiment_id}/search-result": {
+      "post": {
+        "tags": [
+          "internal-worker"
+        ],
+        "summary": "Submit Search Result",
+        "operationId": "submit_search_result_internal_worker_experiments__experiment_id__search_result_post",
+        "security": [
+          {
+            "workerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchResult"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AttackAccess": {
+        "type": "string",
+        "enum": [
+          "white_box",
+          "black_box"
+        ],
+        "title": "AttackAccess"
+      },
+      "AttackConfig": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Schema Version",
+            "default": 1
+          },
+          "attack_spec_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Attack Spec Id"
+          },
+          "spec_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Spec Sha256",
+            "description": "Chốt đúng version spec"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/RunMode"
+          },
+          "grid": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GridConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "search": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SearchConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "seed": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Seed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "attack_spec_id",
+          "spec_sha256",
+          "mode",
+          "seed"
+        ],
+        "title": "AttackConfig",
+        "description": "Một attack trong experiment."
+      },
+      "AttackKind": {
+        "type": "string",
+        "enum": [
+          "attack",
+          "corruption",
+          "occlusion"
+        ],
+        "title": "AttackKind"
+      },
+      "AttackSpec": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Schema Version",
+            "default": 1
+          },
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "title": "Name"
+          },
+          "version": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Version"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/AttackKind"
+          },
+          "access": {
+            "$ref": "#/components/schemas/AttackAccess"
+          },
+          "art_class": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Art Class",
+            "description": "Null với corruption và occlusion"
+          },
+          "primary_param": {
+            "$ref": "#/components/schemas/PrimaryParam"
+          },
+          "fixed_params": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Fixed Params"
+          },
+          "cost_model": {
+            "$ref": "#/components/schemas/CostModel"
+          },
+          "requires_gradients": {
+            "type": "boolean",
+            "title": "Requires Gradients"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "spec_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Spec Sha256",
+            "description": "Hash của mọi trường trừ id và chính nó"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "version",
+          "kind",
+          "access",
+          "primary_param",
+          "fixed_params",
+          "cost_model",
+          "requires_gradients",
+          "id",
+          "spec_sha256"
+        ],
+        "title": "AttackSpec",
+        "description": "Một attack trong catalog. Đổi bất kỳ trường nào phải tăng `version`."
+      },
+      "CaseSeverity": {
+        "type": "string",
+        "enum": [
+          "critical",
+          "major",
+          "minor",
+          "acceptable"
+        ],
+        "title": "CaseSeverity"
+      },
+      "ClassRunMetrics": {
+        "properties": {
+          "clean_ap50": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clean Ap50"
+          },
+          "attacked_ap50": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attacked Ap50"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "clean_ap50",
+          "attacked_ap50"
+        ],
+        "title": "ClassRunMetrics"
+      },
+      "Cost-Input": {
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Amount"
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$",
+            "title": "Currency"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "title": "Cost"
+      },
+      "Cost-Output": {
+        "properties": {
+          "amount": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount"
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$",
+            "title": "Currency"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "title": "Cost"
+      },
+      "CostModel": {
+        "properties": {
+          "passes_per_image": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passes Per Image",
+            "description": "Số lần forward + backward cho mỗi ảnh"
+          },
+          "cpu_only": {
+            "type": "boolean",
+            "title": "Cpu Only",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "CostModel"
+      },
+      "DependencyStatus": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail",
+            "description": "Lý do khi ok = false"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "DependencyStatus"
+      },
+      "ErrorBody": {
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ErrorCode"
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Message"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ErrorBody"
+      },
+      "ErrorCode": {
+        "type": "string",
+        "enum": [
+          "not_implemented"
+        ],
+        "title": "ErrorCode"
+      },
+      "ErrorResponse": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Schema Version",
+            "default": 1
+          },
+          "error": {
+            "$ref": "#/components/schemas/ErrorBody"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "title": "ErrorResponse",
+        "description": "Body lỗi thống nhất của mọi endpoint: {\"error\": {\"code\", \"message\"}}."
+      },
+      "ExperimentConfig-Input": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Schema Version",
+            "default": 1
+          },
+          "protocol_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Protocol Id"
+          },
+          "model_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Model Version Id"
+          },
+          "slice_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Slice Id"
+          },
+          "class_mapping_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Class Mapping Id"
+          },
+          "compute_target_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Compute Target Id"
+          },
+          "attacks": {
+            "items": {
+              "$ref": "#/components/schemas/AttackConfig"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Attacks"
+          },
+          "limit": {
+            "$ref": "#/components/schemas/Limit-Input"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "protocol_id",
+          "model_version_id",
+          "slice_id",
+          "class_mapping_id",
+          "compute_target_id",
+          "attacks",
+          "limit"
+        ],
+        "title": "ExperimentConfig"
+      },
+      "ExperimentConfig-Output": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Schema Version",
+            "default": 1
+          },
+          "protocol_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Protocol Id"
+          },
+          "model_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Model Version Id"
+          },
+          "slice_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Slice Id"
+          },
+          "class_mapping_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Class Mapping Id"
+          },
+          "compute_target_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Compute Target Id"
+          },
+          "attacks": {
+            "items": {
+              "$ref": "#/components/schemas/AttackConfig"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Attacks"
+          },
+          "limit": {
+            "$ref": "#/components/schemas/Limit-Output"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "protocol_id",
+          "model_version_id",
+          "slice_id",
+          "class_mapping_id",
+          "compute_target_id",
+          "attacks",
+          "limit"
+        ],
+        "title": "ExperimentConfig"
+      },
+      "GridConfig": {
+        "properties": {
+          "levels": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Levels"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "levels"
+        ],
+        "title": "GridConfig"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthResponse": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Schema Version",
+            "default": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "degraded"
+            ],
+            "title": "Status",
+            "description": "degraded khi có dependency không ok"
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Version"
+          },
+          "git_commit": {
+            "type": "string",
+            "pattern": "^([0-9a-f]{40}|unknown)$",
+            "title": "Git Commit"
+          },
+          "postgres": {
+            "$ref": "#/components/schemas/DependencyStatus"
+          },
+          "minio": {
+            "$ref": "#/components/schemas/DependencyStatus"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status",
+          "version",
+          "git_commit",
+          "postgres",
+          "minio"
+        ],
+        "title": "HealthResponse"
+      },
+      "JsonValue": {},
+      "Limit-Input": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/LimitKind"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Value",
+            "description": "Tiền (budget) hoặc giây (time)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "value"
+        ],
+        "title": "Limit"
+      },
+      "Limit-Output": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/LimitKind"
+          },
+          "value": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Value",
+            "description": "Tiền (budget) hoặc giây (time)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "value"
+        ],
+        "title": "Limit"
+      },
+      "LimitKind": {
+        "type": "string",
+        "enum": [
+          "budget",
+          "time"
+        ],
+        "title": "LimitKind"
+      },
+      "MapPair": {
+        "properties": {
+          "map50": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Map50"
+          },
+          "map50_95": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Map50 95"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "map50",
+          "map50_95"
+        ],
+        "title": "MapPair"
+      },
+      "PassCriterion": {
+        "properties": {
+          "threshold_kind": {
+            "$ref": "#/components/schemas/ThresholdKind"
+          },
+          "threshold": {
+            "type": "number",
+            "title": "Threshold"
+          },
+          "class_filter": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Class Filter"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "threshold_kind",
+          "threshold"
+        ],
+        "title": "PassCriterion"
+      },
+      "PrimaryParam": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "continuous",
+              "discrete"
+            ],
+            "title": "Type"
+          },
+          "min": {
+            "type": "number",
+            "title": "Min"
+          },
+          "max": {
+            "type": "number",
+            "title": "Max"
+          },
+          "values": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Values",
+            "description": "Chỉ dùng khi type = discrete"
+          },
+          "unit": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Unit"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "type",
+          "min",
+          "max",
+          "unit"
+        ],
+        "title": "PrimaryParam"
+      },
+      "Progress": {
+        "properties": {
+          "images_done": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Images Done"
+          },
+          "images_total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Images Total"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "images_done",
+          "images_total"
+        ],
+        "title": "Progress"
+      },
+      "ProtocolBody": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Schema Version",
+            "default": 1
+          },
+          "required_attacks": {
+            "items": {
+              "$ref": "#/components/schemas/RequiredAttack"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Required Attacks"
+          },
+          "min_slice_size": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Min Slice Size"
+          },
+          "pass_criteria": {
+            "items": {
+              "$ref": "#/components/schemas/PassCriterion"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Pass Criteria"
+          },
+          "review_severity_threshold": {
+            "$ref": "#/components/schemas/CaseSeverity",
+            "description": "Case từ mức này trở lên bắt buộc có verdict"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "required_attacks",
+          "min_slice_size",
+          "pass_criteria",
+          "review_severity_threshold"
+        ],
+        "title": "ProtocolBody"
+      },
+      "RequiredAttack": {
+        "properties": {
+          "attack_spec_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Attack Spec Id"
+          },
+          "spec_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Spec Sha256"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/RunMode"
+          },
+          "grid": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GridConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Các level tối thiểu phải chạy"
+          },
+          "search": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SearchConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cấu hình tìm kiếm tối thiểu"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "attack_spec_id",
+          "spec_sha256",
+          "mode"
+        ],
+        "title": "RequiredAttack"
+      },
+      "RunMetrics": {
+        "properties": {
+          "clean": {
+            "$ref": "#/components/schemas/MapPair"
+          },
+          "attacked": {
+            "$ref": "#/components/schemas/MapPair"
+          },
+          "relative_drop": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relative Drop",
+            "description": "null khi mAP@0.5 sạch bằng 0"
+          },
+          "absolute_drop": {
+            "type": "number",
+            "title": "Absolute Drop"
+          },
+          "attack_success_rate": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Attack Success Rate"
+          },
+          "per_class": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/ClassRunMetrics"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Per Class"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "clean",
+          "attacked",
+          "relative_drop",
+          "absolute_drop",
+          "attack_success_rate"
+        ],
+        "title": "RunMetrics"
+      },
+      "RunMode": {
+        "type": "string",
+        "enum": [
+          "grid",
+          "search"
+        ],
+        "title": "RunMode"
+      },
+      "RunResult-Input": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Schema Version",
+            "default": 1
+          },
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "experiment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Experiment Id"
+          },
+          "fingerprint": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Fingerprint"
+          },
+          "attack_spec_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Attack Spec Id"
+          },
+          "level": {
+            "type": "number",
+            "title": "Level"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStatus"
+          },
+          "status_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StatusReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "progress": {
+            "$ref": "#/components/schemas/Progress"
+          },
+          "metrics": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunMetrics"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "gpu_seconds": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Gpu Seconds"
+          },
+          "cost": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Cost-Input"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null với máy local"
+          },
+          "failure_case_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Failure Case Ids"
+          },
+          "manifest_uri": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manifest Uri"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run_id",
+          "experiment_id",
+          "fingerprint",
+          "attack_spec_id",
+          "level",
+          "status",
+          "progress",
+          "gpu_seconds",
+          "failure_case_ids"
+        ],
+        "title": "RunResult"
+      },
+      "RunResult-Output": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Schema Version",
+            "default": 1
+          },
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "experiment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Experiment Id"
+          },
+          "fingerprint": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Fingerprint"
+          },
+          "attack_spec_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Attack Spec Id"
+          },
+          "level": {
+            "type": "number",
+            "title": "Level"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStatus"
+          },
+          "status_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StatusReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "progress": {
+            "$ref": "#/components/schemas/Progress"
+          },
+          "metrics": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunMetrics"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "gpu_seconds": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Gpu Seconds"
+          },
+          "cost": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Cost-Output"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null với máy local"
+          },
+          "failure_case_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Failure Case Ids"
+          },
+          "manifest_uri": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manifest Uri"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run_id",
+          "experiment_id",
+          "fingerprint",
+          "attack_spec_id",
+          "level",
+          "status",
+          "progress",
+          "gpu_seconds",
+          "failure_case_ids"
+        ],
+        "title": "RunResult"
+      },
+      "RunStatus": {
+        "type": "string",
+        "enum": [
+          "queued",
+          "running",
+          "completed",
+          "failed",
+          "skipped",
+          "stopped_limit",
+          "cancelled"
+        ],
+        "title": "RunStatus"
+      },
+      "SearchConfig": {
+        "properties": {
+          "threshold_kind": {
+            "$ref": "#/components/schemas/ThresholdKind"
+          },
+          "threshold": {
+            "type": "number",
+            "title": "Threshold"
+          },
+          "lo": {
+            "type": "number",
+            "title": "Lo"
+          },
+          "hi": {
+            "type": "number",
+            "title": "Hi"
+          },
+          "tol": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Tol"
+          },
+          "coarse_n": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Coarse N"
+          },
+          "subset_size": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Subset Size"
+          },
+          "class_filter": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Class Filter"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "threshold_kind",
+          "threshold",
+          "lo",
+          "hi",
+          "tol",
+          "coarse_n",
+          "subset_size"
+        ],
+        "title": "SearchConfig"
+      },
+      "SearchResult": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Schema Version",
+            "default": 1
+          },
+          "experiment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Experiment Id"
+          },
+          "attack_spec_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Attack Spec Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SearchStatus"
+          },
+          "threshold_kind": {
+            "$ref": "#/components/schemas/ThresholdKind"
+          },
+          "threshold": {
+            "type": "number",
+            "title": "Threshold"
+          },
+          "breaking_point": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Breaking Point"
+          },
+          "bracket": {
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array",
+            "maxItems": 2,
+            "minItems": 2,
+            "title": "Bracket",
+            "description": "Khoảng hiện tại, kể cả khi dừng giữa chừng"
+          },
+          "confidence_interval": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 2,
+                "minItems": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence Interval",
+            "description": "null nếu chưa tính bootstrap"
+          },
+          "near_threshold": {
+            "type": "boolean",
+            "title": "Near Threshold",
+            "description": "Khoảng tin cậy bao trùm ngưỡng"
+          },
+          "trajectory": {
+            "items": {
+              "$ref": "#/components/schemas/TrajectoryPoint"
+            },
+            "type": "array",
+            "title": "Trajectory"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "experiment_id",
+          "attack_spec_id",
+          "status",
+          "threshold_kind",
+          "threshold",
+          "bracket",
+          "near_threshold",
+          "trajectory"
+        ],
+        "title": "SearchResult"
+      },
+      "SearchStatus": {
+        "type": "string",
+        "enum": [
+          "found",
+          "not_reached",
+          "below_min",
+          "stopped_limit",
+          "non_monotonic"
+        ],
+        "title": "SearchStatus"
+      },
+      "SkipReason": {
+        "type": "string",
+        "enum": [
+          "cached",
+          "incompatible"
+        ],
+        "title": "SkipReason"
+      },
+      "StatusReason": {
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StopReason"
+              },
+              {
+                "$ref": "#/components/schemas/SkipReason"
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "error",
+                  "cancelled"
+                ]
+              }
+            ],
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Message"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "StatusReason"
+      },
+      "StopReason": {
+        "type": "string",
+        "enum": [
+          "budget",
+          "time"
+        ],
+        "title": "StopReason"
+      },
+      "ThresholdKind": {
+        "type": "string",
+        "enum": [
+          "relative_drop",
+          "absolute_drop",
+          "attack_success_rate"
+        ],
+        "title": "ThresholdKind"
+      },
+      "TrajectoryPoint": {
+        "properties": {
+          "order": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Order"
+          },
+          "level": {
+            "type": "number",
+            "title": "Level"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "subset",
+              "full"
+            ],
+            "title": "Scope"
+          },
+          "drop": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drop"
+          },
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "order",
+          "level",
+          "scope",
+          "drop",
+          "run_id"
+        ],
+        "title": "TrajectoryPoint"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "userSession": {
+        "type": "apiKey",
+        "description": "Cookie phiên của người dùng (JWT, httpOnly).",
+        "in": "cookie",
+        "name": "advertest_session"
+      },
+      "workerToken": {
+        "type": "http",
+        "description": "Token của compute target, chỉ dùng cho /internal/worker.",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

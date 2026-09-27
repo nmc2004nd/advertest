@@ -36,7 +36,7 @@ migrate:
 	$(call require_file,backend/alembic.ini,Phase 0 Group 3)
 	$(UV_RUN) alembic -c backend/alembic.ini upgrade head
 
-GENERATED := contracts/schemas frontend/src/contracts
+GENERATED := contracts/schemas contracts/openapi.json frontend/src/contracts
 
 contracts:
 	$(UV_RUN) python scripts/gen_contracts.py
