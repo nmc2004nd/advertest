@@ -1,0 +1,374 @@
+import copy
+from typing import Any
+from uuid import uuid4
+
+import pytest
+from pydantic import ValidationError
+
+from advertest_contracts.hashing import sha256_of
+from advertest_contracts.models import (
+    AttackConfig,
+    AttackSpec,
+    ExperimentConfig,
+    Manifest,
+    ProtocolBody,
+    RunResult,
+    SearchResult,
+    compute_spec_sha256,
+)
+
+SHA = "a" * 64
+
+
+def _spec(**overrides: Any) -> dict[str, Any]:
+    data: dict[str, Any] = {
+        "id": str(uuid4()),
+        "name": "pgd_linf",
+        "version": 1,
+        "kind": "attack",
+        "access": "white_box",
+        "art_class": "ProjectedGradientDescent",
+        "primary_param": {
+            "name": "eps",
+            "type": "continuous",
+            "min": 0,
+            "max": 32,
+            "unit": "1/255",
+        },
+        "fixed_params": {"norm": "inf", "max_iter": 10},
+        "cost_model": {"passes_per_image": 10},
+        "requires_gradients": True,
+    }
+    data.update(overrides)
+    data["spec_sha256"] = compute_spec_sha256(data)
+    return data
+
+
+def test_attack_spec_valid() -> None:
+    AttackSpec.model_validate(_spec())
+
+
+def test_attack_spec_hash_ignores_id() -> None:
+    assert _spec()["spec_sha256"] == _spec()["spec_sha256"]
+
+
+def test_attack_spec_rejects_wrong_hash() -> None:
+    data = _spec()
+    data["version"] = 2
+    with pytest.raises(ValidationError, match="spec_sha256"):
+        AttackSpec.model_validate(data)
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"art_class": None},
+        {"kind": "corruption"},
+        {"cost_model": {"passes_per_image": 1, "cpu_only": True}},
+        {"cost_model": {}},
+        {"primary_param": {"name": "s", "type": "discrete", "min": 1, "max": 5, "unit": "level"}},
+        {
+            "primary_param": {
+                "name": "s",
+                "type": "discrete",
+                "min": 1,
+                "max": 5,
+                "values": [6],
+                "unit": "l",
+            }
+        },
+        {"primary_param": {"name": "e", "type": "continuous", "min": 3, "max": 3, "unit": "1/255"}},
+    ],
+)
+def test_attack_spec_rejects_inconsistent_fields(overrides: dict[str, Any]) -> None:
+    with pytest.raises(ValidationError):
+        AttackSpec.model_validate(_spec(**overrides))
+
+
+def _config(**overrides: Any) -> dict[str, Any]:
+    data: dict[str, Any] = {
+        "attack_spec_id": str(uuid4()),
+        "spec_sha256": SHA,
+        "mode": "grid",
+        "grid": {"levels": [2, 4, 8]},
+        "seed": 0,
+    }
+    data.update(overrides)
+    return data
+
+
+SEARCH = {
+    "threshold_kind": "relative_drop",
+    "threshold": 0.2,
+    "lo": 0,
+    "hi": 32,
+    "tol": 0.5,
+    "coarse_n": 5,
+    "subset_size": 100,
+}
+
+
+def test_attack_config_modes() -> None:
+    AttackConfig.model_validate(_config())
+    AttackConfig.model_validate(_config(mode="search", grid=None, search=SEARCH))
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"grid": None},
+        {"mode": "search"},
+        {"mode": "search", "grid": None},
+        {"search": SEARCH},
+        {"mode": "search", "grid": None, "search": {**SEARCH, "lo": 32, "hi": 0}},
+    ],
+)
+def test_attack_config_mode_requires_matching_block(overrides: dict[str, Any]) -> None:
+    with pytest.raises(ValidationError):
+        AttackConfig.model_validate(_config(**overrides))
+
+
+def test_experiment_config_needs_attack_and_positive_limit() -> None:
+    base = {
+        "protocol_id": str(uuid4()),
+        "model_version_id": str(uuid4()),
+        "slice_id": str(uuid4()),
+        "class_mapping_id": str(uuid4()),
+        "compute_target_id": str(uuid4()),
+        "attacks": [_config()],
+        "limit": {"kind": "budget", "value": "12.50"},
+    }
+    ExperimentConfig.model_validate(base)
+    with pytest.raises(ValidationError):
+        ExperimentConfig.model_validate({**base, "attacks": []})
+    with pytest.raises(ValidationError):
+        ExperimentConfig.model_validate({**base, "limit": {"kind": "time", "value": 0}})
+
+
+METRICS = {
+    "clean": {"map50": 0.6, "map50_95": 0.4},
+    "attacked": {"map50": 0.3, "map50_95": 0.2},
+    "relative_drop": 0.5,
+    "absolute_drop": 0.3,
+    "attack_success_rate": 0.45,
+}
+
+
+def _run(status: str, code: str | None = None, **overrides: Any) -> dict[str, Any]:
+    data: dict[str, Any] = {
+        "run_id": str(uuid4()),
+        "experiment_id": str(uuid4()),
+        "fingerprint": SHA,
+        "attack_spec_id": str(uuid4()),
+        "level": 4,
+        "status": status,
+        "status_reason": None if code is None else {"code": code, "message": "lý do"},
+        "progress": {"images_done": 0, "images_total": 300},
+        "gpu_seconds": 0,
+        "failure_case_ids": [],
+    }
+    if status == "completed":
+        data.update(metrics=METRICS, manifest_uri="s3://artifacts/x/manifest.json")
+    data.update(overrides)
+    return data
+
+
+@pytest.mark.parametrize(
+    ("status", "code"),
+    [
+        ("queued", None),
+        ("running", None),
+        ("completed", None),
+        ("failed", "error"),
+        ("skipped", "cached"),
+        ("skipped", "incompatible"),
+        ("stopped_limit", "budget"),
+        ("stopped_limit", "time"),
+        ("cancelled", "cancelled"),
+    ],
+)
+def test_run_result_valid_status_reason(status: str, code: str | None) -> None:
+    RunResult.model_validate(_run(status, code))
+
+
+@pytest.mark.parametrize("status", ["failed", "skipped", "stopped_limit", "cancelled"])
+def test_run_result_abnormal_status_requires_reason(status: str) -> None:
+    with pytest.raises(ValidationError, match="status_reason"):
+        RunResult.model_validate(_run(status))
+
+
+@pytest.mark.parametrize(
+    ("status", "code"),
+    [
+        ("queued", "error"),
+        ("skipped", "budget"),
+        ("stopped_limit", "cached"),
+        ("failed", "cancelled"),
+    ],
+)
+def test_run_result_rejects_mismatched_reason(status: str, code: str) -> None:
+    with pytest.raises(ValidationError):
+        RunResult.model_validate(_run(status, code))
+
+
+def test_run_result_completed_needs_metrics_and_manifest() -> None:
+    with pytest.raises(ValidationError):
+        RunResult.model_validate(_run("completed", metrics=None))
+    with pytest.raises(ValidationError):
+        RunResult.model_validate(_run("completed", manifest_uri=None))
+
+
+def test_run_result_progress_and_cost() -> None:
+    with pytest.raises(ValidationError):
+        RunResult.model_validate(_run("running", progress={"images_done": 5, "images_total": 4}))
+    with pytest.raises(ValidationError):
+        RunResult.model_validate(_run("running", cost={"amount": "1.2", "currency": "usd"}))
+    run = RunResult.model_validate(_run("running", cost={"amount": "1.20", "currency": "USD"}))
+    assert run.model_dump(mode="json")["cost"]["amount"] == "1.20"
+
+
+def _manifest(**env: Any) -> dict[str, Any]:
+    inputs = {
+        "config_sha256": SHA,
+        "weights_sha256": SHA,
+        "dataset_version_sha256": SHA,
+        "slice_id": "00000000-0000-5000-8000-000000000001",
+        "slice_sha256": SHA,
+        "attack_spec_sha256": SHA,
+        "params": {"eps": 4},
+        "seed": 42,
+        "git_commit": "0" * 40,
+        "lib_versions": {
+            "torch": "2.14.0",
+            "art": "1.20.1",
+            "ultralytics": "8.4.163",
+            "torchmetrics": "1.9.0",
+            "numpy": "2.4.6",
+        },
+        "docker_image_digest": "none",
+    }
+    environment = {
+        "compute_target_id": None,
+        "gpu_model": None,
+        "cuda_version": None,
+        "driver_version": None,
+        **env,
+    }
+    return {
+        "run_id": str(uuid4()),
+        "fingerprint": sha256_of(inputs),
+        "fingerprint_inputs": inputs,
+        "environment": environment,
+        "created_at": "2026-09-28T01:02:03Z",
+    }
+
+
+def test_fingerprint_ignores_environment() -> None:
+    a = Manifest.model_validate(_manifest())
+    b = Manifest.model_validate(_manifest(gpu_model="RTX 3050", compute_target_id=str(uuid4())))
+    assert a.fingerprint == b.fingerprint
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("config_sha256", "b" * 64),
+        ("weights_sha256", "b" * 64),
+        ("dataset_version_sha256", "b" * 64),
+        ("slice_id", "00000000-0000-5000-8000-000000000002"),
+        ("slice_sha256", "b" * 64),
+        ("attack_spec_sha256", "b" * 64),
+        ("params", {"eps": 8}),
+        ("seed", 43),
+        ("git_commit", "1" * 40),
+        (
+            "lib_versions",
+            {
+                "torch": "2.13.0",
+                "art": "1.20.1",
+                "ultralytics": "8.4.163",
+                "torchmetrics": "1.9.0",
+                "numpy": "2.4.6",
+            },
+        ),
+        ("docker_image_digest", "sha256:" + "c" * 64),
+    ],
+)
+def test_fingerprint_changes_with_every_input(field: str, value: Any) -> None:
+    base = _manifest()
+    changed = copy.deepcopy(base["fingerprint_inputs"])
+    changed[field] = value
+    assert sha256_of(changed) != base["fingerprint"]
+
+
+def test_manifest_rejects_wrong_fingerprint_and_non_utc() -> None:
+    with pytest.raises(ValidationError, match="fingerprint"):
+        Manifest.model_validate({**_manifest(), "fingerprint": "b" * 64})
+    with pytest.raises(ValidationError, match="UTC"):
+        Manifest.model_validate({**_manifest(), "created_at": "2026-09-28T08:02:03+07:00"})
+
+
+def _search(status: str, **overrides: Any) -> dict[str, Any]:
+    data: dict[str, Any] = {
+        "experiment_id": str(uuid4()),
+        "attack_spec_id": str(uuid4()),
+        "status": status,
+        "threshold_kind": "relative_drop",
+        "threshold": 0.2,
+        "breaking_point": 6.5 if status == "found" else None,
+        "bracket": [6, 7],
+        "near_threshold": False,
+        "trajectory": [
+            {"order": 0, "level": 8, "scope": "subset", "drop": 0.3, "run_id": str(uuid4())}
+        ],
+    }
+    data.update(overrides)
+    return data
+
+
+@pytest.mark.parametrize(
+    "status", ["found", "not_reached", "below_min", "stopped_limit", "non_monotonic"]
+)
+def test_search_result_statuses(status: str) -> None:
+    SearchResult.model_validate(_search(status))
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"breaking_point": None},
+        {"bracket": [7, 6]},
+        {"confidence_interval": [7, 6]},
+    ],
+)
+def test_search_result_rejects_inconsistent(overrides: dict[str, Any]) -> None:
+    with pytest.raises(ValidationError):
+        SearchResult.model_validate(_search("found", **overrides))
+    with pytest.raises(ValidationError):
+        SearchResult.model_validate(_search("not_reached", breaking_point=6.5))
+
+
+def test_protocol_body() -> None:
+    body: dict[str, Any] = {
+        "required_attacks": [
+            {
+                "attack_spec_id": str(uuid4()),
+                "spec_sha256": SHA,
+                "mode": "grid",
+                "grid": {"levels": [4, 8]},
+            }
+        ],
+        "min_slice_size": 300,
+        "pass_criteria": [{"threshold_kind": "relative_drop", "threshold": 0.2}],
+        "review_severity_threshold": "major",
+    }
+    ProtocolBody.model_validate(body)
+    bad = copy.deepcopy(body)
+    bad["required_attacks"][0]["mode"] = "search"
+    with pytest.raises(ValidationError):
+        ProtocolBody.model_validate(bad)
+
+
+def test_extra_fields_rejected() -> None:
+    with pytest.raises(ValidationError):
+        RunResult.model_validate({**_run("queued"), "unexpected": 1})
