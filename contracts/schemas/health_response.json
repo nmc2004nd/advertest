@@ -1,0 +1,74 @@
+{
+  "$defs": {
+    "DependencyStatus": {
+      "additionalProperties": false,
+      "properties": {
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
+        },
+        "detail": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Lý do khi ok = false",
+          "title": "Detail"
+        }
+      },
+      "required": [
+        "ok"
+      ],
+      "title": "DependencyStatus",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "status": {
+      "description": "degraded khi có dependency không ok",
+      "enum": [
+        "ok",
+        "degraded"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "version": {
+      "minLength": 1,
+      "title": "Version",
+      "type": "string"
+    },
+    "git_commit": {
+      "pattern": "^([0-9a-f]{40}|unknown)$",
+      "title": "Git Commit",
+      "type": "string"
+    },
+    "postgres": {
+      "$ref": "#/$defs/DependencyStatus"
+    },
+    "minio": {
+      "$ref": "#/$defs/DependencyStatus"
+    }
+  },
+  "required": [
+    "status",
+    "version",
+    "git_commit",
+    "postgres",
+    "minio"
+  ],
+  "title": "HealthResponse",
+  "type": "object"
+}

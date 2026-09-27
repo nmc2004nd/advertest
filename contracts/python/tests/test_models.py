@@ -9,7 +9,9 @@ from advertest_contracts.hashing import sha256_of
 from advertest_contracts.models import (
     AttackConfig,
     AttackSpec,
+    ErrorResponse,
     ExperimentConfig,
+    HealthResponse,
     Manifest,
     ProtocolBody,
     RunResult,
@@ -372,3 +374,23 @@ def test_protocol_body() -> None:
 def test_extra_fields_rejected() -> None:
     with pytest.raises(ValidationError):
         RunResult.model_validate({**_run("queued"), "unexpected": 1})
+
+
+def test_health_status_must_match_dependencies() -> None:
+    ok = {"ok": True, "detail": None}
+    down = {"ok": False, "detail": "timeout"}
+    base = {"version": "0.0.0", "git_commit": "unknown", "postgres": ok}
+    HealthResponse.model_validate({**base, "status": "ok", "minio": ok})
+    HealthResponse.model_validate({**base, "status": "degraded", "minio": down})
+    with pytest.raises(ValidationError):
+        HealthResponse.model_validate({**base, "status": "ok", "minio": down})
+    with pytest.raises(ValidationError):
+        HealthResponse.model_validate({**base, "status": "degraded", "minio": ok})
+    with pytest.raises(ValidationError):
+        HealthResponse.model_validate({**base, "status": "ok", "minio": ok, "git_commit": "abc"})
+
+
+def test_error_response_only_known_codes() -> None:
+    ErrorResponse.model_validate({"error": {"code": "not_implemented", "message": "x"}})
+    with pytest.raises(ValidationError):
+        ErrorResponse.model_validate({"error": {"code": "teapot", "message": "x"}})

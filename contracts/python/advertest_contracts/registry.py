@@ -7,7 +7,9 @@ from pydantic import BaseModel
 from advertest_contracts.models import (
     AttackConfig,
     AttackSpec,
+    ErrorResponse,
     ExperimentConfig,
+    HealthResponse,
     Manifest,
     ProtocolBody,
     RunResult,
@@ -22,4 +24,6 @@ SCHEMAS: dict[str, type[BaseModel]] = {
     "manifest": Manifest,
     "search_result": SearchResult,
     "protocol_body": ProtocolBody,
+    "error_response": ErrorResponse,
+    "health_response": HealthResponse,
 }

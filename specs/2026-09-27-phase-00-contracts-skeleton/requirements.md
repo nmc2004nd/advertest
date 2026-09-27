@@ -46,6 +46,7 @@ Phase này do người duyệt viết hoặc duyệt từng dòng. Agent có th�
 | `ThresholdKind` | `relative_drop`, `absolute_drop`, `attack_success_rate` |
 | `ReviewDecision` | `approve`, `changes_requested`, `reject` |
 | `CaseSeverity` | `critical`, `major`, `minor`, `acceptable` |
+| `ErrorCode` | `not_implemented` (Phase 4 bổ sung các mã còn lại) |
 
 ### Schema contract
 
@@ -139,6 +140,21 @@ Mỗi schema có trường `schema_version` (bắt đầu từ `1`). Mô tả d�
 | `pass_criteria` | list | ✓ | Mỗi phần tử: `threshold_kind`, `threshold`, `class_filter` (tùy chọn) |
 | `review_severity_threshold` | `CaseSeverity` | ✓ | Case từ mức này trở lên bắt buộc có verdict |
 
+**`ErrorResponse`** — body lỗi thống nhất của mọi endpoint (đề xuất contract 001).
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `error` | object | ✓ | `code` (`ErrorCode`), `message` |
+
+**`HealthResponse`** — response của `GET /health` (đề xuất contract 001).
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `status` | `ok` \| `degraded` | ✓ | `ok` khi và chỉ khi mọi dependency ok |
+| `version` | string | ✓ | |
+| `git_commit` | string | ✓ | 40 ký tự hex, hoặc `unknown` |
+| `postgres`, `minio` | object | ✓ | `ok` (bool), `detail` (lý do khi không ok) |
+
 ### DB schema (bảng và cột chính)
 
 | Bảng | Cột chính |
@@ -189,11 +205,11 @@ Nhóm endpoint nội bộ cho worker (tiền tố `/internal/worker`, xác thự
 - `POST /runs/{id}/complete`: gửi `RunResult` cuối cùng.
 - `POST /experiments/{id}/search-result`: gửi `SearchResult`.
 
-Mọi endpoint (trừ `/health`) trả `501` trong Phase 0, nhưng request và response model phải đầy đủ trong OpenAPI.
+Mọi endpoint (trừ `/health`) trả `501` với body `ErrorResponse` trong Phase 0. Khung API tối thiểu: mỗi nhóm công khai có ít nhất một endpoint đại diện, cùng 6 endpoint worker; request/response model dùng schema đã có trong contract. Schema API còn lại do phase tương ứng thêm vào contract (Phase 3–8).
 
 ## Behaviour
 
-- `GET /health` trả `200` kèm phiên bản API, git commit và trạng thái kết nối Postgres, MinIO.
+- `GET /health` luôn trả `200` với `HealthResponse`: phiên bản API, git commit và trạng thái kết nối Postgres, MinIO; tình trạng chung nằm ở trường `status`.
 - `make up` khởi động Postgres, MinIO, API; migration chạy tự động bằng role `advertest_owner`.
 - `make check` chạy toàn bộ lint, type check, test và kiểm tra contract.
 - Sinh lại artifact từ contract (`make contracts`) không làm thay đổi file đã commit nếu contract không đổi.

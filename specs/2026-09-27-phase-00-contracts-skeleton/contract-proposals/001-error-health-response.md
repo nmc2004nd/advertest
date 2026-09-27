@@ -1,7 +1,7 @@
 # Đề xuất contract 001: ErrorResponse và HealthResponse
 
 - Người đề xuất: agent backend, Phase 00, Group 4
-- Trạng thái: chờ duyệt
+- Trạng thái: đã duyệt, đã áp dụng (người dùng giao agent thay người duyệt áp dụng)
 
 ## Vấn đề
 

@@ -39,6 +39,8 @@ EXPECTED = {
     "ThresholdKind": {"relative_drop", "absolute_drop", "attack_success_rate"},
     "ReviewDecision": {"approve", "changes_requested", "reject"},
     "CaseSeverity": {"critical", "major", "minor", "acceptable"},
+    # Đề xuất contract 001; Phase 4 bổ sung các mã còn lại.
+    "ErrorCode": {"not_implemented"},
 }
 
 

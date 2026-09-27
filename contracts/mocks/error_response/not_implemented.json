@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "error": {
+    "code": "not_implemented",
+    "message": "Endpoint chưa được cài đặt."
+  }
+}

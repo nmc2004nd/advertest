@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "status": "degraded",
+  "version": "0.0.0",
+  "git_commit": "unknown",
+  "postgres": { "ok": true, "detail": null },
+  "minio": { "ok": false, "detail": "Không kết nối được http://minio:9000 (timeout 2 giây)." }
+}

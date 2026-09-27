@@ -131,6 +131,17 @@ export interface components {
              */
             cpu_only: boolean;
         };
+        /** DependencyStatus */
+        DependencyStatus: {
+            /** Ok */
+            ok: boolean;
+            /**
+             * Detail
+             * @description Lý do khi ok = false
+             * @default null
+             */
+            detail: string | null;
+        };
         /**
          * Environment
          * @description Máy đã chạy run. Không thuộc fingerprint.
@@ -150,6 +161,30 @@ export interface components {
             cuda_version: string | null;
             /** Driver Version */
             driver_version: string | null;
+        };
+        /** ErrorBody */
+        ErrorBody: {
+            code: components["schemas"]["ErrorCode"];
+            /** Message */
+            message: string;
+        };
+        /**
+         * ErrorCode
+         * @enum {string}
+         */
+        ErrorCode: "not_implemented";
+        /**
+         * ErrorResponse
+         * @description Body lỗi thống nhất của mọi endpoint: {"error": {"code", "message"}}.
+         */
+        ErrorResponse: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            error: components["schemas"]["ErrorBody"];
         };
         /** ExperimentConfig */
         ExperimentConfig: {
@@ -226,6 +261,27 @@ export interface components {
         GridConfig: {
             /** Levels */
             levels: number[];
+        };
+        /** HealthResponse */
+        HealthResponse: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /**
+             * Status
+             * @description degraded khi có dependency không ok
+             * @enum {string}
+             */
+            status: "ok" | "degraded";
+            /** Version */
+            version: string;
+            /** Git Commit */
+            git_commit: string;
+            postgres: components["schemas"]["DependencyStatus"];
+            minio: components["schemas"]["DependencyStatus"];
         };
         JsonValue: unknown;
         /** LibVersions */
@@ -596,11 +652,16 @@ export type ClassRunMetrics = components['schemas']['ClassRunMetrics'];
 export type ComputeKind = components['schemas']['ComputeKind'];
 export type Cost = components['schemas']['Cost'];
 export type CostModel = components['schemas']['CostModel'];
+export type DependencyStatus = components['schemas']['DependencyStatus'];
 export type Environment = components['schemas']['Environment'];
+export type ErrorBody = components['schemas']['ErrorBody'];
+export type ErrorCode = components['schemas']['ErrorCode'];
+export type ErrorResponse = components['schemas']['ErrorResponse'];
 export type ExperimentConfig = components['schemas']['ExperimentConfig'];
 export type ExperimentStatus = components['schemas']['ExperimentStatus'];
 export type FingerprintInputs = components['schemas']['FingerprintInputs'];
 export type GridConfig = components['schemas']['GridConfig'];
+export type HealthResponse = components['schemas']['HealthResponse'];
 export type JsonValue = components['schemas']['JsonValue'];
 export type LibVersions = components['schemas']['LibVersions'];
 export type Limit = components['schemas']['Limit'];

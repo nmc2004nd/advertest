@@ -100,6 +100,11 @@ class ReviewDecision(StrEnum):
     REJECT = "reject"
 
 
+class ErrorCode(StrEnum):
+    # Phase 4 thêm: unauthenticated, forbidden, invalid_credentials, account_pending, ...
+    NOT_IMPLEMENTED = "not_implemented"
+
+
 class CaseSeverity(StrEnum):
     CRITICAL = "critical"
     MAJOR = "major"

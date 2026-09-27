@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "status": "ok",
+  "version": "0.0.0",
+  "git_commit": "605bea4c1f7e2d9a3b8c0e6f5d4a2b1c9e8f7a6d",
+  "postgres": { "ok": true, "detail": null },
+  "minio": { "ok": true, "detail": null }
+}

@@ -27,6 +27,7 @@ from advertest_contracts.enums import (
     AttackAccess,
     AttackKind,
     CaseSeverity,
+    ErrorCode,
     LimitKind,
     RunMode,
     RunStatus,
@@ -375,6 +376,42 @@ class SearchResult(_Model):
         ci = self.confidence_interval
         if ci is not None and ci[0] > ci[1]:
             raise ValueError("confidence_interval phải có dạng [thấp, cao]")
+        return self
+
+
+# ---------------------------------------------------------------- API chung
+
+
+class ErrorBody(_Model):
+    code: ErrorCode
+    message: str = Field(min_length=1)
+
+
+class ErrorResponse(_Model):
+    """Body lỗi thống nhất của mọi endpoint: {"error": {"code", "message"}}."""
+
+    schema_version: Literal[1] = 1
+    error: ErrorBody
+
+
+class DependencyStatus(_Model):
+    ok: bool
+    detail: str | None = Field(default=None, description="Lý do khi ok = false")
+
+
+class HealthResponse(_Model):
+    schema_version: Literal[1] = 1
+    status: Literal["ok", "degraded"] = Field(description="degraded khi có dependency không ok")
+    version: str = Field(min_length=1)
+    git_commit: str = Field(pattern=r"^([0-9a-f]{40}|unknown)$")
+    postgres: DependencyStatus
+    minio: DependencyStatus
+
+    @model_validator(mode="after")
+    def _status_matches_dependencies(self) -> HealthResponse:
+        all_ok = self.postgres.ok and self.minio.ok
+        if (self.status == "ok") != all_ok:
+            raise ValueError("status = ok khi và chỉ khi mọi dependency ok")
         return self
 
 
