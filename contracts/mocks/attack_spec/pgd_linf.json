@@ -1,0 +1,29 @@
+{
+  "id": "449774ff-ded0-5909-b549-90a1e410bd62",
+  "schema_version": 1,
+  "name": "pgd_linf",
+  "version": 1,
+  "kind": "attack",
+  "access": "white_box",
+  "art_class": "ProjectedGradientDescent",
+  "primary_param": {
+    "name": "eps",
+    "type": "continuous",
+    "min": 0,
+    "max": 32,
+    "values": null,
+    "unit": "1/255"
+  },
+  "fixed_params": {
+    "norm": "inf",
+    "max_iter": 10,
+    "eps_step_ratio": 0.25,
+    "num_random_init": 0
+  },
+  "cost_model": {
+    "passes_per_image": 10,
+    "cpu_only": false
+  },
+  "requires_gradients": true,
+  "spec_sha256": "68fe8f72f176fe27981eadfe8b5e98bb36b8e85fc41c97b5702e2e149f52d72c"
+}

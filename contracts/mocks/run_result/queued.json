@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "run_id": "3abdd591-0ec8-5770-9993-0090cd52ea27",
+  "experiment_id": "37440a93-11db-57a1-a2dd-3de419d3001f",
+  "fingerprint": "ad4c6a973f7351897b2001285daec724e52f1808f9572b3278eb2126f600b378",
+  "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+  "level": 16,
+  "status": "queued",
+  "status_reason": null,
+  "progress": {
+    "images_done": 0,
+    "images_total": 300
+  },
+  "metrics": null,
+  "gpu_seconds": 0,
+  "cost": null,
+  "failure_case_ids": [],
+  "manifest_uri": null
+}

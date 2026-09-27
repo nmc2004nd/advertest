@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "run_id": "b047c88c-947f-5122-b79c-2f547d5f6cbb",
+  "experiment_id": "37440a93-11db-57a1-a2dd-3de419d3001f",
+  "fingerprint": "96c9f76067a9374e10177fc523d2531382fd4fd645809b511c4363c7031eecb8",
+  "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+  "level": 16,
+  "status": "cancelled",
+  "status_reason": {
+    "code": "cancelled",
+    "message": "Người tạo experiment đã hủy."
+  },
+  "progress": {
+    "images_done": 30,
+    "images_total": 300
+  },
+  "metrics": null,
+  "gpu_seconds": 9.8,
+  "cost": null,
+  "failure_case_ids": [],
+  "manifest_uri": null
+}

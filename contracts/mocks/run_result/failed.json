@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "run_id": "5705570a-3308-5cf6-b346-aabdd5c055a6",
+  "experiment_id": "37440a93-11db-57a1-a2dd-3de419d3001f",
+  "fingerprint": "977484aced1291f00a638abaf28630dd574961b2e180c1c360b0e3c22bb094cc",
+  "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+  "level": 2,
+  "status": "failed",
+  "status_reason": {
+    "code": "error",
+    "message": "CUDA out of memory ở batch 3; giảm batch size rồi chạy lại."
+  },
+  "progress": {
+    "images_done": 64,
+    "images_total": 300
+  },
+  "metrics": null,
+  "gpu_seconds": 22.0,
+  "cost": null,
+  "failure_case_ids": [],
+  "manifest_uri": null
+}

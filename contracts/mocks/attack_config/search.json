@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+  "spec_sha256": "68fe8f72f176fe27981eadfe8b5e98bb36b8e85fc41c97b5702e2e149f52d72c",
+  "mode": "search",
+  "grid": null,
+  "search": {
+    "threshold_kind": "relative_drop",
+    "threshold": 0.2,
+    "lo": 0,
+    "hi": 32,
+    "tol": 0.5,
+    "coarse_n": 5,
+    "subset_size": 100,
+    "class_filter": null
+  },
+  "seed": 42
+}

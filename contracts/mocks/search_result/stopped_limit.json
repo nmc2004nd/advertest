@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "experiment_id": "37440a93-11db-57a1-a2dd-3de419d3001f",
+  "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+  "threshold_kind": "relative_drop",
+  "threshold": 0.2,
+  "confidence_interval": null,
+  "near_threshold": false,
+  "status": "stopped_limit",
+  "breaking_point": null,
+  "bracket": [
+    4,
+    8
+  ],
+  "trajectory": [
+    {
+      "order": 0,
+      "level": 0,
+      "scope": "subset",
+      "drop": 0.0,
+      "run_id": "02df4daf-9a9f-5b84-b2d7-d8c61a85517d"
+    },
+    {
+      "order": 1,
+      "level": 8,
+      "scope": "subset",
+      "drop": 0.31,
+      "run_id": "b2c162bc-e0f2-52f5-a47b-995f62ab707b"
+    },
+    {
+      "order": 2,
+      "level": 4,
+      "scope": "subset",
+      "drop": 0.12,
+      "run_id": "eeea6d48-18e1-5b78-aabe-4cae6f981bb7"
+    }
+  ]
+}

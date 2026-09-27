@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "run_id": "28a5aeb9-4314-534c-b982-3d147250af98",
+  "experiment_id": "37440a93-11db-57a1-a2dd-3de419d3001f",
+  "fingerprint": "5767c93e4553cf37320c34652ceecf6470e9e9d2c04bbabf5024d2be7d0213bf",
+  "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+  "level": 4,
+  "status": "skipped",
+  "status_reason": {
+    "code": "cached",
+    "message": "Fingerprint trùng run đã hoàn thành trước đó."
+  },
+  "progress": {
+    "images_done": 0,
+    "images_total": 300
+  },
+  "metrics": null,
+  "gpu_seconds": 0,
+  "cost": null,
+  "failure_case_ids": [],
+  "manifest_uri": "s3://artifacts/runs/acd64412-55de-5ac6-b8d0-8ca96f218a64/manifest.json"
+}

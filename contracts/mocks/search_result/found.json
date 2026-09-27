@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "experiment_id": "37440a93-11db-57a1-a2dd-3de419d3001f",
+  "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+  "threshold_kind": "relative_drop",
+  "threshold": 0.2,
+  "confidence_interval": [
+    5.8,
+    7.1
+  ],
+  "near_threshold": false,
+  "status": "found",
+  "breaking_point": 6.5,
+  "bracket": [
+    6,
+    7
+  ],
+  "trajectory": [
+    {
+      "order": 0,
+      "level": 0,
+      "scope": "subset",
+      "drop": 0.0,
+      "run_id": "02df4daf-9a9f-5b84-b2d7-d8c61a85517d"
+    },
+    {
+      "order": 1,
+      "level": 8,
+      "scope": "subset",
+      "drop": 0.31,
+      "run_id": "b2c162bc-e0f2-52f5-a47b-995f62ab707b"
+    },
+    {
+      "order": 2,
+      "level": 16,
+      "scope": "subset",
+      "drop": 0.58,
+      "run_id": "d9b38e3d-d362-5238-b5a5-3c90977ffbde"
+    },
+    {
+      "order": 3,
+      "level": 4,
+      "scope": "subset",
+      "drop": 0.12,
+      "run_id": "9d1c942f-058f-55c9-8f51-b0ee00b10035"
+    },
+    {
+      "order": 4,
+      "level": 6,
+      "scope": "subset",
+      "drop": 0.18,
+      "run_id": "1d392ffb-3089-5a5b-a4bb-591306a09505"
+    },
+    {
+      "order": 5,
+      "level": 7,
+      "scope": "subset",
+      "drop": 0.23,
+      "run_id": "6540a33e-3e8e-51f2-a4cb-5438cd84c626"
+    },
+    {
+      "order": 6,
+      "level": 6,
+      "scope": "full",
+      "drop": 0.19,
+      "run_id": "1afef1bc-a5fb-52c7-bf07-463f60f838d4"
+    },
+    {
+      "order": 7,
+      "level": 7,
+      "scope": "full",
+      "drop": 0.22,
+      "run_id": "65b9488a-9e47-508d-a0f9-cc2f0bb8890b"
+    }
+  ]
+}

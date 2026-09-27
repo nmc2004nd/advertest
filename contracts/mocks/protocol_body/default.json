@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "required_attacks": [
+    {
+      "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+      "spec_sha256": "68fe8f72f176fe27981eadfe8b5e98bb36b8e85fc41c97b5702e2e149f52d72c",
+      "mode": "grid",
+      "grid": {
+        "levels": [
+          2,
+          4,
+          8,
+          16
+        ]
+      },
+      "search": null
+    }
+  ],
+  "min_slice_size": 300,
+  "pass_criteria": [
+    {
+      "threshold_kind": "relative_drop",
+      "threshold": 0.2,
+      "class_filter": null
+    }
+  ],
+  "review_severity_threshold": "major"
+}

@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "protocol_id": "f1d27cae-7d48-5cfc-87b1-3bc44066c390",
+  "model_version_id": "a4323748-1812-51e1-97fc-9505cdf40958",
+  "slice_id": "569c7b5d-35d2-5404-9a52-0de97971e46f",
+  "class_mapping_id": "5c132e91-2a55-52e7-8725-0a3ccb3420ad",
+  "compute_target_id": "8679be42-13ce-51fb-876b-ca6d4d3f3c74",
+  "attacks": [
+    {
+      "schema_version": 1,
+      "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+      "spec_sha256": "68fe8f72f176fe27981eadfe8b5e98bb36b8e85fc41c97b5702e2e149f52d72c",
+      "mode": "grid",
+      "grid": {
+        "levels": [
+          2,
+          4,
+          8,
+          16
+        ]
+      },
+      "search": null,
+      "seed": 42
+    }
+  ],
+  "limit": {
+    "kind": "time",
+    "value": "7200"
+  }
+}

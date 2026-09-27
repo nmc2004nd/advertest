@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "run_id": "51d51e33-037a-5f3f-a806-c25ce7a4c7e9",
+  "experiment_id": "37440a93-11db-57a1-a2dd-3de419d3001f",
+  "fingerprint": "d9cdf25b9c6578c0bfa8f531aefbf18d7f19883726015ab3521030d07942c181",
+  "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+  "level": 32,
+  "status": "stopped_limit",
+  "status_reason": {
+    "code": "budget",
+    "message": "Chạm trần ngân sách của experiment."
+  },
+  "progress": {
+    "images_done": 180,
+    "images_total": 300
+  },
+  "metrics": null,
+  "gpu_seconds": 3600.0,
+  "cost": {
+    "amount": "0.85",
+    "currency": "USD"
+  },
+  "failure_case_ids": [],
+  "manifest_uri": null
+}
