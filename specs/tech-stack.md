@@ -109,10 +109,11 @@ Tầng sweep, metric, backend và frontend không được phụ thuộc vào vi
 |---|---|---|
 | Web framework | FastAPI | Cùng ngôn ngữ với ML core, có sẵn OpenAPI |
 | Validation | Pydantic v2 | Dùng chung schema với contract |
-| Database | PostgreSQL | Nhiều người dùng, ghi đồng thời, phân quyền ở cấp DB cho audit log |
+| Database | PostgreSQL 17 | Nhiều người dùng, ghi đồng thời, phân quyền ở cấp DB cho audit log |
+| Driver Postgres | psycopg 3 | Một driver cho cả sync (Alembic, script) và async (API) |
 | ORM / migration | SQLAlchemy 2 + Alembic | Migration có version, review được |
 | Object storage | MinIO (API tương thích S3) | Worker ở nhiều máy cùng ghi được |
-| Mật khẩu | argon2 | |
+| Mật khẩu | argon2 (`argon2-cffi`) | |
 | Phiên đăng nhập | JWT trong cookie httpOnly | |
 | Report PDF | WeasyPrint (render HTML → PDF ở server) | |
 | Email | SMTP | Thông báo run xong, chờ duyệt, ngân sách |
@@ -123,6 +124,8 @@ Tầng sweep, metric, backend và frontend không được phụ thuộc vào vi
 - Mọi endpoint khai báo quyền bằng dependency `require_role(...)`. Luật "không tự review" kiểm tra ở tầng service.
 - Chỉ tài khoản hệ thống của worker được ghi metric và kết quả. API của người dùng không có endpoint ghi metric.
 - User ứng dụng trong Postgres bị thu hồi quyền `UPDATE` và `DELETE` trên bảng `audit_log`.
+- Role `advertest_owner` và `advertest_app` được tạo bằng script init của Postgres (`docker/postgres/init/`), không tạo trong migration. Mỗi migration tự `GRANT` quyền cho `advertest_app` trên bảng nó tạo; test `test_every_table_is_granted_to_app` sẽ fail nếu quên.
+- Alembic đọc `MIGRATION_DATABASE_URL` (role owner); ứng dụng và script đọc `DATABASE_URL` (role app).
 - Verdict review có version, không ghi đè.
 - ID dùng UUID (uuid5 của hash nội dung khi có thể, qua `advertest_contracts.ids.content_id`). Thời gian lưu UTC; schema từ chối múi giờ khác.
 - Số tiền dùng số thập phân (`Decimal`), trong JSON là chuỗi, để tránh sai số float khi cộng dồn ledger. Chuẩn hóa số chữ số thập phân trước khi hash.
@@ -256,6 +259,8 @@ Nguồn sự thật là `pyproject.toml` + `uv.lock` (Python) và `frontend/pack
 | pydantic | 2.13.5 |
 | sqlalchemy | 2.1.1 |
 | alembic | 1.20.0 |
+| psycopg / argon2-cffi | 3.3.6 / 25.1.0 |
+| Postgres (image) | `postgres:17-alpine` |
 | ruff / mypy / pytest | 0.16.9 / 2.3.1 / 9.1.1 |
 
 Biến thể torch chọn bằng extra của uv, cùng một `uv.lock`:

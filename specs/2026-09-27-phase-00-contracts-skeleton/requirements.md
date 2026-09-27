@@ -173,6 +173,9 @@ Ràng buộc bắt buộc ở cấp DB:
 - `runs` không có quyền `DELETE` với `advertest_app` (chỉ đặt `archived = true`).
 - Unique `(experiment_id, fingerprint)` trên `runs`.
 - Không cho phép có dòng trong `reviews` mà `reviewer_id` trùng `experiments.created_by` (kiểm tra bằng trigger).
+- `runs` ở trạng thái `failed`, `skipped`, `stopped_limit`, `cancelled` phải có `status_reason` (CHECK).
+- `compute_targets` có `billing_mode = hourly` phải có `price_per_hour` và `currency` (CHECK).
+- Unique `(name, version)` trên `attack_specs` và `protocols`; unique `(experiment_id, version)` trên `reviews`; unique `(failure_case_id, version)` trên `case_verdicts`.
 
 ### API (OpenAPI)
 

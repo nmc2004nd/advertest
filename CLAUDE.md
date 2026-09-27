@@ -15,7 +15,7 @@ Dự án phát triển theo spec-driven development. Spec là nguồn sự thậ
 |---|---|
 | `ml-core` và các agent con (`ml-data`, `ml-model`, `ml-metric`, `ml-search`, `ml-privacy`) | `ml_core/` (đúng thư mục con ghi trong `plan.md` của phase) |
 | `attack` và các agent con (`attack-transform`, `attack-patch`) | `attacks/` |
-| `backend` và các agent con | `backend/app/`, `backend/admin_cli/`, `docker/` |
+| `backend` và các agent con | `backend/app/`, `backend/admin_cli/`, `backend/migrations/`, `backend/alembic.ini`, `docker/`; `pyproject.toml` và `uv.lock` chỉ khi thêm dependency đã được duyệt |
 | `worker` | `backend/worker/` |
 | `frontend` và các agent con | `frontend/` |
 | Người duyệt (con người) | `specs/`, `contracts/`, `tests/acceptance/`, `CLAUDE.md` |
