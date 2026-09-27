@@ -1,4 +1,8 @@
-"""Kết nối Postgres. URL lấy từ biến môi trường, không đặt cứng trong code."""
+"""Kết nối Postgres. URL lấy từ biến môi trường, không đặt cứng trong code.
+
+DATABASE_URL: role advertest_app (ứng dụng, seed). MIGRATION_DATABASE_URL: role advertest_owner
+(chỉ Alembic dùng).
+"""
 
 from __future__ import annotations
 
