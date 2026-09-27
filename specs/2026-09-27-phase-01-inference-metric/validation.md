@@ -8,6 +8,7 @@
 - [ ] `make check` pass (lint, type check, unit test, test nghiệm thu Phase 0 và Phase 1).
 - [ ] `make contracts` không tạo thay đổi so với bản đã commit.
 - [ ] Mock `ModelCard` và `CleanEvalResult` validate được.
+- [ ] `advertest --help` liệt kê đủ các nhóm lệnh `model`, `dataset`, `slice`, `mapping`, `eval`, `viz`.
 
 ### Letterbox — `test_letterbox.py`
 - [ ] Ảnh 1242×375 sau letterbox có kích thước 640×640, vùng pad có giá trị 114/255.
@@ -22,7 +23,11 @@
 - [ ] Sửa một dòng label → `dataset_version_sha256` khác.
 - [ ] `slice create` cùng seed cho cùng `image_ids_sha256`; khác seed cho kết quả khác.
 - [ ] Mọi ảnh trong slice mặc định có ít nhất 1 object đã map.
-- [ ] ID của slice và dataset là uuid5 xác định từ hash (tính lại cho cùng giá trị).
+- [ ] ID của slice, mapping và dataset là uuid5 xác định từ hash (tính lại cho cùng giá trị).
+- [ ] Cùng danh sách image ID nhưng khác `dataset_version_sha256` → `slice_sha256` và `id` khác nhau.
+- [ ] `import-kitti` trên `tests/fixtures/kitti/` chạy được và cho manifest validate được.
+- [ ] GT `Car` cao 20px (ảnh gốc) → ignore region `difficulty:Car`; GT `Car` có `occluded = 2` hoặc `truncated = 0.5` → ignore region; GT `Car` cao 30px, `occluded = 1`, `truncated = 0.2` → giữ làm annotation.
+- [ ] Ảnh chỉ có object bị chuyển thành ignore region do độ khó không lọt vào slice mặc định.
 
 ### Model — `test_model.py`
 - [ ] Prediction của wrapper khớp predict gốc của Ultralytics trên 5 ảnh fixture: cùng số box; mỗi box ghép cặp có IoU ≥ 0.99, cùng class, chênh lệch score < 1e-3.

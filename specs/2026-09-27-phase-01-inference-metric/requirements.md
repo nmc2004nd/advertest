@@ -28,7 +28,7 @@
 
 ### Thay đổi contract (cần người duyệt chấp nhận)
 
-Thêm schema mới `CleanEvalResult` vào `contracts/`, và thêm `ModelCard` để mô tả model đã đăng ký. Đây là thay đổi contract nên phải được người duyệt thêm và merge trước khi agent bắt đầu Group 4 trong `plan.md`.
+Thêm schema mới `CleanEvalResult` vào `contracts/`, và thêm `ModelCard` để mô tả model đã đăng ký. Cả hai schema có `schema_version` (bắt đầu từ `1`) như mọi schema khác của Phase 0. Đây là thay đổi contract nên phải được người duyệt thêm và merge trước khi agent bắt đầu Group 4 trong `plan.md`.
 
 **`ModelCard`**
 
@@ -50,8 +50,8 @@ Thêm schema mới `CleanEvalResult` vào `contracts/`, và thêm `ModelCard` đ
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | `model` | object | ✓ | `id`, `weights_sha256` |
-| `slice` | object | ✓ | `id`, `image_ids_sha256`, `dataset_version_sha256` |
-| `class_mapping_sha256` | string | ✓ | |
+| `slice` | object | ✓ | `id`, `slice_sha256`, `image_ids_sha256`, `dataset_version_sha256` |
+| `class_mapping` | object | ✓ | `id`, `mapping_sha256` |
 | `inference_params` | object | ✓ | `conf`, `iou`, `max_det`, `operating_conf`, `input_size` |
 | `metrics` | object | ✓ | `map50`, `map50_95`, `per_class` (mỗi class: `ap50`, `ap50_95`, `num_gt`) |
 | `num_images` | int | ✓ | |
@@ -83,13 +83,16 @@ Hash của dataset version là sha256 của manifest đã chuẩn hóa (`canonic
 | `Cyclist`, `Tram`, `Misc` | — | Chuyển thành ignore region |
 | `DontCare` | — | Chuyển thành ignore region |
 
-Class mapping là một file JSON riêng, có hash, tham chiếu đến dataset version và model.
+Lọc theo độ khó (mức Moderate của KITTI), áp dụng khi áp mapping: annotation của class đã map nhưng có chiều cao bbox < 25 pixel (ảnh gốc), hoặc `occluded` ≥ 2, hoặc `truncated` > 0.30, chuyển thành ignore region với `source = difficulty:<class gốc>`. Quy tắc và ngưỡng nằm trong file mapping, nên `mapping_sha256` bao gồm chúng.
+
+Class mapping là một file JSON riêng, tham chiếu đến dataset version và model. `mapping_sha256` = sha256 của `canonical_json` toàn bộ nội dung mapping (trừ `id`); `id` = uuid5(`mapping_sha256`).
 
 ### Slice
 
 | Field | Notes |
 |---|---|
-| `id` | uuid5 từ `image_ids_sha256` |
+| `id` | uuid5 từ `slice_sha256` |
+| `slice_sha256` | sha256 của `canonical_json` gồm `dataset_version_sha256`, `filter`, `seed`, `size`, `image_ids` |
 | `dataset_version_sha256` | |
 | `filter` | Mặc định: ảnh có ít nhất 1 object thuộc class đã map |
 | `seed` | |
@@ -135,7 +138,8 @@ Class mapping là một file JSON riêng, có hash, tham chiếu đến dataset 
 
 ### Kho lưu trữ local
 - Interface `ArtifactStore` với hai thao tác chính `put(key, bytes)` và `get(key)`. Phase này chỉ cài `LocalStore` (thư mục `data/store/`). Phase 3 thêm `MinioStore` cùng interface.
-- Bố cục theo nội dung: `datasets/<sha>/manifest.json`, `slices/<sha>.json`, `mappings/<sha>.json`, `models/<weights_sha>/card.json`, `cache/predictions/<key>.json`.
+- Bố cục theo nội dung: `datasets/<sha>/manifest.json`, `slices/<slice_sha256>.json`, `mappings/<mapping_sha256>.json`, `models/<weights_sha>/card.json`, `cache/predictions/<key>.json`.
+- CLI nhận `id` (uuid) cho `--slice`, `--mapping`, `--model`; store giữ chỉ mục id → sha.
 
 ### Trực quan hóa
 - `advertest viz --slice <id> --mapping <id> --model <id> --n 8 --out <dir>` xuất ảnh PNG vẽ ground truth, prediction và ignore region, để kiểm tra bằng mắt rằng box khớp sau letterbox.
@@ -149,13 +153,16 @@ Class mapping là một file JSON riêng, có hash, tham chiếu đến dataset 
 - **Giữ ảnh vuông 640×640 dù KITTI có tỉ lệ rất rộng (khoảng 1242×375).** *Lý do:* thống nhất quy ước trong `tech-stack.md` và kích thước đầu vào cố định của estimator ART. Hệ quả: object bị thu nhỏ, baseline có thể thấp. Nếu mAP@0.5 sạch dưới 0.4, ghi nhận và đưa quyết định (fine-tune, đổi kích thước đầu vào) vào backlog.
 - **ID được sinh bằng uuid5 từ hash nội dung.** *Lý do:* cùng dữ liệu luôn cho cùng ID, khi Phase 3 đưa vào Postgres không phải ánh xạ lại.
 - **Cache lưu prediction thô.** *Lý do:* đổi mapping hoặc ignore rule không tốn GPU.
+- **ID của slice và mapping sinh từ hash toàn bộ nội dung, không chỉ từ danh sách image ID.** *Lý do:* image ID của KITTI giữ nguyên qua các dataset version; nếu chỉ hash danh sách ID, slice của hai version khác nhau sẽ trùng ID và ghi đè lẫn nhau.
+- **Ground truth dưới mức Moderate của KITTI trở thành ignore region.** *Lý do:* letterbox thu ảnh KITTI còn khoảng 51%; object nhỏ hoặc bị che nhiều làm baseline thấp giả tạo và gây nhiễu phép so sánh sạch/tấn công ở Phase 2. Cách này gần với đánh giá chính thức của KITTI.
+- **Mỗi agent viết lệnh CLI trong thư mục của mình** (`ml_core/data/cli.py`, `ml_core/models/cli.py`, ...); `ml_core/cli/` chỉ đăng ký các nhóm lệnh. CLI dùng Typer. *Lý do:* các group song song không sửa chung file.
 - **Phase này chỉ dùng kho local qua interface `ArtifactStore`.** *Lý do:* ML core chạy được độc lập với backend; Phase 3 chỉ thêm một cài đặt mới.
 
 ## Context
 
 - `mission.md` nguyên tắc 3 và 4: mọi đầu ra định danh bằng hash và tái lập được.
 - `tech-stack.md` mục 2 (ML core, quy ước dữ liệu, wrapper, metric), mục 8 (thư mục `ml_core/`), mục 9 (luật cho agent).
-- Phase 0: dùng `canonical_json`, `sha256_of` từ `advertest_contracts`; fixture YOLOv8n và 5 ảnh.
+- Phase 0: dùng `canonical_json`, `sha256_of` từ `advertest_contracts`; fixture YOLOv8n và 5 ảnh KITTI kèm label gốc (`tests/fixtures/kitti/`).
 - KITTI yêu cầu đăng ký để tải. Dữ liệu gốc đặt tại `data/raw/kitti/`, không commit vào repo.
 - Máy phát triển là laptop GPU VRAM thấp: batch size là tham số, không đặt cứng.
 
