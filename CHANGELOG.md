@@ -138,5 +138,12 @@ Ghi chú chung: các group của người duyệt (1, 2, 8, 9) do agent soạn t
 - Manual check `make up`, MinIO 4 bucket, `/docs`: agent đã chạy ở Group 10; người dùng chấp nhận là đạt.
 - **Phase 0 chưa đóng.** Còn thiếu: 3 test fixture (Group 6: ảnh KITTI, `manifest.json`, smoke test); manual check `/dev/contracts` (badge, viewport 375px), CI xanh trên GitHub, đọc lại `contracts/`; DoD "Automated Tests pass trên CI", "người duyệt chấp nhận `contracts/` và migration". Người dùng chọn để sau.
 
+### Replan sau Phase 0 — 2026-09-27
+- Phase 1: Group 2–5 phụ thuộc Phase 0 Group 6 (fixture KITTI); Group 1 thêm `typer`, `pillow` và entry point `advertest` vào `pyproject.toml`; contract Phase 1 dùng lại `Sha256Hex`, `GitCommit`, `LibVersions`, `UtcDatetime` (`plan.md`, `requirements.md` Phase 1).
+- Phase 2: ID ghép và `experiment_id` tính bằng `content_id(sha256_of(...))`; seed Phase 0 đã khớp bảng catalog (`requirements.md`, `plan.md` Phase 2).
+- Tồn đọng của Phase 0 đưa vào `roadmap.md` ở Phase 3, 4, 5, 11.
+- Câu hỏi còn mở: đơn vị tiền tệ mặc định (VND hay USD).
+
+### Số liệu chung của Phase 0 đến thời điểm này
 - `make check`: 176 test Python (trừ test `db`), 49 test nghiệm thu và 36 test Vitest pass.
 - `make test-db`: 41 test pass trên Postgres 17 và MinIO.
