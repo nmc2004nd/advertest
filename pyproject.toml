@@ -64,6 +64,9 @@ extend-exclude = ["specs", "docs", "scripts/log_*.py", "scripts/submit_log.py", 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
 
+[tool.ruff.lint.isort]
+known-first-party = ["advertest_contracts", "ml_core", "attacks", "backend"]
+
 [tool.mypy]
 python_version = "3.11"
 mypy_path = "contracts/python"
