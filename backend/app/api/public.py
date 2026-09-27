@@ -11,10 +11,10 @@ from uuid import UUID
 from fastapi import APIRouter, Security
 
 from advertest_contracts.models import AttackSpec, ExperimentConfig, ProtocolBody, RunResult
-from backend.app.api.errors import not_implemented
+from backend.app.api.errors import NOT_IMPLEMENTED_RESPONSE, not_implemented
 from backend.app.api.security import user_session
 
-router = APIRouter(dependencies=[Security(user_session)])
+router = APIRouter(dependencies=[Security(user_session)], responses=NOT_IMPLEMENTED_RESPONSE)
 
 
 @router.post("/auth/login", tags=["auth"])
@@ -93,7 +93,7 @@ def list_audit_log() -> None:
 
 
 # Trang xác minh report công khai, không cần đăng nhập.
-verify_router = APIRouter()
+verify_router = APIRouter(responses=NOT_IMPLEMENTED_RESPONSE)
 
 
 @verify_router.get("/verify/{report_id}", tags=["verify"])

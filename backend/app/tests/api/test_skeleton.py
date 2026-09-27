@@ -7,6 +7,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from advertest_contracts.models import ErrorResponse
 from backend.app.main import create_app
 
 PUBLIC_GROUPS = [
@@ -78,13 +79,25 @@ def test_security_schemes(openapi: dict[str, Any]) -> None:
             names = {name for req in op.get("security", []) for name in req}
             if path.startswith("/internal/worker"):
                 assert names == {"workerToken"}, path
-            elif path.startswith("/verify"):
+            elif path.startswith(("/verify", "/health")):
                 assert names == set(), path
             else:
                 assert names == {"userSession"}, path
 
 
 @pytest.mark.parametrize(("method", "path"), SAMPLE_CALLS)
-def test_unimplemented_endpoints_return_501(method: str, path: str) -> None:
+def test_unimplemented_endpoints_return_501_error_body(method: str, path: str) -> None:
     response = TestClient(create_app()).request(method, path)
     assert response.status_code == 501
+    body = ErrorResponse.model_validate(response.json())
+    assert body.error.code == "not_implemented"
+    assert response.json()["error"].keys() == {"code", "message"}
+
+
+def test_openapi_declares_501_with_error_response(openapi: dict[str, Any]) -> None:
+    for path, ops in openapi["paths"].items():
+        if path == "/health":
+            continue
+        for method, op in ops.items():
+            schema = op["responses"]["501"]["content"]["application/json"]["schema"]
+            assert schema == {"$ref": "#/components/schemas/ErrorResponse"}, (method, path)

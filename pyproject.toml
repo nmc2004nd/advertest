@@ -83,6 +83,11 @@ plugins = ["pydantic.mypy"]
 module = ["advertest_contracts.*", "backend.*"]
 strict = true
 
+# boto3/botocore không kèm type stub; gói stub là dependency riêng, chưa được duyệt.
+[[tool.mypy.overrides]]
+module = ["boto3", "botocore.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["contracts", "ml_core", "attacks", "backend", "tests"]
 addopts = "--import-mode=importlib"

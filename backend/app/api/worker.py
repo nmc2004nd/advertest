@@ -7,11 +7,14 @@ from uuid import UUID
 from fastapi import APIRouter, Security
 
 from advertest_contracts.models import ExperimentConfig, Progress, RunResult, SearchResult
-from backend.app.api.errors import not_implemented
+from backend.app.api.errors import NOT_IMPLEMENTED_RESPONSE, not_implemented
 from backend.app.api.security import worker_token
 
 router = APIRouter(
-    prefix="/internal/worker", tags=["internal-worker"], dependencies=[Security(worker_token)]
+    prefix="/internal/worker",
+    tags=["internal-worker"],
+    dependencies=[Security(worker_token)],
+    responses=NOT_IMPLEMENTED_RESPONSE,
 )
 
 
