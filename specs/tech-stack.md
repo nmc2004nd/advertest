@@ -124,7 +124,8 @@ Tầng sweep, metric, backend và frontend không được phụ thuộc vào vi
 - Chỉ tài khoản hệ thống của worker được ghi metric và kết quả. API của người dùng không có endpoint ghi metric.
 - User ứng dụng trong Postgres bị thu hồi quyền `UPDATE` và `DELETE` trên bảng `audit_log`.
 - Verdict review có version, không ghi đè.
-- ID dùng UUID. Thời gian lưu UTC.
+- ID dùng UUID (uuid5 của hash nội dung khi có thể, qua `advertest_contracts.ids.content_id`). Thời gian lưu UTC; schema từ chối múi giờ khác.
+- Số tiền dùng số thập phân (`Decimal`), trong JSON là chuỗi, để tránh sai số float khi cộng dồn ledger. Chuẩn hóa số chữ số thập phân trước khi hash.
 - Hash dùng sha256 trên JSON chuẩn hóa (key sắp xếp, không khoảng trắng thừa).
 
 ### 4.2. Compute target và giới hạn

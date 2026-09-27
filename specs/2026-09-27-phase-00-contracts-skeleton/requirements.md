@@ -55,7 +55,7 @@ Mỗi schema có trường `schema_version` (bắt đầu từ `1`). Mô tả d�
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `id` | uuid | ✓ | |
+| `id` | uuid | ✓ | uuid5 của `spec_sha256` (namespace trong `advertest_contracts.ids`) |
 | `name` | string | ✓ | Ví dụ `pgd_linf` |
 | `version` | int | ✓ | Tăng khi đổi bất kỳ trường nào |
 | `kind` | `AttackKind` | ✓ | |
@@ -88,7 +88,7 @@ Mỗi schema có trường `schema_version` (bắt đầu từ `1`). Mô tả d�
 | `class_mapping_id` | uuid | ✓ | |
 | `compute_target_id` | uuid | ✓ | |
 | `attacks` | `AttackConfig[]` | ✓ | Ít nhất 1 |
-| `limit` | object | ✓ | `kind: LimitKind`, `value` (tiền hoặc giây) |
+| `limit` | object | ✓ | `kind: LimitKind`, `value` (tiền hoặc giây; số thập phân, trong JSON là chuỗi) |
 
 **`RunResult`**
 
@@ -101,11 +101,11 @@ Mỗi schema có trường `schema_version` (bắt đầu từ `1`). Mô tả d�
 | `status` | `RunStatus` | ✓ | |
 | `status_reason` | object | nếu trạng thái bất thường | `code` (`StopReason` với `stopped_limit`, `SkipReason` với `skipped`, `error` với `failed`, `cancelled` với `cancelled`), `message` |
 | `progress` | object | ✓ | `images_done`, `images_total` |
-| `metrics` | object | nếu có dữ liệu | `clean` và `attacked` (mỗi cái gồm `map50`, `map50_95`), `relative_drop`, `absolute_drop`, `attack_success_rate`, `per_class` (tùy chọn) |
+| `metrics` | object | nếu có dữ liệu; bắt buộc khi `completed` | `clean` và `attacked` (mỗi cái gồm `map50`, `map50_95`), `relative_drop`, `absolute_drop`, `attack_success_rate`, `per_class` (tùy chọn) |
 | `gpu_seconds` | number | ✓ | |
-| `cost` | object | | `amount`, `currency`; null với máy local |
+| `cost` | object | | `amount` (số thập phân, trong JSON là chuỗi), `currency` (mã ISO 4217); null với máy local |
 | `failure_case_ids` | uuid[] | ✓ | Có thể rỗng |
-| `manifest_uri` | string | nếu đã chạy | |
+| `manifest_uri` | string | nếu đã chạy; bắt buộc khi `completed` | |
 
 **`Manifest`** — ghi kèm mỗi run trong MinIO.
 
@@ -114,8 +114,8 @@ Mỗi schema có trường `schema_version` (bắt đầu từ `1`). Mô tả d�
 | `run_id` | uuid | ✓ | |
 | `fingerprint` | string | ✓ | sha256 của `fingerprint_inputs` chuẩn hóa |
 | `fingerprint_inputs` | object | ✓ | `config_sha256`, `weights_sha256`, `dataset_version_sha256`, `slice_id`, `slice_sha256`, `attack_spec_sha256`, `params`, `seed`, `git_commit`, `lib_versions` (`torch`, `art`, `ultralytics`, `torchmetrics`, `numpy`), `docker_image_digest` |
-| `environment` | object | ✓ | `compute_target_id`, `gpu_model`, `cuda_version`, `driver_version`. **Không** thuộc fingerprint |
-| `created_at` | datetime (UTC) | ✓ | |
+| `environment` | object | ✓ | `compute_target_id`, `gpu_model`, `cuda_version`, `driver_version`: luôn có mặt, được phép null (chạy bằng CLI, chạy trên CPU). **Không** thuộc fingerprint |
+| `created_at` | datetime (UTC) | ✓ | Múi giờ khác UTC bị từ chối. Schema tự kiểm tra `fingerprint` = sha256 của `fingerprint_inputs` |
 
 **`SearchResult`**
 

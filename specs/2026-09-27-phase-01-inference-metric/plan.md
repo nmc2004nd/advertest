@@ -1,7 +1,7 @@
 # Plan: Phase 1 — Inference và metric
 
 > Toàn bộ phase thuộc phần ML core, nhưng được chia thành các thư mục con riêng để có thể giao cho nhiều agent song song mà không đụng file của nhau:
-> `ml_core/data/` (agent `ml-data`), `ml_core/models/` (agent `ml-model`), `ml_core/metrics/` (agent `ml-metric`), `ml_core/cli/`, `ml_core/store/`, `ml_core/preprocess/` và `ml_core/ids.py` (agent `ml-core`). Lệnh CLI của từng agent nằm trong thư mục của agent đó (`<thư mục>/cli.py`, mỗi file một `typer.Typer`).
+> `ml_core/data/` (agent `ml-data`), `ml_core/models/` (agent `ml-model`), `ml_core/metrics/` (agent `ml-metric`), `ml_core/cli/`, `ml_core/store/` và `ml_core/preprocess/` (agent `ml-core`). Lệnh CLI của từng agent nằm trong thư mục của agent đó (`<thư mục>/cli.py`, mỗi file một `typer.Typer`).
 >
 > Thứ tự: Group 0 → Group 1 → (Group 2, 3, 4 song song) → Group 5 → Group 6.
 
@@ -15,7 +15,7 @@
 ## Group 1 — Nền tảng dùng chung `[agent: ml-core]`
 
 5. `ml_core/store/`: interface `ArtifactStore` (`put`, `get`, `exists`, `list`) và cài đặt `LocalStore` tại `data/store/`.
-6. `ml_core/ids.py`: hàm `content_id(sha256) -> UUID` dùng uuid5 với namespace cố định của dự án.
+6. Dùng `advertest_contracts.ids.content_id` cho mọi ID sinh từ hash; không tạo namespace uuid5 riêng trong `ml_core`.
 7. `ml_core/preprocess/letterbox.py`: letterbox ảnh về 640×640 (pad 114/255), trả `scale` và `pad`; hàm chuyển box sang không gian letterbox và chuyển ngược.
 8. Khung CLI `advertest` (Typer): `ml_core/cli/` chỉ gắn các sub-app `model`, `dataset`, `slice`, `mapping` (import từ `ml_core/models/cli.py`, `ml_core/data/cli.py`) và định nghĩa `eval`, `viz`. Tạo sẵn các file `cli.py` rỗng cho ml-data và ml-model.
 
