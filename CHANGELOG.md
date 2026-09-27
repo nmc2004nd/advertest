@@ -112,6 +112,8 @@ Ghi chú chung: các group của người duyệt (1, 2, 8, 9) do agent soạn t
 - `.github/workflows/ci.yml`: job `python`, `frontend`, `contracts`, `acceptance` (Postgres service container); cache uv, pnpm, fixture.
 #### Quyết định
 - Cấu trúc CI (`tech-stack.md` mục 6).
+#### Sửa lỗi (2026-09-28)
+- Lần chạy CI đầu tiên (run 36336331689): job `python`, `contracts`, `acceptance` fail ở "Set up job" vì `astral-sh/setup-uv` không có tag major `v10`; đổi sang `@v10.2.0`.
 #### Tồn đọng
 - Manual check: CI xanh trên GitHub sau khi push. Phase 11: pin action theo SHA.
 
