@@ -94,6 +94,7 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 - [ ] Trần thời gian cho máy local, dừng với `stopped_limit`.
 - [ ] Lưu tiến độ theo batch, chạy tiếp sau gián đoạn.
 - [ ] Calibration cost profile cho máy local.
+- [ ] (Từ Phase 0) User MinIO riêng cho api và worker thay cho root; image CUDA dùng chung (`TORCH=cuda`); chặn ghi kết quả ở API (chỉ worker); `lease` trả `204` hoặc `WorkerJobBundle`.
 
 **Demo:** gửi job qua API, xem tiến độ; tắt worker giữa chừng, bật lại thì job chạy tiếp.
 
@@ -107,6 +108,7 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 - [ ] Audit log cho các sự kiện tài khoản; thu hồi quyền `UPDATE/DELETE` trên `audit_log`.
 - [ ] Frontend: trang giới thiệu tối giản, yêu cầu truy cập, đăng nhập, chờ duyệt, quản lý người dùng.
 - [ ] Khung điều hướng theo role, mobile-first.
+- [ ] (Từ Phase 0) Email chuyển về chữ thường; mọi lỗi (kể cả `422`) dùng `ErrorResponse`; mô tả cookie theo phiên phía server.
 
 **Demo:** tài khoản mới ở trạng thái chờ; admin duyệt và gán role; mỗi role chỉ thấy đúng trang của mình.
 
@@ -120,6 +122,7 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 - [ ] Trang chi tiết: tab Tổng quan, Kết quả, Failure case (có watermark), Chi phí, Tái lập.
 - [ ] Biểu đồ đường cong metric.
 - [ ] Email khi experiment xong.
+- [ ] (Từ Phase 0) `useRun` dừng polling khi run kết thúc.
 
 **Demo:** engineer tạo experiment trên web, theo dõi tiến độ trên điện thoại, xem đường cong khi xong.
 
@@ -200,6 +203,7 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 - [ ] So sánh nhiều experiment.
 - [ ] Rà soát bảo mật: quyền endpoint, token worker, cấu hình Tailscale.
 - [ ] Tài liệu cài đặt và vận hành.
+- [ ] (Từ Phase 0) Pin image nền và GitHub Action theo digest/SHA; tài liệu cài đặt nhắc đổi mật khẩu `change-me-*` và việc `make check` cần mạng ở lần đầu.
 
 **Demo:** trọn luồng từ yêu cầu truy cập đến report đã xác minh, trên desktop và điện thoại.
 

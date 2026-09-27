@@ -43,7 +43,7 @@ Cuối phase: mAP trước và sau PGD ở nhiều mức eps trên slice KITTI, 
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `id` | uuid | ✓ | uuid5 từ `fingerprint` + `image_id` |
+| `id` | uuid | ✓ | `content_id(sha256_of({"fingerprint": ..., "image_id": ...}))` |
 | `run_id` | uuid | ✓ | |
 | `image_id` | string | ✓ | |
 | `lost_objects` | int | ✓ | Số object bị mất sau tấn công |
@@ -73,7 +73,7 @@ CLI đọc file YAML theo schema `LocalRunConfig` trong `ml_core/runner/`:
 | `device`, `batch_size` | |
 | `failure_cases_per_run` | Mặc định 20 |
 
-`experiment_id` của run chạy qua CLI = uuid5 của sha256 cấu hình. `ExperimentConfig` đầy đủ (có protocol, compute target, giới hạn) chỉ dùng từ Phase 3.
+`experiment_id` của run chạy qua CLI = `content_id(sha256_of(cấu hình))` (`advertest_contracts.ids`). `ExperimentConfig` đầy đủ (có protocol, compute target, giới hạn) chỉ dùng từ Phase 3.
 
 ## Behaviour
 

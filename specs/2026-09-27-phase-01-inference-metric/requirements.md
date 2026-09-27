@@ -28,7 +28,7 @@
 
 ### Thay đổi contract (cần người duyệt chấp nhận)
 
-Thêm schema mới `CleanEvalResult` vào `contracts/`, và thêm `ModelCard` để mô tả model đã đăng ký. Cả hai schema có `schema_version` (bắt đầu từ `1`) như mọi schema khác của Phase 0. Đây là thay đổi contract nên phải được người duyệt thêm và merge trước khi agent bắt đầu Group 4 trong `plan.md`.
+Thêm schema mới `CleanEvalResult` vào `contracts/`, và thêm `ModelCard` để mô tả model đã đăng ký. Cả hai schema có `schema_version` (bắt đầu từ `1`) như mọi schema khác của Phase 0. Dùng lại kiểu đã có trong `advertest_contracts.models`: `Sha256Hex`, `GitCommit`, `LibVersions` (cho `CleanEvalResult.lib_versions`), thời gian `UtcDatetime` (cho `gradient_check.checked_at`). Đây là thay đổi contract nên phải được người duyệt thêm và merge trước khi agent bắt đầu Group 4 trong `plan.md`.
 
 **`ModelCard`**
 

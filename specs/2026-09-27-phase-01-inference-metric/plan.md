@@ -4,6 +4,8 @@
 > `ml_core/data/` (agent `ml-data`), `ml_core/models/` (agent `ml-model`), `ml_core/metrics/` (agent `ml-metric`), `ml_core/cli/`, `ml_core/store/` và `ml_core/preprocess/` (agent `ml-core`). Lệnh CLI của từng agent nằm trong thư mục của agent đó (`<thư mục>/cli.py`, mỗi file một `typer.Typer`).
 >
 > Thứ tự: Group 0 → Group 1 → (Group 2, 3, 4 song song) → Group 5 → Group 6.
+>
+> Điều kiện tiên quyết: Phase 0 Group 6 (5 ảnh KITTI trong release `fixtures-v1`) phải xong trước Group 2–5, vì test dữ liệu và golden value chạy trên fixture KITTI.
 
 ## Group 0 — Cập nhật contract `[người duyệt]`
 
@@ -17,7 +19,7 @@
 5. `ml_core/store/`: interface `ArtifactStore` (`put`, `get`, `exists`, `list`) và cài đặt `LocalStore` tại `data/store/`.
 6. Dùng `advertest_contracts.ids.content_id` cho mọi ID sinh từ hash; không tạo namespace uuid5 riêng trong `ml_core`.
 7. `ml_core/preprocess/letterbox.py`: letterbox ảnh về 640×640 (pad 114/255), trả `scale` và `pad`; hàm chuyển box sang không gian letterbox và chuyển ngược.
-8. Khung CLI `advertest` (Typer): `ml_core/cli/` chỉ gắn các sub-app `model`, `dataset`, `slice`, `mapping` (import từ `ml_core/models/cli.py`, `ml_core/data/cli.py`) và định nghĩa `eval`, `viz`. Tạo sẵn các file `cli.py` rỗng cho ml-data và ml-model.
+8. Khung CLI `advertest` (Typer): `ml_core/cli/` chỉ gắn các sub-app `model`, `dataset`, `slice`, `mapping` (import từ `ml_core/models/cli.py`, `ml_core/data/cli.py`) và định nghĩa `eval`, `viz`. Tạo sẵn các file `cli.py` rỗng cho ml-data và ml-model. Thêm `typer` và `pillow` (đã có trong `tech-stack.md`) vào `pyproject.toml` kèm phiên bản pin, và entry point `[project.scripts] advertest = "ml_core.cli:app"`; ghi phiên bản vào `tech-stack.md` mục 11.
 
 ## Group 2 — Dữ liệu `[agent: ml-data]`
 
