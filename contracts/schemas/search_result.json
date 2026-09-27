@@ -1,0 +1,174 @@
+{
+  "$defs": {
+    "SearchStatus": {
+      "enum": [
+        "found",
+        "not_reached",
+        "below_min",
+        "stopped_limit",
+        "non_monotonic"
+      ],
+      "title": "SearchStatus",
+      "type": "string"
+    },
+    "ThresholdKind": {
+      "enum": [
+        "relative_drop",
+        "absolute_drop",
+        "attack_success_rate"
+      ],
+      "title": "ThresholdKind",
+      "type": "string"
+    },
+    "TrajectoryPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "order": {
+          "minimum": 0,
+          "title": "Order",
+          "type": "integer"
+        },
+        "level": {
+          "title": "Level",
+          "type": "number"
+        },
+        "scope": {
+          "enum": [
+            "subset",
+            "full"
+          ],
+          "title": "Scope",
+          "type": "string"
+        },
+        "drop": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Drop"
+        },
+        "run_id": {
+          "format": "uuid",
+          "title": "Run Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "order",
+        "level",
+        "scope",
+        "drop",
+        "run_id"
+      ],
+      "title": "TrajectoryPoint",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "experiment_id": {
+      "format": "uuid",
+      "title": "Experiment Id",
+      "type": "string"
+    },
+    "attack_spec_id": {
+      "format": "uuid",
+      "title": "Attack Spec Id",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/$defs/SearchStatus"
+    },
+    "threshold_kind": {
+      "$ref": "#/$defs/ThresholdKind"
+    },
+    "threshold": {
+      "title": "Threshold",
+      "type": "number"
+    },
+    "breaking_point": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Breaking Point"
+    },
+    "bracket": {
+      "description": "Khoảng hiện tại, kể cả khi dừng giữa chừng",
+      "maxItems": 2,
+      "minItems": 2,
+      "prefixItems": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        }
+      ],
+      "title": "Bracket",
+      "type": "array"
+    },
+    "confidence_interval": {
+      "anyOf": [
+        {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "null nếu chưa tính bootstrap",
+      "title": "Confidence Interval"
+    },
+    "near_threshold": {
+      "description": "Khoảng tin cậy bao trùm ngưỡng",
+      "title": "Near Threshold",
+      "type": "boolean"
+    },
+    "trajectory": {
+      "items": {
+        "$ref": "#/$defs/TrajectoryPoint"
+      },
+      "title": "Trajectory",
+      "type": "array"
+    }
+  },
+  "required": [
+    "experiment_id",
+    "attack_spec_id",
+    "status",
+    "threshold_kind",
+    "threshold",
+    "bracket",
+    "near_threshold",
+    "trajectory"
+  ],
+  "title": "SearchResult",
+  "type": "object"
+}

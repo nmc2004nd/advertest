@@ -1,2 +1,4 @@
 dist
 pnpm-lock.yaml
+# Sinh từ contract bằng `make contracts`
+src/contracts

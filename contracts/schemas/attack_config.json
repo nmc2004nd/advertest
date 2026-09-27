@@ -1,0 +1,159 @@
+{
+  "$defs": {
+    "GridConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "levels": {
+          "items": {
+            "type": "number"
+          },
+          "minItems": 1,
+          "title": "Levels",
+          "type": "array"
+        }
+      },
+      "required": [
+        "levels"
+      ],
+      "title": "GridConfig",
+      "type": "object"
+    },
+    "RunMode": {
+      "enum": [
+        "grid",
+        "search"
+      ],
+      "title": "RunMode",
+      "type": "string"
+    },
+    "SearchConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "threshold_kind": {
+          "$ref": "#/$defs/ThresholdKind"
+        },
+        "threshold": {
+          "title": "Threshold",
+          "type": "number"
+        },
+        "lo": {
+          "title": "Lo",
+          "type": "number"
+        },
+        "hi": {
+          "title": "Hi",
+          "type": "number"
+        },
+        "tol": {
+          "exclusiveMinimum": 0,
+          "title": "Tol",
+          "type": "number"
+        },
+        "coarse_n": {
+          "exclusiveMinimum": 0,
+          "title": "Coarse N",
+          "type": "integer"
+        },
+        "subset_size": {
+          "exclusiveMinimum": 0,
+          "title": "Subset Size",
+          "type": "integer"
+        },
+        "class_filter": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Class Filter"
+        }
+      },
+      "required": [
+        "threshold_kind",
+        "threshold",
+        "lo",
+        "hi",
+        "tol",
+        "coarse_n",
+        "subset_size"
+      ],
+      "title": "SearchConfig",
+      "type": "object"
+    },
+    "ThresholdKind": {
+      "enum": [
+        "relative_drop",
+        "absolute_drop",
+        "attack_success_rate"
+      ],
+      "title": "ThresholdKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Một attack trong experiment.",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "attack_spec_id": {
+      "format": "uuid",
+      "title": "Attack Spec Id",
+      "type": "string"
+    },
+    "spec_sha256": {
+      "description": "Chốt đúng version spec",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Spec Sha256",
+      "type": "string"
+    },
+    "mode": {
+      "$ref": "#/$defs/RunMode"
+    },
+    "grid": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GridConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "search": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SearchConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "seed": {
+      "minimum": 0,
+      "title": "Seed",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "attack_spec_id",
+    "spec_sha256",
+    "mode",
+    "seed"
+  ],
+  "title": "AttackConfig",
+  "type": "object"
+}

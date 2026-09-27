@@ -1,0 +1,234 @@
+{
+  "$defs": {
+    "CaseSeverity": {
+      "enum": [
+        "critical",
+        "major",
+        "minor",
+        "acceptable"
+      ],
+      "title": "CaseSeverity",
+      "type": "string"
+    },
+    "GridConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "levels": {
+          "items": {
+            "type": "number"
+          },
+          "minItems": 1,
+          "title": "Levels",
+          "type": "array"
+        }
+      },
+      "required": [
+        "levels"
+      ],
+      "title": "GridConfig",
+      "type": "object"
+    },
+    "PassCriterion": {
+      "additionalProperties": false,
+      "properties": {
+        "threshold_kind": {
+          "$ref": "#/$defs/ThresholdKind"
+        },
+        "threshold": {
+          "title": "Threshold",
+          "type": "number"
+        },
+        "class_filter": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Class Filter"
+        }
+      },
+      "required": [
+        "threshold_kind",
+        "threshold"
+      ],
+      "title": "PassCriterion",
+      "type": "object"
+    },
+    "RequiredAttack": {
+      "additionalProperties": false,
+      "properties": {
+        "attack_spec_id": {
+          "format": "uuid",
+          "title": "Attack Spec Id",
+          "type": "string"
+        },
+        "spec_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Spec Sha256",
+          "type": "string"
+        },
+        "mode": {
+          "$ref": "#/$defs/RunMode"
+        },
+        "grid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GridConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Các level tối thiểu phải chạy"
+        },
+        "search": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SearchConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Cấu hình tìm kiếm tối thiểu"
+        }
+      },
+      "required": [
+        "attack_spec_id",
+        "spec_sha256",
+        "mode"
+      ],
+      "title": "RequiredAttack",
+      "type": "object"
+    },
+    "RunMode": {
+      "enum": [
+        "grid",
+        "search"
+      ],
+      "title": "RunMode",
+      "type": "string"
+    },
+    "SearchConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "threshold_kind": {
+          "$ref": "#/$defs/ThresholdKind"
+        },
+        "threshold": {
+          "title": "Threshold",
+          "type": "number"
+        },
+        "lo": {
+          "title": "Lo",
+          "type": "number"
+        },
+        "hi": {
+          "title": "Hi",
+          "type": "number"
+        },
+        "tol": {
+          "exclusiveMinimum": 0,
+          "title": "Tol",
+          "type": "number"
+        },
+        "coarse_n": {
+          "exclusiveMinimum": 0,
+          "title": "Coarse N",
+          "type": "integer"
+        },
+        "subset_size": {
+          "exclusiveMinimum": 0,
+          "title": "Subset Size",
+          "type": "integer"
+        },
+        "class_filter": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Class Filter"
+        }
+      },
+      "required": [
+        "threshold_kind",
+        "threshold",
+        "lo",
+        "hi",
+        "tol",
+        "coarse_n",
+        "subset_size"
+      ],
+      "title": "SearchConfig",
+      "type": "object"
+    },
+    "ThresholdKind": {
+      "enum": [
+        "relative_drop",
+        "absolute_drop",
+        "attack_success_rate"
+      ],
+      "title": "ThresholdKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "required_attacks": {
+      "items": {
+        "$ref": "#/$defs/RequiredAttack"
+      },
+      "minItems": 1,
+      "title": "Required Attacks",
+      "type": "array"
+    },
+    "min_slice_size": {
+      "exclusiveMinimum": 0,
+      "title": "Min Slice Size",
+      "type": "integer"
+    },
+    "pass_criteria": {
+      "items": {
+        "$ref": "#/$defs/PassCriterion"
+      },
+      "minItems": 1,
+      "title": "Pass Criteria",
+      "type": "array"
+    },
+    "review_severity_threshold": {
+      "$ref": "#/$defs/CaseSeverity",
+      "description": "Case từ mức này trở lên bắt buộc có verdict"
+    }
+  },
+  "required": [
+    "required_attacks",
+    "min_slice_size",
+    "pass_criteria",
+    "review_severity_threshold"
+  ],
+  "title": "ProtocolBody",
+  "type": "object"
+}

@@ -1,0 +1,215 @@
+{
+  "$defs": {
+    "Environment": {
+      "additionalProperties": false,
+      "description": "Máy đã chạy run. Không thuộc fingerprint.",
+      "properties": {
+        "compute_target_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null khi chạy bằng CLI",
+          "title": "Compute Target Id"
+        },
+        "gpu_model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null khi chạy trên CPU",
+          "title": "Gpu Model"
+        },
+        "cuda_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cuda Version"
+        },
+        "driver_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Driver Version"
+        }
+      },
+      "required": [
+        "compute_target_id",
+        "gpu_model",
+        "cuda_version",
+        "driver_version"
+      ],
+      "title": "Environment",
+      "type": "object"
+    },
+    "FingerprintInputs": {
+      "additionalProperties": false,
+      "properties": {
+        "config_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Config Sha256",
+          "type": "string"
+        },
+        "weights_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Weights Sha256",
+          "type": "string"
+        },
+        "dataset_version_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Dataset Version Sha256",
+          "type": "string"
+        },
+        "slice_id": {
+          "format": "uuid",
+          "title": "Slice Id",
+          "type": "string"
+        },
+        "slice_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Slice Sha256",
+          "type": "string"
+        },
+        "attack_spec_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Attack Spec Sha256",
+          "type": "string"
+        },
+        "params": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Params",
+          "type": "object"
+        },
+        "seed": {
+          "minimum": 0,
+          "title": "Seed",
+          "type": "integer"
+        },
+        "git_commit": {
+          "pattern": "^[0-9a-f]{40}$",
+          "title": "Git Commit",
+          "type": "string"
+        },
+        "lib_versions": {
+          "$ref": "#/$defs/LibVersions"
+        },
+        "docker_image_digest": {
+          "pattern": "^(none|sha256:[0-9a-f]{64})$",
+          "title": "Docker Image Digest",
+          "type": "string"
+        }
+      },
+      "required": [
+        "config_sha256",
+        "weights_sha256",
+        "dataset_version_sha256",
+        "slice_id",
+        "slice_sha256",
+        "attack_spec_sha256",
+        "params",
+        "seed",
+        "git_commit",
+        "lib_versions",
+        "docker_image_digest"
+      ],
+      "title": "FingerprintInputs",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "LibVersions": {
+      "additionalProperties": false,
+      "properties": {
+        "torch": {
+          "title": "Torch",
+          "type": "string"
+        },
+        "art": {
+          "title": "Art",
+          "type": "string"
+        },
+        "ultralytics": {
+          "title": "Ultralytics",
+          "type": "string"
+        },
+        "torchmetrics": {
+          "title": "Torchmetrics",
+          "type": "string"
+        },
+        "numpy": {
+          "title": "Numpy",
+          "type": "string"
+        }
+      },
+      "required": [
+        "torch",
+        "art",
+        "ultralytics",
+        "torchmetrics",
+        "numpy"
+      ],
+      "title": "LibVersions",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "run_id": {
+      "format": "uuid",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "fingerprint": {
+      "description": "sha256 của fingerprint_inputs đã chuẩn hóa",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Fingerprint",
+      "type": "string"
+    },
+    "fingerprint_inputs": {
+      "$ref": "#/$defs/FingerprintInputs"
+    },
+    "environment": {
+      "$ref": "#/$defs/Environment"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "run_id",
+    "fingerprint",
+    "fingerprint_inputs",
+    "environment",
+    "created_at"
+  ],
+  "title": "Manifest",
+  "type": "object"
+}

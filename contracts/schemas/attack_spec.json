@@ -1,0 +1,185 @@
+{
+  "$defs": {
+    "AttackAccess": {
+      "enum": [
+        "white_box",
+        "black_box"
+      ],
+      "title": "AttackAccess",
+      "type": "string"
+    },
+    "AttackKind": {
+      "enum": [
+        "attack",
+        "corruption",
+        "occlusion"
+      ],
+      "title": "AttackKind",
+      "type": "string"
+    },
+    "CostModel": {
+      "additionalProperties": false,
+      "properties": {
+        "passes_per_image": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Số lần forward + backward cho mỗi ảnh",
+          "title": "Passes Per Image"
+        },
+        "cpu_only": {
+          "default": false,
+          "title": "Cpu Only",
+          "type": "boolean"
+        }
+      },
+      "title": "CostModel",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "PrimaryParam": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "continuous",
+            "discrete"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "min": {
+          "title": "Min",
+          "type": "number"
+        },
+        "max": {
+          "title": "Max",
+          "type": "number"
+        },
+        "values": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Chỉ dùng khi type = discrete",
+          "title": "Values"
+        },
+        "unit": {
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "type",
+        "min",
+        "max",
+        "unit"
+      ],
+      "title": "PrimaryParam",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Một attack trong catalog. Đổi bất kỳ trường nào phải tăng `version`.",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "name": {
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "title": "Name",
+      "type": "string"
+    },
+    "version": {
+      "exclusiveMinimum": 0,
+      "title": "Version",
+      "type": "integer"
+    },
+    "kind": {
+      "$ref": "#/$defs/AttackKind"
+    },
+    "access": {
+      "$ref": "#/$defs/AttackAccess"
+    },
+    "art_class": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Null với corruption và occlusion",
+      "title": "Art Class"
+    },
+    "primary_param": {
+      "$ref": "#/$defs/PrimaryParam"
+    },
+    "fixed_params": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "title": "Fixed Params",
+      "type": "object"
+    },
+    "cost_model": {
+      "$ref": "#/$defs/CostModel"
+    },
+    "requires_gradients": {
+      "title": "Requires Gradients",
+      "type": "boolean"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "spec_sha256": {
+      "description": "Hash của mọi trường trừ id và chính nó",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Spec Sha256",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "version",
+    "kind",
+    "access",
+    "primary_param",
+    "fixed_params",
+    "cost_model",
+    "requires_gradients",
+    "id",
+    "spec_sha256"
+  ],
+  "title": "AttackSpec",
+  "type": "object"
+}

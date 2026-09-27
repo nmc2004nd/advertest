@@ -19,10 +19,10 @@ define require_file
 	@if [ ! -e "$(1)" ]; then echo ">> Chưa có $(1) ($(2))"; exit 1; fi
 endef
 
-.PHONY: help up down migrate contracts fixtures lint typecheck test test-acceptance check
+.PHONY: help up down migrate contracts contracts-check fixtures lint typecheck test test-acceptance check
 
 help:
-	@echo "up | down | migrate | contracts | fixtures | lint | typecheck | test | test-acceptance | check"
+	@echo "up | down | migrate | contracts | contracts-check | fixtures | lint | typecheck | test | test-acceptance | check"
 
 up:
 	$(call require_file,$(COMPOSE_FILE),Phase 0 Group 7)
@@ -36,9 +36,16 @@ migrate:
 	$(call require_file,backend/alembic.ini,Phase 0 Group 3)
 	$(UV_RUN) alembic -c backend/alembic.ini upgrade head
 
+GENERATED := contracts/schemas frontend/src/contracts
+
 contracts:
-	$(call require_file,scripts/gen_contracts.py,Phase 0 Group 2)
 	$(UV_RUN) python scripts/gen_contracts.py
+
+# Sinh lại rồi so với bản đã commit: file sinh ra phải luôn khớp với nguồn Pydantic.
+contracts-check: contracts
+	@if [ -n "$$(git status --porcelain -- $(GENERATED))" ]; then \
+		echo ">> File sinh từ contract lệch với bản đã commit (chạy make contracts rồi commit):"; \
+		git status --porcelain -- $(GENERATED); exit 1; fi
 
 fixtures:
 	$(call require_file,scripts/fetch_fixtures.py,Phase 0 Group 6)
@@ -61,4 +68,4 @@ test:
 test-acceptance:
 	$(call pytest_allow_empty,tests/acceptance)
 
-check: lint typecheck test test-acceptance
+check: lint typecheck contracts-check test test-acceptance
