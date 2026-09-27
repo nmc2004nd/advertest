@@ -5,43 +5,43 @@
 ## Automated Tests
 
 ### Công cụ và build
-- [ ] `make lint` pass (ruff, eslint).
-- [ ] `make typecheck` pass (mypy, `tsc --noEmit`).
-- [ ] `make test` pass (pytest, vitest).
-- [ ] `pnpm --dir frontend build` thành công và bản build không chứa route `/dev/contracts`.
+- [x] `make lint` pass (ruff, eslint).
+- [x] `make typecheck` pass (mypy, `tsc --noEmit`).
+- [x] `make test` pass (pytest, vitest).
+- [x] `pnpm --dir frontend build` thành công và bản build không chứa route `/dev/contracts`.
 
 ### Contract — `tests/acceptance/phase_00/test_contracts.py`
-- [ ] Mỗi enum trong `advertest_contracts.enums` có đúng tập giá trị như bảng trong `requirements.md` (so sánh tập, không thừa, không thiếu).
-- [ ] Mọi file trong `contracts/mocks/` validate được bằng model Pydantic tương ứng.
-- [ ] Mock `RunResult` phủ đủ mọi giá trị `RunStatus`; mock `SearchResult` phủ đủ mọi giá trị `SearchStatus`.
-- [ ] `RunResult` có trạng thái `failed`, `skipped`, `stopped_limit`, `cancelled` mà thiếu `status_reason` → validation lỗi.
-- [ ] `AttackConfig` với `mode = grid` mà thiếu `grid` (hoặc `search` mà thiếu `search`) → validation lỗi.
-- [ ] `canonical_json()` cho cùng kết quả với hai dict có thứ tự key khác nhau.
-- [ ] `compute_fingerprint()` **không đổi** khi chỉ thay đổi `environment` của manifest, và **đổi** khi thay bất kỳ trường nào trong `fingerprint_inputs`.
-- [ ] Mọi spec trong `contracts/seeds/attack_specs.json` validate được và `spec_sha256` khớp với giá trị tính lại.
-- [ ] `make contracts` chạy lại không tạo ra thay đổi nào so với bản đã commit (`git diff --exit-code`).
+- [x] Mỗi enum trong `advertest_contracts.enums` có đúng tập giá trị như bảng trong `requirements.md` (so sánh tập, không thừa, không thiếu).
+- [x] Mọi file trong `contracts/mocks/` validate được bằng model Pydantic tương ứng.
+- [x] Mock `RunResult` phủ đủ mọi giá trị `RunStatus`; mock `SearchResult` phủ đủ mọi giá trị `SearchStatus`.
+- [x] `RunResult` có trạng thái `failed`, `skipped`, `stopped_limit`, `cancelled` mà thiếu `status_reason` → validation lỗi.
+- [x] `AttackConfig` với `mode = grid` mà thiếu `grid` (hoặc `search` mà thiếu `search`) → validation lỗi.
+- [x] `canonical_json()` cho cùng kết quả với hai dict có thứ tự key khác nhau.
+- [x] `compute_fingerprint()` **không đổi** khi chỉ thay đổi `environment` của manifest, và **đổi** khi thay bất kỳ trường nào trong `fingerprint_inputs`.
+- [x] Mọi spec trong `contracts/seeds/attack_specs.json` validate được và `spec_sha256` khớp với giá trị tính lại.
+- [x] `make contracts` chạy lại không tạo ra thay đổi nào so với bản đã commit (`git diff --exit-code`).
 
 ### Database — `tests/acceptance/phase_00/test_database.py`
 (Chạy với Postgres thật trong CI.)
-- [ ] `alembic upgrade head` rồi `alembic downgrade base` rồi `upgrade head` lại chạy không lỗi.
-- [ ] Toàn bộ bảng trong `requirements.md` tồn tại sau migration.
-- [ ] Kết nối bằng `advertest_app`: `INSERT` vào `audit_log` thành công.
-- [ ] Kết nối bằng `advertest_app`: `UPDATE`, `DELETE`, `TRUNCATE` trên `audit_log` bị từ chối.
-- [ ] Kết nối bằng `advertest_app`: `UPDATE` hoặc `DELETE` trên `case_verdicts`, `reviews`, `reports`, `ledger_entries` bị từ chối.
-- [ ] Kết nối bằng `advertest_app`: `DELETE` trên `runs` bị từ chối; `UPDATE runs SET archived = true` thành công.
-- [ ] Chèn hai run cùng `(experiment_id, fingerprint)` → vi phạm unique constraint.
-- [ ] Chèn `reviews` có `reviewer_id` trùng `experiments.created_by` → trigger từ chối.
-- [ ] Seed tạo đúng số attack spec, compute target `local-dev` có `billing_mode = none`, và một admin ở trạng thái `active`.
+- [x] `alembic upgrade head` rồi `alembic downgrade base` rồi `upgrade head` lại chạy không lỗi.
+- [x] Toàn bộ bảng trong `requirements.md` tồn tại sau migration.
+- [x] Kết nối bằng `advertest_app`: `INSERT` vào `audit_log` thành công.
+- [x] Kết nối bằng `advertest_app`: `UPDATE`, `DELETE`, `TRUNCATE` trên `audit_log` bị từ chối.
+- [x] Kết nối bằng `advertest_app`: `UPDATE` hoặc `DELETE` trên `case_verdicts`, `reviews`, `reports`, `ledger_entries` bị từ chối.
+- [x] Kết nối bằng `advertest_app`: `DELETE` trên `runs` bị từ chối; `UPDATE runs SET archived = true` thành công.
+- [x] Chèn hai run cùng `(experiment_id, fingerprint)` → vi phạm unique constraint.
+- [x] Chèn `reviews` có `reviewer_id` trùng `experiments.created_by` → trigger từ chối.
+- [x] Seed tạo đúng số attack spec, compute target `local-dev` có `billing_mode = none`, và một admin ở trạng thái `active`.
 
 ### API — `tests/acceptance/phase_00/test_api.py`
-- [ ] `GET /health` trả `200`, có trường phiên bản, git commit, trạng thái Postgres và MinIO đều ok.
-- [ ] Một endpoint mẫu trong mỗi nhóm trả `501` với body lỗi đúng định dạng thống nhất.
-- [ ] `contracts/openapi.json` chứa đủ các nhóm endpoint công khai và 6 endpoint nội bộ của worker trong `requirements.md`.
-- [ ] Nhóm `/internal/worker` khai báo security scheme bearer; các nhóm còn lại khai báo cookie.
+- [x] `GET /health` trả `200`, có trường phiên bản, git commit, trạng thái Postgres và MinIO đều ok.
+- [x] Một endpoint mẫu trong mỗi nhóm trả `501` với body lỗi đúng định dạng thống nhất.
+- [x] `contracts/openapi.json` chứa đủ các nhóm endpoint công khai và 6 endpoint nội bộ của worker trong `requirements.md`.
+- [x] Nhóm `/internal/worker` khai báo security scheme bearer; các nhóm còn lại khai báo cookie.
 
 ### Frontend
-- [ ] Test `StatusBadge`: mọi giá trị của `RunStatus`, `ExperimentStatus`, `SearchStatus` có nhãn, màu và icon riêng; không giá trị nào rơi vào nhánh mặc định.
-- [ ] Type trong `frontend/src/contracts/` được sinh ra, không có chỉnh sửa tay (kiểm tra qua `git diff --exit-code` sau `make contracts`).
+- [x] Test `StatusBadge`: mọi giá trị của `RunStatus`, `ExperimentStatus`, `SearchStatus` có nhãn, màu và icon riêng; không giá trị nào rơi vào nhánh mặc định.
+- [x] Type trong `frontend/src/contracts/` được sinh ra, không có chỉnh sửa tay (kiểm tra qua `git diff --exit-code` sau `make contracts`).
 
 ### Fixture
 - [ ] `make fixtures` tải đủ file và mọi sha256 khớp với `tests/fixtures/checksums.json`.
@@ -50,9 +50,9 @@
 
 ## Manual Checks
 
-- [ ] `make up` trên máy phát triển: cả 4 service healthy.
-- [ ] Mở MinIO console, thấy đủ 4 bucket `artifacts`, `reports`, `datasets`, `models`.
-- [ ] Mở `/docs` của API, duyệt qua các nhóm endpoint và schema; tên trường nhất quán với `requirements.md`.
+- [x] `make up` trên máy phát triển: cả 4 service healthy.
+- [x] Mở MinIO console, thấy đủ 4 bucket `artifacts`, `reports`, `datasets`, `models`.
+- [x] Mở `/docs` của API, duyệt qua các nhóm endpoint và schema; tên trường nhất quán với `requirements.md`.
 - [ ] Chạy frontend với `VITE_USE_MOCKS=true`, mở `/dev/contracts`, thấy danh sách run với badge trạng thái đúng.
 - [ ] Mở `/dev/contracts` ở viewport 375px: không có thanh cuộn ngang.
 - [ ] CI trên GitHub chạy xanh cho cả 4 job.
@@ -63,6 +63,6 @@
 - [ ] Toàn bộ mục Automated Tests pass trên CI.
 - [ ] Toàn bộ Manual Checks đã thực hiện.
 - [ ] Người duyệt đã chấp nhận từng file trong `contracts/` và migration.
-- [ ] `CLAUDE.md` đã có và đã được thử với ít nhất một agent (agent đọc được và làm theo quy tắc thư mục).
-- [ ] `tech-stack.md` đã ghi phiên bản thư viện được pin.
+- [x] `CLAUDE.md` đã có và đã được thử với ít nhất một agent (agent đọc được và làm theo quy tắc thư mục).
+- [x] `tech-stack.md` đã ghi phiên bản thư viện được pin.
 - [ ] `CHANGELOG.md` và `roadmap.md` đã cập nhật; Phase 0 được đánh dấu hoàn thành.

@@ -133,6 +133,10 @@ Ghi chú chung: các group của người duyệt (1, 2, 8, 9) do agent soạn t
 - Group 6: 5 ảnh KITTI, `manifest.json`, smoke test và hai test nghiệm thu tương ứng.
 - Phase 0 chưa đánh dấu hoàn thành trong `roadmap.md` (còn mục fixture và CI).
 
-### Số liệu chung của Phase 0 đến thời điểm này
+### Phase 0 — kiểm tra Definition of Done (phase-close) — 2026-09-27
+- `validation.md`: đánh dấu 30 mục Automated Tests có bằng chứng (`make check`, `make test-db`, `verify:build`, test nghiệm thu) và 2 mục DoD (`CLAUDE.md` đã dùng thật; `tech-stack.md` mục 11 đã ghi phiên bản pin).
+- Manual check `make up`, MinIO 4 bucket, `/docs`: agent đã chạy ở Group 10; người dùng chấp nhận là đạt.
+- **Phase 0 chưa đóng.** Còn thiếu: 3 test fixture (Group 6: ảnh KITTI, `manifest.json`, smoke test); manual check `/dev/contracts` (badge, viewport 375px), CI xanh trên GitHub, đọc lại `contracts/`; DoD "Automated Tests pass trên CI", "người duyệt chấp nhận `contracts/` và migration". Người dùng chọn để sau.
+
 - `make check`: 176 test Python (trừ test `db`), 49 test nghiệm thu và 36 test Vitest pass.
 - `make test-db`: 41 test pass trên Postgres 17 và MinIO.
