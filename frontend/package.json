@@ -10,7 +10,8 @@
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "verify:build": "pnpm build && node scripts/verify-build.mjs"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",
