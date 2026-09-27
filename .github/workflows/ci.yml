@@ -103,6 +103,9 @@ jobs:
       ADVERTEST_APP_PASSWORD: app-ci
       ADVERTEST_TEST_OWNER_URL: postgresql+psycopg://advertest_owner:owner-ci@localhost:5432/advertest
       ADVERTEST_TEST_APP_URL: postgresql+psycopg://advertest_app:app-ci@localhost:5432/advertest
+      ADVERTEST_TEST_MINIO_ENDPOINT: http://localhost:9000
+      ADVERTEST_TEST_MINIO_ACCESS_KEY: advertest
+      ADVERTEST_TEST_MINIO_SECRET_KEY: minio-ci-secret
     steps:
       - uses: actions/checkout@v7
       # Service container khởi động trước checkout nên không mount được script init;
@@ -114,6 +117,18 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_DB: postgres
         run: bash docker/postgres/init/01-roles.sh
+      # MinIO cần tham số `server /data` nên không chạy được dưới dạng service container.
+      # Dùng cùng image (digest) với docker/compose.yaml.
+      - name: Chạy MinIO
+        run: |
+          image="$(sed -n 's/^x-minio-image: &minio-image //p' docker/compose.yaml)"
+          docker run -d --name minio -p 9000:9000 \
+            -e MINIO_ROOT_USER="$ADVERTEST_TEST_MINIO_ACCESS_KEY" \
+            -e MINIO_ROOT_PASSWORD="$ADVERTEST_TEST_MINIO_SECRET_KEY" \
+            -e MC_HOST_local="http://$ADVERTEST_TEST_MINIO_ACCESS_KEY:$ADVERTEST_TEST_MINIO_SECRET_KEY@127.0.0.1:9000" \
+            "$image" server /data
+          for _ in $(seq 1 30); do docker exec minio mc ready local && exit 0; sleep 1; done
+          exit 1
       - uses: astral-sh/setup-uv@v10
         with:
           enable-cache: true
@@ -127,5 +142,5 @@ jobs:
             !tests/fixtures/checksums.json
           key: fixtures-${{ hashFiles('tests/fixtures/checksums.json') }}
       - run: make fixtures
-      - run: uv run --no-sync pytest -m db backend
+      - run: uv run --no-sync pytest -m db backend tests/acceptance
       - run: make test-acceptance

@@ -71,9 +71,10 @@ test:
 	else echo ">> Frontend chưa có script test (Phase 0 Group 5)"; fi
 
 test-db:
-	docker/postgres/test-db.sh $(UV_RUN) pytest -m db backend
+	docker/postgres/test-db.sh $(UV_RUN) pytest -m db backend tests/acceptance
 
-test-acceptance:
-	$(call pytest_allow_empty,tests/acceptance)
+# Test nghiệm thu cần Postgres/MinIO (marker `db`) chạy trong `make test-db`.
+test-acceptance: fixtures
+	$(call pytest_allow_empty,tests/acceptance -m "not db")
 
 check: lint typecheck contracts-check test test-acceptance
