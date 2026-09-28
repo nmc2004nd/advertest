@@ -23,7 +23,7 @@
 | Phase | Kết quả demo được | Agent | Phụ thuộc | Song song với |
 |---|---|---|---|---|
 | 0 ✅ | Contract và khung dự án | Người duyệt (chính) | — | — |
-| 1 | CLI đo mAP trên slice KITTI | ml-core | 0 | — |
+| 1 ✅ | CLI đo mAP trên slice KITTI | ml-core | 0 | — |
 | 2 | FGSM/PGD trên CLI, có manifest | ml-core, attack | 1 | 4 |
 | 3 | Job chạy qua API trên máy local | backend, attack | 2 | 4 |
 | 4 | Yêu cầu truy cập, duyệt, RBAC | backend, frontend | 0 | 2, 3 |
@@ -55,9 +55,11 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 
 **Demo:** `docker compose up` chạy được; CI xanh; mock `RunResult` hợp lệ theo schema.
 
-## Phase 1 — Inference và metric
+## Phase 1 — Inference và metric ✅ Hoàn thành (2026-09-28), còn tồn đọng
 
 **Mục tiêu:** đo được mAP của model trên ảnh sạch. Đây là mốc bắt buộc của tuần 1.
+
+> Tồn đọng (người dùng cho phép đóng phase, cập nhật sau): 3 manual check cần GPU trong `validation.md` (eval trên GPU, lần hai trên GPU, VRAM và batch size lớn nhất); xác nhận CI xanh sau khi push `main`. Baseline hiện đo trên CPU.
 
 - [x] Wrapper YOLO cho ART, có chế độ loss và predict.
 - [x] Bài kiểm tra gradient tự động cho wrapper.
@@ -95,6 +97,7 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 - [ ] Lưu tiến độ theo batch, chạy tiếp sau gián đoạn.
 - [ ] Calibration cost profile cho máy local.
 - [ ] (Từ Phase 0) User MinIO riêng cho api và worker thay cho root; image CUDA dùng chung (`TORCH=cuda`); chặn ghi kết quả ở API (chỉ worker); `lease` trả `204` hoặc `WorkerJobBundle`.
+- [ ] (Từ Phase 1) `MinioStore` thay đường dẫn tuyệt đối trong `datasets/<sha>/sources/` bằng ảnh lưu theo sha256; `DEFAULT_STORE_DIR` chỉ đúng khi cài editable; `import-local` đọc bố cục `LocalStore` (`index/`, `models/<sha>/weights.pt`, `cache/predictions/` có trường `device`); chỉ admin được đăng ký model (weights nạp bằng pickle).
 
 **Demo:** gửi job qua API, xem tiến độ; tắt worker giữa chừng, bật lại thì job chạy tiếp.
 
