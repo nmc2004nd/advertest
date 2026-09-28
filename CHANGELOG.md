@@ -43,6 +43,17 @@ Ghi chú chung: các group của người duyệt (1, 2, 8, 9) do agent soạn t
 #### Thay đổi
 - Fixture là 5 ảnh KITTI kèm label; ID của slice/mapping sinh từ hash toàn bộ nội dung (`slice_sha256`); CLI dùng Typer, lệnh đặt theo thư mục của từng agent; ground truth dưới mức Moderate của KITTI thành ignore region (`requirements.md`, `plan.md`, `validation.md` Phase 1; `tech-stack.md`).
 
+### Phase 1 — Group 1 (ml-core) — 2026-09-28
+#### Thêm
+- `ml_core/store/`: `ArtifactStore`, `LocalStore` (key bất biến, ghi nguyên tử), chỉ mục id → sha `index/<kind>/<id>`.
+- `ml_core/preprocess/letterbox.py`: letterbox 640×640 (Pillow `BILINEAR`, pad 114/255, căn giữa), `LETTERBOX_CONFIG`, chuyển box hai chiều.
+- CLI `advertest` (Typer): nhóm lệnh `model`, `dataset`, `slice`, `mapping`; `eval`, `viz` dạng khung (báo chưa có đến Group 5); tùy chọn chung `--store-dir`.
+- Dependency `typer==0.27.2`, `pillow==12.3.0`, `pycocotools==2.0.11`; entry point `advertest` (`tech-stack.md` mục 11).
+#### Thay đổi
+- `.gitignore`: `data/` → `/data/` (dòng cũ bỏ qua cả `ml_core/data/`), người dùng cho phép.
+#### Quyết định
+- 3 Typer trong `ml_core/data/cli.py`; chỉ mục id do Group 1 làm; `--store-dir`; key bất biến và không bắt đầu bằng `.`; `LETTERBOX_CONFIG` cho khóa cache và fingerprint (`requirements.md`, `plan.md` Phase 1).
+
 ### Phase 1 — Group 0 (người duyệt) — 2026-09-28
 #### Contract
 - Schema mới, `schema_version = 1`: `ModelCard` (kèm `GradientCheck`), `ClassMapping` (thân `ClassMappingBody`, `compute_mapping_sha256`), `SliceSpec` (`SliceFilter`, `compute_slice_sha256`), `CleanEvalResult` (`InferenceParams`, `EvalMetrics`, `ClassEvalMetrics`, ...); kiểu dùng chung `DifficultyFilter`, `InferenceParams`.
