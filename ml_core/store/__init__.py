@@ -18,6 +18,8 @@ from ml_core.store.base import (
 )
 from ml_core.store.index import IdKind, register_id, resolve_id
 from ml_core.store.local import DEFAULT_STORE_DIR, LocalStore
+from ml_core.store.minio import MinioStore, S3Client
+from ml_core.store.presigned import PresignedStore
 
 __all__ = [
     "DEFAULT_STORE_DIR",
@@ -27,6 +29,9 @@ __all__ = [
     "KeyConflictError",
     "KeyNotFoundError",
     "LocalStore",
+    "MinioStore",
+    "PresignedStore",
+    "S3Client",
     "register_id",
     "require_store",
     "resolve_id",
