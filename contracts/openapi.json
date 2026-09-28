@@ -1880,10 +1880,18 @@
             "title": "Absolute Drop"
           },
           "attack_success_rate": {
-            "type": "number",
-            "maximum": 1.0,
-            "minimum": 0.0,
-            "title": "Attack Success Rate"
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attack Success Rate",
+            "description": "null khi không có object nào được detect đúng trên ảnh sạch (|C| = 0)"
           },
           "per_class": {
             "anyOf": [
