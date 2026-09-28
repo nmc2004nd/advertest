@@ -34,7 +34,7 @@
 ## Group 3 — Runner, manifest, CLI `[agent: ml-core]`
 
 18. `ml_core/runner/config.py`: schema `LocalRunConfig`, đọc YAML, tính `experiment_id`.
-19. `ml_core/runner/env.py`: lấy `git_commit`, `git_dirty`, phiên bản thư viện, thông tin GPU/CUDA/driver, `docker_image_digest`.
+19. `ml_core/runner/env.py`: lấy `git_commit`, `git_dirty`, phiên bản thư viện, thông tin GPU/CUDA/driver, `docker_image_digest`. Chuyển `current_git_commit` và `describe_device` từ `ml_core/cli/evaluate.py` sang đây, để `eval` và `run` dùng chung.
 20. `ml_core/runner/fingerprint.py`: dựng `fingerprint_inputs` cho từng run, gọi `compute_fingerprint` từ contract.
 21. `ml_core/runner/run.py`: với mỗi (attack, level): kiểm tra cache theo fingerprint → kiểm tra tương thích → chạy attack theo batch (tạo mask từ thông tin letterbox) → predict trên ảnh sau tấn công → tính metric → chọn failure case → lưu artifact → ghi manifest và `RunResult`.
 22. Bắt ngoại lệ theo từng run: ghi `status = failed` kèm thông điệp, tiếp tục run kế tiếp.

@@ -79,15 +79,15 @@ CLI đọc file YAML theo schema `LocalRunConfig` trong `ml_core/runner/`:
 
 ### Chạy attack
 - Mỗi cặp (attack, level) là một run.
-- Ảnh đầu vào là batch letterbox từ loader của Phase 1; nhãn đưa vào attack là **ground truth đã map class** (không gồm ignore region).
+- Ảnh đầu vào là batch letterbox từ `SliceLoader` của Phase 1; nhãn đưa vào attack là **ground truth đã map class** (không gồm ignore region), lấy nguyên `targets` của loader: `boxes` xyxy letterbox, `labels` là chỉ số class trong model.
 - Đổi đơn vị: `eps = level / 255` với L∞; `eps = level` với L2. `eps_step = eps × eps_step_ratio`.
-- Nhiễu **chỉ nằm trong vùng ảnh thật**: truyền `mask` vào attack của ART; điểm ảnh ở vùng pad không đổi.
+- Nhiễu **chỉ nằm trong vùng ảnh thật**: truyền `mask` vào attack của ART; điểm ảnh ở vùng pad không đổi. Mask dựng từ `LetterboxInfo` của từng ảnh (`pad` và kích thước sau resize, `ml_core.preprocess`).
 - Ảnh sau tấn công nằm trong [0, 1] (theo `clip_values` của estimator).
 - `level = 0` cho ảnh sau tấn công trùng ảnh gốc.
 - Nếu spec yêu cầu gradient mà `ModelCard.supports_gradients = false` → run có trạng thái `skipped`, `status_reason.code = incompatible`, không chạy.
 
 ### Metric
-- mAP sau tấn công tính bằng đúng pipeline của Phase 1 (cùng `inference_params`, lọc class, lọc ignore region). mAP sạch lấy từ cache của Phase 1.
+- mAP sau tấn công tính bằng đúng pipeline của Phase 1 (`CleanMetric`: cùng `inference_params`, lọc class, lọc ignore region, giới hạn detection theo `max_det`). mAP sạch lấy từ cache prediction của Phase 1 (`prediction_cache_key`, `load_predictions`); nếu chưa có cache thì chạy như `advertest eval`.
 - `absolute_drop = map50_sạch − map50_tấn_công`.
 - `relative_drop = absolute_drop / map50_sạch`; nếu `map50_sạch = 0` thì trả `null`.
 - **Tỷ lệ tấn công thành công:**
@@ -103,8 +103,8 @@ CLI đọc file YAML theo schema `LocalRunConfig` trong `ml_core/runner/`:
 - Metric luôn tính trên ảnh float, không tính lại từ PNG.
 
 ### Fingerprint và manifest
-- `fingerprint_inputs` đúng như contract, trong đó `config_sha256` là hash của cấu hình **riêng run đó**: `spec_sha256`, `level`, `fixed_params`, `inference_params`, cấu hình letterbox, `class_mapping_sha256`.
-- `git_commit` lấy từ repo; nếu working tree có thay đổi chưa commit thì `git_dirty = true` và CLI in cảnh báo.
+- `fingerprint_inputs` đúng như contract, trong đó `config_sha256` là hash của cấu hình **riêng run đó**: `spec_sha256`, `level`, `fixed_params`, `inference_params`, cấu hình letterbox (`LETTERBOX_CONFIG`), `class_mapping_sha256`.
+- `git_commit` lấy như `advertest eval` của Phase 1 (biến `GIT_COMMIT`, không thì `git rev-parse HEAD`); nếu working tree có thay đổi chưa commit thì `git_dirty = true` và CLI in cảnh báo.
 - `docker_image_digest` là `"none"` khi chạy ngoài Docker.
 - `environment` ghi thiết bị, GPU, CUDA, driver; `compute_target_id` là `"local-cli"`.
 - Manifest lưu tại `runs/<fingerprint>/manifest.json`; `RunResult` tại `runs/<fingerprint>/result.json`; failure case tại `runs/<fingerprint>/cases/`.
@@ -144,3 +144,4 @@ CLI đọc file YAML theo schema `LocalRunConfig` trong `ml_core/runner/`:
 
 - [ ] Dải `eps` của `pgd_l2` (0–16) cần hiệu chỉnh sau khi có kết quả thật trên KITTI.
 - [ ] Số failure case mỗi run (mặc định 20) có đủ cho reviewer không.
+- [ ] Preset `kitti-coco`: có map thêm class `bus` của model cho `Truck` của KITTI không (Phase 1: AP `truck` = 0.188 vì KITTI gán `Truck` cả cho xe buýt). Phải chốt **trước** khi ghi golden Phase 2, vì đổi preset làm đổi `mapping_sha256`, fingerprint và kết quả.
