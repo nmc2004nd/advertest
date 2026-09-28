@@ -6,7 +6,7 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 2 — Attack white-box đầu tiên
 
-**Trạng thái:** đang làm. Group 0 xong trên nhánh `phase02-reviewer-g0` (chưa merge).
+**Trạng thái:** đang làm. Group 0 đã merge (2026-09-28); Group 1, 2 có thể bắt đầu.
 
 ### Phase 2 — kickoff (spec) — 2026-09-28
 #### Thay đổi
