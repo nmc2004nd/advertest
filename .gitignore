@@ -27,3 +27,4 @@ tests/fixtures/*
 !tests/fixtures/checksums.json
 !tests/fixtures/LICENSE.md
 !tests/fixtures/manifest.json
+!tests/fixtures/golden/

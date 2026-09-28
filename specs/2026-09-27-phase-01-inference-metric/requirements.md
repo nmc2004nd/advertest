@@ -201,5 +201,5 @@ Schema `SliceSpec` trong contract.
 
 ## Open Questions
 
-- [ ] Baseline mAP@0.5 sạch trên slice KITTI là bao nhiêu, và có cần fine-tune hay đổi kích thước đầu vào không (trả lời sau manual check).
+- [x] Baseline mAP@0.5 sạch trên slice KITTI là bao nhiêu, và có cần fine-tune hay đổi kích thước đầu vào không (trả lời sau manual check). *Trả lời (2026-09-28):* YOLOv8n trên slice 300 ảnh (seed 42, mapping `kitti-coco`, lọc Moderate), CPU: mAP@0.5 = 0.533, mAP@0.5:0.95 = 0.304 (`car` 0.842, `person` 0.570, `truck` 0.188). Trên ngưỡng 0.4 nên **không** cần fine-tune hay đổi kích thước đầu vào ở Phase 1. AP của `truck` thấp vì KITTI gán `Truck` cả cho xe buýt, còn YOLO nhận là `bus` (không có trong mapping); xem lại preset khi replan. Ảnh là bản KITTI của Ultralytics (JPEG mang đuôi `.png`), nên số có thể lệch nhẹ so với ảnh PNG gốc.
 - [ ] Chốt YOLOv8 hay YOLOv11 cho model chính (sau khi wrapper chạy được với bản nano).

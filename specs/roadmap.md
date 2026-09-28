@@ -59,12 +59,12 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 
 **Mục tiêu:** đo được mAP của model trên ảnh sạch. Đây là mốc bắt buộc của tuần 1.
 
-- [ ] Wrapper YOLO cho ART, có chế độ loss và predict.
-- [ ] Bài kiểm tra gradient tự động cho wrapper.
-- [ ] Converter KITTI → manifest nội bộ, map class về class của model.
-- [ ] Dataset version bằng hash; tạo slice cố định khoảng 300 ảnh.
-- [ ] Metric mAP@0.5, mAP@0.5:0.95; cache prediction ảnh sạch.
-- [ ] CLI: `advertest eval --model ... --slice ...` xuất JSON.
+- [x] Wrapper YOLO cho ART, có chế độ loss và predict.
+- [x] Bài kiểm tra gradient tự động cho wrapper.
+- [x] Converter KITTI → manifest nội bộ, map class về class của model.
+- [x] Dataset version bằng hash; tạo slice cố định khoảng 300 ảnh.
+- [x] Metric mAP@0.5, mAP@0.5:0.95; cache prediction ảnh sạch.
+- [x] CLI: `advertest eval --model ... --slice ...` xuất JSON.
 
 **Demo:** CLI in ra mAP của YOLO trên slice KITTI.
 

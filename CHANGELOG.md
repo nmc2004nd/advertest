@@ -43,6 +43,26 @@ Ghi chú chung: các group của người duyệt (1, 2, 8, 9) do agent soạn t
 #### Thay đổi
 - Fixture là 5 ảnh KITTI kèm label; ID của slice/mapping sinh từ hash toàn bộ nội dung (`slice_sha256`); CLI dùng Typer, lệnh đặt theo thư mục của từng agent; ground truth dưới mức Moderate của KITTI thành ignore region (`requirements.md`, `plan.md`, `validation.md` Phase 1; `tech-stack.md`).
 
+### Phase 1 — Group 6 (người duyệt) — 2026-09-28
+#### Thêm
+- Test nghiệm thu `tests/acceptance/phase_01/` (42 test: Chung, Letterbox, Dữ liệu, Model, Metric, Đánh giá và cache), chạy trên fixture thật bằng CPU; luồng dựng qua CLI trong store tạm.
+- Golden value `tests/fixtures/golden/phase_01.json`: mAP@0.5 0.5186, mAP@0.5:0.95 0.3524, sai số ±0.01 (dataset `5b3d46a7…`, slice seed 42, CPU).
+#### Thay đổi
+- `.gitignore`: cho phép commit `tests/fixtures/golden/`.
+#### Số liệu đo được (KITTI thật, CPU, máy phát triển không có GPU)
+- `dataset import-kitti` trên `data/raw/kitti/training/`: 7.481 ảnh, 40.570 annotation, 11.295 `DontCare`; 10 giây; không có bbox vượt khung. `dataset_version_sha256` = `cfd54b7f9e35d30670a99fa3630ac94ff3a54318d12ba98dde6bd36bea490f25`.
+- Slice 300 ảnh seed 42: `slice_sha256` = `19356539b9bd…` (id `37341deb-7761-5c9b-adf1-e84a9d3f53a8`); ground truth sau mapping: `car` 719, `person` 135, `truck` 26.
+- **Baseline YOLOv8n:** mAP@0.5 = 0.5332, mAP@0.5:0.95 = 0.3042; AP@0.5 `car` 0.842, `person` 0.570, `truck` 0.188. `supports_gradients = true`.
+- Thời gian (CPU 16 luồng, batch 8): 0.065 s/ảnh khi cache miss; 0.0096 s/ảnh khi cache hit.
+- `viz` 8 ảnh (`000004`, `000028`, `000057`, `000062`, `000100`, `000169`, `000183`, `000216`): box ground truth và prediction khớp vị trí sau letterbox; ignore region phủ đúng xe bị cắt ở mép ảnh và xe bị che.
+#### Quyết định
+- Câu hỏi mở về baseline đã trả lời: mAP@0.5 = 0.533 ≥ 0.4 nên không cần fine-tune hay đổi kích thước đầu vào (`requirements.md` Phase 1, Open Questions).
+#### Tồn đọng
+- Manual check cần GPU (máy này không có): `eval` trên GPU local, cache hit nhanh rõ rệt, theo dõi VRAM, batch size lớn nhất.
+- Bản KITTI của Ultralytics là JPEG mang đuôi `.png` (nén lại), baseline có thể lệch nhẹ so với ảnh PNG gốc.
+- AP `truck` thấp vì `Truck` của KITTI gồm cả xe buýt (YOLO: `bus`): xem lại preset `kitti-coco` khi replan.
+- Câu hỏi mở còn lại: chốt YOLOv8 hay YOLOv11.
+
 ### Phase 1 — Group 5 (ml-core) — 2026-09-28
 #### Thêm
 - `ml_core/cli/`: cache prediction thô (`cache.py`), lệnh `eval` (`evaluate.py`), lệnh `viz` (`viz.py`); `letterbox_info` trong `ml_core/preprocess/`.
