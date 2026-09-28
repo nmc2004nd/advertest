@@ -2,6 +2,7 @@
 
 from ml_core.preprocess.letterbox import (
     INPUT_SIZE,
+    LETTERBOX_CONFIG,
     PAD_VALUE,
     LetterboxInfo,
     boxes_from_letterbox,
@@ -11,6 +12,7 @@ from ml_core.preprocess.letterbox import (
 
 __all__ = [
     "INPUT_SIZE",
+    "LETTERBOX_CONFIG",
     "PAD_VALUE",
     "LetterboxInfo",
     "boxes_from_letterbox",

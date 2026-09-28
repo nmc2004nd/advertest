@@ -7,6 +7,7 @@ Toàn bộ pipeline tính trong không gian letterbox; manifest luôn lưu tọa
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Final
 
 import numpy as np
 from numpy.typing import NDArray
@@ -14,6 +15,16 @@ from PIL import Image
 
 INPUT_SIZE = 640
 PAD_VALUE = 114 / 255
+
+# Cấu hình letterbox, giống nhau cho mọi ảnh. Đây là phần "cấu hình letterbox" trong khóa cache
+# (requirements.md Phase 1, mục Cache) và trong fingerprint (Phase 2). Đổi cách letterbox phải đổi
+# hằng này để cache và fingerprint cũ không bị dùng nhầm.
+LETTERBOX_CONFIG: Final[dict[str, int | str]] = {
+    "size": INPUT_SIZE,
+    "pad_value": 114,  # trên thang 0-255; trong ảnh float là 114/255
+    "resample": "pillow_bilinear",
+    "align": "center",
+}
 
 
 @dataclass(frozen=True)
@@ -26,7 +37,10 @@ class LetterboxInfo:
     size: int = INPUT_SIZE
 
     def as_dict(self) -> dict[str, object]:
-        """Cấu hình letterbox dạng JSON (ví dụ để đưa vào khóa cache)."""
+        """Thông tin letterbox riêng của một ảnh, dạng JSON.
+
+        Không dùng cho khóa cache hay fingerprint; dùng `LETTERBOX_CONFIG`.
+        """
         return {
             "scale": self.scale,
             "pad": list(self.pad),

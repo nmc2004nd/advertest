@@ -2,7 +2,10 @@ import numpy as np
 import pytest
 from PIL import Image
 
+from advertest_contracts.hashing import canonical_json
 from ml_core.preprocess import (
+    INPUT_SIZE,
+    LETTERBOX_CONFIG,
     PAD_VALUE,
     boxes_from_letterbox,
     boxes_to_letterbox,
@@ -91,3 +94,16 @@ def test_boxes_in_frame() -> None:
 def test_empty_boxes() -> None:
     _, info = letterbox(_image())
     assert boxes_to_letterbox(np.zeros((0, 4)), info).shape == (0, 4)
+
+
+def test_letterbox_config_matches_implementation() -> None:
+    assert LETTERBOX_CONFIG["size"] == INPUT_SIZE
+    assert LETTERBOX_CONFIG["pad_value"] == 114
+    assert PAD_VALUE == 114 / 255
+    canonical_json(LETTERBOX_CONFIG)  # đưa được vào khóa cache
+
+
+def test_letterbox_config_has_no_per_image_info() -> None:
+    _, info = letterbox(_image())
+    assert not set(LETTERBOX_CONFIG) & {"scale", "pad", "orig_size"}
+    assert set(info.as_dict()) >= {"scale", "pad", "orig_size"}
