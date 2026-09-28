@@ -6,7 +6,24 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 3 — Worker và máy local
 
-**Trạng thái:** đang làm. Group 0 chưa merge.
+**Trạng thái:** đang làm. Group 0 xong trên nhánh `phase03-reviewer-g0` (chưa merge).
+
+### Phase 3 — Group 0 (người duyệt) — 2026-09-29
+#### Contract
+- `RunResult.cached_from_run_id` (chỉ khi `skipped`/`cached`); `RunMetrics.partial` (mặc định `false`, `true` khi và chỉ khi `stopped_limit`); mock `stopped_limit_time_partial`, `skipped_cached_phase3`.
+- `compute_failure_case_id(fingerprint, run_id, image_id)`; `CaseArtifacts.clean_thumb`, `adversarial_thumb` (nullable: CLI không tạo); mock `failure_case_record/worker_minio` theo bố cục MinIO.
+- Enum `ProtocolStatus` (`active`, `retired`, `dev`); `ErrorCode` thêm `unauthenticated`, `forbidden`, `not_found`, `conflict`.
+- Schema mới: `WorkerLease`, `WorkerJobBundle` (`BundleRun`, `BundleCheckpoint`, `BundleDownloads`, `BundleLimit`), `HeartbeatRequest`, `RunStartRequest`, `RunStartResponse`, `ProgressReport`, `WorkerDirective`, `ArtifactUrlRequest`, `ArtifactUrlResponse`, `CostProfile`, `RunCompletion`; kiểu `ObjectKey` (không có `.`/`..`, không `/` đầu), `PresignedUrl`. Mỗi schema có mock; 26 JSON Schema.
+- OpenAPI `/internal/worker`: thêm `GET experiments/{id}/bundle`, `POST runs/{id}/start`, `POST cost-profiles`; body và response theo schema mới; `lease` khai `200 WorkerLease` / `204`; `complete`, `cost-profiles` trả `204`. Giữ `experiments/{id}/search-result` (Phase 7).
+#### Thêm
+- `httpx==0.28.1` thành dependency chính; package `advertest_worker` (`backend/worker/advertest_worker/`, mới có `__init__.py`), script `advertest-worker = advertest_worker.cli:app` (Group 4 viết `cli.py`); mypy, ruff khai package mới.
+#### Thay đổi
+- Test nghiệm thu Phase 0: danh sách enum (`ErrorCode`, `ProtocolStatus`) và endpoint worker theo Phase 3. Phase 2: `test_case_id_is_uuid5_of_fingerprint_run_and_image`.
+- Ngoài thư mục người duyệt (người dùng cho phép): `ml_core/runner/run.py` truyền `run_id` vào `compute_failure_case_id` (1 dòng); `backend/app/tests/api/test_skeleton.py` cập nhật danh sách endpoint worker và gọi thử `GET bundle` thay cho heartbeat/artifact-url (nay có body bắt buộc).
+#### Quyết định (người dùng chốt; đã ghi vào `requirements.md` Phase 3)
+- Lease có `lease_id`; request của worker gửi kèm, `lease_id` cũ → `409` (`validation.md` thêm 1 mục).
+- `artifact-url` cấp presigned `PUT`, `GET`, `DELETE`; worker tự chép ứng viên sang `cases/` và xóa phần thừa.
+- Người duyệt (agent) tự chọn, ghi vào `requirements.md`: bundle có `inference_params`, `failure_cases_per_run`, `cost_profiles`; `RunCompletion` không dùng cho run `cached`; run `incompatible` hoặc lỗi khi dựng attack vẫn đi qua `start` rồi `complete`.
 
 ### Phase 3 — kickoff (spec) — 2026-09-29
 #### Quyết định (người dùng chốt)

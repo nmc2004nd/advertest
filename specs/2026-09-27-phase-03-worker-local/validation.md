@@ -24,6 +24,7 @@
 - [ ] Hai experiment `queued` cho cùng target: `lease` trả experiment tạo trước; experiment chuyển sang `running`.
 - [ ] Gọi `lease` lần hai khi experiment đang được giữ → không trả lại experiment đó.
 - [ ] Không có heartbeat quá 60 giây → experiment được lease lại cho worker khác.
+- [ ] Sau khi lease lại, request của worker cũ (heartbeat, progress, complete với `lease_id` cũ) → `409`; tiến độ và kết quả không đổi.
 - [ ] Experiment thuộc target khác không bao giờ được lease.
 
 ### Artifact — `test_artifacts.py`

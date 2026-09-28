@@ -1,7 +1,7 @@
 # Plan: Phase 3 — Worker và máy local
 
 > Phân chia thư mục:
-> `ml_core/runner/`, `ml_core/store/` (agent `ml-core`); `backend/app/` (agent `backend`); `backend/worker/` — package `advertest_worker` (agent `worker`); `backend/admin_cli/` (agent `backend`).
+> `ml_core/runner/`, `ml_core/store/` (agent `ml-core`); `backend/app/` (agent `backend`); `backend/worker/` — package `advertest_worker` ở `backend/worker/advertest_worker/` (agent `worker`); `backend/admin_cli/` (agent `backend`).
 >
 > Thứ tự: Group 0 → (Group 1, Group 2 song song) → Group 3 → Group 4 → Group 5 → Group 6.
 > Group 3 có thể bắt đầu với executor giả ngay khi Group 0 xong, sau đó chuyển sang executor thật khi Group 1 merge.

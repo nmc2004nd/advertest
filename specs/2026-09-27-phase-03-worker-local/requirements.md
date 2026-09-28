@@ -36,18 +36,21 @@ Cuối phase: gửi experiment, theo dõi tiến độ; tắt worker giữa ch�
 
 | Schema | Nội dung chính |
 |---|---|
-| `WorkerJobBundle` | `experiment_id`, `config` (`ExperimentConfig`), `model_card`, `slice`, `class_mapping`, `attack_specs`, URL tải (weights, manifest, ảnh của slice), `limit` (`kind`, `value`, `used`), `runs` (danh sách run đã lập, kèm checkpoint nếu đang chạy dở) |
-| `RunStartRequest` | `fingerprint`, `fingerprint_inputs`, `environment` |
-| `RunStartResponse` | `action` (`run` / `skip_cached`), `cached_from_run_id`, `cached_result` |
-| `ProgressReport` | `images_done`, `batch_index`, `checkpoint_key`, `processing_seconds_delta` |
-| `WorkerDirective` | `action` (`continue` / `cancel` / `stop_limit`), `remaining_seconds` |
-| `CostProfile` | `compute_target_id`, `model_version_id`, `attack_spec_id`, `sec_per_image`, `peak_vram_mb`, `batch_size`, `measured_at`, `environment` |
-| `RunCompletion` | `run_result` (`RunResult`), `failure_cases` (danh sách `FailureCaseRecord`) |
+| `WorkerLease` | `experiment_id`, `lease_id` (đổi mỗi lần lease), `lease_expires_at` |
+| `WorkerJobBundle` | `experiment_id`, `config` (`ExperimentConfig`), `model_card`, `slice`, `class_mapping`, `attack_specs`, `inference_params`, `failure_cases_per_run`, `cost_profiles` (profile đã có của target, model, các attack), `downloads` (URL tải weights, manifest, ảnh của slice theo `image_id`, `expires_at`), `limit` (`kind`, `value`, `used`), `runs` (`BundleRun`: danh sách run đã lập, kèm `checkpoint` `{batch_index, key, url}` nếu đang chạy dở) |
+| `HeartbeatRequest` | `lease_id`, `experiment_id` |
+| `RunStartRequest` | `lease_id`, `fingerprint`, `fingerprint_inputs`, `environment` |
+| `RunStartResponse` | `action` (`run` / `skip_cached`), `cached_from_run_id`, `cached_result` (kết quả `completed` của run gốc) |
+| `ProgressReport` | `lease_id`, `images_done`, `batch_index`, `checkpoint_key`, `processing_seconds_delta` |
+| `WorkerDirective` | `action` (`continue` / `cancel` / `stop_limit`), `remaining_seconds` (null khi giới hạn là tiền) |
+| `ArtifactUrlRequest` / `ArtifactUrlResponse` | `lease_id`, `key` (khóa đầy đủ), `method` (`PUT` / `GET` / `DELETE`) / `key`, `method`, `url`, `expires_at` |
+| `CostProfile` | `compute_target_id`, `model_version_id`, `attack_spec_id`, `sec_per_image`, `peak_vram_mb` (0 trên CPU), `batch_size`, `measured_at`, `environment` |
+| `RunCompletion` | `lease_id`, `run_result` (`RunResult`), `failure_cases` (danh sách `FailureCaseRecord`, cùng thứ tự `failure_case_ids`); không dùng cho run `cached` |
 
-2. **`RunResult`** thêm `cached_from_run_id` (nullable) và `metrics.partial` (bool).
-3. **`FailureCaseRecord.artifacts`** thêm `clean_thumb` và `adversarial_thumb`. **`FailureCaseRecord.id`** đổi thành `compute_failure_case_id(fingerprint, run_id, image_id)`.
-4. **Enum mới `ProtocolStatus`**: `active`, `retired`, `dev`.
-5. **OpenAPI**: nhóm `/internal/worker` gồm các endpoint trong mục Behaviour.
+2. **`RunResult`** thêm `cached_from_run_id` (nullable, chỉ có khi `skipped` với code `cached`) và `metrics.partial` (bool, mặc định `false`; `true` khi và chỉ khi `stopped_limit`).
+3. **`FailureCaseRecord.artifacts`** thêm `clean_thumb` và `adversarial_thumb` (nullable: CLI không tạo; API bắt buộc có khi nhận qua `complete`). **`FailureCaseRecord.id`** đổi thành `compute_failure_case_id(fingerprint, run_id, image_id)`.
+4. **Enum mới `ProtocolStatus`**: `active`, `retired`, `dev`. **`ErrorCode`** thêm `unauthenticated` (401), `forbidden` (403), `not_found` (404), `conflict` (409).
+5. **OpenAPI**: nhóm `/internal/worker` gồm các endpoint trong mục Behaviour; giữ endpoint khung `experiments/{id}/search-result` cho Phase 7.
 
 ### Bố cục lưu trữ trong MinIO
 
@@ -75,16 +78,18 @@ Cuối phase: gửi experiment, theo dõi tiến độ; tắt worker giữa ch�
 ### API nội bộ cho worker (`/internal/worker`, bearer token)
 | Endpoint | Hành vi |
 |---|---|
-| `POST /lease` | Trả experiment `queued` cũ nhất dành cho target của token (hoặc experiment `running` có lease đã hết hạn), đặt lease 60 giây; không có thì `204` |
+| `POST /lease` | Trả `WorkerLease` cho experiment `queued` cũ nhất dành cho target của token (hoặc experiment `running` có lease đã hết hạn), đặt lease 60 giây với `lease_id` mới; không có thì `204` |
 | `GET /experiments/{id}/bundle` | Trả `WorkerJobBundle` với presigned URL tải (hết hạn sau 15 phút) |
-| `POST /heartbeat` | Gia hạn lease 60 giây; trả `WorkerDirective` |
+| `POST /heartbeat` | Nhận `HeartbeatRequest`; gia hạn lease 60 giây; trả `WorkerDirective` |
 | `POST /runs/{id}/start` | Nhận `RunStartRequest`; nếu đã có run `completed` cùng fingerprint ở bất kỳ experiment nào thì trả `skip_cached` kèm kết quả; ngược lại chuyển run sang `running` và trả `run` |
 | `POST /runs/{id}/progress` | Nhận `ProgressReport`; cộng dồn thời gian xử lý; trả `WorkerDirective` |
-| `POST /runs/{id}/artifact-url` | Trả presigned PUT URL cho một khóa **nằm trong** `runs/<run_id>/`, hết hạn sau 15 phút |
+| `POST /runs/{id}/artifact-url` | Nhận `ArtifactUrlRequest`; trả presigned URL (`PUT`, `GET` hoặc `DELETE`) cho một khóa **nằm trong** `runs/<run_id>/`, hết hạn sau 15 phút |
 | `POST /runs/{id}/complete` | Nhận `RunCompletion`; kiểm tra hợp lệ theo contract, `failure_case_ids` khớp `failure_cases`, mọi khóa artifact nằm trong `runs/<run_id>/` và tồn tại trong MinIO; ghi run và `failure_cases` vào DB |
 | `POST /cost-profiles` | Nhận `CostProfile` cho target của token |
 
 - Token của target A gọi bất kỳ endpoint nào cho experiment thuộc target B → `403`.
+- `lease_id` không phải lease hiện tại của experiment (lease đã hết hạn và được cấp cho worker khác) → `409` ở heartbeat, start, progress, artifact-url, complete; worker nhận `409` thì dừng experiment đó.
+- Run bị `skipped` (`incompatible`) hoặc `failed` khi dựng attack: worker vẫn gọi `start` rồi gửi `complete` với trạng thái tương ứng.
 - Mọi thay đổi trạng thái do API thực hiện; worker không có thông tin đăng nhập DB hay MinIO.
 
 ### Luồng xử lý của worker
@@ -98,7 +103,7 @@ Cuối phase: gửi experiment, theo dõi tiến độ; tắt worker giữa ch�
 4. Với từng run theo thứ tự: tính fingerprint → `start` → nếu `skip_cached` thì chuyển sang run kế → nếu `run` thì xử lý từng batch, sau mỗi batch lưu checkpoint lên MinIO và gọi `progress`.
 5. Làm theo `WorkerDirective`: `cancel` hoặc `stop_limit` thì dừng ngay sau batch hiện tại.
 6. Heartbeat chạy ở luồng riêng mỗi 15 giây.
-7. Hoàn tất run: chọn failure case cuối từ ứng viên, tạo thumbnail, upload, gọi `complete`, xóa ứng viên không được chọn.
+7. Hoàn tất run: chọn failure case cuối từ ứng viên, tạo thumbnail, upload, gọi `complete`, xóa ứng viên không được chọn. Chép và xóa ứng viên dùng presigned `GET`, `PUT`, `DELETE` từ `artifact-url`.
 
 ### Failure case trong chế độ batch
 - Sau mỗi batch, worker giữ danh sách top-K ứng viên theo `severity_score` (quy tắc xác định như Phase 2). Ảnh của ứng viên mới được upload vào `candidates/`; danh sách ứng viên nằm trong checkpoint.
@@ -156,6 +161,7 @@ Cuối phase: gửi experiment, theo dõi tiến độ; tắt worker giữa ch�
 - **Giới hạn thời gian tính theo thời gian xử lý, không theo thời gian thực.** *Lý do:* thời gian máy bị treo hoặc chờ hàng đợi không phải do experiment tiêu tốn.
 - **Run bị cache sao chép metric từ run gốc.** *Lý do:* đường cong của experiment hiển thị đầy đủ mà không phải truy vấn chéo; `cached_from_run_id` giữ nguồn gốc.
 - **Failure case gửi kèm `complete`, không để API đọc từ MinIO.** *Lý do:* kiểm tra hợp lệ tập trung ở API; API không phải tin file do worker tự ghi.
+- **Lease có `lease_id`, request của worker gửi kèm.** *Lý do:* worker tưởng đã chết (máy treo) có thể sống lại sau khi lease được cấp cho worker khác; `409` chặn nó ghi tiến độ hay kết quả trùng.
 - **`FailureCaseRecord.id` gồm `run_id`.** *Lý do:* cùng fingerprint có thể có nhiều run tạo case (hai worker chạy đồng thời, chạy lại sau `stopped_limit` hoặc `failed`); run bị cache dùng lại `failure_case_ids` của run gốc.
 
 ## Context
