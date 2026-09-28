@@ -124,12 +124,15 @@ Schema `SliceSpec` trong contract.
 - Ở chế độ predict: nhận batch `(N, 3, 640, 640)` float32 [0, 1], trả list dict `{"boxes", "labels", "scores"}` theo quy ước `tech-stack.md` mục 2.1.
 - Ở chế độ loss: nhận ảnh và target, trả loss vô hướng khả vi theo ảnh đầu vào.
 - **Tính gradient không được làm thay đổi model**: weights và running stats của BatchNorm giữ nguyên sau khi gọi `loss_gradient`. Model luôn ở chế độ eval khi tính loss.
-- Prediction của wrapper phải khớp với predict gốc của Ultralytics trên cùng ảnh đã letterbox.
+- Prediction của wrapper phải khớp với predict gốc của Ultralytics trên cùng ảnh đã letterbox. Box được cắt về khung ảnh [0, 640] như postprocess của Ultralytics.
+- Estimator là `PyTorchYolo` bọc wrapper tự viết (`ml_core/models/wrapper.py`), **không** dùng `is_ultralytics=True` của ART: nhánh đó bật `train()` cho model khi tính loss và cố định `conf` của NMS. Wrapper giữ model Ultralytics ở eval và đóng băng tham số; `attack_losses=("loss_total",)`.
+- Tham số inference mặc định (`DEFAULT_INFERENCE_PARAMS`) và `lib_versions()` định nghĩa một lần trong `ml_core/models/`; các group khác dùng lại.
 
 ### Đăng ký model
-- `advertest model register --weights <file> --name <name>` tính hash, tạo `ModelCard`, chạy bài kiểm tra gradient trên fixture và đặt `supports_gradients` theo kết quả.
-- Bài kiểm tra gradient pass khi: gradient hữu hạn, không toàn 0; một bước theo dấu gradient với eps nhỏ làm loss tăng; model không bị thay đổi sau khi tính gradient.
-- Đăng ký lại cùng weights trả về cùng `id`.
+- `advertest model register --weights <file> --name <name> [--device]` tính hash, tạo `ModelCard`, chạy bài kiểm tra gradient trên 5 ảnh fixture và đặt `supports_gradients` theo kết quả. Weights được chép vào store ở `models/<weights_sha>/weights.pt` để `eval --model <id>` nạp lại.
+- Bài kiểm tra gradient pass khi: gradient hữu hạn, không toàn 0; một bước theo dấu gradient với eps nhỏ làm loss tăng; model không bị thay đổi sau khi tính gradient. Target là prediction của chính model trên ảnh sạch có score ≥ `operating_conf` (không phụ thuộc ground truth hay mapping).
+- Bài kiểm tra chạy xong mà không đạt → `supports_gradients = false`, lý do ghi vào `gradient_check.details`. Lỗi khi chạy bài kiểm tra (ngoại lệ) được báo ra và **không** ghi card, vì store là bất biến.
+- Đăng ký lại cùng weights trả về card đã có (cùng `id`, giữ tên của lần đầu), không chạy lại bài kiểm tra; nếu `--name` khác thì CLI in cảnh báo.
 
 ### Dataset và slice
 - `advertest dataset import-kitti --root <dir> --split training` tạo manifest, lưu vào kho local, in ra `dataset_version_sha256`. Chạy lại trên cùng dữ liệu cho cùng hash.
@@ -151,7 +154,7 @@ Schema `SliceSpec` trong contract.
 
 ### Kho lưu trữ local
 - Interface `ArtifactStore` với hai thao tác chính `put(key, bytes)` và `get(key)`. Phase này chỉ cài `LocalStore` (thư mục `data/store/`). Phase 3 thêm `MinioStore` cùng interface.
-- Bố cục theo nội dung: `datasets/<sha>/manifest.json`, `slices/<slice_sha256>.json`, `mappings/<mapping_sha256>.json`, `models/<weights_sha>/card.json`, `cache/predictions/<key>.json`.
+- Bố cục theo nội dung: `datasets/<sha>/manifest.json`, `slices/<slice_sha256>.json`, `mappings/<mapping_sha256>.json`, `models/<weights_sha>/card.json`, `models/<weights_sha>/weights.pt`, `cache/predictions/<key>.json`.
 - Key là đường dẫn tương đối kiểu POSIX; mỗi đoạn gồm chữ, số, `.`, `_`, `-` và không bắt đầu bằng `.` (tên ẩn dành cho file tạm).
 - Artifact là bất biến: `put` cùng nội dung vào key đã có là no-op, nội dung khác báo `KeyConflictError`. `LocalStore` ghi nguyên tử (file tạm rồi đổi tên).
 - CLI nhận `id` (uuid) cho `--slice`, `--mapping`, `--model`; store giữ chỉ mục id → sha tại `index/<kind>/<id>` (`kind` là `dataset`, `slice`, `mapping`, `model`), qua `register_id` và `resolve_id` của `ml_core.store`.
