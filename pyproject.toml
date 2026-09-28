@@ -16,7 +16,13 @@ dependencies = [
     "argon2-cffi==25.1.0",
     "boto3==1.43.103",
     "uvicorn==0.54.0",
+    "pillow==12.3.0",
+    "typer==0.27.2",
+    "pycocotools==2.0.11",
 ]
+
+[project.scripts]
+advertest = "ml_core.cli:app"
 
 # torch và torchvision chọn theo máy: `uv sync --extra cpu` (dev, CI) hoặc `--extra cuda` (image Docker).
 [project.optional-dependencies]
