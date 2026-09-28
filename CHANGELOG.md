@@ -6,7 +6,7 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 2 — Attack white-box đầu tiên
 
-**Trạng thái:** đang làm. Group 0, 1 đã merge (2026-09-28); tiếp theo Group 2.
+**Trạng thái:** đang làm. Group 0, 1, 2 đã merge (2026-09-28); tiếp theo Group 3.
 
 ### Phase 2 — kickoff (spec) — 2026-09-28
 #### Thay đổi
@@ -16,6 +16,16 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 - Manual check cần GPU chạy trên CPU; phần GPU là tồn đọng (`validation.md` Phase 2).
 #### Tồn đọng
 - Lỗ hổng độ phủ chưa có mục trong `validation.md`: nhãn cho attack là ground truth, `new_false_positives` trừ số trên ảnh sạch, mAP sạch từ cache, `experiment_id`, `environment`/`gpu_seconds`/`cost`, `inference_params` đổi fingerprint, `run show`, nội dung PNG nhiễu.
+
+### Phase 2 — Group 2 (ml-metric) — 2026-09-28
+#### Thêm
+- `ml_core/metrics/attack.py`: `match_predictions` (ghép một-một), `image_attack_stats` / `ImageAttackStats` (`correct`, `lost`, `new_false_positives`, `severity_score`), `attack_success_rate`, `compute_drops`, `build_run_metrics` (dựng `RunMetrics`), `severity_score`, `select_failure_cases`; 17 unit test.
+#### Quyết định (người dùng chốt; cần ghi vào `requirements.md` Phase 2 mục Metric)
+- Trước khi ghép, prediction được lọc như pipeline mAP (class đích, bỏ IoA ≥ 0.5 với ignore region), cho cả tập C và FP mới.
+- Ghép một-một cho cả ảnh sạch và ảnh sau tấn công.
+- Agent tự chọn: IoU ≥ 0.5 tính cả biên; ghép với ground truth có IoU lớn nhất; `absolute_drop` có thể âm; `image_id` so theo chuỗi khi xếp failure case.
+#### Số liệu đo được (YOLOv8n, 3 ảnh fixture, ground truth = prediction sạch ≥ 0.5, CPU)
+- ASR: FGSM eps 4 = 0.6; PGD L∞ eps 4 và 16 = 1.0. FP mới mỗi ảnh: 7–9 (FGSM), 14–38 (PGD).
 
 ### Phase 2 — Group 1 (attack) — 2026-09-28
 #### Thêm
