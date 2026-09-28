@@ -45,11 +45,12 @@ Cuối phase: mAP trước và sau PGD ở nhiều mức eps trên slice KITTI, 
 |---|---|---|---|
 | `id` | uuid | ✓ | `content_id(sha256_of({"fingerprint": ..., "image_id": ...}))` |
 | `run_id` | uuid | ✓ | |
+| `fingerprint` | sha256 | ✓ | Fingerprint của run; để schema tự kiểm tra `id` (`compute_failure_case_id`) |
 | `image_id` | string | ✓ | |
 | `lost_objects` | int | ✓ | Số object bị mất sau tấn công |
 | `new_false_positives` | int | ✓ | Số detection sai mới xuất hiện |
-| `severity_score` | number | ✓ | Dùng để sắp xếp (xem Behaviour) |
-| `detections` | object | ✓ | `ground_truth`, `clean`, `attacked`, `ignore_regions`, mỗi cái là list box có class và score, trong không gian letterbox |
+| `severity_score` | number | ✓ | > 0, bằng `lost_objects + 0.5 × new_false_positives` (xem Behaviour) |
+| `detections` | object | ✓ | `ground_truth`, `clean`, `attacked`: list `{bbox, class_name, score}` (class đích của mapping; `score` null với ground truth, bắt buộc với prediction); `ignore_regions`: list `{bbox, source}` như `IgnoreRegion`. Box xyxy pixel trong không gian letterbox |
 | `artifacts` | object | ✓ | Khóa lưu trữ của `clean_png`, `adversarial_png`, `perturbation_png` |
 
 4. **`RunMetrics.attack_success_rate`** đổi thành `UnitFloat | None` (null khi `|C| = 0`, xem Behaviour).

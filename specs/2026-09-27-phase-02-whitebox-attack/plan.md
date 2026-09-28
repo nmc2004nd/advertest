@@ -9,11 +9,11 @@
 
 1. Thêm tham số `mask` vào interface `Perturbation`; cập nhật `tech-stack.md` mục 3.1.
 2. Thêm `git_dirty` vào `Manifest.fingerprint_inputs`.
-2b. `RunMetrics.attack_success_rate` nhận `null`; cập nhật mock `run_result`.
+   - `RunMetrics.attack_success_rate` nhận `null`; cập nhật mock `run_result`.
 3. Thêm schema `FailureCaseRecord` và mock tương ứng.
 4. Rà `contracts/seeds/attack_specs.json` cho `fgsm`, `pgd_linf`, `pgd_l2` theo bảng trong `requirements.md` (Phase 0 đã seed đúng bảng này, dự kiến không phải sửa); nếu sửa thì tăng `version` và tính lại `spec_sha256`.
 5. Chạy `make contracts`, commit; ghi thay đổi vào `CHANGELOG.md`.
-5b. Thêm `pyyaml==6.0.3` vào dependency của `pyproject.toml` (đã có trong `uv.lock` qua ultralytics); `tech-stack.md` mục 11 đã ghi.
+   - Thêm `pyyaml==6.0.3` vào dependency của `pyproject.toml` (đã có trong `uv.lock` qua ultralytics); `tech-stack.md` mục 11 đã ghi; mypy khai `yaml` trong `ignore_missing_imports` (mục 7).
 
 ## Group 1 — Attack `[agent: attack]`
 
