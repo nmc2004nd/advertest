@@ -43,6 +43,17 @@ Ghi chú chung: các group của người duyệt (1, 2, 8, 9) do agent soạn t
 #### Thay đổi
 - Fixture là 5 ảnh KITTI kèm label; ID của slice/mapping sinh từ hash toàn bộ nội dung (`slice_sha256`); CLI dùng Typer, lệnh đặt theo thư mục của từng agent; ground truth dưới mức Moderate của KITTI thành ignore region (`requirements.md`, `plan.md`, `validation.md` Phase 1; `tech-stack.md`).
 
+### Phase 1 — Group 4 (ml-metric) — 2026-09-28
+#### Thêm
+- `ml_core/metrics/`: `filter_classes`, `filter_ignored` (IoA ≥ 0.5); `CleanMetric` (torchmetrics, backend `pycocotools`); `build_clean_eval_result`.
+#### Quyết định
+- Giới hạn detection khi tính mAP là `[1, 10, max_det]` (người dùng chốt); AP tính từ tensor `precision` vì `pycocotools.summarize` viết cứng `maxDets=100` cho mAP@0.5:0.95 (người dùng chấp nhận sau review); `per_class` đủ class đích; báo lỗi khi slice không có ground truth (`requirements.md` Phase 1).
+#### Số liệu đo được (fixture, CPU, dataset `5b3d46a7…`)
+- YOLOv8n trên 5 ảnh: mAP@0.5 = 0.5186, mAP@0.5:0.95 = 0.3524; AP@0.5 `person` 0.832, `car` 0.724, `truck` 0.0 (1 ground truth). Golden value dự kiến cho Group 6.
+- Trên fixture, `max_det` 100 hay 300 cho cùng kết quả (sau khi lọc class đích mỗi ảnh còn dưới 100 box).
+#### Tồn đọng
+- Group 6: so mAP của pipeline với `YOLO.val` của Ultralytics trên cùng slice để phát hiện lệch lớn.
+
 ### Phase 1 — Group 2 (ml-data) — 2026-09-28
 #### Thêm
 - `ml_core/data/`: parser label KITTI và `import_kitti`; lưu dataset và thư mục nguồn; preset `kitti-coco`, `apply_mapping` (`unmapped`, `difficulty`), `build_mapping`; slice theo bộ lọc tự mô tả; `SliceLoader`; lệnh `dataset import-kitti`, `mapping create`, `slice create`.
