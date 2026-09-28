@@ -4,6 +4,23 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ---
 
+## Phase 3 — Worker và máy local
+
+**Trạng thái:** đang làm. Group 0 chưa merge.
+
+### Phase 3 — kickoff (spec) — 2026-09-29
+#### Quyết định (người dùng chốt)
+- `POST /complete` nhận `RunCompletion` (`run_result` + `failure_cases`); API kiểm tra record và khóa artifact, ghi bảng `failure_cases` (sửa bảng cho khớp `FailureCaseRecord`) (`requirements.md` Phase 3, bảng API và Decisions; `plan.md` task 2, 10, 21, 28).
+- `FailureCaseRecord.id = compute_failure_case_id(fingerprint, run_id, image_id)`; đóng câu hỏi mở (`requirements.md` Phase 3). Group 0 sửa contract, mock và test nghiệm thu Phase 2 liên quan.
+- Worker: `httpx==0.28.1` thành dependency chính, entry point riêng `advertest-worker run|calibrate` (`plan.md` task 4b, 29; `tech-stack.md` mục 11).
+- Worker mặc định chạy trực tiếp; compose có profile `cpu` (CI) và `gpu` (tồn đọng khi chưa có máy GPU); đóng câu hỏi mở (`requirements.md`, `validation.md` Manual Checks).
+- Calibration: n = min(20, số ảnh của slice), batch tối đa min(n, 32), trên CPU dừng khi `sec_per_image` không giảm (`requirements.md` mục Calibration, `validation.md`).
+- Giới hạn thời gian mặc định 2 giờ theo `tech-stack.md` mục 4.2; đóng câu hỏi mở.
+#### Tồn đọng
+- Lỗ hổng độ phủ chưa xử lý (xem báo cáo kickoff): user MinIO riêng cho api, image CUDA; `DEFAULT_STORE_DIR`, `import-local` không có `--as`; test tự động cho "chỉ upload ảnh thuộc slice", `kind = local`/`billing_mode = none`, seed `dev-open`, `lease` trả `204`, `experiment list`/`show --watch`; cột `environment` của `cost_profiles`; task 23 và 30 không có trong requirements; trạng thái experiment khi mọi run `failed`; seed đã tạo sẵn target `local-dev` (trùng với `compute-target create --name local-dev`).
+
+---
+
 ## Phase 2 — Attack white-box đầu tiên
 
 **Trạng thái:** ✅ hoàn thành 2026-09-28, **còn tồn đọng** (người dùng cho phép đóng phase và cập nhật sau). Group 0–4 đã merge.

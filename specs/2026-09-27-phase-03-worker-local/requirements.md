@@ -42,9 +42,10 @@ Cuối phase: gửi experiment, theo dõi tiến độ; tắt worker giữa ch�
 | `ProgressReport` | `images_done`, `batch_index`, `checkpoint_key`, `processing_seconds_delta` |
 | `WorkerDirective` | `action` (`continue` / `cancel` / `stop_limit`), `remaining_seconds` |
 | `CostProfile` | `compute_target_id`, `model_version_id`, `attack_spec_id`, `sec_per_image`, `peak_vram_mb`, `batch_size`, `measured_at`, `environment` |
+| `RunCompletion` | `run_result` (`RunResult`), `failure_cases` (danh sách `FailureCaseRecord`) |
 
 2. **`RunResult`** thêm `cached_from_run_id` (nullable) và `metrics.partial` (bool).
-3. **`FailureCaseRecord.artifacts`** thêm `clean_thumb` và `adversarial_thumb`.
+3. **`FailureCaseRecord.artifacts`** thêm `clean_thumb` và `adversarial_thumb`. **`FailureCaseRecord.id`** đổi thành `compute_failure_case_id(fingerprint, run_id, image_id)`.
 4. **Enum mới `ProtocolStatus`**: `active`, `retired`, `dev`.
 5. **OpenAPI**: nhóm `/internal/worker` gồm các endpoint trong mục Behaviour.
 
@@ -80,13 +81,15 @@ Cuối phase: gửi experiment, theo dõi tiến độ; tắt worker giữa ch�
 | `POST /runs/{id}/start` | Nhận `RunStartRequest`; nếu đã có run `completed` cùng fingerprint ở bất kỳ experiment nào thì trả `skip_cached` kèm kết quả; ngược lại chuyển run sang `running` và trả `run` |
 | `POST /runs/{id}/progress` | Nhận `ProgressReport`; cộng dồn thời gian xử lý; trả `WorkerDirective` |
 | `POST /runs/{id}/artifact-url` | Trả presigned PUT URL cho một khóa **nằm trong** `runs/<run_id>/`, hết hạn sau 15 phút |
-| `POST /runs/{id}/complete` | Nhận `RunResult` cuối cùng; kiểm tra hợp lệ; ghi vào DB |
+| `POST /runs/{id}/complete` | Nhận `RunCompletion`; kiểm tra hợp lệ theo contract, `failure_case_ids` khớp `failure_cases`, mọi khóa artifact nằm trong `runs/<run_id>/` và tồn tại trong MinIO; ghi run và `failure_cases` vào DB |
 | `POST /cost-profiles` | Nhận `CostProfile` cho target của token |
 
 - Token của target A gọi bất kỳ endpoint nào cho experiment thuộc target B → `403`.
 - Mọi thay đổi trạng thái do API thực hiện; worker không có thông tin đăng nhập DB hay MinIO.
 
 ### Luồng xử lý của worker
+- Worker là package `advertest_worker`, lệnh `advertest-worker run|calibrate`; client HTTP dùng `httpx`.
+- Cách chạy mặc định trên máy phát triển: chạy trực tiếp (`uv run advertest-worker run`). Compose có profile `cpu` (CI, test manifest trong Docker) và profile `gpu` (nvidia runtime, kiểm khi có máy GPU).
 - Fingerprint: image Docker của worker đặt biến `GIT_COMMIT` và `DOCKER_IMAGE_DIGEST` (Phase 2); chạy ngoài Docker thì lấy như CLI (`git rev-parse`, `git_dirty` bỏ qua `.ai-log/`).
 
 1. Gọi `lease` theo chu kỳ (mặc định 5 giây khi rảnh).
@@ -126,7 +129,7 @@ Cuối phase: gửi experiment, theo dõi tiến độ; tắt worker giữa ch�
 - Giá trị mặc định lấy từ `default_time_limit_s` của compute target.
 
 ### Calibration và ước lượng
-- `advertest worker calibrate` (hoặc tự động trước job): chạy trên 20 ảnh đầu của slice; tăng dần batch size (1, 2, 4, ...) đến khi hết VRAM thì lùi một bậc; đo `sec_per_image` và `peak_vram_mb` ở batch size được chọn; gửi `CostProfile`.
+- `advertest-worker calibrate` (hoặc tự động trước job): chạy trên n = min(20, số ảnh của slice) ảnh đầu; tăng dần batch size (1, 2, 4, ...) tối đa min(n, 32); dừng khi hết VRAM (lùi một bậc) hoặc, trên CPU, khi `sec_per_image` không giảm so với bậc trước (giữ bậc trước); đo `sec_per_image` và `peak_vram_mb` ở batch size được chọn; gửi `CostProfile`.
 - Worker dùng batch size trong cost profile khi chạy.
 - Hàm ước lượng ở backend: `thời_gian ≈ Σ_run (số ảnh × sec_per_image) × 1.2`. `advertest-admin submit` in ước lượng này; thiếu cost profile thì báo "chưa có ước lượng".
 
@@ -152,6 +155,8 @@ Cuối phase: gửi experiment, theo dõi tiến độ; tắt worker giữa ch�
 - **Chỉ upload ảnh thuộc slice được đăng ký.** *Lý do:* tránh nhân đôi toàn bộ KITTI (vài GB) trên cùng một máy.
 - **Giới hạn thời gian tính theo thời gian xử lý, không theo thời gian thực.** *Lý do:* thời gian máy bị treo hoặc chờ hàng đợi không phải do experiment tiêu tốn.
 - **Run bị cache sao chép metric từ run gốc.** *Lý do:* đường cong của experiment hiển thị đầy đủ mà không phải truy vấn chéo; `cached_from_run_id` giữ nguồn gốc.
+- **Failure case gửi kèm `complete`, không để API đọc từ MinIO.** *Lý do:* kiểm tra hợp lệ tập trung ở API; API không phải tin file do worker tự ghi.
+- **`FailureCaseRecord.id` gồm `run_id`.** *Lý do:* cùng fingerprint có thể có nhiều run tạo case (hai worker chạy đồng thời, chạy lại sau `stopped_limit` hoặc `failed`); run bị cache dùng lại `failure_case_ids` của run gốc.
 
 ## Context
 
@@ -163,6 +168,6 @@ Cuối phase: gửi experiment, theo dõi tiến độ; tắt worker giữa ch�
 
 ## Open Questions
 
-- [ ] Worker chạy trong Docker (cần nvidia-container-toolkit) hay trực tiếp trên máy: chọn cách mặc định cho máy phát triển.
-- [ ] Giới hạn thời gian mặc định cho máy local (đang đề xuất 2 giờ).
-- [ ] `FailureCaseRecord.id = content_id(fingerprint, image_id)` (Phase 2): hai run cùng fingerprint chạy đồng thời (hai worker, trước khi run đầu `completed`) sẽ tạo case trùng `id` trong bảng `failure_cases`. Chặn ở `start` (fingerprint đang `running` → chờ) hay cho `id` gồm `run_id`?
+- [x] Worker chạy trong Docker (cần nvidia-container-toolkit) hay trực tiếp trên máy: chạy trực tiếp là mặc định; Docker profile `cpu` cho CI; profile `gpu` là tồn đọng khi có máy GPU (mục Luồng xử lý của worker).
+- [x] Giới hạn thời gian mặc định cho máy local: 2 giờ, theo `tech-stack.md` mục 4.2 (DB mặc định 7200).
+- [x] `FailureCaseRecord.id = content_id(fingerprint, image_id)` (Phase 2): hai run cùng fingerprint chạy đồng thời (hai worker, trước khi run đầu `completed`) sẽ tạo case trùng `id` trong bảng `failure_cases`. Chặn ở `start` (fingerprint đang `running` → chờ) hay cho `id` gồm `run_id`? → `id` gồm `run_id` (Decisions).
