@@ -1,0 +1,21 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "lease_id": {
+      "format": "uuid",
+      "title": "Lease Id",
+      "type": "string"
+    },
+    "experiment_id": {
+      "format": "uuid",
+      "title": "Experiment Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "lease_id",
+    "experiment_id"
+  ],
+  "title": "HeartbeatRequest",
+  "type": "object"
+}

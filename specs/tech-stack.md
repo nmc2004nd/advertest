@@ -280,7 +280,7 @@ Nguồn sự thật là `pyproject.toml` + `uv.lock` (Python) và `frontend/pack
 | sqlalchemy | 2.1.1 |
 | alembic | 1.20.0 |
 | psycopg / argon2-cffi | 3.3.6 / 25.1.0 |
-| boto3 / httpx (dev) | 1.43.103 / 0.28.1 |
+| boto3 / httpx | 1.43.103 / 0.28.1 (httpx là dependency chính từ Phase 3: client của worker) |
 | uvicorn | 0.54.0 |
 | Image | `python:3.11-slim`, `postgres:17-alpine`, `node:22-alpine`, `cgr.dev/chainguard/minio@sha256:6a1d0b45c8669726bba580ced0bfa4cb9fdeed1ed636dfabd81d1577beb6937b`, `cgr.dev/chainguard/minio-client@sha256:b2bd7824d23d3e3b15bedd7e87fbc3be29d2e213307b4f901e4a1d92356dc20f` |
 | Postgres (image) | `postgres:17-alpine` |

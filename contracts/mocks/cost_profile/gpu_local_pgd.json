@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "compute_target_id": "8679be42-13ce-51fb-876b-ca6d4d3f3c74",
+  "model_version_id": "81686f0e-32b6-5806-819c-3b0e37072342",
+  "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+  "sec_per_image": 0.21,
+  "peak_vram_mb": 3480,
+  "batch_size": 4,
+  "measured_at": "2026-09-29T08:00:00Z",
+  "environment": {
+    "compute_target_id": "8679be42-13ce-51fb-876b-ca6d4d3f3c74",
+    "gpu_model": "NVIDIA GeForce RTX 3050 Laptop GPU",
+    "cuda_version": "12.6",
+    "driver_version": "560.35"
+  }
+}

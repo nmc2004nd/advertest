@@ -21,7 +21,11 @@
     },
     "ErrorCode": {
       "enum": [
-        "not_implemented"
+        "not_implemented",
+        "unauthenticated",
+        "forbidden",
+        "not_found",
+        "conflict"
       ],
       "title": "ErrorCode",
       "type": "string"

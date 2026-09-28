@@ -47,7 +47,9 @@ ENUMS = {
     "ThresholdKind": {"relative_drop", "absolute_drop", "attack_success_rate"},
     "ReviewDecision": {"approve", "changes_requested", "reject"},
     "CaseSeverity": {"critical", "major", "minor", "acceptable"},
-    "ErrorCode": {"not_implemented"},
+    # Phase 3: mã lỗi của API worker, enum ProtocolStatus (requirements.md Phase 3).
+    "ErrorCode": {"not_implemented", "unauthenticated", "forbidden", "not_found", "conflict"},
+    "ProtocolStatus": {"active", "retired", "dev"},
 }  # fmt: skip
 
 

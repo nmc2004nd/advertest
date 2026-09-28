@@ -1,0 +1,6 @@
+{
+  "key": "runs/2c8e4b1a-9f3d-5e6c-a7b8-1d2e3f4a5b6c/candidates/000057/clean.png",
+  "method": "PUT",
+  "url": "http://127.0.0.1:9000/artifacts/runs/2c8e4b1a-9f3d-5e6c-a7b8-1d2e3f4a5b6c/candidates/000057/clean.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=900&X-Amz-Signature=0123abcd",
+  "expires_at": "2026-09-29T08:15:00Z"
+}

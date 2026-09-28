@@ -45,6 +45,11 @@ GitCommit = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{40}$")]
 DockerDigest = Annotated[str, StringConstraints(pattern=r"^(none|sha256:[0-9a-f]{64})$")]
 CurrencyCode = Annotated[str, StringConstraints(pattern=r"^[A-Z]{3}$")]
 UnitFloat = Annotated[float, Field(ge=0.0, le=1.0)]
+PresignedUrl = Annotated[str, StringConstraints(pattern=r"^https?://\S+$")]
+# Khóa đối tượng trong bucket: các đoạn ngăn bởi "/", không rỗng, không bắt đầu bằng "."
+# (nên không có "." hay ".."), không có "/" ở đầu hay cuối.
+_KEY_SEGMENT = r"[A-Za-z0-9_-][A-Za-z0-9._-]*"
+ObjectKey = Annotated[str, StringConstraints(pattern=rf"^{_KEY_SEGMENT}(/{_KEY_SEGMENT})*$")]
 
 
 def _require_utc(value: datetime) -> datetime:
@@ -255,6 +260,9 @@ class RunMetrics(_Model):
         description="null khi không có object nào được detect đúng trên ảnh sạch (|C| = 0)"
     )
     per_class: dict[str, ClassRunMetrics] | None = None
+    partial: bool = Field(
+        default=False, description="true khi metric chỉ tính trên phần ảnh đã xử lý (stopped_limit)"
+    )
 
 
 class Cost(_Model):
@@ -277,6 +285,9 @@ class RunResult(_Model):
     cost: Cost | None = Field(default=None, description="null với máy local")
     failure_case_ids: list[UUID]
     manifest_uri: str | None = None
+    cached_from_run_id: UUID | None = Field(
+        default=None, description="Run gốc khi status = skipped với code = cached (Phase 3)"
+    )
 
     @model_validator(mode="after")
     def _check_status(self) -> RunResult:
@@ -291,6 +302,13 @@ class RunResult(_Model):
             self.metrics is None or self.manifest_uri is None
         ):
             raise ValueError("status = completed bắt buộc có metrics và manifest_uri")
+        cached = self.status == RunStatus.SKIPPED and reason is not None and reason.code == "cached"
+        if self.cached_from_run_id is not None and not cached:
+            raise ValueError("cached_from_run_id chỉ dùng khi status = skipped với code = cached")
+        if self.metrics is not None:
+            stopped = self.status == RunStatus.STOPPED_LIMIT
+            if self.metrics.partial != stopped:
+                raise ValueError("metrics.partial = true khi và chỉ khi status = stopped_limit")
         return self
 
 
@@ -737,24 +755,34 @@ class CaseDetections(_Model):
         return self
 
 
+_THUMB = "Thumbnail WebP rộng 320 px (Phase 3); null khi chạy bằng CLI, bắt buộc qua worker"
+
+
 class CaseArtifacts(_Model):
     """Khóa lưu trữ (LocalStore ở Phase 2, MinIO từ Phase 3) của ảnh PNG letterbox."""
 
     clean_png: str = Field(min_length=1)
     adversarial_png: str = Field(min_length=1)
     perturbation_png: str = Field(min_length=1, description="Ảnh nhiễu khuếch đại")
+    clean_thumb: str | None = Field(default=None, description=_THUMB)
+    adversarial_thumb: str | None = Field(default=None, description=_THUMB)
 
 
-def compute_failure_case_id(fingerprint: str, image_id: str) -> UUID:
-    """id của failure case: content_id của sha256 {"fingerprint", "image_id"}."""
-    return content_id(sha256_of({"fingerprint": fingerprint, "image_id": image_id}))
+def compute_failure_case_id(fingerprint: str, run_id: UUID, image_id: str) -> UUID:
+    """id của failure case: content_id của sha256 {"fingerprint", "run_id", "image_id"}.
+
+    Có `run_id` vì cùng fingerprint có thể có nhiều run tạo case (Phase 3).
+    """
+    return content_id(
+        sha256_of({"fingerprint": fingerprint, "run_id": str(run_id), "image_id": image_id})
+    )
 
 
 class FailureCaseRecord(_Model):
     """Một ảnh bị attack làm hỏng nặng trong một run (Phase 2)."""
 
     schema_version: Literal[1] = 1
-    id: UUID = Field(description="compute_failure_case_id(fingerprint, image_id)")
+    id: UUID = Field(description="compute_failure_case_id(fingerprint, run_id, image_id)")
     run_id: UUID
     fingerprint: Sha256Hex = Field(description="Fingerprint của run")
     image_id: str = Field(min_length=1)
@@ -768,12 +796,230 @@ class FailureCaseRecord(_Model):
 
     @model_validator(mode="after")
     def _check(self) -> FailureCaseRecord:
-        expected_id = compute_failure_case_id(self.fingerprint, self.image_id)
+        expected_id = compute_failure_case_id(self.fingerprint, self.run_id, self.image_id)
         if self.id != expected_id:
             raise ValueError(f"id phải là compute_failure_case_id (tính lại: {expected_id})")
         expected = self.lost_objects + 0.5 * self.new_false_positives
         if self.severity_score != expected:
             raise ValueError(f"severity_score phải bằng {expected}")
+        return self
+
+
+# ---------------------------------------------------------------- Phase 3: API nội bộ của worker
+
+
+class CostProfile(_Model):
+    """Chi phí đo bằng calibration, riêng cho từng (compute target, model, attack)."""
+
+    schema_version: Literal[1] = 1
+    compute_target_id: UUID
+    model_version_id: UUID
+    attack_spec_id: UUID
+    sec_per_image: PositiveFloat
+    peak_vram_mb: NonNegativeInt = Field(description="0 khi chạy trên CPU")
+    batch_size: PositiveInt
+    measured_at: UtcDatetime
+    environment: Environment
+
+    @model_validator(mode="after")
+    def _check(self) -> CostProfile:
+        if self.environment.compute_target_id != self.compute_target_id:
+            raise ValueError("environment.compute_target_id phải bằng compute_target_id")
+        return self
+
+
+class WorkerLease(_Model):
+    """Trả về từ `POST /lease` (không có job thì `204`)."""
+
+    schema_version: Literal[1] = 1
+    experiment_id: UUID
+    lease_id: UUID = Field(description="Đổi mỗi lần lease; gửi kèm mọi request sau đó")
+    lease_expires_at: UtcDatetime
+
+
+class BundleDownloads(_Model):
+    """Presigned GET URL cho tài nguyên của job."""
+
+    weights: PresignedUrl
+    dataset_manifest: PresignedUrl
+    images: dict[str, PresignedUrl] = Field(
+        min_length=1, description="image_id → URL, đúng các ảnh của slice"
+    )
+    expires_at: UtcDatetime
+
+
+class BundleCheckpoint(_Model):
+    batch_index: NonNegativeInt = Field(description="Batch cuối cùng đã xử lý xong")
+    key: ObjectKey
+    url: PresignedUrl
+
+
+class BundleRun(_Model):
+    run_id: UUID
+    attack_spec_id: UUID
+    level: float
+    seed: NonNegativeInt
+    status: RunStatus
+    images_done: NonNegativeInt
+    images_total: PositiveInt
+    checkpoint: BundleCheckpoint | None = Field(description="Checkpoint mới nhất khi đang chạy dở")
+
+    @model_validator(mode="after")
+    def _check(self) -> BundleRun:
+        if self.images_done > self.images_total:
+            raise ValueError("images_done không được lớn hơn images_total")
+        if self.checkpoint is not None and self.status != RunStatus.RUNNING:
+            raise ValueError("checkpoint chỉ có khi status = running")
+        return self
+
+
+class BundleLimit(_Model):
+    kind: LimitKind
+    value: Decimal = Field(gt=0, description="Tiền (budget) hoặc giây (time)")
+    used: Decimal = Field(ge=0, description="Đã dùng: giây xử lý cộng dồn hoặc tiền")
+
+
+class WorkerJobBundle(_Model):
+    """Mọi thứ worker cần để chạy một experiment (`GET /experiments/{id}/bundle`)."""
+
+    schema_version: Literal[1] = 1
+    experiment_id: UUID
+    config: ExperimentConfig
+    model_card: ModelCard
+    slice: SliceSpec
+    class_mapping: ClassMapping
+    attack_specs: list[AttackSpec] = Field(min_length=1)
+    inference_params: InferenceParams = Field(description="Thuộc fingerprint (config_sha256)")
+    failure_cases_per_run: NonNegativeInt
+    cost_profiles: list[CostProfile] = Field(
+        description="Profile đã có của (target, model, attack); thiếu thì worker calibrate trước"
+    )
+    downloads: BundleDownloads
+    limit: BundleLimit
+    runs: list[BundleRun] = Field(min_length=1, description="Theo thứ tự chạy")
+
+    @model_validator(mode="after")
+    def _check(self) -> WorkerJobBundle:
+        cfg = self.config
+        if cfg.model_version_id != self.model_card.id:
+            raise ValueError("config.model_version_id phải bằng model_card.id")
+        if cfg.slice_id != self.slice.id:
+            raise ValueError("config.slice_id phải bằng slice.id")
+        if cfg.class_mapping_id != self.class_mapping.id:
+            raise ValueError("config.class_mapping_id phải bằng class_mapping.id")
+        if self.class_mapping.model_id != self.model_card.id:
+            raise ValueError("class_mapping.model_id phải bằng model_card.id")
+        if self.class_mapping.dataset_version_sha256 != self.slice.dataset_version_sha256:
+            raise ValueError("class_mapping và slice phải cùng dataset version")
+        spec_ids = {a.attack_spec_id for a in cfg.attacks}
+        if {s.id for s in self.attack_specs} != spec_ids:
+            raise ValueError("attack_specs phải đúng các attack trong config")
+        if any(r.attack_spec_id not in spec_ids for r in self.runs):
+            raise ValueError("run có attack_spec_id không nằm trong config")
+        if len({r.run_id for r in self.runs}) != len(self.runs):
+            raise ValueError("run_id không được trùng")
+        if set(self.downloads.images) != set(self.slice.image_ids):
+            raise ValueError("downloads.images phải đúng các ảnh của slice")
+        if (self.limit.kind, self.limit.value) != (cfg.limit.kind, cfg.limit.value):
+            raise ValueError("limit phải khớp config.limit")
+        for profile in self.cost_profiles:
+            if (
+                profile.compute_target_id != cfg.compute_target_id
+                or profile.model_version_id != self.model_card.id
+                or profile.attack_spec_id not in spec_ids
+            ):
+                raise ValueError("cost_profiles chỉ gồm profile của target, model, attack này")
+        return self
+
+
+class HeartbeatRequest(_Model):
+    lease_id: UUID
+    experiment_id: UUID
+
+
+class RunStartRequest(_Model):
+    lease_id: UUID
+    fingerprint: Sha256Hex
+    fingerprint_inputs: FingerprintInputs
+    environment: Environment
+
+    @model_validator(mode="after")
+    def _check(self) -> RunStartRequest:
+        expected = sha256_of(self.fingerprint_inputs)
+        if self.fingerprint != expected:
+            raise ValueError(f"fingerprint không khớp fingerprint_inputs (tính lại: {expected})")
+        return self
+
+
+class RunStartResponse(_Model):
+    action: Literal["run", "skip_cached"]
+    cached_from_run_id: UUID | None = Field(default=None, description="Chỉ có khi skip_cached")
+    cached_result: RunResult | None = Field(
+        default=None, description="Kết quả của run gốc (completed); chỉ có khi skip_cached"
+    )
+
+    @model_validator(mode="after")
+    def _check(self) -> RunStartResponse:
+        skip = self.action == "skip_cached"
+        has_id, has_result = self.cached_from_run_id is not None, self.cached_result is not None
+        if has_id != skip or has_result != skip:
+            raise ValueError("cached_from_run_id và cached_result có khi và chỉ khi skip_cached")
+        result = self.cached_result
+        if result is not None and (
+            result.run_id != self.cached_from_run_id or result.status != RunStatus.COMPLETED
+        ):
+            raise ValueError("cached_result phải là kết quả completed của cached_from_run_id")
+        return self
+
+
+class ProgressReport(_Model):
+    lease_id: UUID
+    images_done: NonNegativeInt = Field(description="Tổng số ảnh đã xử lý của run")
+    batch_index: NonNegativeInt
+    checkpoint_key: ObjectKey
+    processing_seconds_delta: NonNegativeFloat = Field(
+        description="Thời gian xử lý từ lần báo trước; API cộng dồn"
+    )
+
+
+class WorkerDirective(_Model):
+    action: Literal["continue", "cancel", "stop_limit"]
+    remaining_seconds: NonNegativeFloat | None = Field(
+        description="Thời gian xử lý còn lại; null khi giới hạn là tiền"
+    )
+
+
+class ArtifactUrlRequest(_Model):
+    lease_id: UUID
+    key: ObjectKey = Field(description="Khóa đầy đủ, phải nằm trong runs/<run_id>/")
+    method: Literal["PUT", "GET", "DELETE"]
+
+
+class ArtifactUrlResponse(_Model):
+    key: ObjectKey
+    method: Literal["PUT", "GET", "DELETE"]
+    url: PresignedUrl
+    expires_at: UtcDatetime
+
+
+class RunCompletion(_Model):
+    """Body của `POST /runs/{id}/complete`."""
+
+    schema_version: Literal[1] = 1
+    lease_id: UUID
+    run_result: RunResult
+    failure_cases: list[FailureCaseRecord]
+
+    @model_validator(mode="after")
+    def _check(self) -> RunCompletion:
+        result = self.run_result
+        if result.cached_from_run_id is not None:
+            raise ValueError("run cached do API ghi ở start, không gửi qua complete")
+        if [case.id for case in self.failure_cases] != result.failure_case_ids:
+            raise ValueError("failure_case_ids phải đúng id của failure_cases, cùng thứ tự")
+        for case in self.failure_cases:
+            if case.run_id != result.run_id or case.fingerprint != result.fingerprint:
+                raise ValueError("failure case phải cùng run_id và fingerprint với run_result")
         return self
 
 

@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "run_id": "6f2d9c1e-8b4a-5e7f-a3c2-1d0e9f8a7b6c",
+  "experiment_id": "9a1b2c3d-4e5f-5a6b-8c7d-0e1f2a3b4c5d",
+  "fingerprint": "64818b360ee29fba04d67f6fd3b8711de600f726d22ac84bfbbfec54d3282351",
+  "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+  "level": 4,
+  "status": "skipped",
+  "status_reason": {
+    "code": "cached",
+    "message": "Fingerprint trùng run đã hoàn thành trước đó."
+  },
+  "progress": {
+    "images_done": 300,
+    "images_total": 300
+  },
+  "metrics": {
+    "clean": {
+      "map50": 0.512,
+      "map50_95": 0.298
+    },
+    "attacked": {
+      "map50": 0.231,
+      "map50_95": 0.117
+    },
+    "relative_drop": 0.5488,
+    "absolute_drop": 0.281,
+    "attack_success_rate": 0.463,
+    "per_class": {
+      "car": {
+        "clean_ap50": 0.634,
+        "attacked_ap50": 0.301
+      },
+      "truck": {
+        "clean_ap50": 0.402,
+        "attacked_ap50": 0.188
+      },
+      "person": {
+        "clean_ap50": 0.501,
+        "attacked_ap50": 0.204
+      }
+    }
+  },
+  "gpu_seconds": 0,
+  "cost": null,
+  "failure_case_ids": [
+    "8eca82a6-6fcd-5366-a1d5-7fc7bb69fe00",
+    "d4c54186-8c4a-5004-b3a2-0e1208c756f3"
+  ],
+  "manifest_uri": "s3://artifacts/runs/acd64412-55de-5ac6-b8d0-8ca96f218a64/manifest.json",
+  "cached_from_run_id": "acd64412-55de-5ac6-b8d0-8ca96f218a64"
+}

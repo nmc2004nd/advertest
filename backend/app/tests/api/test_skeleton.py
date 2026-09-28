@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -22,6 +24,9 @@ WORKER_ENDPOINTS = {
     ("post", "/internal/worker/runs/{run_id}/artifact-url"),
     ("post", "/internal/worker/runs/{run_id}/complete"),
     ("post", "/internal/worker/experiments/{experiment_id}/search-result"),
+    ("get", "/internal/worker/experiments/{experiment_id}/bundle"),
+    ("post", "/internal/worker/runs/{run_id}/start"),
+    ("post", "/internal/worker/cost-profiles"),
 }
 RUN_ID = "00000000-0000-5000-8000-000000000001"
 SAMPLE_CALLS = [
@@ -42,7 +47,14 @@ SAMPLE_CALLS = [
     ("post", "/internal/worker/lease"),
     ("post", "/internal/worker/heartbeat"),
     ("post", "/internal/worker/runs/" + RUN_ID + "/artifact-url"),
+    ("get", "/internal/worker/experiments/" + RUN_ID + "/bundle"),
 ]
+# Endpoint có body bắt buộc (Phase 3): gửi body hợp lệ lấy từ contracts/mocks.
+MOCKS = Path(__file__).resolve().parents[4] / "contracts" / "mocks"
+BODIES = {
+    "/internal/worker/heartbeat": "heartbeat_request/default.json",
+    "/internal/worker/runs/" + RUN_ID + "/artifact-url": "artifact_url_request/put_candidate.json",
+}
 
 
 @pytest.fixture(scope="module")
@@ -87,7 +99,8 @@ def test_security_schemes(openapi: dict[str, Any]) -> None:
 
 @pytest.mark.parametrize(("method", "path"), SAMPLE_CALLS)
 def test_unimplemented_endpoints_return_501_error_body(method: str, path: str) -> None:
-    response = TestClient(create_app()).request(method, path)
+    body = json.loads((MOCKS / BODIES[path]).read_text()) if path in BODIES else None
+    response = TestClient(create_app()).request(method, path, json=body)
     assert response.status_code == 501
     body = ErrorResponse.model_validate(response.json())
     assert body.error.code == "not_implemented"

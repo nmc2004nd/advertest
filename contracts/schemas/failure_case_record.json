@@ -19,6 +19,32 @@
           "minLength": 1,
           "title": "Perturbation Png",
           "type": "string"
+        },
+        "clean_thumb": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Thumbnail WebP rộng 320 px (Phase 3); null khi chạy bằng CLI, bắt buộc qua worker",
+          "title": "Clean Thumb"
+        },
+        "adversarial_thumb": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Thumbnail WebP rộng 320 px (Phase 3); null khi chạy bằng CLI, bắt buộc qua worker",
+          "title": "Adversarial Thumb"
         }
       },
       "required": [
@@ -171,7 +197,7 @@
       "type": "integer"
     },
     "id": {
-      "description": "compute_failure_case_id(fingerprint, image_id)",
+      "description": "compute_failure_case_id(fingerprint, run_id, image_id)",
       "format": "uuid",
       "title": "Id",
       "type": "string"

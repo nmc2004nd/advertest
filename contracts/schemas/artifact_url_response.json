@@ -1,0 +1,37 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "key": {
+      "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]*(/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$",
+      "title": "Key",
+      "type": "string"
+    },
+    "method": {
+      "enum": [
+        "PUT",
+        "GET",
+        "DELETE"
+      ],
+      "title": "Method",
+      "type": "string"
+    },
+    "url": {
+      "pattern": "^https?://\\S+$",
+      "title": "Url",
+      "type": "string"
+    },
+    "expires_at": {
+      "format": "date-time",
+      "title": "Expires At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "key",
+    "method",
+    "url",
+    "expires_at"
+  ],
+  "title": "ArtifactUrlResponse",
+  "type": "object"
+}

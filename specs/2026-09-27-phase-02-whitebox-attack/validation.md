@@ -73,7 +73,7 @@
 
 ## Definition of Done
 
-- [ ] Toàn bộ Automated Tests pass trên CI.
+- [x] Toàn bộ Automated Tests pass trên CI.
 - [ ] Toàn bộ Manual Checks đã thực hiện; kết quả KITTI đã ghi lại.
 - [x] Người duyệt đã chấp nhận thay đổi contract (`mask`, `git_dirty`, `FailureCaseRecord`) và `tech-stack.md` đã cập nhật.
 - [x] Các câu hỏi mở đã có câu trả lời hoặc đã chuyển vào backlog.

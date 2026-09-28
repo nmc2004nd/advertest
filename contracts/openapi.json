@@ -707,7 +707,7 @@
           "internal-worker"
         ],
         "summary": "Lease",
-        "description": "Nhận experiment kế tiếp dành cho máy này.",
+        "description": "Nhận experiment `queued` cũ nhất của target (hoặc experiment có lease đã hết hạn).",
         "operationId": "lease_internal_worker_lease_post",
         "responses": {
           "200": {
@@ -715,7 +715,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ExperimentConfig-Output"
+                  "$ref": "#/components/schemas/WorkerLease"
                 }
               }
             }
@@ -729,6 +729,9 @@
                 }
               }
             }
+          },
+          "204": {
+            "description": "Không có experiment nào chờ"
           }
         },
         "security": [
@@ -736,6 +739,65 @@
             "workerToken": []
           }
         ]
+      }
+    },
+    "/internal/worker/experiments/{experiment_id}/bundle": {
+      "get": {
+        "tags": [
+          "internal-worker"
+        ],
+        "summary": "Get Bundle",
+        "description": "Mọi thứ cần để chạy experiment, kèm presigned URL tải (hết hạn sau 15 phút).",
+        "operationId": "get_bundle_internal_worker_experiments__experiment_id__bundle_get",
+        "security": [
+          {
+            "workerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerJobBundle"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/internal/worker/heartbeat": {
@@ -744,13 +806,26 @@
           "internal-worker"
         ],
         "summary": "Heartbeat",
+        "description": "Gia hạn lease 60 giây.",
         "operationId": "heartbeat_internal_worker_heartbeat_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HeartbeatRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerDirective"
+                }
               }
             }
           },
@@ -763,6 +838,16 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -772,13 +857,82 @@
         ]
       }
     },
+    "/internal/worker/runs/{run_id}/start": {
+      "post": {
+        "tags": [
+          "internal-worker"
+        ],
+        "summary": "Start Run",
+        "description": "Chạy run, hoặc bỏ qua khi đã có run `completed` cùng fingerprint.",
+        "operationId": "start_run_internal_worker_runs__run_id__start_post",
+        "security": [
+          {
+            "workerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunStartRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunStartResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/internal/worker/runs/{run_id}/progress": {
       "post": {
         "tags": [
           "internal-worker"
         ],
         "summary": "Report Progress",
-        "description": "Cập nhật tiến độ và checkpoint.",
+        "description": "Báo tiến độ sau mỗi batch; cộng dồn thời gian xử lý.",
         "operationId": "report_progress_internal_worker_runs__run_id__progress_post",
         "security": [
           {
@@ -802,7 +956,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Progress"
+                "$ref": "#/components/schemas/ProgressReport"
               }
             }
           }
@@ -812,7 +966,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerDirective"
+                }
               }
             }
           },
@@ -845,7 +1001,7 @@
           "internal-worker"
         ],
         "summary": "Artifact Url",
-        "description": "Xin presigned URL để upload artifact.",
+        "description": "Presigned URL (PUT, GET, DELETE) cho một khóa nằm trong `runs/<run_id>/`.",
         "operationId": "artifact_url_internal_worker_runs__run_id__artifact_url_post",
         "security": [
           {
@@ -864,12 +1020,24 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArtifactUrlRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/ArtifactUrlResponse"
+                }
               }
             }
           },
@@ -902,7 +1070,7 @@
           "internal-worker"
         ],
         "summary": "Complete Run",
-        "description": "Gửi RunResult cuối cùng.",
+        "description": "Kết quả cuối của run kèm failure case.",
         "operationId": "complete_run_internal_worker_runs__run_id__complete_post",
         "security": [
           {
@@ -926,19 +1094,14 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RunResult-Input"
+                "$ref": "#/components/schemas/RunCompletion"
               }
             }
           }
         },
         "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
+          "204": {
+            "description": "Successful Response"
           },
           "501": {
             "description": "Chưa cài đặt",
@@ -961,6 +1124,56 @@
             }
           }
         }
+      }
+    },
+    "/internal/worker/cost-profiles": {
+      "post": {
+        "tags": [
+          "internal-worker"
+        ],
+        "summary": "Submit Cost Profile",
+        "description": "Cost profile đo bằng calibration cho target của token.",
+        "operationId": "submit_cost_profile_internal_worker_cost_profiles_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CostProfile"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "workerToken": []
+          }
+        ]
       }
     },
     "/internal/worker/experiments/{experiment_id}/search-result": {
@@ -1032,6 +1245,75 @@
   },
   "components": {
     "schemas": {
+      "ArtifactUrlRequest": {
+        "properties": {
+          "lease_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Lease Id"
+          },
+          "key": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]*(/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$",
+            "title": "Key",
+            "description": "Khóa đầy đủ, phải nằm trong runs/<run_id>/"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "PUT",
+              "GET",
+              "DELETE"
+            ],
+            "title": "Method"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "lease_id",
+          "key",
+          "method"
+        ],
+        "title": "ArtifactUrlRequest"
+      },
+      "ArtifactUrlResponse": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]*(/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$",
+            "title": "Key"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "PUT",
+              "GET",
+              "DELETE"
+            ],
+            "title": "Method"
+          },
+          "url": {
+            "type": "string",
+            "pattern": "^https?://\\S+$",
+            "title": "Url"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "key",
+          "method",
+          "url",
+          "expires_at"
+        ],
+        "title": "ArtifactUrlResponse"
+      },
       "AttackAccess": {
         "type": "string",
         "enum": [
@@ -1190,6 +1472,344 @@
         "title": "AttackSpec",
         "description": "Một attack trong catalog. Đổi bất kỳ trường nào phải tăng `version`."
       },
+      "BundleCheckpoint": {
+        "properties": {
+          "batch_index": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Batch Index",
+            "description": "Batch cuối cùng đã xử lý xong"
+          },
+          "key": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]*(/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$",
+            "title": "Key"
+          },
+          "url": {
+            "type": "string",
+            "pattern": "^https?://\\S+$",
+            "title": "Url"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "batch_index",
+          "key",
+          "url"
+        ],
+        "title": "BundleCheckpoint"
+      },
+      "BundleDownloads": {
+        "properties": {
+          "weights": {
+            "type": "string",
+            "pattern": "^https?://\\S+$",
+            "title": "Weights"
+          },
+          "dataset_manifest": {
+            "type": "string",
+            "pattern": "^https?://\\S+$",
+            "title": "Dataset Manifest"
+          },
+          "images": {
+            "additionalProperties": {
+              "type": "string",
+              "pattern": "^https?://\\S+$"
+            },
+            "type": "object",
+            "minProperties": 1,
+            "title": "Images",
+            "description": "image_id → URL, đúng các ảnh của slice"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "weights",
+          "dataset_manifest",
+          "images",
+          "expires_at"
+        ],
+        "title": "BundleDownloads",
+        "description": "Presigned GET URL cho tài nguyên của job."
+      },
+      "BundleLimit": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/LimitKind"
+          },
+          "value": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Value",
+            "description": "Tiền (budget) hoặc giây (time)"
+          },
+          "used": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Used",
+            "description": "Đã dùng: giây xử lý cộng dồn hoặc tiền"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "value",
+          "used"
+        ],
+        "title": "BundleLimit"
+      },
+      "BundleRun": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "attack_spec_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Attack Spec Id"
+          },
+          "level": {
+            "type": "number",
+            "title": "Level"
+          },
+          "seed": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Seed"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStatus"
+          },
+          "images_done": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Images Done"
+          },
+          "images_total": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Images Total"
+          },
+          "checkpoint": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BundleCheckpoint"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Checkpoint mới nhất khi đang chạy dở"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run_id",
+          "attack_spec_id",
+          "level",
+          "seed",
+          "status",
+          "images_done",
+          "images_total",
+          "checkpoint"
+        ],
+        "title": "BundleRun"
+      },
+      "CaseArtifacts": {
+        "properties": {
+          "clean_png": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Clean Png"
+          },
+          "adversarial_png": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Adversarial Png"
+          },
+          "perturbation_png": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Perturbation Png",
+            "description": "Ảnh nhiễu khuếch đại"
+          },
+          "clean_thumb": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clean Thumb",
+            "description": "Thumbnail WebP rộng 320 px (Phase 3); null khi chạy bằng CLI, bắt buộc qua worker"
+          },
+          "adversarial_thumb": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adversarial Thumb",
+            "description": "Thumbnail WebP rộng 320 px (Phase 3); null khi chạy bằng CLI, bắt buộc qua worker"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "clean_png",
+          "adversarial_png",
+          "perturbation_png"
+        ],
+        "title": "CaseArtifacts",
+        "description": "Khóa lưu trữ (LocalStore ở Phase 2, MinIO từ Phase 3) của ảnh PNG letterbox."
+      },
+      "CaseBox": {
+        "properties": {
+          "bbox": {
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array",
+            "maxItems": 4,
+            "minItems": 4,
+            "title": "Bbox"
+          },
+          "class_name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Class Name",
+            "description": "Class đích của mapping"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score",
+            "description": "null với ground truth, bắt buộc với prediction"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "bbox",
+          "class_name",
+          "score"
+        ],
+        "title": "CaseBox",
+        "description": "Box trong failure case: xyxy pixel trong không gian letterbox."
+      },
+      "CaseDetections": {
+        "properties": {
+          "ground_truth": {
+            "items": {
+              "$ref": "#/components/schemas/CaseBox"
+            },
+            "type": "array",
+            "title": "Ground Truth"
+          },
+          "clean": {
+            "items": {
+              "$ref": "#/components/schemas/CaseBox"
+            },
+            "type": "array",
+            "title": "Clean"
+          },
+          "attacked": {
+            "items": {
+              "$ref": "#/components/schemas/CaseBox"
+            },
+            "type": "array",
+            "title": "Attacked"
+          },
+          "ignore_regions": {
+            "items": {
+              "$ref": "#/components/schemas/CaseIgnoreRegion"
+            },
+            "type": "array",
+            "title": "Ignore Regions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ground_truth",
+          "clean",
+          "attacked",
+          "ignore_regions"
+        ],
+        "title": "CaseDetections"
+      },
+      "CaseIgnoreRegion": {
+        "properties": {
+          "bbox": {
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array",
+            "maxItems": 4,
+            "minItems": 4,
+            "title": "Bbox",
+            "description": "xyxy pixel trong không gian letterbox"
+          },
+          "source": {
+            "type": "string",
+            "pattern": "^(dont_care|unmapped:.+|difficulty:.+)$",
+            "title": "Source"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "bbox",
+          "source"
+        ],
+        "title": "CaseIgnoreRegion"
+      },
       "CaseSeverity": {
         "type": "string",
         "enum": [
@@ -1199,6 +1819,88 @@
           "acceptable"
         ],
         "title": "CaseSeverity"
+      },
+      "ClassMapping": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Schema Version",
+            "default": 1
+          },
+          "dataset_version_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Dataset Version Sha256"
+          },
+          "model_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Model Id"
+          },
+          "preset": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preset",
+            "description": "Ví dụ kitti-coco; null khi tự tạo"
+          },
+          "classes": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "minProperties": 1,
+            "title": "Classes",
+            "description": "Class gốc → class model; null thành ignore region unmapped:<class>"
+          },
+          "difficulty": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DifficultyFilter"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null là không lọc theo độ khó"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "mapping_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Mapping Sha256",
+            "description": "Hash của mọi trường trừ id và chính nó"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "dataset_version_sha256",
+          "model_id",
+          "preset",
+          "classes",
+          "difficulty",
+          "id",
+          "mapping_sha256"
+        ],
+        "title": "ClassMapping"
       },
       "ClassRunMetrics": {
         "properties": {
@@ -1312,6 +2014,69 @@
         "type": "object",
         "title": "CostModel"
       },
+      "CostProfile": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Schema Version",
+            "default": 1
+          },
+          "compute_target_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Compute Target Id"
+          },
+          "model_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Model Version Id"
+          },
+          "attack_spec_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Attack Spec Id"
+          },
+          "sec_per_image": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Sec Per Image"
+          },
+          "peak_vram_mb": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Peak Vram Mb",
+            "description": "0 khi chạy trên CPU"
+          },
+          "batch_size": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Batch Size"
+          },
+          "measured_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Measured At"
+          },
+          "environment": {
+            "$ref": "#/components/schemas/Environment"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "compute_target_id",
+          "model_version_id",
+          "attack_spec_id",
+          "sec_per_image",
+          "peak_vram_mb",
+          "batch_size",
+          "measured_at",
+          "environment"
+        ],
+        "title": "CostProfile",
+        "description": "Chi phí đo bằng calibration, riêng cho từng (compute target, model, attack)."
+      },
       "DependencyStatus": {
         "properties": {
           "ok": {
@@ -1338,6 +2103,99 @@
         ],
         "title": "DependencyStatus"
       },
+      "DifficultyFilter": {
+        "properties": {
+          "min_height_px": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Min Height Px",
+            "description": "Giữ khi chiều cao bbox (y2 - y1, pixel ảnh gốc) >= min_height_px"
+          },
+          "max_occluded": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Max Occluded",
+            "description": "Giữ khi occluded <= max_occluded"
+          },
+          "max_truncated": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Max Truncated",
+            "description": "Giữ khi truncated <= max_truncated"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "min_height_px",
+          "max_occluded",
+          "max_truncated"
+        ],
+        "title": "DifficultyFilter",
+        "description": "Ngưỡng độ khó (mức Moderate của KITTI: 25, 1, 0.30). Ngưỡng tính cả biên: GT được giữ khi\nđạt cả ba điều kiện, không đạt thì thành ignore region `difficulty:<class>`."
+      },
+      "Environment": {
+        "properties": {
+          "compute_target_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compute Target Id",
+            "description": "null khi chạy bằng CLI"
+          },
+          "gpu_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gpu Model",
+            "description": "null khi chạy trên CPU"
+          },
+          "cuda_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cuda Version"
+          },
+          "driver_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Driver Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "compute_target_id",
+          "gpu_model",
+          "cuda_version",
+          "driver_version"
+        ],
+        "title": "Environment",
+        "description": "Máy đã chạy run. Không thuộc fingerprint."
+      },
       "ErrorBody": {
         "properties": {
           "code": {
@@ -1360,7 +2218,11 @@
       "ErrorCode": {
         "type": "string",
         "enum": [
-          "not_implemented"
+          "not_implemented",
+          "unauthenticated",
+          "forbidden",
+          "not_found",
+          "conflict"
         ],
         "title": "ErrorCode"
       },
@@ -1500,6 +2362,190 @@
         ],
         "title": "ExperimentConfig"
       },
+      "FailureCaseRecord": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Schema Version",
+            "default": 1
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "compute_failure_case_id(fingerprint, run_id, image_id)"
+          },
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "fingerprint": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Fingerprint",
+            "description": "Fingerprint của run"
+          },
+          "image_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Image Id"
+          },
+          "lost_objects": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Lost Objects",
+            "description": "Số object bị mất sau tấn công"
+          },
+          "new_false_positives": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "New False Positives",
+            "description": "Số detection sai mới xuất hiện"
+          },
+          "severity_score": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Severity Score",
+            "description": "lost_objects + 0.5 * new_false_positives; chỉ lưu case > 0"
+          },
+          "detections": {
+            "$ref": "#/components/schemas/CaseDetections"
+          },
+          "artifacts": {
+            "$ref": "#/components/schemas/CaseArtifacts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "run_id",
+          "fingerprint",
+          "image_id",
+          "lost_objects",
+          "new_false_positives",
+          "severity_score",
+          "detections",
+          "artifacts"
+        ],
+        "title": "FailureCaseRecord",
+        "description": "Một ảnh bị attack làm hỏng nặng trong một run (Phase 2)."
+      },
+      "FingerprintInputs": {
+        "properties": {
+          "config_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Config Sha256"
+          },
+          "weights_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Weights Sha256"
+          },
+          "dataset_version_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Dataset Version Sha256"
+          },
+          "slice_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Slice Id"
+          },
+          "slice_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Slice Sha256"
+          },
+          "attack_spec_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Attack Spec Sha256"
+          },
+          "params": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Params"
+          },
+          "seed": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Seed"
+          },
+          "git_commit": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{40}$",
+            "title": "Git Commit"
+          },
+          "git_dirty": {
+            "type": "boolean",
+            "title": "Git Dirty",
+            "description": "Working tree có thay đổi chưa commit lúc chạy"
+          },
+          "lib_versions": {
+            "$ref": "#/components/schemas/LibVersions"
+          },
+          "docker_image_digest": {
+            "type": "string",
+            "pattern": "^(none|sha256:[0-9a-f]{64})$",
+            "title": "Docker Image Digest"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "config_sha256",
+          "weights_sha256",
+          "dataset_version_sha256",
+          "slice_id",
+          "slice_sha256",
+          "attack_spec_sha256",
+          "params",
+          "seed",
+          "git_commit",
+          "git_dirty",
+          "lib_versions",
+          "docker_image_digest"
+        ],
+        "title": "FingerprintInputs"
+      },
+      "GradientCheck": {
+        "properties": {
+          "passed": {
+            "type": "boolean",
+            "title": "Passed"
+          },
+          "checked_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Checked At"
+          },
+          "details": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Details",
+            "description": "Lý do khi passed = false"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "passed",
+          "checked_at"
+        ],
+        "title": "GradientCheck"
+      },
       "GridConfig": {
         "properties": {
           "levels": {
@@ -1576,7 +2622,105 @@
         ],
         "title": "HealthResponse"
       },
+      "HeartbeatRequest": {
+        "properties": {
+          "lease_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Lease Id"
+          },
+          "experiment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Experiment Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "lease_id",
+          "experiment_id"
+        ],
+        "title": "HeartbeatRequest"
+      },
+      "InferenceParams": {
+        "properties": {
+          "conf": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Conf"
+          },
+          "iou": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Iou"
+          },
+          "max_det": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Max Det"
+          },
+          "operating_conf": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Operating Conf",
+            "description": "Ngưỡng dùng cho tỷ lệ tấn công thành công"
+          },
+          "input_size": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Input Size"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "conf",
+          "iou",
+          "max_det",
+          "operating_conf",
+          "input_size"
+        ],
+        "title": "InferenceParams"
+      },
       "JsonValue": {},
+      "LibVersions": {
+        "properties": {
+          "torch": {
+            "type": "string",
+            "title": "Torch"
+          },
+          "art": {
+            "type": "string",
+            "title": "Art"
+          },
+          "ultralytics": {
+            "type": "string",
+            "title": "Ultralytics"
+          },
+          "torchmetrics": {
+            "type": "string",
+            "title": "Torchmetrics"
+          },
+          "numpy": {
+            "type": "string",
+            "title": "Numpy"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "torch",
+          "art",
+          "ultralytics",
+          "torchmetrics",
+          "numpy"
+        ],
+        "title": "LibVersions"
+      },
       "Limit-Input": {
         "properties": {
           "kind": {
@@ -1655,6 +2799,85 @@
           "map50_95"
         ],
         "title": "MapPair"
+      },
+      "ModelCard": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Schema Version",
+            "default": 1
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          },
+          "framework": {
+            "type": "string",
+            "enum": [
+              "ultralytics",
+              "torchvision"
+            ],
+            "title": "Framework"
+          },
+          "architecture": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Architecture"
+          },
+          "weights_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Weights Sha256"
+          },
+          "class_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Class Names",
+            "description": "Theo thứ tự index của model"
+          },
+          "input_size": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Input Size"
+          },
+          "supports_gradients": {
+            "type": "boolean",
+            "title": "Supports Gradients",
+            "description": "Chỉ true khi bài kiểm tra gradient pass"
+          },
+          "gradient_check": {
+            "$ref": "#/components/schemas/GradientCheck"
+          },
+          "lib_versions": {
+            "$ref": "#/components/schemas/LibVersions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "framework",
+          "architecture",
+          "weights_sha256",
+          "class_names",
+          "input_size",
+          "supports_gradients",
+          "gradient_check",
+          "lib_versions"
+        ],
+        "title": "ModelCard",
+        "description": "Model đã đăng ký. id = content_id(weights_sha256)."
       },
       "PassCriterion": {
         "properties": {
@@ -1764,6 +2987,47 @@
         ],
         "title": "Progress"
       },
+      "ProgressReport": {
+        "properties": {
+          "lease_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Lease Id"
+          },
+          "images_done": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Images Done",
+            "description": "Tổng số ảnh đã xử lý của run"
+          },
+          "batch_index": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Batch Index"
+          },
+          "checkpoint_key": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]*(/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$",
+            "title": "Checkpoint Key"
+          },
+          "processing_seconds_delta": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Processing Seconds Delta",
+            "description": "Thời gian xử lý từ lần báo trước; API cộng dồn"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "lease_id",
+          "images_done",
+          "batch_index",
+          "checkpoint_key",
+          "processing_seconds_delta"
+        ],
+        "title": "ProgressReport"
+      },
       "ProtocolBody": {
         "properties": {
           "schema_version": {
@@ -1855,6 +3119,40 @@
         ],
         "title": "RequiredAttack"
       },
+      "RunCompletion": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Schema Version",
+            "default": 1
+          },
+          "lease_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Lease Id"
+          },
+          "run_result": {
+            "$ref": "#/components/schemas/RunResult-Input"
+          },
+          "failure_cases": {
+            "items": {
+              "$ref": "#/components/schemas/FailureCaseRecord"
+            },
+            "type": "array",
+            "title": "Failure Cases"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "lease_id",
+          "run_result",
+          "failure_cases"
+        ],
+        "title": "RunCompletion",
+        "description": "Body của `POST /runs/{id}/complete`."
+      },
       "RunMetrics": {
         "properties": {
           "clean": {
@@ -1906,6 +3204,12 @@
               }
             ],
             "title": "Per Class"
+          },
+          "partial": {
+            "type": "boolean",
+            "title": "Partial",
+            "description": "true khi metric chỉ tính trên phần ảnh đã xử lý (stopped_limit)",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -2019,6 +3323,19 @@
               }
             ],
             "title": "Manifest Uri"
+          },
+          "cached_from_run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cached From Run Id",
+            "description": "Run gốc khi status = skipped với code = cached (Phase 3)"
           }
         },
         "additionalProperties": false,
@@ -2128,6 +3445,19 @@
               }
             ],
             "title": "Manifest Uri"
+          },
+          "cached_from_run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cached From Run Id",
+            "description": "Run gốc khi status = skipped với code = cached (Phase 3)"
           }
         },
         "additionalProperties": false,
@@ -2144,6 +3474,77 @@
           "failure_case_ids"
         ],
         "title": "RunResult"
+      },
+      "RunStartRequest": {
+        "properties": {
+          "lease_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Lease Id"
+          },
+          "fingerprint": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Fingerprint"
+          },
+          "fingerprint_inputs": {
+            "$ref": "#/components/schemas/FingerprintInputs"
+          },
+          "environment": {
+            "$ref": "#/components/schemas/Environment"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "lease_id",
+          "fingerprint",
+          "fingerprint_inputs",
+          "environment"
+        ],
+        "title": "RunStartRequest"
+      },
+      "RunStartResponse": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "run",
+              "skip_cached"
+            ],
+            "title": "Action"
+          },
+          "cached_from_run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cached From Run Id",
+            "description": "Chỉ có khi skip_cached"
+          },
+          "cached_result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunResult-Output"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Kết quả của run gốc (completed); chỉ có khi skip_cached"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "title": "RunStartResponse"
       },
       "RunStatus": {
         "type": "string",
@@ -2340,6 +3741,110 @@
         ],
         "title": "SkipReason"
       },
+      "SliceFilter": {
+        "properties": {
+          "classes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Classes",
+            "description": "Class gốc được tính, sắp xếp, không trùng"
+          },
+          "difficulty": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DifficultyFilter"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "min_objects": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Min Objects",
+            "default": 1
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "classes",
+          "difficulty"
+        ],
+        "title": "SliceFilter",
+        "description": "Bộ lọc tự mô tả, không phụ thuộc model hay mapping."
+      },
+      "SliceSpec": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Schema Version",
+            "default": 1
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "slice_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Slice Sha256",
+            "description": "sha256 của dataset_version_sha256, filter, seed, size, image_ids"
+          },
+          "dataset_version_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Dataset Version Sha256"
+          },
+          "filter": {
+            "$ref": "#/components/schemas/SliceFilter"
+          },
+          "seed": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Seed"
+          },
+          "size": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Size"
+          },
+          "image_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Image Ids",
+            "description": "Sắp xếp, không trùng, đúng size phần tử"
+          },
+          "image_ids_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Image Ids Sha256",
+            "description": "sha256_of(image_ids)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "slice_sha256",
+          "dataset_version_sha256",
+          "filter",
+          "seed",
+          "size",
+          "image_ids",
+          "image_ids_sha256"
+        ],
+        "title": "SliceSpec"
+      },
       "StatusReason": {
         "properties": {
           "code": {
@@ -2477,6 +3982,159 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "WorkerDirective": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "continue",
+              "cancel",
+              "stop_limit"
+            ],
+            "title": "Action"
+          },
+          "remaining_seconds": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remaining Seconds",
+            "description": "Thời gian xử lý còn lại; null khi giới hạn là tiền"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "action",
+          "remaining_seconds"
+        ],
+        "title": "WorkerDirective"
+      },
+      "WorkerJobBundle": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Schema Version",
+            "default": 1
+          },
+          "experiment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Experiment Id"
+          },
+          "config": {
+            "$ref": "#/components/schemas/ExperimentConfig-Output"
+          },
+          "model_card": {
+            "$ref": "#/components/schemas/ModelCard"
+          },
+          "slice": {
+            "$ref": "#/components/schemas/SliceSpec"
+          },
+          "class_mapping": {
+            "$ref": "#/components/schemas/ClassMapping"
+          },
+          "attack_specs": {
+            "items": {
+              "$ref": "#/components/schemas/AttackSpec"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Attack Specs"
+          },
+          "inference_params": {
+            "$ref": "#/components/schemas/InferenceParams",
+            "description": "Thuộc fingerprint (config_sha256)"
+          },
+          "failure_cases_per_run": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Failure Cases Per Run"
+          },
+          "cost_profiles": {
+            "items": {
+              "$ref": "#/components/schemas/CostProfile"
+            },
+            "type": "array",
+            "title": "Cost Profiles",
+            "description": "Profile đã có của (target, model, attack); thiếu thì worker calibrate trước"
+          },
+          "downloads": {
+            "$ref": "#/components/schemas/BundleDownloads"
+          },
+          "limit": {
+            "$ref": "#/components/schemas/BundleLimit"
+          },
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/BundleRun"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Runs",
+            "description": "Theo thứ tự chạy"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "experiment_id",
+          "config",
+          "model_card",
+          "slice",
+          "class_mapping",
+          "attack_specs",
+          "inference_params",
+          "failure_cases_per_run",
+          "cost_profiles",
+          "downloads",
+          "limit",
+          "runs"
+        ],
+        "title": "WorkerJobBundle",
+        "description": "Mọi thứ worker cần để chạy một experiment (`GET /experiments/{id}/bundle`)."
+      },
+      "WorkerLease": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Schema Version",
+            "default": 1
+          },
+          "experiment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Experiment Id"
+          },
+          "lease_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Lease Id",
+            "description": "Đổi mỗi lần lease; gửi kèm mọi request sau đó"
+          },
+          "lease_expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Lease Expires At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "experiment_id",
+          "lease_id",
+          "lease_expires_at"
+        ],
+        "title": "WorkerLease",
+        "description": "Trả về từ `POST /lease` (không có job thì `204`)."
       }
     },
     "securitySchemes": {

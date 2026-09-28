@@ -1,0 +1,41 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "lease_id": {
+      "format": "uuid",
+      "title": "Lease Id",
+      "type": "string"
+    },
+    "images_done": {
+      "description": "Tổng số ảnh đã xử lý của run",
+      "minimum": 0,
+      "title": "Images Done",
+      "type": "integer"
+    },
+    "batch_index": {
+      "minimum": 0,
+      "title": "Batch Index",
+      "type": "integer"
+    },
+    "checkpoint_key": {
+      "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]*(/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$",
+      "title": "Checkpoint Key",
+      "type": "string"
+    },
+    "processing_seconds_delta": {
+      "description": "Thời gian xử lý từ lần báo trước; API cộng dồn",
+      "minimum": 0,
+      "title": "Processing Seconds Delta",
+      "type": "number"
+    }
+  },
+  "required": [
+    "lease_id",
+    "images_done",
+    "batch_index",
+    "checkpoint_key",
+    "processing_seconds_delta"
+  ],
+  "title": "ProgressReport",
+  "type": "object"
+}

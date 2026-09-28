@@ -1,0 +1,35 @@
+{
+  "additionalProperties": false,
+  "description": "Trả về từ `POST /lease` (không có job thì `204`).",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "experiment_id": {
+      "format": "uuid",
+      "title": "Experiment Id",
+      "type": "string"
+    },
+    "lease_id": {
+      "description": "Đổi mỗi lần lease; gửi kèm mọi request sau đó",
+      "format": "uuid",
+      "title": "Lease Id",
+      "type": "string"
+    },
+    "lease_expires_at": {
+      "format": "date-time",
+      "title": "Lease Expires At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "experiment_id",
+    "lease_id",
+    "lease_expires_at"
+  ],
+  "title": "WorkerLease",
+  "type": "object"
+}

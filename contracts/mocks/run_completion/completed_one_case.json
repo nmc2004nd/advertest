@@ -1,0 +1,159 @@
+{
+  "schema_version": 1,
+  "lease_id": "5b0c6f7e-2d1a-4c3b-9e8f-7a6b5c4d3e2f",
+  "run_result": {
+    "schema_version": 1,
+    "run_id": "acd64412-55de-5ac6-b8d0-8ca96f218a64",
+    "experiment_id": "37440a93-11db-57a1-a2dd-3de419d3001f",
+    "fingerprint": "712a858506e014b9477bae28fa19f1f2f13479ee65db8b47c4db94c12f1494b0",
+    "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+    "level": 4,
+    "status": "completed",
+    "status_reason": null,
+    "progress": {
+      "images_done": 300,
+      "images_total": 300
+    },
+    "metrics": {
+      "clean": {
+        "map50": 0.512,
+        "map50_95": 0.298
+      },
+      "attacked": {
+        "map50": 0.231,
+        "map50_95": 0.117
+      },
+      "relative_drop": 0.5488,
+      "absolute_drop": 0.281,
+      "attack_success_rate": 0.463,
+      "per_class": {
+        "car": {
+          "clean_ap50": 0.634,
+          "attacked_ap50": 0.301
+        },
+        "truck": {
+          "clean_ap50": 0.402,
+          "attacked_ap50": 0.188
+        },
+        "person": {
+          "clean_ap50": 0.501,
+          "attacked_ap50": 0.204
+        }
+      }
+    },
+    "gpu_seconds": 103.2,
+    "cost": null,
+    "failure_case_ids": [
+      "69228d88-e1a3-5f2f-bbdb-cbd2b266863c"
+    ],
+    "manifest_uri": "s3://artifacts/runs/acd64412-55de-5ac6-b8d0-8ca96f218a64/manifest.json"
+  },
+  "failure_cases": [
+    {
+      "schema_version": 1,
+      "id": "69228d88-e1a3-5f2f-bbdb-cbd2b266863c",
+      "run_id": "acd64412-55de-5ac6-b8d0-8ca96f218a64",
+      "fingerprint": "712a858506e014b9477bae28fa19f1f2f13479ee65db8b47c4db94c12f1494b0",
+      "image_id": "000057",
+      "lost_objects": 3,
+      "new_false_positives": 1,
+      "severity_score": 3.5,
+      "detections": {
+        "ground_truth": [
+          {
+            "bbox": [
+              102.4,
+              290.1,
+              188.7,
+              331.6
+            ],
+            "class_name": "car",
+            "score": null
+          },
+          {
+            "bbox": [
+              301.0,
+              285.5,
+              352.9,
+              318.2
+            ],
+            "class_name": "car",
+            "score": null
+          },
+          {
+            "bbox": [
+              455.2,
+              270.3,
+              470.8,
+              318.9
+            ],
+            "class_name": "person",
+            "score": null
+          }
+        ],
+        "clean": [
+          {
+            "bbox": [
+              101.9,
+              289.7,
+              189.3,
+              332.0
+            ],
+            "class_name": "car",
+            "score": 0.91
+          },
+          {
+            "bbox": [
+              300.2,
+              286.0,
+              353.5,
+              318.8
+            ],
+            "class_name": "car",
+            "score": 0.84
+          },
+          {
+            "bbox": [
+              454.8,
+              271.0,
+              471.5,
+              319.4
+            ],
+            "class_name": "person",
+            "score": 0.67
+          }
+        ],
+        "attacked": [
+          {
+            "bbox": [
+              520.3,
+              300.2,
+              560.1,
+              322.8
+            ],
+            "class_name": "car",
+            "score": 0.41
+          }
+        ],
+        "ignore_regions": [
+          {
+            "bbox": [
+              0.0,
+              280.4,
+              40.6,
+              330.2
+            ],
+            "source": "difficulty:Car"
+          }
+        ]
+      },
+      "artifacts": {
+        "clean_png": "runs/acd64412-55de-5ac6-b8d0-8ca96f218a64/cases/69228d88-e1a3-5f2f-bbdb-cbd2b266863c/clean.png",
+        "adversarial_png": "runs/acd64412-55de-5ac6-b8d0-8ca96f218a64/cases/69228d88-e1a3-5f2f-bbdb-cbd2b266863c/adversarial.png",
+        "perturbation_png": "runs/acd64412-55de-5ac6-b8d0-8ca96f218a64/cases/69228d88-e1a3-5f2f-bbdb-cbd2b266863c/perturbation.png",
+        "clean_thumb": "runs/acd64412-55de-5ac6-b8d0-8ca96f218a64/cases/69228d88-e1a3-5f2f-bbdb-cbd2b266863c/clean_thumb.webp",
+        "adversarial_thumb": "runs/acd64412-55de-5ac6-b8d0-8ca96f218a64/cases/69228d88-e1a3-5f2f-bbdb-cbd2b266863c/adversarial_thumb.webp"
+      }
+    }
+  ]
+}
