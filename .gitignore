@@ -19,7 +19,7 @@ node_modules/
 frontend/dist/
 
 # Dữ liệu (không commit)
-data/
+/data/
 
 # Fixture tải bằng `make fixtures`; chỉ commit checksum
 tests/fixtures/*
