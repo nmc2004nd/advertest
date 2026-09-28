@@ -148,7 +148,11 @@ Schema `SliceSpec` trong contract.
 - `operating_conf = 0.25` được ghi vào kết quả để Phase 2 dùng khi tính tỷ lệ tấn công thành công và chọn failure case.
 - Prediction thuộc class model không có trong mapping bị loại trước khi tính metric.
 - Prediction có IoA (diện tích giao / diện tích prediction) ≥ 0.5 với một ignore region bị loại trước khi tính metric.
-- Metric tính bằng `torchmetrics` `MeanAveragePrecision` (`box_format="xyxy"`, `iou_type="bbox"`, `class_metrics=True`).
+- Metric tính bằng `torchmetrics` `MeanAveragePrecision` (`box_format="xyxy"`, `iou_type="bbox"`, `class_metrics=True`, backend `pycocotools`), trong `ml_core/metrics/` (`CleanMetric`).
+- Giới hạn detection mỗi ảnh khi tính mAP là `max_detection_thresholds = [1, 10, max_det]`, không dùng 100 mặc định của COCO, để mAP tính trên đúng những gì NMS giữ lại.
+- AP (mAP@0.5, mAP@0.5:0.95 và theo class) được tính từ tensor `precision` của torchmetrics (`extended_summary=True`) theo công thức COCO: trung bình precision hợp lệ (> -1) tại vùng diện tích `all` và giới hạn detection cuối cùng. *Lý do:* `pycocotools.summarize` viết cứng `maxDets=100` cho mAP@0.5:0.95, nên trả -1 khi `max_det ≠ 100`; torchmetrics và pycocotools vẫn làm phần ghép cặp và tích lũy. Với `max_det = 100` kết quả trùng `map`, `map_50`, `map_per_class` của torchmetrics.
+- Label trong metric là chỉ số class trong model (cùng không gian với loader). `per_class` luôn có đủ mọi class đích của mapping, key là tên class đích; `num_gt` tự đếm.
+- Slice không có ground truth nào, hoặc ground truth có class không phải class đích, thì báo lỗi thay vì trả mAP.
 
 ### Cache
 - Khóa cache = sha256 của: `weights_sha256`, `image_ids_sha256`, `dataset_version_sha256`, cấu hình letterbox (`LETTERBOX_CONFIG`), `inference_params`, phiên bản `torch` và `ultralytics`.
