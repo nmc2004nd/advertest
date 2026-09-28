@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 # Key là đường dẫn tương đối kiểu POSIX: các đoạn gồm chữ, số, `.`, `_`, `-`, cách nhau bởi `/`.
 _SEGMENT = re.compile(r"^[A-Za-z0-9._-]+$")
@@ -25,6 +25,7 @@ def validate_key(key: str) -> str:
     return key
 
 
+@runtime_checkable
 class ArtifactStore(Protocol):
     """Kho artifact bất biến theo key.
 
@@ -40,3 +41,10 @@ class ArtifactStore(Protocol):
     def list(self, prefix: str = "") -> list[str]:
         """Các key bắt đầu bằng `prefix`, đã sắp xếp."""
         ...
+
+
+def require_store(obj: object) -> ArtifactStore:
+    """Store mà callback của CLI `advertest` đặt vào `ctx.obj` (tùy chọn `--store-dir`)."""
+    if not isinstance(obj, ArtifactStore):
+        raise RuntimeError("Lệnh phải chạy qua `advertest` để có store (ctx.obj)")
+    return obj

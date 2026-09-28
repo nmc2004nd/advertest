@@ -7,7 +7,13 @@ Bố cục key (requirements.md Phase 1, mục Kho lưu trữ local):
 
 from __future__ import annotations
 
-from ml_core.store.base import ArtifactStore, KeyConflictError, KeyNotFoundError, validate_key
+from ml_core.store.base import (
+    ArtifactStore,
+    KeyConflictError,
+    KeyNotFoundError,
+    require_store,
+    validate_key,
+)
 from ml_core.store.index import IdKind, register_id, resolve_id
 from ml_core.store.local import DEFAULT_STORE_DIR, LocalStore
 
@@ -19,6 +25,7 @@ __all__ = [
     "KeyNotFoundError",
     "LocalStore",
     "register_id",
+    "require_store",
     "resolve_id",
     "validate_key",
 ]
