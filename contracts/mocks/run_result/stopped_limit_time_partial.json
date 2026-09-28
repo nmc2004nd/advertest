@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "run_id": "0b7f0a53-3c1e-5d0c-9a55-8f3c4e0a2b61",
+  "experiment_id": "37440a93-11db-57a1-a2dd-3de419d3001f",
+  "fingerprint": "3f5e2a0c9b1d4e6f8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f",
+  "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+  "level": 8,
+  "status": "stopped_limit",
+  "status_reason": {
+    "code": "time",
+    "message": "Chạm trần thời gian xử lý của experiment (7200 s)."
+  },
+  "progress": {
+    "images_done": 184,
+    "images_total": 300
+  },
+  "metrics": {
+    "clean": {
+      "map50": 0.512,
+      "map50_95": 0.298
+    },
+    "attacked": {
+      "map50": 0.231,
+      "map50_95": 0.117
+    },
+    "relative_drop": 0.5488,
+    "absolute_drop": 0.281,
+    "attack_success_rate": 0.463,
+    "per_class": {
+      "car": {
+        "clean_ap50": 0.634,
+        "attacked_ap50": 0.301
+      },
+      "truck": {
+        "clean_ap50": 0.402,
+        "attacked_ap50": 0.188
+      },
+      "person": {
+        "clean_ap50": 0.501,
+        "attacked_ap50": 0.204
+      }
+    },
+    "partial": true
+  },
+  "gpu_seconds": 7118.4,
+  "cost": null,
+  "failure_case_ids": [],
+  "manifest_uri": "s3://artifacts/runs/0b7f0a53-3c1e-5d0c-9a55-8f3c4e0a2b61/manifest.json"
+}

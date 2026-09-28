@@ -101,8 +101,19 @@ class ReviewDecision(StrEnum):
 
 
 class ErrorCode(StrEnum):
-    # Phase 4 thêm: unauthenticated, forbidden, invalid_credentials, account_pending, ...
+    # Phase 3 thêm các mã cho API nội bộ của worker (401, 403, 404, 409).
+    # Phase 4 thêm: invalid_credentials, account_pending, ...
     NOT_IMPLEMENTED = "not_implemented"
+    UNAUTHENTICATED = "unauthenticated"
+    FORBIDDEN = "forbidden"
+    NOT_FOUND = "not_found"
+    CONFLICT = "conflict"
+
+
+class ProtocolStatus(StrEnum):
+    ACTIVE = "active"
+    RETIRED = "retired"
+    DEV = "dev"  # Protocol phát triển (dev-open, Phase 3): không bao giờ được gửi duyệt.
 
 
 class CaseSeverity(StrEnum):

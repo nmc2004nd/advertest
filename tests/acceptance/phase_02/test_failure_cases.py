@@ -78,10 +78,18 @@ def test_case_files_and_record(pipeline: Pipeline, sweep: Sweep, batch: Batch) -
         assert np.any(arrays["perturbation_png"] != 128)
 
 
-def test_case_id_is_uuid5_of_fingerprint_and_image(pipeline: Pipeline, sweep: Sweep) -> None:
+def test_case_id_is_uuid5_of_fingerprint_run_and_image(pipeline: Pipeline, sweep: Sweep) -> None:
+    # Phase 3 (requirements.md Decisions): id gồm run_id.
     result = sweep.results[("pgd_linf", 16.0)]
     for record in _records(pipeline.store, result):
+        assert record.run_id == result.run_id
         expected = content_id(
-            sha256_of({"fingerprint": result.fingerprint, "image_id": record.image_id})
+            sha256_of(
+                {
+                    "fingerprint": result.fingerprint,
+                    "run_id": str(result.run_id),
+                    "image_id": record.image_id,
+                }
+            )
         )
         assert record.id == expected and record.id.version == 5

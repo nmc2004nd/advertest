@@ -568,7 +568,7 @@ class Runner:
             ],
         )
         record = FailureCaseRecord(
-            id=compute_failure_case_id(fp, image_id),
+            id=compute_failure_case_id(fp, run_id, image_id),
             run_id=run_id,
             fingerprint=fp,
             image_id=image_id,

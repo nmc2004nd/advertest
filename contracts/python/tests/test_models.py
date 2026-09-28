@@ -2,7 +2,7 @@ import copy
 import json
 from pathlib import Path
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from pydantic import ValidationError
@@ -255,6 +255,32 @@ def test_run_result_progress_and_cost() -> None:
         RunResult.model_validate(_run("running", cost={"amount": "1.2", "currency": "usd"}))
     run = RunResult.model_validate(_run("running", cost={"amount": "1.20", "currency": "USD"}))
     assert run.model_dump(mode="json")["cost"]["amount"] == "1.20"
+
+
+def test_run_result_cached_from_run_id_only_for_cached_skip() -> None:
+    origin = str(uuid4())
+    run = RunResult.model_validate(
+        _run("skipped", "cached", cached_from_run_id=origin, metrics=METRICS)
+    )
+    assert str(run.cached_from_run_id) == origin
+    assert RunResult.model_validate(_run("skipped", "cached")).cached_from_run_id is None
+    for status, code in [("skipped", "incompatible"), ("completed", None), ("failed", "error")]:
+        with pytest.raises(ValidationError, match="cached_from_run_id"):
+            RunResult.model_validate(_run(status, code, cached_from_run_id=origin))
+
+
+def test_run_result_partial_metrics_only_when_stopped_limit() -> None:
+    partial = {**METRICS, "partial": True}
+    run = RunResult.model_validate(_run("stopped_limit", "time", metrics=partial))
+    assert run.metrics is not None and run.metrics.partial
+    completed = RunResult.model_validate(_run("completed"))
+    assert completed.metrics is not None and completed.metrics.partial is False
+    with pytest.raises(ValidationError, match="partial"):
+        RunResult.model_validate(_run("completed", metrics=partial))
+    with pytest.raises(ValidationError, match="partial"):
+        RunResult.model_validate(_run("stopped_limit", "time", metrics=METRICS))
+    # Run chưa chạy ảnh nào khi chạm giới hạn: không có metric.
+    RunResult.model_validate(_run("stopped_limit", "time"))
 
 
 def _manifest(**env: Any) -> dict[str, Any]:
@@ -698,11 +724,14 @@ def test_clean_eval_result_rejects(mutate: Any) -> None:
         CleanEvalResult.model_validate(data)
 
 
+CASE_RUN_ID = UUID("acd64412-55de-5ac6-b8d0-8ca96f218a64")
+
+
 def _case(**overrides: Any) -> dict[str, Any]:
     fingerprint, image_id = "a" * 64, "000057"
     data: dict[str, Any] = {
-        "id": str(compute_failure_case_id(fingerprint, image_id)),
-        "run_id": str(uuid4()),
+        "id": str(compute_failure_case_id(fingerprint, CASE_RUN_ID, image_id)),
+        "run_id": str(CASE_RUN_ID),
         "fingerprint": fingerprint,
         "image_id": image_id,
         "lost_objects": 2,
@@ -726,9 +755,17 @@ def _case(**overrides: Any) -> dict[str, Any]:
 
 def test_failure_case_valid_and_id_is_deterministic() -> None:
     case = FailureCaseRecord.model_validate(_case())
-    assert case.id == compute_failure_case_id("a" * 64, "000057")
-    assert case.id != compute_failure_case_id("a" * 64, "000058")
-    assert case.id != compute_failure_case_id("b" * 64, "000057")
+    assert case.id == compute_failure_case_id("a" * 64, CASE_RUN_ID, "000057")
+    assert case.id != compute_failure_case_id("a" * 64, CASE_RUN_ID, "000058")
+    assert case.id != compute_failure_case_id("b" * 64, CASE_RUN_ID, "000057")
+    # Cùng fingerprint, khác run (Phase 3): id khác nhau.
+    assert case.id != compute_failure_case_id("a" * 64, uuid4(), "000057")
+    assert case.artifacts.clean_thumb is None and case.artifacts.adversarial_thumb is None
+
+
+def test_failure_case_id_must_match_run_id() -> None:
+    with pytest.raises(ValidationError, match="compute_failure_case_id"):
+        FailureCaseRecord.model_validate(_case(run_id=str(uuid4())))
 
 
 def test_failure_case_rejects_wrong_id_and_severity() -> None:
