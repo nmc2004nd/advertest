@@ -36,6 +36,7 @@ from ml_core.cli.evaluate import (
     predict_slice,
     run_eval,
 )
+from ml_core.cli.viz import GT_COLOR, IGNORE_COLOR, PRED_COLOR, render
 from ml_core.data.dataset import save_dataset
 from ml_core.data.kitti import import_kitti
 from ml_core.data.loader import SliceLoader
@@ -211,3 +212,35 @@ def test_git_commit_from_repo(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_describe_cpu() -> None:
     assert describe_device("cpu") == "cpu"
+
+
+def test_render_colors() -> None:
+    image = np.zeros((3, 640, 640), dtype=np.float32)
+    canvas = render(
+        image,
+        gt_boxes=np.array([[10, 10, 100, 100]]),
+        ignore_boxes=np.array([[200, 200, 300, 300]]),
+        pred_boxes=np.array([[400, 400, 500, 500]]),
+        pred_texts=["car 0.90"],
+    )
+    pixels = np.asarray(canvas)
+    assert canvas.size == (640, 640)
+    assert tuple(pixels[50, 10]) == GT_COLOR
+    assert tuple(pixels[250, 200]) == IGNORE_COLOR
+    assert tuple(pixels[450, 400]) == PRED_COLOR
+
+
+def test_cli_viz_writes_png(env: Env, tmp_path: Path) -> None:
+    out = tmp_path / "viz"
+    args = ["--store-dir", str(env.store.root), "viz", "--model", str(env.card.id)]
+    args += ["--slice", str(env.slice_spec.id), "--mapping", str(env.mapping.id)]
+    args += ["--out", str(out), "--n", "2", "--device", "cpu"]
+    result = CliRunner().invoke(app, args)
+    assert result.exit_code == 0, result.output
+    files = sorted(out.glob("*.png"))
+    assert [f.stem for f in files] == env.slice_spec.image_ids[:2]
+    assert Image.open(files[0]).size == (640, 640)
+    # Ảnh 000001 có Car (ground truth) và DontCare, Cyclist (ignore region).
+    pixels = np.asarray(Image.open(out / "000001.png"))
+    assert (pixels == GT_COLOR).all(axis=2).any()
+    assert (pixels == IGNORE_COLOR).all(axis=2).any()

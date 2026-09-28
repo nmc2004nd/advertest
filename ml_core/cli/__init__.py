@@ -18,6 +18,7 @@ from ml_core.cli.evaluate import (
     default_device,
     run_eval,
 )
+from ml_core.cli.viz import run_viz
 from ml_core.data.cli import dataset_app, mapping_app, slice_app
 from ml_core.models.cli import app as model_app
 from ml_core.store import DEFAULT_STORE_DIR, KeyNotFoundError, LocalStore, require_store
@@ -41,11 +42,6 @@ def main(
     ] = DEFAULT_STORE_DIR,
 ) -> None:
     ctx.obj = LocalStore(store_dir)
-
-
-def _not_implemented(command: str) -> None:
-    typer.echo(f"Lệnh `{command}` chưa có (Phase 1 Group 5).", err=True)
-    raise typer.Exit(code=1)
 
 
 def _fail(exc: BaseException) -> NoReturn:
@@ -86,11 +82,20 @@ def eval_(
 
 @app.command("viz")
 def viz(
+    ctx: typer.Context,
     slice_id: Annotated[UUID, typer.Option("--slice", help="id của slice")],
     mapping: Annotated[UUID, typer.Option("--mapping", help="id của class mapping")],
     model: Annotated[UUID, typer.Option("--model", help="id của model")],
     out: Annotated[Path, typer.Option("--out", help="Thư mục xuất PNG")],
     n: Annotated[int, typer.Option("--n", min=1, help="Số ảnh")] = 8,
+    device: Annotated[
+        str | None, typer.Option("--device", help="Ví dụ cpu, cuda:0; mặc định GPU nếu có")
+    ] = None,
 ) -> None:
-    """Vẽ ground truth, prediction và ignore region lên ảnh letterbox, xuất PNG."""
-    _not_implemented("viz")
+    """Vẽ ground truth (xanh), prediction (đỏ), ignore region (xám) lên ảnh letterbox, xuất PNG."""
+    store = require_store(ctx.obj)
+    try:
+        paths = run_viz(store, model, slice_id, mapping, n, out, device or default_device())
+    except (KeyNotFoundError, FileNotFoundError, ValueError) as exc:
+        _fail(exc)
+    typer.echo(f"Đã ghi {len(paths)} ảnh vào {out}")

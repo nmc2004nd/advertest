@@ -34,12 +34,12 @@ def test_eval_unknown_ids_reports_error(tmp_path: Path) -> None:
     assert not (tmp_path / "x.json").exists()
 
 
-def test_viz_not_implemented_yet(tmp_path: Path) -> None:
+def test_viz_unknown_ids_reports_error(tmp_path: Path) -> None:
     args = ["--store-dir", str(tmp_path), "viz", "--model", ZERO, "--slice", ZERO]
     args += ["--mapping", ZERO, "--out", str(tmp_path / "out")]
     result = runner.invoke(app, args)
     assert result.exit_code == 1
-    assert "Group 5" in result.output
+    assert result.stderr.startswith("Lỗi:") and "slice" in result.stderr
 
 
 def test_eval_rejects_non_uuid() -> None:

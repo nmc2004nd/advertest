@@ -128,7 +128,8 @@ def predict_slice(loader: SliceLoader, estimator: Any, batch_size: int) -> dict[
     return predictions
 
 
-def _load_model(store: ArtifactStore, weights_sha256: str) -> Any:
+def load_model_from_store(store: ArtifactStore, weights_sha256: str) -> Any:
+    """Nạp weights đã đăng ký (`models/<sha>/weights.pt`) từ store."""
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "weights.pt"
         path.write_bytes(store.get(weights_key(weights_sha256)))
@@ -156,7 +157,9 @@ def run_eval(
     key = prediction_cache_key(card.weights_sha256, loader.slice, params)
     cached = load_predictions(store, key)
     if cached is None:
-        estimator = build_estimator(_load_model(store, card.weights_sha256), params, device)
+        estimator = build_estimator(
+            load_model_from_store(store, card.weights_sha256), params, device
+        )
         predictions = predict_slice(loader, estimator, batch_size)
         save_predictions(store, key, predictions)
     else:
