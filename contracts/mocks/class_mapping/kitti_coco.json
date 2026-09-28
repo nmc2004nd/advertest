@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "id": "4c239faf-34f6-5144-a3d5-f0328b0881ac",
+  "mapping_sha256": "a079d92b7be84bbc6f0eb432734c629373114af7d9df05822e6e05293142cb39",
+  "dataset_version_sha256": "9f5b413eb8a78a6a4b216011c2cf26e5b877728f7a160bbb80964a917d976069",
+  "model_id": "81686f0e-32b6-5806-819c-3b0e37072342",
+  "preset": "kitti-coco",
+  "classes": {
+    "Car": "car",
+    "Van": "car",
+    "Truck": "truck",
+    "Pedestrian": "person",
+    "Person_sitting": "person",
+    "Cyclist": null,
+    "Tram": null,
+    "Misc": null
+  },
+  "difficulty": {
+    "min_height_px": 25,
+    "max_occluded": 1,
+    "max_truncated": 0.3
+  }
+}

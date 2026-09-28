@@ -1,0 +1,148 @@
+{
+  "$defs": {
+    "GradientCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "checked_at": {
+          "format": "date-time",
+          "title": "Checked At",
+          "type": "string"
+        },
+        "details": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Lý do khi passed = false",
+          "title": "Details"
+        }
+      },
+      "required": [
+        "passed",
+        "checked_at"
+      ],
+      "title": "GradientCheck",
+      "type": "object"
+    },
+    "LibVersions": {
+      "additionalProperties": false,
+      "properties": {
+        "torch": {
+          "title": "Torch",
+          "type": "string"
+        },
+        "art": {
+          "title": "Art",
+          "type": "string"
+        },
+        "ultralytics": {
+          "title": "Ultralytics",
+          "type": "string"
+        },
+        "torchmetrics": {
+          "title": "Torchmetrics",
+          "type": "string"
+        },
+        "numpy": {
+          "title": "Numpy",
+          "type": "string"
+        }
+      },
+      "required": [
+        "torch",
+        "art",
+        "ultralytics",
+        "torchmetrics",
+        "numpy"
+      ],
+      "title": "LibVersions",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Model đã đăng ký. id = content_id(weights_sha256).",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "framework": {
+      "enum": [
+        "ultralytics",
+        "torchvision"
+      ],
+      "title": "Framework",
+      "type": "string"
+    },
+    "architecture": {
+      "minLength": 1,
+      "title": "Architecture",
+      "type": "string"
+    },
+    "weights_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Weights Sha256",
+      "type": "string"
+    },
+    "class_names": {
+      "description": "Theo thứ tự index của model",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Class Names",
+      "type": "array"
+    },
+    "input_size": {
+      "exclusiveMinimum": 0,
+      "title": "Input Size",
+      "type": "integer"
+    },
+    "supports_gradients": {
+      "description": "Chỉ true khi bài kiểm tra gradient pass",
+      "title": "Supports Gradients",
+      "type": "boolean"
+    },
+    "gradient_check": {
+      "$ref": "#/$defs/GradientCheck"
+    },
+    "lib_versions": {
+      "$ref": "#/$defs/LibVersions"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "framework",
+    "architecture",
+    "weights_sha256",
+    "class_names",
+    "input_size",
+    "supports_gradients",
+    "gradient_check",
+    "lib_versions"
+  ],
+  "title": "ModelCard",
+  "type": "object"
+}

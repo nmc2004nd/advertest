@@ -43,6 +43,21 @@ Ghi chú chung: các group của người duyệt (1, 2, 8, 9) do agent soạn t
 #### Thay đổi
 - Fixture là 5 ảnh KITTI kèm label; ID của slice/mapping sinh từ hash toàn bộ nội dung (`slice_sha256`); CLI dùng Typer, lệnh đặt theo thư mục của từng agent; ground truth dưới mức Moderate của KITTI thành ignore region (`requirements.md`, `plan.md`, `validation.md` Phase 1; `tech-stack.md`).
 
+### Phase 1 — Group 0 (người duyệt) — 2026-09-28
+#### Contract
+- Schema mới, `schema_version = 1`: `ModelCard` (kèm `GradientCheck`), `ClassMapping` (thân `ClassMappingBody`, `compute_mapping_sha256`), `SliceSpec` (`SliceFilter`, `compute_slice_sha256`), `CleanEvalResult` (`InferenceParams`, `EvalMetrics`, `ClassEvalMetrics`, ...); kiểu dùng chung `DifficultyFilter`, `InferenceParams`.
+- `IgnoreRegion.source` chấp nhận thêm `difficulty:<class>`; hash manifest fixture không đổi (`9f5b413e...`).
+- Validator: mọi `id` phải là `content_id` của hash tương ứng; `ModelCard.supports_gradients == gradient_check.passed`, `details` bắt buộc khi fail; `SliceSpec.image_ids` sắp xếp, không trùng, đúng `size` phần tử; `ap50`/`ap50_95` là null khi và chỉ khi `num_gt = 0`.
+- Mock: `model_card` (2), `class_mapping` (1), `slice_spec` (1), `clean_eval_result` (2). Sinh lại JSON Schema, `openapi.json`, `frontend/src/contracts/`.
+#### Quyết định
+- `len(image_ids) == size`: `slice create` báo lỗi khi không đủ ảnh đạt bộ lọc; AP của class không có GT là `null` (người dùng chốt, 2026-09-28).
+- `ModelCard.framework` chỉ nhận `ultralytics` hoặc `torchvision` (phương án dự phòng Faster R-CNN).
+- `slice_sha256` hash đúng 5 trường theo `requirements.md` (không gồm `schema_version`); `mapping_sha256` hash mọi trường trừ `id` và chính nó (gồm `schema_version`, cùng cách với `AttackSpec`).
+#### Thay đổi
+- Test contract `test_dataset_manifest_rejects_inconsistent`: case `difficulty:Car` (trước đây bị từ chối) đổi thành `foo:Car`, vì contract nay chấp nhận `difficulty:`.
+#### Sau review
+- Các quyết định trên đã ghi vào `requirements.md` Phase 1; `DifficultyFilter` ghi rõ ngưỡng tính cả biên (giữ khi cao ≥ 25, `occluded` ≤ 1, `truncated` ≤ 0.30).
+
 ### Phase 1 — kickoff lần 2 (spec) — 2026-09-28
 #### Thay đổi
 - Group 0 thêm 4 schema `ModelCard`, `CleanEvalResult`, `SliceSpec`, `ClassMapping` (mỗi schema `schema_version = 1`, không có version chung của gói); `ModelCard.lib_versions` dùng `LibVersions`; pattern `IgnoreRegion.source` chấp nhận `difficulty:.+` (`requirements.md`, `plan.md`, `validation.md` Phase 1).

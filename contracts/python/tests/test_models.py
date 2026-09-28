@@ -1,4 +1,6 @@
 import copy
+import json
+from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
@@ -6,17 +8,25 @@ import pytest
 from pydantic import ValidationError
 
 from advertest_contracts.hashing import sha256_of
+from advertest_contracts.ids import content_id
 from advertest_contracts.models import (
     AttackConfig,
     AttackSpec,
+    ClassMapping,
+    CleanEvalResult,
     DatasetManifest,
     ErrorResponse,
     ExperimentConfig,
     HealthResponse,
+    IgnoreRegion,
     Manifest,
+    ModelCard,
     ProtocolBody,
     RunResult,
     SearchResult,
+    SliceSpec,
+    compute_mapping_sha256,
+    compute_slice_sha256,
     compute_spec_sha256,
 )
 
@@ -398,9 +408,6 @@ def test_error_response_only_known_codes() -> None:
 
 
 def _dataset_manifest() -> dict[str, Any]:
-    import json
-    from pathlib import Path
-
     path = Path(__file__).resolve().parents[2] / "mocks/dataset_manifest/kitti_small.json"
     data: dict[str, Any] = json.loads(path.read_text())
     return data
@@ -420,7 +427,7 @@ def test_dataset_manifest_mock_valid() -> None:
         lambda d: d["annotations"][0].update(category="DontCare"),  # category lạ
         lambda d: d["annotations"][0].update(bbox=[10, 10, 5, 20]),  # x2 < x1
         lambda d: d["annotations"][0].update(bbox=[0, 0, 1300, 20]),  # vượt khung ảnh
-        lambda d: d["ignore_regions"][0].update(source="difficulty:Car"),  # sinh khi áp mapping
+        lambda d: d["ignore_regions"][0].update(source="foo:Car"),  # nguồn không hợp lệ
         lambda d: d["categories"].append("Car"),  # categories trùng
         lambda d: d["source"].update(format="voc"),
     ],
@@ -430,3 +437,243 @@ def test_dataset_manifest_rejects_inconsistent(mutate: Any) -> None:
     mutate(data)
     with pytest.raises(ValidationError):
         DatasetManifest.model_validate(data)
+
+
+@pytest.mark.parametrize("source", ["dont_care", "unmapped:Cyclist", "difficulty:Car"])
+def test_ignore_region_accepts_sources(source: str) -> None:
+    IgnoreRegion(image_id="000001", bbox=(0, 0, 10, 10), source=source)
+
+
+def test_dataset_manifest_hash_unchanged_by_ignore_source_pattern() -> None:
+    manifest = json.loads(
+        (Path(__file__).resolve().parents[3] / "tests/fixtures/manifest.json").read_text()
+    )
+    assert sha256_of(DatasetManifest.model_validate(manifest)) == (
+        "9f5b413eb8a78a6a4b216011c2cf26e5b877728f7a160bbb80964a917d976069"
+    )
+
+
+# ---------------------------------------------------------------- Phase 1
+
+LIBS = {
+    "torch": "2.14.0",
+    "art": "1.20.1",
+    "ultralytics": "8.4.163",
+    "torchmetrics": "1.9.0",
+    "numpy": "2.4.6",
+}
+DIFFICULTY = {"min_height_px": 25, "max_occluded": 1, "max_truncated": 0.3}
+
+
+def _model_card(**overrides: Any) -> dict[str, Any]:
+    data: dict[str, Any] = {
+        "id": str(content_id(SHA)),
+        "name": "yolov8n-coco",
+        "framework": "ultralytics",
+        "architecture": "yolov8n",
+        "weights_sha256": SHA,
+        "class_names": ["person", "bicycle", "car"],
+        "input_size": 640,
+        "supports_gradients": True,
+        "gradient_check": {"passed": True, "checked_at": "2026-09-28T00:00:00Z", "details": None},
+        "lib_versions": LIBS,
+    }
+    data.update(overrides)
+    return data
+
+
+def test_model_card_valid() -> None:
+    ModelCard.model_validate(_model_card())
+
+
+def test_model_card_failed_gradient_check_valid() -> None:
+    ModelCard.model_validate(
+        _model_card(
+            supports_gradients=False,
+            gradient_check={
+                "passed": False,
+                "checked_at": "2026-09-28T00:00:00Z",
+                "details": "gradient = 0",
+            },
+        )
+    )
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"id": str(uuid4())},  # id không phải content_id
+        {"supports_gradients": False},  # lệch gradient_check.passed
+        {
+            "supports_gradients": False,
+            "gradient_check": {
+                "passed": False,
+                "checked_at": "2026-09-28T00:00:00Z",
+                "details": None,
+            },
+        },  # fail mà không có lý do
+        {
+            "gradient_check": {"passed": True, "checked_at": "2026-09-28T07:00:00+07:00"}
+        },  # không phải UTC
+        {"class_names": ["car", "car"]},
+        {"framework": "onnx"},
+        {
+            "lib_versions": {"torch": "2.14.0", "art": "1.20.1", "ultralytics": "8.4.163"}
+        },  # thiếu khóa
+    ],
+)
+def test_model_card_rejects(overrides: dict[str, Any]) -> None:
+    with pytest.raises(ValidationError):
+        ModelCard.model_validate(_model_card(**overrides))
+
+
+def _mapping(**overrides: Any) -> dict[str, Any]:
+    data: dict[str, Any] = {
+        "dataset_version_sha256": SHA,
+        "model_id": str(content_id(SHA)),
+        "preset": "kitti-coco",
+        "classes": {"Car": "car", "Van": "car", "Cyclist": None},
+        "difficulty": DIFFICULTY,
+    }
+    data.update(overrides)
+    data["mapping_sha256"] = compute_mapping_sha256(data)
+    data["id"] = str(content_id(data["mapping_sha256"]))
+    return data
+
+
+def test_class_mapping_valid() -> None:
+    ClassMapping.model_validate(_mapping())
+
+
+def test_class_mapping_hash_covers_difficulty() -> None:
+    changed = _mapping(difficulty={**DIFFICULTY, "min_height_px": 40})
+    assert changed["mapping_sha256"] != _mapping()["mapping_sha256"]
+    assert _mapping(difficulty=None)["mapping_sha256"] != _mapping()["mapping_sha256"]
+
+
+def test_class_mapping_rejects_wrong_hash_and_id() -> None:
+    data = _mapping()
+    data["classes"] = {"Car": "car"}
+    with pytest.raises(ValidationError):
+        ClassMapping.model_validate(data)
+    data = _mapping()
+    data["id"] = str(uuid4())
+    with pytest.raises(ValidationError):
+        ClassMapping.model_validate(data)
+
+
+def _slice(**overrides: Any) -> dict[str, Any]:
+    data: dict[str, Any] = {
+        "dataset_version_sha256": SHA,
+        "filter": {"classes": ["Car", "Pedestrian"], "difficulty": DIFFICULTY, "min_objects": 1},
+        "seed": 42,
+        "size": 2,
+        "image_ids": ["000001", "000002"],
+    }
+    data.update(overrides)
+    data["image_ids_sha256"] = sha256_of(data["image_ids"])
+    data["slice_sha256"] = compute_slice_sha256(data)
+    data["id"] = str(content_id(data["slice_sha256"]))
+    return data
+
+
+def test_slice_spec_valid() -> None:
+    SliceSpec.model_validate(_slice())
+
+
+def test_slice_hash_depends_on_dataset_and_filter() -> None:
+    base = _slice()
+    other_dataset = _slice(dataset_version_sha256="b" * 64)
+    assert other_dataset["image_ids_sha256"] == base["image_ids_sha256"]
+    assert other_dataset["slice_sha256"] != base["slice_sha256"]
+    assert other_dataset["id"] != base["id"]
+    stricter = _slice(
+        filter={"classes": ["Car", "Pedestrian"], "difficulty": {**DIFFICULTY, "max_occluded": 0}}
+    )
+    assert stricter["slice_sha256"] != base["slice_sha256"]
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"image_ids": ["000002", "000001"]},  # không sắp xếp
+        {"image_ids": ["000001", "000001"]},  # trùng
+        {"size": 3},  # len != size
+        {"filter": {"classes": ["Pedestrian", "Car"], "difficulty": None}},  # classes không sắp
+        {"filter": {"classes": ["Car"], "difficulty": None, "min_objects": 0}},
+    ],
+)
+def test_slice_spec_rejects(overrides: dict[str, Any]) -> None:
+    with pytest.raises(ValidationError):
+        SliceSpec.model_validate(_slice(**overrides))
+
+
+def test_slice_spec_rejects_wrong_hashes() -> None:
+    for field in ("image_ids_sha256", "slice_sha256"):
+        data = _slice()
+        data[field] = "c" * 64
+        with pytest.raises(ValidationError):
+            SliceSpec.model_validate(data)
+
+
+def _eval(**overrides: Any) -> dict[str, Any]:
+    sl = _slice()
+    mp = _mapping()
+    data: dict[str, Any] = {
+        "model": {"id": str(content_id(SHA)), "weights_sha256": SHA},
+        "slice": {
+            "id": sl["id"],
+            "slice_sha256": sl["slice_sha256"],
+            "image_ids_sha256": sl["image_ids_sha256"],
+            "dataset_version_sha256": SHA,
+        },
+        "class_mapping": {"id": mp["id"], "mapping_sha256": mp["mapping_sha256"]},
+        "inference_params": {
+            "conf": 0.001,
+            "iou": 0.7,
+            "max_det": 300,
+            "operating_conf": 0.25,
+            "input_size": 640,
+        },
+        "metrics": {
+            "map50": 0.6,
+            "map50_95": 0.4,
+            "per_class": {
+                "car": {"ap50": 0.7, "ap50_95": 0.5, "num_gt": 14},
+                "truck": {"ap50": None, "ap50_95": None, "num_gt": 0},
+            },
+        },
+        "num_images": 2,
+        "cache": {"key": SHA, "hit": False},
+        "timing": {"total_s": 1.5, "sec_per_image": 0.75},
+        "device": "cpu",
+        "lib_versions": LIBS,
+        "git_commit": "0" * 40,
+    }
+    data.update(overrides)
+    return data
+
+
+def test_clean_eval_result_valid() -> None:
+    CleanEvalResult.model_validate(_eval())
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda d: d["model"].update(id=str(uuid4())),
+        lambda d: d["slice"].update(id=str(uuid4())),
+        lambda d: d["class_mapping"].update(id=str(uuid4())),
+        lambda d: d["metrics"]["per_class"]["truck"].update(num_gt=1),  # AP null nhưng có GT
+        lambda d: d["metrics"]["per_class"]["car"].update(ap50=None),
+        lambda d: d["metrics"]["per_class"]["car"].update(ap50=-1),  # giá trị -1 của torchmetrics
+        lambda d: d["metrics"].update(map50=1.2),
+        lambda d: d["inference_params"].update(max_det=0),
+        lambda d: d.update(git_commit="unknown"),
+    ],
+)
+def test_clean_eval_result_rejects(mutate: Any) -> None:
+    data = copy.deepcopy(_eval())
+    mutate(data)
+    with pytest.raises(ValidationError):
+        CleanEvalResult.model_validate(data)

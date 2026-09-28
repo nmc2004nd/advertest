@@ -37,6 +37,7 @@ from advertest_contracts.enums import (
     ThresholdKind,
 )
 from advertest_contracts.hashing import sha256_of
+from advertest_contracts.ids import content_id
 
 Sha256Hex = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
 GitCommit = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{40}$")]
@@ -415,7 +416,10 @@ class ManifestAnnotation(_Model):
 class IgnoreRegion(_Model):
     image_id: str
     bbox: PixelBBox
-    source: str = Field(pattern=r"^(dont_care|unmapped:.+)$")
+    source: str = Field(
+        pattern=r"^(dont_care|unmapped:.+|difficulty:.+)$",
+        description="Converter chỉ sinh dont_care; unmapped và difficulty sinh ra khi áp mapping",
+    )
 
 
 class ConverterInfo(_Model):
@@ -467,6 +471,235 @@ class DatasetManifest(_Model):
         for ann in self.annotations:
             if ann.category not in categories:
                 raise ValueError(f"category {ann.category} không có trong categories")
+        return self
+
+
+# ---------------------------------------------------------------- Phase 1: model, slice, eval
+
+
+def _check_content_id(kind: str, id_: UUID, sha256_hex: str) -> None:
+    expected = content_id(sha256_hex)
+    if id_ != expected:
+        raise ValueError(f"{kind}: id phải là content_id của hash (tính lại: {expected})")
+
+
+class GradientCheck(_Model):
+    passed: bool
+    checked_at: UtcDatetime
+    details: str | None = Field(default=None, description="Lý do khi passed = false")
+
+    @model_validator(mode="after")
+    def _check(self) -> GradientCheck:
+        if not self.passed and not self.details:
+            raise ValueError("gradient_check.details bắt buộc khi passed = false")
+        return self
+
+
+class ModelCard(_Model):
+    """Model đã đăng ký. id = content_id(weights_sha256)."""
+
+    schema_version: Literal[1] = 1
+    id: UUID
+    name: str = Field(min_length=1)
+    framework: Literal["ultralytics", "torchvision"]
+    architecture: str = Field(min_length=1)
+    weights_sha256: Sha256Hex
+    class_names: list[str] = Field(min_length=1, description="Theo thứ tự index của model")
+    input_size: PositiveInt
+    supports_gradients: bool = Field(description="Chỉ true khi bài kiểm tra gradient pass")
+    gradient_check: GradientCheck
+    lib_versions: LibVersions
+
+    @model_validator(mode="after")
+    def _check(self) -> ModelCard:
+        _check_content_id("model", self.id, self.weights_sha256)
+        if len(set(self.class_names)) != len(self.class_names):
+            raise ValueError("class_names không được trùng")
+        if self.supports_gradients != self.gradient_check.passed:
+            raise ValueError("supports_gradients phải bằng gradient_check.passed")
+        return self
+
+
+class DifficultyFilter(_Model):
+    """Ngưỡng độ khó (mức Moderate của KITTI: 25, 1, 0.30). Ngưỡng tính cả biên: GT được giữ khi
+    đạt cả ba điều kiện, không đạt thì thành ignore region `difficulty:<class>`."""
+
+    min_height_px: NonNegativeFloat = Field(
+        description="Giữ khi chiều cao bbox (y2 - y1, pixel ảnh gốc) >= min_height_px"
+    )
+    max_occluded: NonNegativeInt = Field(description="Giữ khi occluded <= max_occluded")
+    max_truncated: UnitFloat = Field(description="Giữ khi truncated <= max_truncated")
+
+
+class ClassMappingBody(_Model):
+    """Nội dung class mapping (mọi trường trừ `id` và `mapping_sha256`); là đầu vào của hash."""
+
+    schema_version: Literal[1] = 1
+    dataset_version_sha256: Sha256Hex
+    model_id: UUID
+    preset: str | None = Field(description="Ví dụ kitti-coco; null khi tự tạo")
+    classes: dict[str, str | None] = Field(
+        min_length=1,
+        description="Class gốc → class model; null thành ignore region unmapped:<class>",
+    )
+    difficulty: DifficultyFilter | None = Field(description="null là không lọc theo độ khó")
+
+
+class ClassMapping(ClassMappingBody):
+    id: UUID
+    mapping_sha256: Sha256Hex = Field(description="Hash của mọi trường trừ id và chính nó")
+
+    @model_validator(mode="after")
+    def _check(self) -> ClassMapping:
+        expected = compute_mapping_sha256(self)
+        if self.mapping_sha256 != expected:
+            raise ValueError(f"mapping_sha256 không khớp nội dung (tính lại: {expected})")
+        _check_content_id("class_mapping", self.id, self.mapping_sha256)
+        return self
+
+
+def compute_mapping_sha256(mapping: ClassMappingBody | Mapping[str, Any]) -> str:
+    """sha256 của phần thân class mapping, bỏ qua `id` và `mapping_sha256`."""
+    data = mapping.model_dump(mode="json") if isinstance(mapping, BaseModel) else dict(mapping)
+    data.pop("id", None)
+    data.pop("mapping_sha256", None)
+    return sha256_of(ClassMappingBody.model_validate(data))
+
+
+class SliceFilter(_Model):
+    """Bộ lọc tự mô tả, không phụ thuộc model hay mapping."""
+
+    classes: list[str] = Field(
+        min_length=1, description="Class gốc được tính, sắp xếp, không trùng"
+    )
+    difficulty: DifficultyFilter | None
+    min_objects: PositiveInt = 1
+
+    @model_validator(mode="after")
+    def _check(self) -> SliceFilter:
+        if self.classes != sorted(set(self.classes)):
+            raise ValueError("filter.classes phải sắp xếp và không trùng")
+        return self
+
+
+class SliceSpec(_Model):
+    schema_version: Literal[1] = 1
+    id: UUID
+    slice_sha256: Sha256Hex = Field(
+        description="sha256 của dataset_version_sha256, filter, seed, size, image_ids"
+    )
+    dataset_version_sha256: Sha256Hex
+    filter: SliceFilter
+    seed: NonNegativeInt
+    size: PositiveInt
+    image_ids: list[str] = Field(
+        min_length=1, description="Sắp xếp, không trùng, đúng size phần tử"
+    )
+    image_ids_sha256: Sha256Hex = Field(description="sha256_of(image_ids)")
+
+    @model_validator(mode="after")
+    def _check(self) -> SliceSpec:
+        if self.image_ids != sorted(set(self.image_ids)):
+            raise ValueError("image_ids phải sắp xếp và không trùng")
+        if len(self.image_ids) != self.size:
+            raise ValueError("số phần tử của image_ids phải bằng size")
+        if self.image_ids_sha256 != sha256_of(self.image_ids):
+            raise ValueError("image_ids_sha256 không khớp image_ids")
+        expected = compute_slice_sha256(self)
+        if self.slice_sha256 != expected:
+            raise ValueError(f"slice_sha256 không khớp nội dung (tính lại: {expected})")
+        _check_content_id("slice", self.id, self.slice_sha256)
+        return self
+
+
+def compute_slice_sha256(slice_: SliceSpec | Mapping[str, Any]) -> str:
+    """sha256 của dataset_version_sha256, filter, seed, size, image_ids."""
+    data = slice_.model_dump(mode="json") if isinstance(slice_, BaseModel) else dict(slice_)
+    body = {
+        "dataset_version_sha256": data["dataset_version_sha256"],
+        "filter": SliceFilter.model_validate(data["filter"]).model_dump(mode="json"),
+        "seed": data["seed"],
+        "size": data["size"],
+        "image_ids": data["image_ids"],
+    }
+    return sha256_of(body)
+
+
+class InferenceParams(_Model):
+    conf: UnitFloat
+    iou: UnitFloat
+    max_det: PositiveInt
+    operating_conf: UnitFloat = Field(description="Ngưỡng dùng cho tỷ lệ tấn công thành công")
+    input_size: PositiveInt
+
+
+class EvalModelRef(_Model):
+    id: UUID
+    weights_sha256: Sha256Hex
+
+
+class EvalSliceRef(_Model):
+    id: UUID
+    slice_sha256: Sha256Hex
+    image_ids_sha256: Sha256Hex
+    dataset_version_sha256: Sha256Hex
+
+
+class EvalMappingRef(_Model):
+    id: UUID
+    mapping_sha256: Sha256Hex
+
+
+class ClassEvalMetrics(_Model):
+    ap50: UnitFloat | None = Field(description="null khi và chỉ khi num_gt = 0")
+    ap50_95: UnitFloat | None = Field(description="null khi và chỉ khi num_gt = 0")
+    num_gt: NonNegativeInt
+
+    @model_validator(mode="after")
+    def _check(self) -> ClassEvalMetrics:
+        no_gt = self.num_gt == 0
+        if (self.ap50 is None) != no_gt or (self.ap50_95 is None) != no_gt:
+            raise ValueError("ap50 và ap50_95 là null khi và chỉ khi num_gt = 0")
+        return self
+
+
+class EvalMetrics(_Model):
+    map50: UnitFloat
+    map50_95: UnitFloat
+    per_class: dict[str, ClassEvalMetrics] = Field(min_length=1, description="Theo class đích")
+
+
+class CacheInfo(_Model):
+    key: Sha256Hex
+    hit: bool
+
+
+class Timing(_Model):
+    total_s: NonNegativeFloat
+    sec_per_image: NonNegativeFloat
+
+
+class CleanEvalResult(_Model):
+    """Kết quả `advertest eval` trên ảnh sạch."""
+
+    schema_version: Literal[1] = 1
+    model: EvalModelRef
+    slice: EvalSliceRef
+    class_mapping: EvalMappingRef
+    inference_params: InferenceParams
+    metrics: EvalMetrics
+    num_images: PositiveInt
+    cache: CacheInfo
+    timing: Timing
+    device: str = Field(min_length=1, description="Ví dụ cuda:0 (NVIDIA ...) hoặc cpu")
+    lib_versions: LibVersions
+    git_commit: GitCommit
+
+    @model_validator(mode="after")
+    def _check(self) -> CleanEvalResult:
+        _check_content_id("model", self.model.id, self.model.weights_sha256)
+        _check_content_id("slice", self.slice.id, self.slice.slice_sha256)
+        _check_content_id("class_mapping", self.class_mapping.id, self.class_mapping.mapping_sha256)
         return self
 
 

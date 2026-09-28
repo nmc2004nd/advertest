@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "id": "549f8cba-81af-5f51-b44a-0ad2196b75c2",
+  "slice_sha256": "2ac9477b2a746f3504232f2543025b3df56203c4911aa3a55d60ccba14e76cb0",
+  "dataset_version_sha256": "9f5b413eb8a78a6a4b216011c2cf26e5b877728f7a160bbb80964a917d976069",
+  "filter": {
+    "classes": ["Car", "Pedestrian", "Person_sitting", "Truck", "Van"],
+    "difficulty": {
+      "min_height_px": 25,
+      "max_occluded": 1,
+      "max_truncated": 0.3
+    },
+    "min_objects": 1
+  },
+  "seed": 42,
+  "size": 5,
+  "image_ids": ["000902", "002571", "004499", "004965", "005866"],
+  "image_ids_sha256": "dde3cec90e448097ce240b43dfa4ce84bb54acdbf4df26ccd20442233ec15955"
+}
