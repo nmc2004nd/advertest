@@ -10,6 +10,7 @@ from ml_core.preprocess import (
     boxes_from_letterbox,
     boxes_to_letterbox,
     letterbox,
+    letterbox_info,
 )
 
 KITTI_W, KITTI_H = 1242, 375
@@ -107,3 +108,9 @@ def test_letterbox_config_has_no_per_image_info() -> None:
     _, info = letterbox(_image())
     assert not set(LETTERBOX_CONFIG) & {"scale", "pad", "orig_size"}
     assert set(info.as_dict()) >= {"scale", "pad", "orig_size"}
+
+
+@pytest.mark.parametrize("size", [(KITTI_W, KITTI_H), (300, 900), (640, 640), (17, 5)])
+def test_letterbox_info_matches_letterbox(size: tuple[int, int]) -> None:
+    _, info = letterbox(_image(*size))
+    assert letterbox_info(*size) == info

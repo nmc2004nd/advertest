@@ -49,6 +49,19 @@ class LetterboxInfo:
         }
 
 
+def _geometry(w: int, h: int, size: int) -> tuple[float, int, int, int, int]:
+    scale = min(size / w, size / h)
+    new_w = max(1, min(size, round(w * scale)))
+    new_h = max(1, min(size, round(h * scale)))
+    return scale, new_w, new_h, (size - new_w) // 2, (size - new_h) // 2
+
+
+def letterbox_info(width: int, height: int, size: int = INPUT_SIZE) -> LetterboxInfo:
+    """`LetterboxInfo` của ảnh kích thước (width, height) mà không cần đọc ảnh."""
+    scale, _, _, left, top = _geometry(width, height, size)
+    return LetterboxInfo(scale=scale, pad=(left, top), orig_size=(width, height), size=size)
+
+
 def letterbox(
     image: Image.Image | NDArray[np.uint8], size: int = INPUT_SIZE
 ) -> tuple[NDArray[np.float32], LetterboxInfo]:
@@ -56,11 +69,7 @@ def letterbox(
     pil = image if isinstance(image, Image.Image) else Image.fromarray(image)
     pil = pil.convert("RGB")
     w, h = pil.size
-    scale = min(size / w, size / h)
-    new_w = max(1, min(size, round(w * scale)))
-    new_h = max(1, min(size, round(h * scale)))
-    left = (size - new_w) // 2
-    top = (size - new_h) // 2
+    scale, new_w, new_h, left, top = _geometry(w, h, size)
 
     resized = pil.resize((new_w, new_h), Image.Resampling.BILINEAR)
     out = np.full((size, size, 3), PAD_VALUE, dtype=np.float32)
