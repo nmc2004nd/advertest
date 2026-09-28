@@ -1,0 +1,136 @@
+{
+  "$defs": {
+    "DifficultyFilter": {
+      "additionalProperties": false,
+      "description": "Ngưỡng độ khó (mức Moderate của KITTI: 25, 1, 0.30). GT không đạt thành ignore region.",
+      "properties": {
+        "min_height_px": {
+          "description": "Chiều cao bbox tối thiểu, pixel ảnh gốc",
+          "minimum": 0,
+          "title": "Min Height Px",
+          "type": "number"
+        },
+        "max_occluded": {
+          "minimum": 0,
+          "title": "Max Occluded",
+          "type": "integer"
+        },
+        "max_truncated": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Max Truncated",
+          "type": "number"
+        }
+      },
+      "required": [
+        "min_height_px",
+        "max_occluded",
+        "max_truncated"
+      ],
+      "title": "DifficultyFilter",
+      "type": "object"
+    },
+    "SliceFilter": {
+      "additionalProperties": false,
+      "description": "Bộ lọc tự mô tả, không phụ thuộc model hay mapping.",
+      "properties": {
+        "classes": {
+          "description": "Class gốc được tính, sắp xếp, không trùng",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Classes",
+          "type": "array"
+        },
+        "difficulty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DifficultyFilter"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "min_objects": {
+          "default": 1,
+          "exclusiveMinimum": 0,
+          "title": "Min Objects",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "classes",
+        "difficulty"
+      ],
+      "title": "SliceFilter",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "slice_sha256": {
+      "description": "sha256 của dataset_version_sha256, filter, seed, size, image_ids",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Slice Sha256",
+      "type": "string"
+    },
+    "dataset_version_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Dataset Version Sha256",
+      "type": "string"
+    },
+    "filter": {
+      "$ref": "#/$defs/SliceFilter"
+    },
+    "seed": {
+      "minimum": 0,
+      "title": "Seed",
+      "type": "integer"
+    },
+    "size": {
+      "exclusiveMinimum": 0,
+      "title": "Size",
+      "type": "integer"
+    },
+    "image_ids": {
+      "description": "Sắp xếp, không trùng, đúng size phần tử",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Image Ids",
+      "type": "array"
+    },
+    "image_ids_sha256": {
+      "description": "sha256_of(image_ids)",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Image Ids Sha256",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "slice_sha256",
+    "dataset_version_sha256",
+    "filter",
+    "seed",
+    "size",
+    "image_ids",
+    "image_ids_sha256"
+  ],
+  "title": "SliceSpec",
+  "type": "object"
+}

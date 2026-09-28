@@ -1,0 +1,340 @@
+{
+  "$defs": {
+    "CacheInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Key",
+          "type": "string"
+        },
+        "hit": {
+          "title": "Hit",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "key",
+        "hit"
+      ],
+      "title": "CacheInfo",
+      "type": "object"
+    },
+    "ClassEvalMetrics": {
+      "additionalProperties": false,
+      "properties": {
+        "ap50": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null khi và chỉ khi num_gt = 0",
+          "title": "Ap50"
+        },
+        "ap50_95": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null khi và chỉ khi num_gt = 0",
+          "title": "Ap50 95"
+        },
+        "num_gt": {
+          "minimum": 0,
+          "title": "Num Gt",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "ap50",
+        "ap50_95",
+        "num_gt"
+      ],
+      "title": "ClassEvalMetrics",
+      "type": "object"
+    },
+    "EvalMappingRef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "mapping_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Mapping Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "mapping_sha256"
+      ],
+      "title": "EvalMappingRef",
+      "type": "object"
+    },
+    "EvalMetrics": {
+      "additionalProperties": false,
+      "properties": {
+        "map50": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Map50",
+          "type": "number"
+        },
+        "map50_95": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Map50 95",
+          "type": "number"
+        },
+        "per_class": {
+          "additionalProperties": {
+            "$ref": "#/$defs/ClassEvalMetrics"
+          },
+          "description": "Theo class đích",
+          "minProperties": 1,
+          "title": "Per Class",
+          "type": "object"
+        }
+      },
+      "required": [
+        "map50",
+        "map50_95",
+        "per_class"
+      ],
+      "title": "EvalMetrics",
+      "type": "object"
+    },
+    "EvalModelRef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "weights_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Weights Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "weights_sha256"
+      ],
+      "title": "EvalModelRef",
+      "type": "object"
+    },
+    "EvalSliceRef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "slice_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Slice Sha256",
+          "type": "string"
+        },
+        "image_ids_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Image Ids Sha256",
+          "type": "string"
+        },
+        "dataset_version_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Dataset Version Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "slice_sha256",
+        "image_ids_sha256",
+        "dataset_version_sha256"
+      ],
+      "title": "EvalSliceRef",
+      "type": "object"
+    },
+    "InferenceParams": {
+      "additionalProperties": false,
+      "properties": {
+        "conf": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Conf",
+          "type": "number"
+        },
+        "iou": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Iou",
+          "type": "number"
+        },
+        "max_det": {
+          "exclusiveMinimum": 0,
+          "title": "Max Det",
+          "type": "integer"
+        },
+        "operating_conf": {
+          "description": "Ngưỡng dùng cho tỷ lệ tấn công thành công",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Operating Conf",
+          "type": "number"
+        },
+        "input_size": {
+          "exclusiveMinimum": 0,
+          "title": "Input Size",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "conf",
+        "iou",
+        "max_det",
+        "operating_conf",
+        "input_size"
+      ],
+      "title": "InferenceParams",
+      "type": "object"
+    },
+    "LibVersions": {
+      "additionalProperties": false,
+      "properties": {
+        "torch": {
+          "title": "Torch",
+          "type": "string"
+        },
+        "art": {
+          "title": "Art",
+          "type": "string"
+        },
+        "ultralytics": {
+          "title": "Ultralytics",
+          "type": "string"
+        },
+        "torchmetrics": {
+          "title": "Torchmetrics",
+          "type": "string"
+        },
+        "numpy": {
+          "title": "Numpy",
+          "type": "string"
+        }
+      },
+      "required": [
+        "torch",
+        "art",
+        "ultralytics",
+        "torchmetrics",
+        "numpy"
+      ],
+      "title": "LibVersions",
+      "type": "object"
+    },
+    "Timing": {
+      "additionalProperties": false,
+      "properties": {
+        "total_s": {
+          "minimum": 0,
+          "title": "Total S",
+          "type": "number"
+        },
+        "sec_per_image": {
+          "minimum": 0,
+          "title": "Sec Per Image",
+          "type": "number"
+        }
+      },
+      "required": [
+        "total_s",
+        "sec_per_image"
+      ],
+      "title": "Timing",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Kết quả `advertest eval` trên ảnh sạch.",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "model": {
+      "$ref": "#/$defs/EvalModelRef"
+    },
+    "slice": {
+      "$ref": "#/$defs/EvalSliceRef"
+    },
+    "class_mapping": {
+      "$ref": "#/$defs/EvalMappingRef"
+    },
+    "inference_params": {
+      "$ref": "#/$defs/InferenceParams"
+    },
+    "metrics": {
+      "$ref": "#/$defs/EvalMetrics"
+    },
+    "num_images": {
+      "exclusiveMinimum": 0,
+      "title": "Num Images",
+      "type": "integer"
+    },
+    "cache": {
+      "$ref": "#/$defs/CacheInfo"
+    },
+    "timing": {
+      "$ref": "#/$defs/Timing"
+    },
+    "device": {
+      "description": "Ví dụ cuda:0 (NVIDIA ...) hoặc cpu",
+      "minLength": 1,
+      "title": "Device",
+      "type": "string"
+    },
+    "lib_versions": {
+      "$ref": "#/$defs/LibVersions"
+    },
+    "git_commit": {
+      "pattern": "^[0-9a-f]{40}$",
+      "title": "Git Commit",
+      "type": "string"
+    }
+  },
+  "required": [
+    "model",
+    "slice",
+    "class_mapping",
+    "inference_params",
+    "metrics",
+    "num_images",
+    "cache",
+    "timing",
+    "device",
+    "lib_versions",
+    "git_commit"
+  ],
+  "title": "CleanEvalResult",
+  "type": "object"
+}

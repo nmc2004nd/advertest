@@ -49,7 +49,8 @@
           "type": "array"
         },
         "source": {
-          "pattern": "^(dont_care|unmapped:.+)$",
+          "description": "Converter chỉ sinh dont_care; unmapped và difficulty sinh ra khi áp mapping",
+          "pattern": "^(dont_care|unmapped:.+|difficulty:.+)$",
           "title": "Source",
           "type": "string"
         }

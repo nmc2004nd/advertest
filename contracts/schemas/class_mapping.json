@@ -1,0 +1,114 @@
+{
+  "$defs": {
+    "DifficultyFilter": {
+      "additionalProperties": false,
+      "description": "Ngưỡng độ khó (mức Moderate của KITTI: 25, 1, 0.30). GT không đạt thành ignore region.",
+      "properties": {
+        "min_height_px": {
+          "description": "Chiều cao bbox tối thiểu, pixel ảnh gốc",
+          "minimum": 0,
+          "title": "Min Height Px",
+          "type": "number"
+        },
+        "max_occluded": {
+          "minimum": 0,
+          "title": "Max Occluded",
+          "type": "integer"
+        },
+        "max_truncated": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Max Truncated",
+          "type": "number"
+        }
+      },
+      "required": [
+        "min_height_px",
+        "max_occluded",
+        "max_truncated"
+      ],
+      "title": "DifficultyFilter",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "dataset_version_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Dataset Version Sha256",
+      "type": "string"
+    },
+    "model_id": {
+      "format": "uuid",
+      "title": "Model Id",
+      "type": "string"
+    },
+    "preset": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Ví dụ kitti-coco; null khi tự tạo",
+      "title": "Preset"
+    },
+    "classes": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "description": "Class gốc → class model; null thành ignore region unmapped:<class>",
+      "minProperties": 1,
+      "title": "Classes",
+      "type": "object"
+    },
+    "difficulty": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DifficultyFilter"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "null là không lọc theo độ khó"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "mapping_sha256": {
+      "description": "Hash của mọi trường trừ id và chính nó",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Mapping Sha256",
+      "type": "string"
+    }
+  },
+  "required": [
+    "dataset_version_sha256",
+    "model_id",
+    "preset",
+    "classes",
+    "difficulty",
+    "id",
+    "mapping_sha256"
+  ],
+  "title": "ClassMapping",
+  "type": "object"
+}

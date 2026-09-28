@@ -93,17 +93,108 @@ export interface components {
          * @enum {string}
          */
         BillingMode: "none" | "hourly";
+        /** CacheInfo */
+        CacheInfo: {
+            /** Key */
+            key: string;
+            /** Hit */
+            hit: boolean;
+        };
         /**
          * CaseSeverity
          * @enum {string}
          */
         CaseSeverity: "critical" | "major" | "minor" | "acceptable";
+        /** ClassEvalMetrics */
+        ClassEvalMetrics: {
+            /**
+             * Ap50
+             * @description null khi và chỉ khi num_gt = 0
+             */
+            ap50: number | null;
+            /**
+             * Ap50 95
+             * @description null khi và chỉ khi num_gt = 0
+             */
+            ap50_95: number | null;
+            /** Num Gt */
+            num_gt: number;
+        };
+        /** ClassMapping */
+        ClassMapping: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /** Dataset Version Sha256 */
+            dataset_version_sha256: string;
+            /**
+             * Model Id
+             * Format: uuid
+             */
+            model_id: string;
+            /**
+             * Preset
+             * @description Ví dụ kitti-coco; null khi tự tạo
+             */
+            preset: string | null;
+            /**
+             * Classes
+             * @description Class gốc → class model; null thành ignore region unmapped:<class>
+             */
+            classes: {
+                [key: string]: string | null;
+            };
+            /** @description null là không lọc theo độ khó */
+            difficulty: components["schemas"]["DifficultyFilter"] | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Mapping Sha256
+             * @description Hash của mọi trường trừ id và chính nó
+             */
+            mapping_sha256: string;
+        };
         /** ClassRunMetrics */
         ClassRunMetrics: {
             /** Clean Ap50 */
             clean_ap50: number | null;
             /** Attacked Ap50 */
             attacked_ap50: number | null;
+        };
+        /**
+         * CleanEvalResult
+         * @description Kết quả `advertest eval` trên ảnh sạch.
+         */
+        CleanEvalResult: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            model: components["schemas"]["EvalModelRef"];
+            slice: components["schemas"]["EvalSliceRef"];
+            class_mapping: components["schemas"]["EvalMappingRef"];
+            inference_params: components["schemas"]["InferenceParams"];
+            metrics: components["schemas"]["EvalMetrics"];
+            /** Num Images */
+            num_images: number;
+            cache: components["schemas"]["CacheInfo"];
+            timing: components["schemas"]["Timing"];
+            /**
+             * Device
+             * @description Ví dụ cuda:0 (NVIDIA ...) hoặc cpu
+             */
+            device: string;
+            lib_versions: components["schemas"]["LibVersions"];
+            /** Git Commit */
+            git_commit: string;
         };
         /**
          * ComputeKind
@@ -171,6 +262,21 @@ export interface components {
             detail: string | null;
         };
         /**
+         * DifficultyFilter
+         * @description Ngưỡng độ khó (mức Moderate của KITTI: 25, 1, 0.30). GT không đạt thành ignore region.
+         */
+        DifficultyFilter: {
+            /**
+             * Min Height Px
+             * @description Chiều cao bbox tối thiểu, pixel ảnh gốc
+             */
+            min_height_px: number;
+            /** Max Occluded */
+            max_occluded: number;
+            /** Max Truncated */
+            max_truncated: number;
+        };
+        /**
          * Environment
          * @description Máy đã chạy run. Không thuộc fingerprint.
          */
@@ -213,6 +319,54 @@ export interface components {
              */
             schema_version: 1;
             error: components["schemas"]["ErrorBody"];
+        };
+        /** EvalMappingRef */
+        EvalMappingRef: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Mapping Sha256 */
+            mapping_sha256: string;
+        };
+        /** EvalMetrics */
+        EvalMetrics: {
+            /** Map50 */
+            map50: number;
+            /** Map50 95 */
+            map50_95: number;
+            /**
+             * Per Class
+             * @description Theo class đích
+             */
+            per_class: {
+                [key: string]: components["schemas"]["ClassEvalMetrics"];
+            };
+        };
+        /** EvalModelRef */
+        EvalModelRef: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Weights Sha256 */
+            weights_sha256: string;
+        };
+        /** EvalSliceRef */
+        EvalSliceRef: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Slice Sha256 */
+            slice_sha256: string;
+            /** Image Ids Sha256 */
+            image_ids_sha256: string;
+            /** Dataset Version Sha256 */
+            dataset_version_sha256: string;
         };
         /** ExperimentConfig */
         ExperimentConfig: {
@@ -285,6 +439,22 @@ export interface components {
             /** Docker Image Digest */
             docker_image_digest: string;
         };
+        /** GradientCheck */
+        GradientCheck: {
+            /** Passed */
+            passed: boolean;
+            /**
+             * Checked At
+             * Format: date-time
+             */
+            checked_at: string;
+            /**
+             * Details
+             * @description Lý do khi passed = false
+             * @default null
+             */
+            details: string | null;
+        };
         /** GridConfig */
         GridConfig: {
             /** Levels */
@@ -322,8 +492,27 @@ export interface components {
                 number,
                 number
             ];
-            /** Source */
+            /**
+             * Source
+             * @description Converter chỉ sinh dont_care; unmapped và difficulty sinh ra khi áp mapping
+             */
             source: string;
+        };
+        /** InferenceParams */
+        InferenceParams: {
+            /** Conf */
+            conf: number;
+            /** Iou */
+            iou: number;
+            /** Max Det */
+            max_det: number;
+            /**
+             * Operating Conf
+             * @description Ngưỡng dùng cho tỷ lệ tấn công thành công
+             */
+            operating_conf: number;
+            /** Input Size */
+            input_size: number;
         };
         JsonValue: unknown;
         /** LibVersions */
@@ -437,6 +626,48 @@ export interface components {
             map50: number;
             /** Map50 95 */
             map50_95: number;
+        };
+        /**
+         * ModelCard
+         * @description Model đã đăng ký. id = content_id(weights_sha256).
+         */
+        ModelCard: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Framework
+             * @enum {string}
+             */
+            framework: "ultralytics" | "torchvision";
+            /** Architecture */
+            architecture: string;
+            /** Weights Sha256 */
+            weights_sha256: string;
+            /**
+             * Class Names
+             * @description Theo thứ tự index của model
+             */
+            class_names: string[];
+            /** Input Size */
+            input_size: number;
+            /**
+             * Supports Gradients
+             * @description Chỉ true khi bài kiểm tra gradient pass
+             */
+            supports_gradients: boolean;
+            gradient_check: components["schemas"]["GradientCheck"];
+            lib_versions: components["schemas"]["LibVersions"];
         };
         /** PassCriterion */
         PassCriterion: {
@@ -688,6 +919,59 @@ export interface components {
          * @enum {string}
          */
         SkipReason: "cached" | "incompatible";
+        /**
+         * SliceFilter
+         * @description Bộ lọc tự mô tả, không phụ thuộc model hay mapping.
+         */
+        SliceFilter: {
+            /**
+             * Classes
+             * @description Class gốc được tính, sắp xếp, không trùng
+             */
+            classes: string[];
+            difficulty: components["schemas"]["DifficultyFilter"] | null;
+            /**
+             * Min Objects
+             * @default 1
+             */
+            min_objects: number;
+        };
+        /** SliceSpec */
+        SliceSpec: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Slice Sha256
+             * @description sha256 của dataset_version_sha256, filter, seed, size, image_ids
+             */
+            slice_sha256: string;
+            /** Dataset Version Sha256 */
+            dataset_version_sha256: string;
+            filter: components["schemas"]["SliceFilter"];
+            /** Seed */
+            seed: number;
+            /** Size */
+            size: number;
+            /**
+             * Image Ids
+             * @description Sắp xếp, không trùng, đúng size phần tử
+             */
+            image_ids: string[];
+            /**
+             * Image Ids Sha256
+             * @description sha256_of(image_ids)
+             */
+            image_ids_sha256: string;
+        };
         /** StatusReason */
         StatusReason: {
             /** Code */
@@ -705,6 +989,13 @@ export interface components {
          * @enum {string}
          */
         ThresholdKind: "relative_drop" | "absolute_drop" | "attack_success_rate";
+        /** Timing */
+        Timing: {
+            /** Total S */
+            total_s: number;
+            /** Sec Per Image */
+            sec_per_image: number;
+        };
         /** TrajectoryPoint */
         TrajectoryPoint: {
             /** Order */
@@ -741,24 +1032,35 @@ export type AttackConfig = components['schemas']['AttackConfig'];
 export type AttackKind = components['schemas']['AttackKind'];
 export type AttackSpec = components['schemas']['AttackSpec'];
 export type BillingMode = components['schemas']['BillingMode'];
+export type CacheInfo = components['schemas']['CacheInfo'];
 export type CaseSeverity = components['schemas']['CaseSeverity'];
+export type ClassEvalMetrics = components['schemas']['ClassEvalMetrics'];
+export type ClassMapping = components['schemas']['ClassMapping'];
 export type ClassRunMetrics = components['schemas']['ClassRunMetrics'];
+export type CleanEvalResult = components['schemas']['CleanEvalResult'];
 export type ComputeKind = components['schemas']['ComputeKind'];
 export type ConverterInfo = components['schemas']['ConverterInfo'];
 export type Cost = components['schemas']['Cost'];
 export type CostModel = components['schemas']['CostModel'];
 export type DatasetManifest = components['schemas']['DatasetManifest'];
 export type DependencyStatus = components['schemas']['DependencyStatus'];
+export type DifficultyFilter = components['schemas']['DifficultyFilter'];
 export type Environment = components['schemas']['Environment'];
 export type ErrorBody = components['schemas']['ErrorBody'];
 export type ErrorCode = components['schemas']['ErrorCode'];
 export type ErrorResponse = components['schemas']['ErrorResponse'];
+export type EvalMappingRef = components['schemas']['EvalMappingRef'];
+export type EvalMetrics = components['schemas']['EvalMetrics'];
+export type EvalModelRef = components['schemas']['EvalModelRef'];
+export type EvalSliceRef = components['schemas']['EvalSliceRef'];
 export type ExperimentConfig = components['schemas']['ExperimentConfig'];
 export type ExperimentStatus = components['schemas']['ExperimentStatus'];
 export type FingerprintInputs = components['schemas']['FingerprintInputs'];
+export type GradientCheck = components['schemas']['GradientCheck'];
 export type GridConfig = components['schemas']['GridConfig'];
 export type HealthResponse = components['schemas']['HealthResponse'];
 export type IgnoreRegion = components['schemas']['IgnoreRegion'];
+export type InferenceParams = components['schemas']['InferenceParams'];
 export type JsonValue = components['schemas']['JsonValue'];
 export type LibVersions = components['schemas']['LibVersions'];
 export type Limit = components['schemas']['Limit'];
@@ -768,6 +1070,7 @@ export type ManifestAnnotation = components['schemas']['ManifestAnnotation'];
 export type ManifestImage = components['schemas']['ManifestImage'];
 export type ManifestSource = components['schemas']['ManifestSource'];
 export type MapPair = components['schemas']['MapPair'];
+export type ModelCard = components['schemas']['ModelCard'];
 export type PassCriterion = components['schemas']['PassCriterion'];
 export type PrimaryParam = components['schemas']['PrimaryParam'];
 export type Progress = components['schemas']['Progress'];
@@ -783,9 +1086,12 @@ export type SearchConfig = components['schemas']['SearchConfig'];
 export type SearchResult = components['schemas']['SearchResult'];
 export type SearchStatus = components['schemas']['SearchStatus'];
 export type SkipReason = components['schemas']['SkipReason'];
+export type SliceFilter = components['schemas']['SliceFilter'];
+export type SliceSpec = components['schemas']['SliceSpec'];
 export type StatusReason = components['schemas']['StatusReason'];
 export type StopReason = components['schemas']['StopReason'];
 export type ThresholdKind = components['schemas']['ThresholdKind'];
+export type Timing = components['schemas']['Timing'];
 export type TrajectoryPoint = components['schemas']['TrajectoryPoint'];
 export type UserStatus = components['schemas']['UserStatus'];
 export type $defs = Record<string, never>;
@@ -807,6 +1113,7 @@ export const experimentStatusValues: ReadonlyArray<FlattenedDeepRequired<compone
 export const healthResponseStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["HealthResponse"]["status"]> = ["ok", "degraded"];
 export const limitKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["LimitKind"]> = ["budget", "time"];
 export const manifestSourceFormatValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ManifestSource"]["format"]> = ["kitti", "yolo", "coco"];
+export const modelCardFrameworkValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ModelCard"]["framework"]> = ["ultralytics", "torchvision"];
 export const primaryParamTypeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["PrimaryParam"]["type"]> = ["continuous", "discrete"];
 export const reviewDecisionValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ReviewDecision"]> = ["approve", "changes_requested", "reject"];
 export const roleValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["Role"]> = ["engineer", "reviewer", "admin"];
