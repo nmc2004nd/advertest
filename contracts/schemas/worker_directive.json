@@ -1,0 +1,33 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "action": {
+      "enum": [
+        "continue",
+        "cancel",
+        "stop_limit"
+      ],
+      "title": "Action",
+      "type": "string"
+    },
+    "remaining_seconds": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Thời gian xử lý còn lại; null khi giới hạn là tiền",
+      "title": "Remaining Seconds"
+    }
+  },
+  "required": [
+    "action",
+    "remaining_seconds"
+  ],
+  "title": "WorkerDirective",
+  "type": "object"
+}

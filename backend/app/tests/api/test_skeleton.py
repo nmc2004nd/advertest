@@ -22,6 +22,9 @@ WORKER_ENDPOINTS = {
     ("post", "/internal/worker/runs/{run_id}/artifact-url"),
     ("post", "/internal/worker/runs/{run_id}/complete"),
     ("post", "/internal/worker/experiments/{experiment_id}/search-result"),
+    ("get", "/internal/worker/experiments/{experiment_id}/bundle"),
+    ("post", "/internal/worker/runs/{run_id}/start"),
+    ("post", "/internal/worker/cost-profiles"),
 }
 RUN_ID = "00000000-0000-5000-8000-000000000001"
 SAMPLE_CALLS = [
@@ -40,8 +43,8 @@ SAMPLE_CALLS = [
     ("get", "/audit-log"),
     ("get", "/verify/" + RUN_ID),
     ("post", "/internal/worker/lease"),
-    ("post", "/internal/worker/heartbeat"),
-    ("post", "/internal/worker/runs/" + RUN_ID + "/artifact-url"),
+    # Phase 3: heartbeat, artifact-url có body bắt buộc; gọi thử endpoint không cần body.
+    ("get", "/internal/worker/experiments/" + RUN_ID + "/bundle"),
 ]
 
 

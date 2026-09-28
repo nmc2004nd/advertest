@@ -1,0 +1,1235 @@
+{
+  "$defs": {
+    "AttackAccess": {
+      "enum": [
+        "white_box",
+        "black_box"
+      ],
+      "title": "AttackAccess",
+      "type": "string"
+    },
+    "AttackConfig": {
+      "additionalProperties": false,
+      "description": "Một attack trong experiment.",
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "attack_spec_id": {
+          "format": "uuid",
+          "title": "Attack Spec Id",
+          "type": "string"
+        },
+        "spec_sha256": {
+          "description": "Chốt đúng version spec",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Spec Sha256",
+          "type": "string"
+        },
+        "mode": {
+          "$ref": "#/$defs/RunMode"
+        },
+        "grid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GridConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "search": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SearchConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "seed": {
+          "minimum": 0,
+          "title": "Seed",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "attack_spec_id",
+        "spec_sha256",
+        "mode",
+        "seed"
+      ],
+      "title": "AttackConfig",
+      "type": "object"
+    },
+    "AttackKind": {
+      "enum": [
+        "attack",
+        "corruption",
+        "occlusion"
+      ],
+      "title": "AttackKind",
+      "type": "string"
+    },
+    "AttackSpec": {
+      "additionalProperties": false,
+      "description": "Một attack trong catalog. Đổi bất kỳ trường nào phải tăng `version`.",
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "name": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "exclusiveMinimum": 0,
+          "title": "Version",
+          "type": "integer"
+        },
+        "kind": {
+          "$ref": "#/$defs/AttackKind"
+        },
+        "access": {
+          "$ref": "#/$defs/AttackAccess"
+        },
+        "art_class": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Null với corruption và occlusion",
+          "title": "Art Class"
+        },
+        "primary_param": {
+          "$ref": "#/$defs/PrimaryParam"
+        },
+        "fixed_params": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Fixed Params",
+          "type": "object"
+        },
+        "cost_model": {
+          "$ref": "#/$defs/CostModel"
+        },
+        "requires_gradients": {
+          "title": "Requires Gradients",
+          "type": "boolean"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "spec_sha256": {
+          "description": "Hash của mọi trường trừ id và chính nó",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Spec Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version",
+        "kind",
+        "access",
+        "primary_param",
+        "fixed_params",
+        "cost_model",
+        "requires_gradients",
+        "id",
+        "spec_sha256"
+      ],
+      "title": "AttackSpec",
+      "type": "object"
+    },
+    "BundleCheckpoint": {
+      "additionalProperties": false,
+      "properties": {
+        "batch_index": {
+          "description": "Batch cuối cùng đã xử lý xong",
+          "minimum": 0,
+          "title": "Batch Index",
+          "type": "integer"
+        },
+        "key": {
+          "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]*(/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$",
+          "title": "Key",
+          "type": "string"
+        },
+        "url": {
+          "pattern": "^https?://\\S+$",
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "batch_index",
+        "key",
+        "url"
+      ],
+      "title": "BundleCheckpoint",
+      "type": "object"
+    },
+    "BundleDownloads": {
+      "additionalProperties": false,
+      "description": "Presigned GET URL cho tài nguyên của job.",
+      "properties": {
+        "weights": {
+          "pattern": "^https?://\\S+$",
+          "title": "Weights",
+          "type": "string"
+        },
+        "dataset_manifest": {
+          "pattern": "^https?://\\S+$",
+          "title": "Dataset Manifest",
+          "type": "string"
+        },
+        "images": {
+          "additionalProperties": {
+            "pattern": "^https?://\\S+$",
+            "type": "string"
+          },
+          "description": "image_id → URL, đúng các ảnh của slice",
+          "minProperties": 1,
+          "title": "Images",
+          "type": "object"
+        },
+        "expires_at": {
+          "format": "date-time",
+          "title": "Expires At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "weights",
+        "dataset_manifest",
+        "images",
+        "expires_at"
+      ],
+      "title": "BundleDownloads",
+      "type": "object"
+    },
+    "BundleLimit": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/LimitKind"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "description": "Tiền (budget) hoặc giây (time)",
+          "title": "Value"
+        },
+        "used": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "description": "Đã dùng: giây xử lý cộng dồn hoặc tiền",
+          "title": "Used"
+        }
+      },
+      "required": [
+        "kind",
+        "value",
+        "used"
+      ],
+      "title": "BundleLimit",
+      "type": "object"
+    },
+    "BundleRun": {
+      "additionalProperties": false,
+      "properties": {
+        "run_id": {
+          "format": "uuid",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "attack_spec_id": {
+          "format": "uuid",
+          "title": "Attack Spec Id",
+          "type": "string"
+        },
+        "level": {
+          "title": "Level",
+          "type": "number"
+        },
+        "seed": {
+          "minimum": 0,
+          "title": "Seed",
+          "type": "integer"
+        },
+        "status": {
+          "$ref": "#/$defs/RunStatus"
+        },
+        "images_done": {
+          "minimum": 0,
+          "title": "Images Done",
+          "type": "integer"
+        },
+        "images_total": {
+          "exclusiveMinimum": 0,
+          "title": "Images Total",
+          "type": "integer"
+        },
+        "checkpoint": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BundleCheckpoint"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Checkpoint mới nhất khi đang chạy dở"
+        }
+      },
+      "required": [
+        "run_id",
+        "attack_spec_id",
+        "level",
+        "seed",
+        "status",
+        "images_done",
+        "images_total",
+        "checkpoint"
+      ],
+      "title": "BundleRun",
+      "type": "object"
+    },
+    "ClassMapping": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "dataset_version_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Dataset Version Sha256",
+          "type": "string"
+        },
+        "model_id": {
+          "format": "uuid",
+          "title": "Model Id",
+          "type": "string"
+        },
+        "preset": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Ví dụ kitti-coco; null khi tự tạo",
+          "title": "Preset"
+        },
+        "classes": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": "Class gốc → class model; null thành ignore region unmapped:<class>",
+          "minProperties": 1,
+          "title": "Classes",
+          "type": "object"
+        },
+        "difficulty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DifficultyFilter"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null là không lọc theo độ khó"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "mapping_sha256": {
+          "description": "Hash của mọi trường trừ id và chính nó",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Mapping Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "dataset_version_sha256",
+        "model_id",
+        "preset",
+        "classes",
+        "difficulty",
+        "id",
+        "mapping_sha256"
+      ],
+      "title": "ClassMapping",
+      "type": "object"
+    },
+    "CostModel": {
+      "additionalProperties": false,
+      "properties": {
+        "passes_per_image": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Số lần forward + backward cho mỗi ảnh",
+          "title": "Passes Per Image"
+        },
+        "cpu_only": {
+          "default": false,
+          "title": "Cpu Only",
+          "type": "boolean"
+        }
+      },
+      "title": "CostModel",
+      "type": "object"
+    },
+    "CostProfile": {
+      "additionalProperties": false,
+      "description": "Chi phí đo bằng calibration, riêng cho từng (compute target, model, attack).",
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "compute_target_id": {
+          "format": "uuid",
+          "title": "Compute Target Id",
+          "type": "string"
+        },
+        "model_version_id": {
+          "format": "uuid",
+          "title": "Model Version Id",
+          "type": "string"
+        },
+        "attack_spec_id": {
+          "format": "uuid",
+          "title": "Attack Spec Id",
+          "type": "string"
+        },
+        "sec_per_image": {
+          "exclusiveMinimum": 0,
+          "title": "Sec Per Image",
+          "type": "number"
+        },
+        "peak_vram_mb": {
+          "description": "0 khi chạy trên CPU",
+          "minimum": 0,
+          "title": "Peak Vram Mb",
+          "type": "integer"
+        },
+        "batch_size": {
+          "exclusiveMinimum": 0,
+          "title": "Batch Size",
+          "type": "integer"
+        },
+        "measured_at": {
+          "format": "date-time",
+          "title": "Measured At",
+          "type": "string"
+        },
+        "environment": {
+          "$ref": "#/$defs/Environment"
+        }
+      },
+      "required": [
+        "compute_target_id",
+        "model_version_id",
+        "attack_spec_id",
+        "sec_per_image",
+        "peak_vram_mb",
+        "batch_size",
+        "measured_at",
+        "environment"
+      ],
+      "title": "CostProfile",
+      "type": "object"
+    },
+    "DifficultyFilter": {
+      "additionalProperties": false,
+      "description": "Ngưỡng độ khó (mức Moderate của KITTI: 25, 1, 0.30). Ngưỡng tính cả biên: GT được giữ khi\nđạt cả ba điều kiện, không đạt thì thành ignore region `difficulty:<class>`.",
+      "properties": {
+        "min_height_px": {
+          "description": "Giữ khi chiều cao bbox (y2 - y1, pixel ảnh gốc) >= min_height_px",
+          "minimum": 0,
+          "title": "Min Height Px",
+          "type": "number"
+        },
+        "max_occluded": {
+          "description": "Giữ khi occluded <= max_occluded",
+          "minimum": 0,
+          "title": "Max Occluded",
+          "type": "integer"
+        },
+        "max_truncated": {
+          "description": "Giữ khi truncated <= max_truncated",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Max Truncated",
+          "type": "number"
+        }
+      },
+      "required": [
+        "min_height_px",
+        "max_occluded",
+        "max_truncated"
+      ],
+      "title": "DifficultyFilter",
+      "type": "object"
+    },
+    "Environment": {
+      "additionalProperties": false,
+      "description": "Máy đã chạy run. Không thuộc fingerprint.",
+      "properties": {
+        "compute_target_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null khi chạy bằng CLI",
+          "title": "Compute Target Id"
+        },
+        "gpu_model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null khi chạy trên CPU",
+          "title": "Gpu Model"
+        },
+        "cuda_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cuda Version"
+        },
+        "driver_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Driver Version"
+        }
+      },
+      "required": [
+        "compute_target_id",
+        "gpu_model",
+        "cuda_version",
+        "driver_version"
+      ],
+      "title": "Environment",
+      "type": "object"
+    },
+    "ExperimentConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "protocol_id": {
+          "format": "uuid",
+          "title": "Protocol Id",
+          "type": "string"
+        },
+        "model_version_id": {
+          "format": "uuid",
+          "title": "Model Version Id",
+          "type": "string"
+        },
+        "slice_id": {
+          "format": "uuid",
+          "title": "Slice Id",
+          "type": "string"
+        },
+        "class_mapping_id": {
+          "format": "uuid",
+          "title": "Class Mapping Id",
+          "type": "string"
+        },
+        "compute_target_id": {
+          "format": "uuid",
+          "title": "Compute Target Id",
+          "type": "string"
+        },
+        "attacks": {
+          "items": {
+            "$ref": "#/$defs/AttackConfig"
+          },
+          "minItems": 1,
+          "title": "Attacks",
+          "type": "array"
+        },
+        "limit": {
+          "$ref": "#/$defs/Limit"
+        }
+      },
+      "required": [
+        "protocol_id",
+        "model_version_id",
+        "slice_id",
+        "class_mapping_id",
+        "compute_target_id",
+        "attacks",
+        "limit"
+      ],
+      "title": "ExperimentConfig",
+      "type": "object"
+    },
+    "GradientCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "checked_at": {
+          "format": "date-time",
+          "title": "Checked At",
+          "type": "string"
+        },
+        "details": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Lý do khi passed = false",
+          "title": "Details"
+        }
+      },
+      "required": [
+        "passed",
+        "checked_at"
+      ],
+      "title": "GradientCheck",
+      "type": "object"
+    },
+    "GridConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "levels": {
+          "items": {
+            "type": "number"
+          },
+          "minItems": 1,
+          "title": "Levels",
+          "type": "array"
+        }
+      },
+      "required": [
+        "levels"
+      ],
+      "title": "GridConfig",
+      "type": "object"
+    },
+    "InferenceParams": {
+      "additionalProperties": false,
+      "properties": {
+        "conf": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Conf",
+          "type": "number"
+        },
+        "iou": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Iou",
+          "type": "number"
+        },
+        "max_det": {
+          "exclusiveMinimum": 0,
+          "title": "Max Det",
+          "type": "integer"
+        },
+        "operating_conf": {
+          "description": "Ngưỡng dùng cho tỷ lệ tấn công thành công",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Operating Conf",
+          "type": "number"
+        },
+        "input_size": {
+          "exclusiveMinimum": 0,
+          "title": "Input Size",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "conf",
+        "iou",
+        "max_det",
+        "operating_conf",
+        "input_size"
+      ],
+      "title": "InferenceParams",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "LibVersions": {
+      "additionalProperties": false,
+      "properties": {
+        "torch": {
+          "title": "Torch",
+          "type": "string"
+        },
+        "art": {
+          "title": "Art",
+          "type": "string"
+        },
+        "ultralytics": {
+          "title": "Ultralytics",
+          "type": "string"
+        },
+        "torchmetrics": {
+          "title": "Torchmetrics",
+          "type": "string"
+        },
+        "numpy": {
+          "title": "Numpy",
+          "type": "string"
+        }
+      },
+      "required": [
+        "torch",
+        "art",
+        "ultralytics",
+        "torchmetrics",
+        "numpy"
+      ],
+      "title": "LibVersions",
+      "type": "object"
+    },
+    "Limit": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/LimitKind"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "description": "Tiền (budget) hoặc giây (time)",
+          "title": "Value"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "title": "Limit",
+      "type": "object"
+    },
+    "LimitKind": {
+      "enum": [
+        "budget",
+        "time"
+      ],
+      "title": "LimitKind",
+      "type": "string"
+    },
+    "ModelCard": {
+      "additionalProperties": false,
+      "description": "Model đã đăng ký. id = content_id(weights_sha256).",
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "framework": {
+          "enum": [
+            "ultralytics",
+            "torchvision"
+          ],
+          "title": "Framework",
+          "type": "string"
+        },
+        "architecture": {
+          "minLength": 1,
+          "title": "Architecture",
+          "type": "string"
+        },
+        "weights_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Weights Sha256",
+          "type": "string"
+        },
+        "class_names": {
+          "description": "Theo thứ tự index của model",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Class Names",
+          "type": "array"
+        },
+        "input_size": {
+          "exclusiveMinimum": 0,
+          "title": "Input Size",
+          "type": "integer"
+        },
+        "supports_gradients": {
+          "description": "Chỉ true khi bài kiểm tra gradient pass",
+          "title": "Supports Gradients",
+          "type": "boolean"
+        },
+        "gradient_check": {
+          "$ref": "#/$defs/GradientCheck"
+        },
+        "lib_versions": {
+          "$ref": "#/$defs/LibVersions"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "framework",
+        "architecture",
+        "weights_sha256",
+        "class_names",
+        "input_size",
+        "supports_gradients",
+        "gradient_check",
+        "lib_versions"
+      ],
+      "title": "ModelCard",
+      "type": "object"
+    },
+    "PrimaryParam": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "continuous",
+            "discrete"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "min": {
+          "title": "Min",
+          "type": "number"
+        },
+        "max": {
+          "title": "Max",
+          "type": "number"
+        },
+        "values": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Chỉ dùng khi type = discrete",
+          "title": "Values"
+        },
+        "unit": {
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "type",
+        "min",
+        "max",
+        "unit"
+      ],
+      "title": "PrimaryParam",
+      "type": "object"
+    },
+    "RunMode": {
+      "enum": [
+        "grid",
+        "search"
+      ],
+      "title": "RunMode",
+      "type": "string"
+    },
+    "RunStatus": {
+      "enum": [
+        "queued",
+        "running",
+        "completed",
+        "failed",
+        "skipped",
+        "stopped_limit",
+        "cancelled"
+      ],
+      "title": "RunStatus",
+      "type": "string"
+    },
+    "SearchConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "threshold_kind": {
+          "$ref": "#/$defs/ThresholdKind"
+        },
+        "threshold": {
+          "title": "Threshold",
+          "type": "number"
+        },
+        "lo": {
+          "title": "Lo",
+          "type": "number"
+        },
+        "hi": {
+          "title": "Hi",
+          "type": "number"
+        },
+        "tol": {
+          "exclusiveMinimum": 0,
+          "title": "Tol",
+          "type": "number"
+        },
+        "coarse_n": {
+          "exclusiveMinimum": 0,
+          "title": "Coarse N",
+          "type": "integer"
+        },
+        "subset_size": {
+          "exclusiveMinimum": 0,
+          "title": "Subset Size",
+          "type": "integer"
+        },
+        "class_filter": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Class Filter"
+        }
+      },
+      "required": [
+        "threshold_kind",
+        "threshold",
+        "lo",
+        "hi",
+        "tol",
+        "coarse_n",
+        "subset_size"
+      ],
+      "title": "SearchConfig",
+      "type": "object"
+    },
+    "SliceFilter": {
+      "additionalProperties": false,
+      "description": "Bộ lọc tự mô tả, không phụ thuộc model hay mapping.",
+      "properties": {
+        "classes": {
+          "description": "Class gốc được tính, sắp xếp, không trùng",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Classes",
+          "type": "array"
+        },
+        "difficulty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DifficultyFilter"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "min_objects": {
+          "default": 1,
+          "exclusiveMinimum": 0,
+          "title": "Min Objects",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "classes",
+        "difficulty"
+      ],
+      "title": "SliceFilter",
+      "type": "object"
+    },
+    "SliceSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "slice_sha256": {
+          "description": "sha256 của dataset_version_sha256, filter, seed, size, image_ids",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Slice Sha256",
+          "type": "string"
+        },
+        "dataset_version_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Dataset Version Sha256",
+          "type": "string"
+        },
+        "filter": {
+          "$ref": "#/$defs/SliceFilter"
+        },
+        "seed": {
+          "minimum": 0,
+          "title": "Seed",
+          "type": "integer"
+        },
+        "size": {
+          "exclusiveMinimum": 0,
+          "title": "Size",
+          "type": "integer"
+        },
+        "image_ids": {
+          "description": "Sắp xếp, không trùng, đúng size phần tử",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Image Ids",
+          "type": "array"
+        },
+        "image_ids_sha256": {
+          "description": "sha256_of(image_ids)",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Image Ids Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "slice_sha256",
+        "dataset_version_sha256",
+        "filter",
+        "seed",
+        "size",
+        "image_ids",
+        "image_ids_sha256"
+      ],
+      "title": "SliceSpec",
+      "type": "object"
+    },
+    "ThresholdKind": {
+      "enum": [
+        "relative_drop",
+        "absolute_drop",
+        "attack_success_rate"
+      ],
+      "title": "ThresholdKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Mọi thứ worker cần để chạy một experiment (`GET /experiments/{id}/bundle`).",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "experiment_id": {
+      "format": "uuid",
+      "title": "Experiment Id",
+      "type": "string"
+    },
+    "config": {
+      "$ref": "#/$defs/ExperimentConfig"
+    },
+    "model_card": {
+      "$ref": "#/$defs/ModelCard"
+    },
+    "slice": {
+      "$ref": "#/$defs/SliceSpec"
+    },
+    "class_mapping": {
+      "$ref": "#/$defs/ClassMapping"
+    },
+    "attack_specs": {
+      "items": {
+        "$ref": "#/$defs/AttackSpec"
+      },
+      "minItems": 1,
+      "title": "Attack Specs",
+      "type": "array"
+    },
+    "inference_params": {
+      "$ref": "#/$defs/InferenceParams",
+      "description": "Thuộc fingerprint (config_sha256)"
+    },
+    "failure_cases_per_run": {
+      "minimum": 0,
+      "title": "Failure Cases Per Run",
+      "type": "integer"
+    },
+    "cost_profiles": {
+      "description": "Profile đã có của (target, model, attack); thiếu thì worker calibrate trước",
+      "items": {
+        "$ref": "#/$defs/CostProfile"
+      },
+      "title": "Cost Profiles",
+      "type": "array"
+    },
+    "downloads": {
+      "$ref": "#/$defs/BundleDownloads"
+    },
+    "limit": {
+      "$ref": "#/$defs/BundleLimit"
+    },
+    "runs": {
+      "description": "Theo thứ tự chạy",
+      "items": {
+        "$ref": "#/$defs/BundleRun"
+      },
+      "minItems": 1,
+      "title": "Runs",
+      "type": "array"
+    }
+  },
+  "required": [
+    "experiment_id",
+    "config",
+    "model_card",
+    "slice",
+    "class_mapping",
+    "attack_specs",
+    "inference_params",
+    "failure_cases_per_run",
+    "cost_profiles",
+    "downloads",
+    "limit",
+    "runs"
+  ],
+  "title": "WorkerJobBundle",
+  "type": "object"
+}

@@ -7,6 +7,41 @@ export type paths = Record<string, never>;
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ArtifactUrlRequest */
+        ArtifactUrlRequest: {
+            /**
+             * Lease Id
+             * Format: uuid
+             */
+            lease_id: string;
+            /**
+             * Key
+             * @description Khóa đầy đủ, phải nằm trong runs/<run_id>/
+             */
+            key: string;
+            /**
+             * Method
+             * @enum {string}
+             */
+            method: "PUT" | "GET" | "DELETE";
+        };
+        /** ArtifactUrlResponse */
+        ArtifactUrlResponse: {
+            /** Key */
+            key: string;
+            /**
+             * Method
+             * @enum {string}
+             */
+            method: "PUT" | "GET" | "DELETE";
+            /** Url */
+            url: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+        };
         /**
          * AttackAccess
          * @enum {string}
@@ -93,6 +128,78 @@ export interface components {
          * @enum {string}
          */
         BillingMode: "none" | "hourly";
+        /** BundleCheckpoint */
+        BundleCheckpoint: {
+            /**
+             * Batch Index
+             * @description Batch cuối cùng đã xử lý xong
+             */
+            batch_index: number;
+            /** Key */
+            key: string;
+            /** Url */
+            url: string;
+        };
+        /**
+         * BundleDownloads
+         * @description Presigned GET URL cho tài nguyên của job.
+         */
+        BundleDownloads: {
+            /** Weights */
+            weights: string;
+            /** Dataset Manifest */
+            dataset_manifest: string;
+            /**
+             * Images
+             * @description image_id → URL, đúng các ảnh của slice
+             */
+            images: {
+                [key: string]: string;
+            };
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+        };
+        /** BundleLimit */
+        BundleLimit: {
+            kind: components["schemas"]["LimitKind"];
+            /**
+             * Value
+             * @description Tiền (budget) hoặc giây (time)
+             */
+            value: string;
+            /**
+             * Used
+             * @description Đã dùng: giây xử lý cộng dồn hoặc tiền
+             */
+            used: string;
+        };
+        /** BundleRun */
+        BundleRun: {
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            /**
+             * Attack Spec Id
+             * Format: uuid
+             */
+            attack_spec_id: string;
+            /** Level */
+            level: number;
+            /** Seed */
+            seed: number;
+            status: components["schemas"]["RunStatus"];
+            /** Images Done */
+            images_done: number;
+            /** Images Total */
+            images_total: number;
+            /** @description Checkpoint mới nhất khi đang chạy dở */
+            checkpoint: components["schemas"]["BundleCheckpoint"] | null;
+        };
         /** CacheInfo */
         CacheInfo: {
             /** Key */
@@ -114,6 +221,18 @@ export interface components {
              * @description Ảnh nhiễu khuếch đại
              */
             perturbation_png: string;
+            /**
+             * Clean Thumb
+             * @description Thumbnail WebP rộng 320 px (Phase 3); null khi chạy bằng CLI, bắt buộc qua worker
+             * @default null
+             */
+            clean_thumb: string | null;
+            /**
+             * Adversarial Thumb
+             * @description Thumbnail WebP rộng 320 px (Phase 3); null khi chạy bằng CLI, bắt buộc qua worker
+             * @default null
+             */
+            adversarial_thumb: string | null;
         };
         /**
          * CaseBox
@@ -294,6 +413,48 @@ export interface components {
             cpu_only: boolean;
         };
         /**
+         * CostProfile
+         * @description Chi phí đo bằng calibration, riêng cho từng (compute target, model, attack).
+         */
+        CostProfile: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /**
+             * Compute Target Id
+             * Format: uuid
+             */
+            compute_target_id: string;
+            /**
+             * Model Version Id
+             * Format: uuid
+             */
+            model_version_id: string;
+            /**
+             * Attack Spec Id
+             * Format: uuid
+             */
+            attack_spec_id: string;
+            /** Sec Per Image */
+            sec_per_image: number;
+            /**
+             * Peak Vram Mb
+             * @description 0 khi chạy trên CPU
+             */
+            peak_vram_mb: number;
+            /** Batch Size */
+            batch_size: number;
+            /**
+             * Measured At
+             * Format: date-time
+             */
+            measured_at: string;
+            environment: components["schemas"]["Environment"];
+        };
+        /**
          * DatasetManifest
          * @description Manifest dataset nội bộ. Dataset version = sha256_of(manifest).
          */
@@ -377,7 +538,7 @@ export interface components {
          * ErrorCode
          * @enum {string}
          */
-        ErrorCode: "not_implemented";
+        ErrorCode: "not_implemented" | "unauthenticated" | "forbidden" | "not_found" | "conflict";
         /**
          * ErrorResponse
          * @description Body lỗi thống nhất của mọi endpoint: {"error": {"code", "message"}}.
@@ -495,7 +656,7 @@ export interface components {
             /**
              * Id
              * Format: uuid
-             * @description compute_failure_case_id(fingerprint, image_id)
+             * @description compute_failure_case_id(fingerprint, run_id, image_id)
              */
             id: string;
             /**
@@ -603,6 +764,19 @@ export interface components {
             git_commit: string;
             postgres: components["schemas"]["DependencyStatus"];
             minio: components["schemas"]["DependencyStatus"];
+        };
+        /** HeartbeatRequest */
+        HeartbeatRequest: {
+            /**
+             * Lease Id
+             * Format: uuid
+             */
+            lease_id: string;
+            /**
+             * Experiment Id
+             * Format: uuid
+             */
+            experiment_id: string;
         };
         /** IgnoreRegion */
         IgnoreRegion: {
@@ -832,6 +1006,28 @@ export interface components {
             /** Images Total */
             images_total: number;
         };
+        /** ProgressReport */
+        ProgressReport: {
+            /**
+             * Lease Id
+             * Format: uuid
+             */
+            lease_id: string;
+            /**
+             * Images Done
+             * @description Tổng số ảnh đã xử lý của run
+             */
+            images_done: number;
+            /** Batch Index */
+            batch_index: number;
+            /** Checkpoint Key */
+            checkpoint_key: string;
+            /**
+             * Processing Seconds Delta
+             * @description Thời gian xử lý từ lần báo trước; API cộng dồn
+             */
+            processing_seconds_delta: number;
+        };
         /** ProtocolBody */
         ProtocolBody: {
             /**
@@ -849,6 +1045,11 @@ export interface components {
             /** @description Case từ mức này trở lên bắt buộc có verdict */
             review_severity_threshold: components["schemas"]["CaseSeverity"];
         };
+        /**
+         * ProtocolStatus
+         * @enum {string}
+         */
+        ProtocolStatus: "active" | "retired" | "dev";
         /** RequiredAttack */
         RequiredAttack: {
             /**
@@ -880,6 +1081,26 @@ export interface components {
          * @enum {string}
          */
         Role: "engineer" | "reviewer" | "admin";
+        /**
+         * RunCompletion
+         * @description Body của `POST /runs/{id}/complete`.
+         */
+        RunCompletion: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /**
+             * Lease Id
+             * Format: uuid
+             */
+            lease_id: string;
+            run_result: components["schemas"]["RunResult"];
+            /** Failure Cases */
+            failure_cases: components["schemas"]["FailureCaseRecord"][];
+        };
         /** RunMetrics */
         RunMetrics: {
             clean: components["schemas"]["MapPair"];
@@ -903,6 +1124,12 @@ export interface components {
             per_class: {
                 [key: string]: components["schemas"]["ClassRunMetrics"];
             } | null;
+            /**
+             * Partial
+             * @description true khi metric chỉ tính trên phần ảnh đã xử lý (stopped_limit)
+             * @default false
+             */
+            partial: boolean;
         };
         /**
          * RunMode
@@ -956,6 +1183,43 @@ export interface components {
              * @default null
              */
             manifest_uri: string | null;
+            /**
+             * Cached From Run Id
+             * @description Run gốc khi status = skipped với code = cached (Phase 3)
+             * @default null
+             */
+            cached_from_run_id: string | null;
+        };
+        /** RunStartRequest */
+        RunStartRequest: {
+            /**
+             * Lease Id
+             * Format: uuid
+             */
+            lease_id: string;
+            /** Fingerprint */
+            fingerprint: string;
+            fingerprint_inputs: components["schemas"]["FingerprintInputs"];
+            environment: components["schemas"]["Environment"];
+        };
+        /** RunStartResponse */
+        RunStartResponse: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "run" | "skip_cached";
+            /**
+             * Cached From Run Id
+             * @description Chỉ có khi skip_cached
+             * @default null
+             */
+            cached_from_run_id: string | null;
+            /**
+             * @description Kết quả của run gốc (completed); chỉ có khi skip_cached
+             * @default null
+             */
+            cached_result: components["schemas"]["RunResult"] | null;
         };
         /**
          * RunStatus
@@ -1146,6 +1410,86 @@ export interface components {
          * @enum {string}
          */
         UserStatus: "pending" | "active" | "rejected" | "disabled";
+        /** WorkerDirective */
+        WorkerDirective: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "continue" | "cancel" | "stop_limit";
+            /**
+             * Remaining Seconds
+             * @description Thời gian xử lý còn lại; null khi giới hạn là tiền
+             */
+            remaining_seconds: number | null;
+        };
+        /**
+         * WorkerJobBundle
+         * @description Mọi thứ worker cần để chạy một experiment (`GET /experiments/{id}/bundle`).
+         */
+        WorkerJobBundle: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /**
+             * Experiment Id
+             * Format: uuid
+             */
+            experiment_id: string;
+            config: components["schemas"]["ExperimentConfig"];
+            model_card: components["schemas"]["ModelCard"];
+            slice: components["schemas"]["SliceSpec"];
+            class_mapping: components["schemas"]["ClassMapping"];
+            /** Attack Specs */
+            attack_specs: components["schemas"]["AttackSpec"][];
+            /** @description Thuộc fingerprint (config_sha256) */
+            inference_params: components["schemas"]["InferenceParams"];
+            /** Failure Cases Per Run */
+            failure_cases_per_run: number;
+            /**
+             * Cost Profiles
+             * @description Profile đã có của (target, model, attack); thiếu thì worker calibrate trước
+             */
+            cost_profiles: components["schemas"]["CostProfile"][];
+            downloads: components["schemas"]["BundleDownloads"];
+            limit: components["schemas"]["BundleLimit"];
+            /**
+             * Runs
+             * @description Theo thứ tự chạy
+             */
+            runs: components["schemas"]["BundleRun"][];
+        };
+        /**
+         * WorkerLease
+         * @description Trả về từ `POST /lease` (không có job thì `204`).
+         */
+        WorkerLease: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /**
+             * Experiment Id
+             * Format: uuid
+             */
+            experiment_id: string;
+            /**
+             * Lease Id
+             * Format: uuid
+             * @description Đổi mỗi lần lease; gửi kèm mọi request sau đó
+             */
+            lease_id: string;
+            /**
+             * Lease Expires At
+             * Format: date-time
+             */
+            lease_expires_at: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -1153,11 +1497,17 @@ export interface components {
     headers: never;
     pathItems: never;
 }
+export type ArtifactUrlRequest = components['schemas']['ArtifactUrlRequest'];
+export type ArtifactUrlResponse = components['schemas']['ArtifactUrlResponse'];
 export type AttackAccess = components['schemas']['AttackAccess'];
 export type AttackConfig = components['schemas']['AttackConfig'];
 export type AttackKind = components['schemas']['AttackKind'];
 export type AttackSpec = components['schemas']['AttackSpec'];
 export type BillingMode = components['schemas']['BillingMode'];
+export type BundleCheckpoint = components['schemas']['BundleCheckpoint'];
+export type BundleDownloads = components['schemas']['BundleDownloads'];
+export type BundleLimit = components['schemas']['BundleLimit'];
+export type BundleRun = components['schemas']['BundleRun'];
 export type CacheInfo = components['schemas']['CacheInfo'];
 export type CaseArtifacts = components['schemas']['CaseArtifacts'];
 export type CaseBox = components['schemas']['CaseBox'];
@@ -1172,6 +1522,7 @@ export type ComputeKind = components['schemas']['ComputeKind'];
 export type ConverterInfo = components['schemas']['ConverterInfo'];
 export type Cost = components['schemas']['Cost'];
 export type CostModel = components['schemas']['CostModel'];
+export type CostProfile = components['schemas']['CostProfile'];
 export type DatasetManifest = components['schemas']['DatasetManifest'];
 export type DependencyStatus = components['schemas']['DependencyStatus'];
 export type DifficultyFilter = components['schemas']['DifficultyFilter'];
@@ -1190,6 +1541,7 @@ export type FingerprintInputs = components['schemas']['FingerprintInputs'];
 export type GradientCheck = components['schemas']['GradientCheck'];
 export type GridConfig = components['schemas']['GridConfig'];
 export type HealthResponse = components['schemas']['HealthResponse'];
+export type HeartbeatRequest = components['schemas']['HeartbeatRequest'];
 export type IgnoreRegion = components['schemas']['IgnoreRegion'];
 export type InferenceParams = components['schemas']['InferenceParams'];
 export type JsonValue = components['schemas']['JsonValue'];
@@ -1205,13 +1557,18 @@ export type ModelCard = components['schemas']['ModelCard'];
 export type PassCriterion = components['schemas']['PassCriterion'];
 export type PrimaryParam = components['schemas']['PrimaryParam'];
 export type Progress = components['schemas']['Progress'];
+export type ProgressReport = components['schemas']['ProgressReport'];
 export type ProtocolBody = components['schemas']['ProtocolBody'];
+export type ProtocolStatus = components['schemas']['ProtocolStatus'];
 export type RequiredAttack = components['schemas']['RequiredAttack'];
 export type ReviewDecision = components['schemas']['ReviewDecision'];
 export type Role = components['schemas']['Role'];
+export type RunCompletion = components['schemas']['RunCompletion'];
 export type RunMetrics = components['schemas']['RunMetrics'];
 export type RunMode = components['schemas']['RunMode'];
 export type RunResult = components['schemas']['RunResult'];
+export type RunStartRequest = components['schemas']['RunStartRequest'];
+export type RunStartResponse = components['schemas']['RunStartResponse'];
 export type RunStatus = components['schemas']['RunStatus'];
 export type SearchConfig = components['schemas']['SearchConfig'];
 export type SearchResult = components['schemas']['SearchResult'];
@@ -1225,6 +1582,9 @@ export type ThresholdKind = components['schemas']['ThresholdKind'];
 export type Timing = components['schemas']['Timing'];
 export type TrajectoryPoint = components['schemas']['TrajectoryPoint'];
 export type UserStatus = components['schemas']['UserStatus'];
+export type WorkerDirective = components['schemas']['WorkerDirective'];
+export type WorkerJobBundle = components['schemas']['WorkerJobBundle'];
+export type WorkerLease = components['schemas']['WorkerLease'];
 export type $defs = Record<string, never>;
 type FlattenedDeepRequired<T> = {
     [K in keyof T]-?: FlattenedDeepRequired<T[K] extends unknown[] | undefined | null ? Extract<T[K], unknown[]>[number] : T[K]>;
@@ -1234,21 +1594,25 @@ type ReadonlyArray<T> = [
 ] extends [
     unknown[]
 ] ? Readonly<Exclude<T, undefined>> : Readonly<Exclude<T, undefined>[]>;
+export const artifactUrlRequestMethodValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ArtifactUrlRequest"]["method"]> = ["PUT", "GET", "DELETE"];
+export const artifactUrlResponseMethodValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ArtifactUrlResponse"]["method"]> = ["PUT", "GET", "DELETE"];
 export const attackAccessValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["AttackAccess"]> = ["white_box", "black_box"];
 export const attackKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["AttackKind"]> = ["attack", "corruption", "occlusion"];
 export const billingModeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["BillingMode"]> = ["none", "hourly"];
 export const caseSeverityValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["CaseSeverity"]> = ["critical", "major", "minor", "acceptable"];
 export const computeKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ComputeKind"]> = ["local", "rented"];
-export const errorCodeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ErrorCode"]> = ["not_implemented"];
+export const errorCodeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ErrorCode"]> = ["not_implemented", "unauthenticated", "forbidden", "not_found", "conflict"];
 export const experimentStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ExperimentStatus"]> = ["draft", "queued", "running", "completed", "submitted_for_review", "in_review", "approved", "changes_requested", "rejected", "cancelled"];
 export const healthResponseStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["HealthResponse"]["status"]> = ["ok", "degraded"];
 export const limitKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["LimitKind"]> = ["budget", "time"];
 export const manifestSourceFormatValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ManifestSource"]["format"]> = ["kitti", "yolo", "coco"];
 export const modelCardFrameworkValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ModelCard"]["framework"]> = ["ultralytics", "torchvision"];
 export const primaryParamTypeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["PrimaryParam"]["type"]> = ["continuous", "discrete"];
+export const protocolStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ProtocolStatus"]> = ["active", "retired", "dev"];
 export const reviewDecisionValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ReviewDecision"]> = ["approve", "changes_requested", "reject"];
 export const roleValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["Role"]> = ["engineer", "reviewer", "admin"];
 export const runModeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["RunMode"]> = ["grid", "search"];
+export const runStartResponseActionValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["RunStartResponse"]["action"]> = ["run", "skip_cached"];
 export const runStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["RunStatus"]> = ["queued", "running", "completed", "failed", "skipped", "stopped_limit", "cancelled"];
 export const searchStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["SearchStatus"]> = ["found", "not_reached", "below_min", "stopped_limit", "non_monotonic"];
 export const skipReasonValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["SkipReason"]> = ["cached", "incompatible"];
@@ -1257,4 +1621,5 @@ export const stopReasonValues: ReadonlyArray<FlattenedDeepRequired<components>["
 export const thresholdKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ThresholdKind"]> = ["relative_drop", "absolute_drop", "attack_success_rate"];
 export const trajectoryPointScopeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["TrajectoryPoint"]["scope"]> = ["subset", "full"];
 export const userStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["UserStatus"]> = ["pending", "active", "rejected", "disabled"];
+export const workerDirectiveActionValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["WorkerDirective"]["action"]> = ["continue", "cancel", "stop_limit"];
 export type operations = Record<string, never>;

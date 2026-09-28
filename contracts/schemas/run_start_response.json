@@ -181,6 +181,133 @@
       "title": "RunMetrics",
       "type": "object"
     },
+    "RunResult": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "run_id": {
+          "format": "uuid",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "experiment_id": {
+          "format": "uuid",
+          "title": "Experiment Id",
+          "type": "string"
+        },
+        "fingerprint": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Fingerprint",
+          "type": "string"
+        },
+        "attack_spec_id": {
+          "format": "uuid",
+          "title": "Attack Spec Id",
+          "type": "string"
+        },
+        "level": {
+          "title": "Level",
+          "type": "number"
+        },
+        "status": {
+          "$ref": "#/$defs/RunStatus"
+        },
+        "status_reason": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StatusReason"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "progress": {
+          "$ref": "#/$defs/Progress"
+        },
+        "metrics": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RunMetrics"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "gpu_seconds": {
+          "minimum": 0,
+          "title": "Gpu Seconds",
+          "type": "number"
+        },
+        "cost": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Cost"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "null với máy local"
+        },
+        "failure_case_ids": {
+          "items": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "title": "Failure Case Ids",
+          "type": "array"
+        },
+        "manifest_uri": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Manifest Uri"
+        },
+        "cached_from_run_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Run gốc khi status = skipped với code = cached (Phase 3)",
+          "title": "Cached From Run Id"
+        }
+      },
+      "required": [
+        "run_id",
+        "experiment_id",
+        "fingerprint",
+        "attack_spec_id",
+        "level",
+        "status",
+        "progress",
+        "gpu_seconds",
+        "failure_case_ids"
+      ],
+      "title": "RunResult",
+      "type": "object"
+    },
     "RunStatus": {
       "enum": [
         "queued",
@@ -247,100 +374,13 @@
   },
   "additionalProperties": false,
   "properties": {
-    "schema_version": {
-      "const": 1,
-      "default": 1,
-      "title": "Schema Version",
-      "type": "integer"
-    },
-    "run_id": {
-      "format": "uuid",
-      "title": "Run Id",
-      "type": "string"
-    },
-    "experiment_id": {
-      "format": "uuid",
-      "title": "Experiment Id",
-      "type": "string"
-    },
-    "fingerprint": {
-      "pattern": "^[0-9a-f]{64}$",
-      "title": "Fingerprint",
-      "type": "string"
-    },
-    "attack_spec_id": {
-      "format": "uuid",
-      "title": "Attack Spec Id",
-      "type": "string"
-    },
-    "level": {
-      "title": "Level",
-      "type": "number"
-    },
-    "status": {
-      "$ref": "#/$defs/RunStatus"
-    },
-    "status_reason": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/StatusReason"
-        },
-        {
-          "type": "null"
-        }
+    "action": {
+      "enum": [
+        "run",
+        "skip_cached"
       ],
-      "default": null
-    },
-    "progress": {
-      "$ref": "#/$defs/Progress"
-    },
-    "metrics": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/RunMetrics"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null
-    },
-    "gpu_seconds": {
-      "minimum": 0,
-      "title": "Gpu Seconds",
-      "type": "number"
-    },
-    "cost": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/Cost"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "null với máy local"
-    },
-    "failure_case_ids": {
-      "items": {
-        "format": "uuid",
-        "type": "string"
-      },
-      "title": "Failure Case Ids",
-      "type": "array"
-    },
-    "manifest_uri": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Manifest Uri"
+      "title": "Action",
+      "type": "string"
     },
     "cached_from_run_id": {
       "anyOf": [
@@ -353,21 +393,25 @@
         }
       ],
       "default": null,
-      "description": "Run gốc khi status = skipped với code = cached (Phase 3)",
+      "description": "Chỉ có khi skip_cached",
       "title": "Cached From Run Id"
+    },
+    "cached_result": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RunResult"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Kết quả của run gốc (completed); chỉ có khi skip_cached"
     }
   },
   "required": [
-    "run_id",
-    "experiment_id",
-    "fingerprint",
-    "attack_spec_id",
-    "level",
-    "status",
-    "progress",
-    "gpu_seconds",
-    "failure_case_ids"
+    "action"
   ],
-  "title": "RunResult",
+  "title": "RunStartResponse",
   "type": "object"
 }

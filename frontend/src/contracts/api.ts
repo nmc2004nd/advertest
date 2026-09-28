@@ -304,9 +304,29 @@ export interface paths {
         put?: never;
         /**
          * Lease
-         * @description Nhận experiment kế tiếp dành cho máy này.
+         * @description Nhận experiment `queued` cũ nhất của target (hoặc experiment có lease đã hết hạn).
          */
         post: operations["lease_internal_worker_lease_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/worker/experiments/{experiment_id}/bundle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Bundle
+         * @description Mọi thứ cần để chạy experiment, kèm presigned URL tải (hết hạn sau 15 phút).
+         */
+        get: operations["get_bundle_internal_worker_experiments__experiment_id__bundle_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -322,8 +342,31 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Heartbeat */
+        /**
+         * Heartbeat
+         * @description Gia hạn lease 60 giây.
+         */
         post: operations["heartbeat_internal_worker_heartbeat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/worker/runs/{run_id}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Run
+         * @description Chạy run, hoặc bỏ qua khi đã có run `completed` cùng fingerprint.
+         */
+        post: operations["start_run_internal_worker_runs__run_id__start_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -341,7 +384,7 @@ export interface paths {
         put?: never;
         /**
          * Report Progress
-         * @description Cập nhật tiến độ và checkpoint.
+         * @description Báo tiến độ sau mỗi batch; cộng dồn thời gian xử lý.
          */
         post: operations["report_progress_internal_worker_runs__run_id__progress_post"];
         delete?: never;
@@ -361,7 +404,7 @@ export interface paths {
         put?: never;
         /**
          * Artifact Url
-         * @description Xin presigned URL để upload artifact.
+         * @description Presigned URL (PUT, GET, DELETE) cho một khóa nằm trong `runs/<run_id>/`.
          */
         post: operations["artifact_url_internal_worker_runs__run_id__artifact_url_post"];
         delete?: never;
@@ -381,9 +424,29 @@ export interface paths {
         put?: never;
         /**
          * Complete Run
-         * @description Gửi RunResult cuối cùng.
+         * @description Kết quả cuối của run kèm failure case.
          */
         post: operations["complete_run_internal_worker_runs__run_id__complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/worker/cost-profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Cost Profile
+         * @description Cost profile đo bằng calibration cho target của token.
+         */
+        post: operations["submit_cost_profile_internal_worker_cost_profiles_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -411,6 +474,41 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ArtifactUrlRequest */
+        ArtifactUrlRequest: {
+            /**
+             * Lease Id
+             * Format: uuid
+             */
+            lease_id: string;
+            /**
+             * Key
+             * @description Khóa đầy đủ, phải nằm trong runs/<run_id>/
+             */
+            key: string;
+            /**
+             * Method
+             * @enum {string}
+             */
+            method: "PUT" | "GET" | "DELETE";
+        };
+        /** ArtifactUrlResponse */
+        ArtifactUrlResponse: {
+            /** Key */
+            key: string;
+            /**
+             * Method
+             * @enum {string}
+             */
+            method: "PUT" | "GET" | "DELETE";
+            /** Url */
+            url: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+        };
         /**
          * AttackAccess
          * @enum {string}
@@ -489,11 +587,197 @@ export interface components {
              */
             spec_sha256: string;
         };
+        /** BundleCheckpoint */
+        BundleCheckpoint: {
+            /**
+             * Batch Index
+             * @description Batch cuối cùng đã xử lý xong
+             */
+            batch_index: number;
+            /** Key */
+            key: string;
+            /** Url */
+            url: string;
+        };
+        /**
+         * BundleDownloads
+         * @description Presigned GET URL cho tài nguyên của job.
+         */
+        BundleDownloads: {
+            /** Weights */
+            weights: string;
+            /** Dataset Manifest */
+            dataset_manifest: string;
+            /**
+             * Images
+             * @description image_id → URL, đúng các ảnh của slice
+             */
+            images: {
+                [key: string]: string;
+            };
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+        };
+        /** BundleLimit */
+        BundleLimit: {
+            kind: components["schemas"]["LimitKind"];
+            /**
+             * Value
+             * @description Tiền (budget) hoặc giây (time)
+             */
+            value: string;
+            /**
+             * Used
+             * @description Đã dùng: giây xử lý cộng dồn hoặc tiền
+             */
+            used: string;
+        };
+        /** BundleRun */
+        BundleRun: {
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            /**
+             * Attack Spec Id
+             * Format: uuid
+             */
+            attack_spec_id: string;
+            /** Level */
+            level: number;
+            /** Seed */
+            seed: number;
+            status: components["schemas"]["RunStatus"];
+            /** Images Done */
+            images_done: number;
+            /** Images Total */
+            images_total: number;
+            /** @description Checkpoint mới nhất khi đang chạy dở */
+            checkpoint: components["schemas"]["BundleCheckpoint"] | null;
+        };
+        /**
+         * CaseArtifacts
+         * @description Khóa lưu trữ (LocalStore ở Phase 2, MinIO từ Phase 3) của ảnh PNG letterbox.
+         */
+        CaseArtifacts: {
+            /** Clean Png */
+            clean_png: string;
+            /** Adversarial Png */
+            adversarial_png: string;
+            /**
+             * Perturbation Png
+             * @description Ảnh nhiễu khuếch đại
+             */
+            perturbation_png: string;
+            /**
+             * Clean Thumb
+             * @description Thumbnail WebP rộng 320 px (Phase 3); null khi chạy bằng CLI, bắt buộc qua worker
+             */
+            clean_thumb?: string | null;
+            /**
+             * Adversarial Thumb
+             * @description Thumbnail WebP rộng 320 px (Phase 3); null khi chạy bằng CLI, bắt buộc qua worker
+             */
+            adversarial_thumb?: string | null;
+        };
+        /**
+         * CaseBox
+         * @description Box trong failure case: xyxy pixel trong không gian letterbox.
+         */
+        CaseBox: {
+            /** Bbox */
+            bbox: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /**
+             * Class Name
+             * @description Class đích của mapping
+             */
+            class_name: string;
+            /**
+             * Score
+             * @description null với ground truth, bắt buộc với prediction
+             */
+            score: number | null;
+        };
+        /** CaseDetections */
+        CaseDetections: {
+            /** Ground Truth */
+            ground_truth: components["schemas"]["CaseBox"][];
+            /** Clean */
+            clean: components["schemas"]["CaseBox"][];
+            /** Attacked */
+            attacked: components["schemas"]["CaseBox"][];
+            /** Ignore Regions */
+            ignore_regions: components["schemas"]["CaseIgnoreRegion"][];
+        };
+        /** CaseIgnoreRegion */
+        CaseIgnoreRegion: {
+            /**
+             * Bbox
+             * @description xyxy pixel trong không gian letterbox
+             */
+            bbox: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /** Source */
+            source: string;
+        };
         /**
          * CaseSeverity
          * @enum {string}
          */
         CaseSeverity: "critical" | "major" | "minor" | "acceptable";
+        /** ClassMapping */
+        ClassMapping: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /** Dataset Version Sha256 */
+            dataset_version_sha256: string;
+            /**
+             * Model Id
+             * Format: uuid
+             */
+            model_id: string;
+            /**
+             * Preset
+             * @description Ví dụ kitti-coco; null khi tự tạo
+             */
+            preset: string | null;
+            /**
+             * Classes
+             * @description Class gốc → class model; null thành ignore region unmapped:<class>
+             */
+            classes: {
+                [key: string]: string | null;
+            };
+            /** @description null là không lọc theo độ khó */
+            difficulty: components["schemas"]["DifficultyFilter"] | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Mapping Sha256
+             * @description Hash của mọi trường trừ id và chính nó
+             */
+            mapping_sha256: string;
+        };
         /** ClassRunMetrics */
         ClassRunMetrics: {
             /** Clean Ap50 */
@@ -528,6 +812,48 @@ export interface components {
              */
             cpu_only: boolean;
         };
+        /**
+         * CostProfile
+         * @description Chi phí đo bằng calibration, riêng cho từng (compute target, model, attack).
+         */
+        CostProfile: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /**
+             * Compute Target Id
+             * Format: uuid
+             */
+            compute_target_id: string;
+            /**
+             * Model Version Id
+             * Format: uuid
+             */
+            model_version_id: string;
+            /**
+             * Attack Spec Id
+             * Format: uuid
+             */
+            attack_spec_id: string;
+            /** Sec Per Image */
+            sec_per_image: number;
+            /**
+             * Peak Vram Mb
+             * @description 0 khi chạy trên CPU
+             */
+            peak_vram_mb: number;
+            /** Batch Size */
+            batch_size: number;
+            /**
+             * Measured At
+             * Format: date-time
+             */
+            measured_at: string;
+            environment: components["schemas"]["Environment"];
+        };
         /** DependencyStatus */
         DependencyStatus: {
             /** Ok */
@@ -537,6 +863,48 @@ export interface components {
              * @description Lý do khi ok = false
              */
             detail?: string | null;
+        };
+        /**
+         * DifficultyFilter
+         * @description Ngưỡng độ khó (mức Moderate của KITTI: 25, 1, 0.30). Ngưỡng tính cả biên: GT được giữ khi
+         *     đạt cả ba điều kiện, không đạt thì thành ignore region `difficulty:<class>`.
+         */
+        DifficultyFilter: {
+            /**
+             * Min Height Px
+             * @description Giữ khi chiều cao bbox (y2 - y1, pixel ảnh gốc) >= min_height_px
+             */
+            min_height_px: number;
+            /**
+             * Max Occluded
+             * @description Giữ khi occluded <= max_occluded
+             */
+            max_occluded: number;
+            /**
+             * Max Truncated
+             * @description Giữ khi truncated <= max_truncated
+             */
+            max_truncated: number;
+        };
+        /**
+         * Environment
+         * @description Máy đã chạy run. Không thuộc fingerprint.
+         */
+        Environment: {
+            /**
+             * Compute Target Id
+             * @description null khi chạy bằng CLI
+             */
+            compute_target_id: string | null;
+            /**
+             * Gpu Model
+             * @description null khi chạy trên CPU
+             */
+            gpu_model: string | null;
+            /** Cuda Version */
+            cuda_version: string | null;
+            /** Driver Version */
+            driver_version: string | null;
         };
         /** ErrorBody */
         ErrorBody: {
@@ -548,7 +916,7 @@ export interface components {
          * ErrorCode
          * @enum {string}
          */
-        ErrorCode: "not_implemented";
+        ErrorCode: "not_implemented" | "unauthenticated" | "forbidden" | "not_found" | "conflict";
         /**
          * ErrorResponse
          * @description Body lỗi thống nhất của mọi endpoint: {"error": {"code", "message"}}.
@@ -636,6 +1004,102 @@ export interface components {
             attacks: components["schemas"]["AttackConfig"][];
             limit: components["schemas"]["Limit-Output"];
         };
+        /**
+         * FailureCaseRecord
+         * @description Một ảnh bị attack làm hỏng nặng trong một run (Phase 2).
+         */
+        FailureCaseRecord: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /**
+             * Id
+             * Format: uuid
+             * @description compute_failure_case_id(fingerprint, run_id, image_id)
+             */
+            id: string;
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            /**
+             * Fingerprint
+             * @description Fingerprint của run
+             */
+            fingerprint: string;
+            /** Image Id */
+            image_id: string;
+            /**
+             * Lost Objects
+             * @description Số object bị mất sau tấn công
+             */
+            lost_objects: number;
+            /**
+             * New False Positives
+             * @description Số detection sai mới xuất hiện
+             */
+            new_false_positives: number;
+            /**
+             * Severity Score
+             * @description lost_objects + 0.5 * new_false_positives; chỉ lưu case > 0
+             */
+            severity_score: number;
+            detections: components["schemas"]["CaseDetections"];
+            artifacts: components["schemas"]["CaseArtifacts"];
+        };
+        /** FingerprintInputs */
+        FingerprintInputs: {
+            /** Config Sha256 */
+            config_sha256: string;
+            /** Weights Sha256 */
+            weights_sha256: string;
+            /** Dataset Version Sha256 */
+            dataset_version_sha256: string;
+            /**
+             * Slice Id
+             * Format: uuid
+             */
+            slice_id: string;
+            /** Slice Sha256 */
+            slice_sha256: string;
+            /** Attack Spec Sha256 */
+            attack_spec_sha256: string;
+            /** Params */
+            params: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /** Seed */
+            seed: number;
+            /** Git Commit */
+            git_commit: string;
+            /**
+             * Git Dirty
+             * @description Working tree có thay đổi chưa commit lúc chạy
+             */
+            git_dirty: boolean;
+            lib_versions: components["schemas"]["LibVersions"];
+            /** Docker Image Digest */
+            docker_image_digest: string;
+        };
+        /** GradientCheck */
+        GradientCheck: {
+            /** Passed */
+            passed: boolean;
+            /**
+             * Checked At
+             * Format: date-time
+             */
+            checked_at: string;
+            /**
+             * Details
+             * @description Lý do khi passed = false
+             */
+            details?: string | null;
+        };
         /** GridConfig */
         GridConfig: {
             /** Levels */
@@ -667,7 +1131,49 @@ export interface components {
             postgres: components["schemas"]["DependencyStatus"];
             minio: components["schemas"]["DependencyStatus"];
         };
+        /** HeartbeatRequest */
+        HeartbeatRequest: {
+            /**
+             * Lease Id
+             * Format: uuid
+             */
+            lease_id: string;
+            /**
+             * Experiment Id
+             * Format: uuid
+             */
+            experiment_id: string;
+        };
+        /** InferenceParams */
+        InferenceParams: {
+            /** Conf */
+            conf: number;
+            /** Iou */
+            iou: number;
+            /** Max Det */
+            max_det: number;
+            /**
+             * Operating Conf
+             * @description Ngưỡng dùng cho tỷ lệ tấn công thành công
+             */
+            operating_conf: number;
+            /** Input Size */
+            input_size: number;
+        };
         JsonValue: unknown;
+        /** LibVersions */
+        LibVersions: {
+            /** Torch */
+            torch: string;
+            /** Art */
+            art: string;
+            /** Ultralytics */
+            ultralytics: string;
+            /** Torchmetrics */
+            torchmetrics: string;
+            /** Numpy */
+            numpy: string;
+        };
         /** Limit */
         "Limit-Input": {
             kind: components["schemas"]["LimitKind"];
@@ -697,6 +1203,48 @@ export interface components {
             map50: number;
             /** Map50 95 */
             map50_95: number;
+        };
+        /**
+         * ModelCard
+         * @description Model đã đăng ký. id = content_id(weights_sha256).
+         */
+        ModelCard: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Framework
+             * @enum {string}
+             */
+            framework: "ultralytics" | "torchvision";
+            /** Architecture */
+            architecture: string;
+            /** Weights Sha256 */
+            weights_sha256: string;
+            /**
+             * Class Names
+             * @description Theo thứ tự index của model
+             */
+            class_names: string[];
+            /** Input Size */
+            input_size: number;
+            /**
+             * Supports Gradients
+             * @description Chỉ true khi bài kiểm tra gradient pass
+             */
+            supports_gradients: boolean;
+            gradient_check: components["schemas"]["GradientCheck"];
+            lib_versions: components["schemas"]["LibVersions"];
         };
         /** PassCriterion */
         PassCriterion: {
@@ -734,6 +1282,28 @@ export interface components {
             /** Images Total */
             images_total: number;
         };
+        /** ProgressReport */
+        ProgressReport: {
+            /**
+             * Lease Id
+             * Format: uuid
+             */
+            lease_id: string;
+            /**
+             * Images Done
+             * @description Tổng số ảnh đã xử lý của run
+             */
+            images_done: number;
+            /** Batch Index */
+            batch_index: number;
+            /** Checkpoint Key */
+            checkpoint_key: string;
+            /**
+             * Processing Seconds Delta
+             * @description Thời gian xử lý từ lần báo trước; API cộng dồn
+             */
+            processing_seconds_delta: number;
+        };
         /** ProtocolBody */
         ProtocolBody: {
             /**
@@ -766,6 +1336,26 @@ export interface components {
             /** @description Cấu hình tìm kiếm tối thiểu */
             search?: components["schemas"]["SearchConfig"] | null;
         };
+        /**
+         * RunCompletion
+         * @description Body của `POST /runs/{id}/complete`.
+         */
+        RunCompletion: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /**
+             * Lease Id
+             * Format: uuid
+             */
+            lease_id: string;
+            run_result: components["schemas"]["RunResult-Input"];
+            /** Failure Cases */
+            failure_cases: components["schemas"]["FailureCaseRecord"][];
+        };
         /** RunMetrics */
         RunMetrics: {
             clean: components["schemas"]["MapPair"];
@@ -786,6 +1376,12 @@ export interface components {
             per_class?: {
                 [key: string]: components["schemas"]["ClassRunMetrics"];
             } | null;
+            /**
+             * Partial
+             * @description true khi metric chỉ tính trên phần ảnh đã xử lý (stopped_limit)
+             * @default false
+             */
+            partial: boolean;
         };
         /**
          * RunMode
@@ -831,6 +1427,11 @@ export interface components {
             failure_case_ids: string[];
             /** Manifest Uri */
             manifest_uri?: string | null;
+            /**
+             * Cached From Run Id
+             * @description Run gốc khi status = skipped với code = cached (Phase 3)
+             */
+            cached_from_run_id?: string | null;
         };
         /** RunResult */
         "RunResult-Output": {
@@ -871,6 +1472,38 @@ export interface components {
             failure_case_ids: string[];
             /** Manifest Uri */
             manifest_uri?: string | null;
+            /**
+             * Cached From Run Id
+             * @description Run gốc khi status = skipped với code = cached (Phase 3)
+             */
+            cached_from_run_id?: string | null;
+        };
+        /** RunStartRequest */
+        RunStartRequest: {
+            /**
+             * Lease Id
+             * Format: uuid
+             */
+            lease_id: string;
+            /** Fingerprint */
+            fingerprint: string;
+            fingerprint_inputs: components["schemas"]["FingerprintInputs"];
+            environment: components["schemas"]["Environment"];
+        };
+        /** RunStartResponse */
+        RunStartResponse: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "run" | "skip_cached";
+            /**
+             * Cached From Run Id
+             * @description Chỉ có khi skip_cached
+             */
+            cached_from_run_id?: string | null;
+            /** @description Kết quả của run gốc (completed); chỉ có khi skip_cached */
+            cached_result?: components["schemas"]["RunResult-Output"] | null;
         };
         /**
          * RunStatus
@@ -953,6 +1586,59 @@ export interface components {
          * @enum {string}
          */
         SkipReason: "cached" | "incompatible";
+        /**
+         * SliceFilter
+         * @description Bộ lọc tự mô tả, không phụ thuộc model hay mapping.
+         */
+        SliceFilter: {
+            /**
+             * Classes
+             * @description Class gốc được tính, sắp xếp, không trùng
+             */
+            classes: string[];
+            difficulty: components["schemas"]["DifficultyFilter"] | null;
+            /**
+             * Min Objects
+             * @default 1
+             */
+            min_objects: number;
+        };
+        /** SliceSpec */
+        SliceSpec: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Slice Sha256
+             * @description sha256 của dataset_version_sha256, filter, seed, size, image_ids
+             */
+            slice_sha256: string;
+            /** Dataset Version Sha256 */
+            dataset_version_sha256: string;
+            filter: components["schemas"]["SliceFilter"];
+            /** Seed */
+            seed: number;
+            /** Size */
+            size: number;
+            /**
+             * Image Ids
+             * @description Sắp xếp, không trùng, đúng size phần tử
+             */
+            image_ids: string[];
+            /**
+             * Image Ids Sha256
+             * @description sha256_of(image_ids)
+             */
+            image_ids_sha256: string;
+        };
         /** StatusReason */
         StatusReason: {
             /** Code */
@@ -1002,6 +1688,86 @@ export interface components {
             /** Context */
             ctx?: Record<string, never>;
         };
+        /** WorkerDirective */
+        WorkerDirective: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "continue" | "cancel" | "stop_limit";
+            /**
+             * Remaining Seconds
+             * @description Thời gian xử lý còn lại; null khi giới hạn là tiền
+             */
+            remaining_seconds: number | null;
+        };
+        /**
+         * WorkerJobBundle
+         * @description Mọi thứ worker cần để chạy một experiment (`GET /experiments/{id}/bundle`).
+         */
+        WorkerJobBundle: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /**
+             * Experiment Id
+             * Format: uuid
+             */
+            experiment_id: string;
+            config: components["schemas"]["ExperimentConfig-Output"];
+            model_card: components["schemas"]["ModelCard"];
+            slice: components["schemas"]["SliceSpec"];
+            class_mapping: components["schemas"]["ClassMapping"];
+            /** Attack Specs */
+            attack_specs: components["schemas"]["AttackSpec"][];
+            /** @description Thuộc fingerprint (config_sha256) */
+            inference_params: components["schemas"]["InferenceParams"];
+            /** Failure Cases Per Run */
+            failure_cases_per_run: number;
+            /**
+             * Cost Profiles
+             * @description Profile đã có của (target, model, attack); thiếu thì worker calibrate trước
+             */
+            cost_profiles: components["schemas"]["CostProfile"][];
+            downloads: components["schemas"]["BundleDownloads"];
+            limit: components["schemas"]["BundleLimit"];
+            /**
+             * Runs
+             * @description Theo thứ tự chạy
+             */
+            runs: components["schemas"]["BundleRun"][];
+        };
+        /**
+         * WorkerLease
+         * @description Trả về từ `POST /lease` (không có job thì `204`).
+         */
+        WorkerLease: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /**
+             * Experiment Id
+             * Format: uuid
+             */
+            experiment_id: string;
+            /**
+             * Lease Id
+             * Format: uuid
+             * @description Đổi mỗi lần lease; gửi kèm mọi request sau đó
+             */
+            lease_id: string;
+            /**
+             * Lease Expires At
+             * Format: date-time
+             */
+            lease_expires_at: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -1009,48 +1775,78 @@ export interface components {
     headers: never;
     pathItems: never;
 }
+export type ArtifactUrlRequest = components['schemas']['ArtifactUrlRequest'];
+export type ArtifactUrlResponse = components['schemas']['ArtifactUrlResponse'];
 export type AttackAccess = components['schemas']['AttackAccess'];
 export type AttackConfig = components['schemas']['AttackConfig'];
 export type AttackKind = components['schemas']['AttackKind'];
 export type AttackSpec = components['schemas']['AttackSpec'];
+export type BundleCheckpoint = components['schemas']['BundleCheckpoint'];
+export type BundleDownloads = components['schemas']['BundleDownloads'];
+export type BundleLimit = components['schemas']['BundleLimit'];
+export type BundleRun = components['schemas']['BundleRun'];
+export type CaseArtifacts = components['schemas']['CaseArtifacts'];
+export type CaseBox = components['schemas']['CaseBox'];
+export type CaseDetections = components['schemas']['CaseDetections'];
+export type CaseIgnoreRegion = components['schemas']['CaseIgnoreRegion'];
 export type CaseSeverity = components['schemas']['CaseSeverity'];
+export type ClassMapping = components['schemas']['ClassMapping'];
 export type ClassRunMetrics = components['schemas']['ClassRunMetrics'];
 export type CostInput = components['schemas']['Cost-Input'];
 export type CostOutput = components['schemas']['Cost-Output'];
 export type CostModel = components['schemas']['CostModel'];
+export type CostProfile = components['schemas']['CostProfile'];
 export type DependencyStatus = components['schemas']['DependencyStatus'];
+export type DifficultyFilter = components['schemas']['DifficultyFilter'];
+export type Environment = components['schemas']['Environment'];
 export type ErrorBody = components['schemas']['ErrorBody'];
 export type ErrorCode = components['schemas']['ErrorCode'];
 export type ErrorResponse = components['schemas']['ErrorResponse'];
 export type ExperimentConfigInput = components['schemas']['ExperimentConfig-Input'];
 export type ExperimentConfigOutput = components['schemas']['ExperimentConfig-Output'];
+export type FailureCaseRecord = components['schemas']['FailureCaseRecord'];
+export type FingerprintInputs = components['schemas']['FingerprintInputs'];
+export type GradientCheck = components['schemas']['GradientCheck'];
 export type GridConfig = components['schemas']['GridConfig'];
 export type HttpValidationError = components['schemas']['HTTPValidationError'];
 export type HealthResponse = components['schemas']['HealthResponse'];
+export type HeartbeatRequest = components['schemas']['HeartbeatRequest'];
+export type InferenceParams = components['schemas']['InferenceParams'];
 export type JsonValue = components['schemas']['JsonValue'];
+export type LibVersions = components['schemas']['LibVersions'];
 export type LimitInput = components['schemas']['Limit-Input'];
 export type LimitOutput = components['schemas']['Limit-Output'];
 export type LimitKind = components['schemas']['LimitKind'];
 export type MapPair = components['schemas']['MapPair'];
+export type ModelCard = components['schemas']['ModelCard'];
 export type PassCriterion = components['schemas']['PassCriterion'];
 export type PrimaryParam = components['schemas']['PrimaryParam'];
 export type Progress = components['schemas']['Progress'];
+export type ProgressReport = components['schemas']['ProgressReport'];
 export type ProtocolBody = components['schemas']['ProtocolBody'];
 export type RequiredAttack = components['schemas']['RequiredAttack'];
+export type RunCompletion = components['schemas']['RunCompletion'];
 export type RunMetrics = components['schemas']['RunMetrics'];
 export type RunMode = components['schemas']['RunMode'];
 export type RunResultInput = components['schemas']['RunResult-Input'];
 export type RunResultOutput = components['schemas']['RunResult-Output'];
+export type RunStartRequest = components['schemas']['RunStartRequest'];
+export type RunStartResponse = components['schemas']['RunStartResponse'];
 export type RunStatus = components['schemas']['RunStatus'];
 export type SearchConfig = components['schemas']['SearchConfig'];
 export type SearchResult = components['schemas']['SearchResult'];
 export type SearchStatus = components['schemas']['SearchStatus'];
 export type SkipReason = components['schemas']['SkipReason'];
+export type SliceFilter = components['schemas']['SliceFilter'];
+export type SliceSpec = components['schemas']['SliceSpec'];
 export type StatusReason = components['schemas']['StatusReason'];
 export type StopReason = components['schemas']['StopReason'];
 export type ThresholdKind = components['schemas']['ThresholdKind'];
 export type TrajectoryPoint = components['schemas']['TrajectoryPoint'];
 export type ValidationError = components['schemas']['ValidationError'];
+export type WorkerDirective = components['schemas']['WorkerDirective'];
+export type WorkerJobBundle = components['schemas']['WorkerJobBundle'];
+export type WorkerLease = components['schemas']['WorkerLease'];
 export type $defs = Record<string, never>;
 export interface operations {
     health_health_get: {
@@ -1622,7 +2418,54 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ExperimentConfig-Output"];
+                    "application/json": components["schemas"]["WorkerLease"];
+                };
+            };
+            /** @description Không có experiment nào chờ */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Chưa cài đặt */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_bundle_internal_worker_experiments__experiment_id__bundle_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkerJobBundle"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
             /** @description Chưa cài đặt */
@@ -1643,7 +2486,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HeartbeatRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -1651,7 +2498,60 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["WorkerDirective"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Chưa cài đặt */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    start_run_internal_worker_runs__run_id__start_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunStartRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunStartResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
             /** @description Chưa cài đặt */
@@ -1676,7 +2576,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Progress"];
+                "application/json": components["schemas"]["ProgressReport"];
             };
         };
         responses: {
@@ -1686,7 +2586,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["WorkerDirective"];
                 };
             };
             /** @description Validation Error */
@@ -1718,7 +2618,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArtifactUrlRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -1726,7 +2630,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ArtifactUrlResponse"];
                 };
             };
             /** @description Validation Error */
@@ -1760,18 +2664,56 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["RunResult-Input"];
+                "application/json": components["schemas"]["RunCompletion"];
             };
         };
         responses: {
             /** @description Successful Response */
-            200: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description Chưa cài đặt */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    submit_cost_profile_internal_worker_cost_profiles_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CostProfile"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

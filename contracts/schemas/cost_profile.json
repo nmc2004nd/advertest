@@ -1,0 +1,126 @@
+{
+  "$defs": {
+    "Environment": {
+      "additionalProperties": false,
+      "description": "Máy đã chạy run. Không thuộc fingerprint.",
+      "properties": {
+        "compute_target_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null khi chạy bằng CLI",
+          "title": "Compute Target Id"
+        },
+        "gpu_model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null khi chạy trên CPU",
+          "title": "Gpu Model"
+        },
+        "cuda_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cuda Version"
+        },
+        "driver_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Driver Version"
+        }
+      },
+      "required": [
+        "compute_target_id",
+        "gpu_model",
+        "cuda_version",
+        "driver_version"
+      ],
+      "title": "Environment",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Chi phí đo bằng calibration, riêng cho từng (compute target, model, attack).",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "compute_target_id": {
+      "format": "uuid",
+      "title": "Compute Target Id",
+      "type": "string"
+    },
+    "model_version_id": {
+      "format": "uuid",
+      "title": "Model Version Id",
+      "type": "string"
+    },
+    "attack_spec_id": {
+      "format": "uuid",
+      "title": "Attack Spec Id",
+      "type": "string"
+    },
+    "sec_per_image": {
+      "exclusiveMinimum": 0,
+      "title": "Sec Per Image",
+      "type": "number"
+    },
+    "peak_vram_mb": {
+      "description": "0 khi chạy trên CPU",
+      "minimum": 0,
+      "title": "Peak Vram Mb",
+      "type": "integer"
+    },
+    "batch_size": {
+      "exclusiveMinimum": 0,
+      "title": "Batch Size",
+      "type": "integer"
+    },
+    "measured_at": {
+      "format": "date-time",
+      "title": "Measured At",
+      "type": "string"
+    },
+    "environment": {
+      "$ref": "#/$defs/Environment"
+    }
+  },
+  "required": [
+    "compute_target_id",
+    "model_version_id",
+    "attack_spec_id",
+    "sec_per_image",
+    "peak_vram_mb",
+    "batch_size",
+    "measured_at",
+    "environment"
+  ],
+  "title": "CostProfile",
+  "type": "object"
+}

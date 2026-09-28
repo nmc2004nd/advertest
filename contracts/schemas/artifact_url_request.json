@@ -1,0 +1,32 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "lease_id": {
+      "format": "uuid",
+      "title": "Lease Id",
+      "type": "string"
+    },
+    "key": {
+      "description": "Khóa đầy đủ, phải nằm trong runs/<run_id>/",
+      "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]*(/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$",
+      "title": "Key",
+      "type": "string"
+    },
+    "method": {
+      "enum": [
+        "PUT",
+        "GET",
+        "DELETE"
+      ],
+      "title": "Method",
+      "type": "string"
+    }
+  },
+  "required": [
+    "lease_id",
+    "key",
+    "method"
+  ],
+  "title": "ArtifactUrlRequest",
+  "type": "object"
+}

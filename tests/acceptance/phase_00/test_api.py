@@ -28,6 +28,10 @@ WORKER_ENDPOINTS = {
     "/internal/worker/runs/{run_id}/artifact-url",
     "/internal/worker/runs/{run_id}/complete",
     "/internal/worker/experiments/{experiment_id}/search-result",
+    # Phase 3 (requirements.md, bảng API nội bộ cho worker).
+    "/internal/worker/experiments/{experiment_id}/bundle",
+    "/internal/worker/runs/{run_id}/start",
+    "/internal/worker/cost-profiles",
 }
 SAMPLE_ID = "00000000-0000-5000-8000-000000000001"
 
