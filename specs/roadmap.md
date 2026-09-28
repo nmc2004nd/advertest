@@ -59,7 +59,7 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 
 **Mục tiêu:** đo được mAP của model trên ảnh sạch. Đây là mốc bắt buộc của tuần 1.
 
-> Tồn đọng (người dùng cho phép đóng phase, cập nhật sau): 3 manual check cần GPU trong `validation.md` (eval trên GPU, lần hai trên GPU, VRAM và batch size lớn nhất); xác nhận CI xanh sau khi push `main`. Baseline hiện đo trên CPU.
+> Tồn đọng (người dùng cho phép đóng phase, cập nhật sau): 3 manual check cần GPU trong `validation.md` (eval trên GPU, lần hai trên GPU, VRAM và batch size lớn nhất). Baseline hiện đo trên CPU. CI đã xanh sau khi push `main` (người dùng xác nhận).
 
 - [x] Wrapper YOLO cho ART, có chế độ loss và predict.
 - [x] Bài kiểm tra gradient tự động cho wrapper.

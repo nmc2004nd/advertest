@@ -12,10 +12,10 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 - **Giao được:** CLI `advertest` chạy trọn `dataset import-kitti` → `model register` → `slice create` → `mapping create` → `eval` → `viz`; wrapper YOLOv8n cho ART (model luôn ở eval, bài kiểm tra gradient); converter KITTI, mapping `kitti-coco` có lọc Moderate, slice theo hash; mAP bằng torchmetrics/pycocotools theo `max_det`; cache prediction thô; kho `LocalStore` bất biến.
 - **Contract:** `ModelCard`, `CleanEvalResult`, `SliceSpec`, `ClassMapping`; `IgnoreRegion.source` chấp nhận `difficulty:`. Người duyệt đã chấp nhận.
 - **Số liệu cuối:** `make check` pass trên `main` (376 test Python, 94 test nghiệm thu gồm 42 của Phase 1, 36 test Vitest). Baseline KITTI (CPU): mAP@0.5 = 0.533, mAP@0.5:0.95 = 0.304; golden trên fixture 0.5186 / 0.3524.
-- **`validation.md`:** 42/42 Automated Tests; 4/7 Manual Checks; Definition of Done 4/6.
+- **`validation.md`:** 42/42 Automated Tests; 4/7 Manual Checks; Definition of Done 5/6.
+- **CI:** xanh sau khi push `main` gồm phần đóng phase (người dùng xác nhận); đánh dấu Definition of Done "Automated Tests pass trên CI".
 - **Tồn đọng (cập nhật khi có kết quả):**
   - 3 manual check cần GPU: `eval` trên GPU local (ghi `sec_per_image`, batch size), lần hai trên GPU (cache hit nhanh rõ rệt), theo dõi VRAM và batch size lớn nhất. Máy phát triển hiện không có GPU; baseline đang là số đo CPU.
-  - Definition of Done "Automated Tests pass trên CI": `main` chưa push; xác nhận khi CI xanh.
 - **Lưu ý:** các group của người duyệt (0, 6) và việc review, merge do agent làm thay theo ủy quyền của người dùng; review do chính agent đã viết code thực hiện nên không phải review độc lập.
 
 ### Replan sau Phase 1 — 2026-09-28

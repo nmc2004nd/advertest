@@ -71,7 +71,7 @@
 
 ## Definition of Done
 
-- [ ] Toàn bộ Automated Tests pass trên CI.
+- [x] Toàn bộ Automated Tests pass trên CI.
 - [ ] Toàn bộ Manual Checks đã thực hiện; baseline đã ghi lại.
 - [x] Người duyệt đã chấp nhận thay đổi contract (`ModelCard`, `CleanEvalResult`).
 - [x] Câu hỏi mở về baseline đã có câu trả lời hoặc đã chuyển vào backlog.
