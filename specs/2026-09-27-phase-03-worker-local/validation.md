@@ -39,6 +39,8 @@
 - [ ] Model không hỗ trợ gradient → run `skipped` (`incompatible`).
 - [ ] Ép một run ném ngoại lệ → run đó `failed` có thông điệp; run còn lại `completed`.
 - [ ] `RunResult` nhận từ worker cho run chưa `running` → bị từ chối.
+- [ ] Manifest do worker trong Docker tạo có `docker_image_digest` khác `"none"` và `git_dirty = false`.
+- [ ] Checkpoint không chứa dữ liệu ảnh; chạy tiếp từ checkpoint cho mAP và ASR trùng lần chạy liền mạch.
 
 ### Chạy tiếp sau gián đoạn — `test_resume.py`
 - [ ] Dừng worker sau batch k (mô phỏng chết đột ngột, không gọi `complete`); worker mới lease lại sau khi lease hết hạn và tiếp tục từ batch k+1.

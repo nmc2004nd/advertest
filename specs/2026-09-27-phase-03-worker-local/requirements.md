@@ -60,7 +60,10 @@ Cuối phase: gửi experiment, theo dõi tiến độ; tắt worker giữa ch�
 
 ### Executor dùng chung
 - Tách logic chạy run của Phase 2 thành `RunExecutor` với các bước: khởi tạo → xử lý từng batch → hoàn tất. Trạng thái sau mỗi batch tuần tự hóa được thành JSON (prediction theo ảnh, số liệu trung gian cho ASR và false positive, danh sách ứng viên failure case).
+- `RunExecutor` giữ nguyên các hành vi đã chốt ở Phase 2: áp lại mask sau `generate` (FGSM của ART bỏ qua mask), lọc prediction như pipeline mAP rồi ghép một-một, top-K ứng viên chép riêng ảnh (không giữ view của batch), lỗi khi dựng attack → run `failed`. Test nghiệm thu Phase 2 là thước đo.
+- Checkpoint chứa prediction sau tấn công **đã lọc class đích** (không chứa ảnh), thống kê từng ảnh (`ImageAttackStats`) và khóa ứng viên, để `finalize` tính lại mAP mà không chạy lại model.
 - CLI `advertest run` của Phase 2 dùng lại `RunExecutor` và cho kết quả như trước.
+- CLI giữ bố cục `LocalStore` của Phase 2 (`runs/<fingerprint>/`, `reruns/`, `attempts/`); MinIO dùng `runs/<run_id>/` vì quyết định cache nằm ở DB.
 - `ArtifactStore` có thêm cài đặt `MinioStore`; worker chỉ ghi qua presigned URL.
 
 ### Compute target và token
@@ -84,6 +87,8 @@ Cuối phase: gửi experiment, theo dõi tiến độ; tắt worker giữa ch�
 - Mọi thay đổi trạng thái do API thực hiện; worker không có thông tin đăng nhập DB hay MinIO.
 
 ### Luồng xử lý của worker
+- Fingerprint: image Docker của worker đặt biến `GIT_COMMIT` và `DOCKER_IMAGE_DIGEST` (Phase 2); chạy ngoài Docker thì lấy như CLI (`git rev-parse`, `git_dirty` bỏ qua `.ai-log/`).
+
 1. Gọi `lease` theo chu kỳ (mặc định 5 giây khi rảnh).
 2. Nhận bundle; tải model và ảnh của slice về cache local theo sha256 (chỉ tải ảnh chưa có).
 3. Nếu chưa có cost profile cho (target, model, attack), chạy calibration trước.
@@ -127,7 +132,7 @@ Cuối phase: gửi experiment, theo dõi tiến độ; tắt worker giữa ch�
 
 ### CLI quản trị (`advertest-admin`, chạy trong container `api`)
 - `import-local --store data/store`: đăng ký model, dataset version, slice, mapping từ `LocalStore` vào DB và MinIO. Chỉ upload ảnh thuộc các slice được đăng ký.
-- `submit --config <yaml> --target <name> [--time-limit s] --as <email>`: tạo experiment `queued` gắn protocol `dev-open`, lập danh sách run.
+- `submit --config <yaml> --target <name> [--time-limit s] --as <email>`: tạo experiment `queued` gắn protocol `dev-open`, lập danh sách run. `<yaml>` theo `LocalRunConfig` của Phase 2 (id là `content_id` nên trùng giữa `LocalStore` và DB sau `import-local`); `device`, `batch_size` bị bỏ qua (worker dùng cost profile).
 - `experiment list`, `experiment show <id> [--watch]`: trạng thái experiment, từng run, tiến độ, thời gian đã dùng.
 - `experiment cancel <id> --as <email>`.
 - Mỗi lệnh ghi thao tác vào `audit_log` với actor là người dùng trong `--as` (phải là admin `active`).
@@ -160,3 +165,4 @@ Cuối phase: gửi experiment, theo dõi tiến độ; tắt worker giữa ch�
 
 - [ ] Worker chạy trong Docker (cần nvidia-container-toolkit) hay trực tiếp trên máy: chọn cách mặc định cho máy phát triển.
 - [ ] Giới hạn thời gian mặc định cho máy local (đang đề xuất 2 giờ).
+- [ ] `FailureCaseRecord.id = content_id(fingerprint, image_id)` (Phase 2): hai run cùng fingerprint chạy đồng thời (hai worker, trước khi run đầu `completed`) sẽ tạo case trùng `id` trong bảng `failure_cases`. Chặn ở `start` (fingerprint đang `running` → chờ) hay cho `id` gồm `run_id`?
