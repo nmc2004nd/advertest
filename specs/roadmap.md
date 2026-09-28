@@ -74,7 +74,7 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 
 **Mục tiêu:** chạy FGSM/PGD từ đầu đến cuối, có đủ dữ liệu để tái lập.
 
-> Tồn đọng (người dùng cho phép đóng phase, cập nhật sau): 2 manual check cần GPU trong `validation.md` (thời gian mỗi ảnh và batch lớn nhất khi tính gradient, `--force` trên GPU); xác nhận CI xanh sau khi push `main`. Số liệu KITTI hiện đo trên CPU.
+> Tồn đọng (người dùng cho phép đóng phase, cập nhật sau): 2 manual check cần GPU trong `validation.md` (thời gian mỗi ảnh và batch lớn nhất khi tính gradient, `--force` trên GPU). Số liệu KITTI hiện đo trên CPU. CI đã xanh sau khi push `main` (người dùng xác nhận, 2026-09-29).
 
 - [x] Interface `Perturbation` và registry attack.
 - [x] FGSM và PGD (bước nhảy tỷ lệ theo eps).
