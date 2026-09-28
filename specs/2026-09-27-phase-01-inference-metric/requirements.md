@@ -71,7 +71,7 @@ Thêm 4 schema mới vào `contracts/`: `ModelCard` (model đã đăng ký), `Cl
 | `categories` | Danh sách class gốc của dataset |
 | `source` | `format` (`kitti`), `split`, thông tin converter |
 
-Hash của dataset version là sha256 của manifest đã chuẩn hóa (`canonical_json`). Schema: `DatasetManifest` trong `advertest_contracts.models` (đề xuất contract 002): `images` sắp theo `image_id`, `annotations` và `ignore_regions` sắp theo `image_id`. Manifest do converter tạo chỉ chứa ignore region `dont_care`; `unmapped:<class>` và `difficulty:<class>` sinh ra khi áp mapping.
+Hash của dataset version là sha256 của manifest đã chuẩn hóa (`canonical_json`). Schema: `DatasetManifest` trong `advertest_contracts.models` (đề xuất contract 002): `images` sắp theo `image_id`, `annotations` và `ignore_regions` sắp theo `image_id`. Manifest do converter tạo chỉ chứa ignore region `dont_care`; `unmapped:<class>` và `difficulty:<class>` sinh ra khi áp mapping. Converter KITTI ghi `categories` là 8 class cố định `Car`, `Van`, `Truck`, `Pedestrian`, `Person_sitting`, `Cyclist`, `Tram`, `Misc` (không gồm `DontCare`); class lạ trong file label thì báo lỗi. `file_name` tương đối với `--root` (ví dụ `image_2/000902.png`).
 
 ### Class mapping mặc định KITTI → COCO
 
@@ -83,7 +83,7 @@ Hash của dataset version là sha256 của manifest đã chuẩn hóa (`canonic
 | `Cyclist`, `Tram`, `Misc` | — | Chuyển thành ignore region |
 | `DontCare` | — | Chuyển thành ignore region |
 
-Lọc theo độ khó (mức Moderate của KITTI), áp dụng khi áp mapping: annotation của class đã map nhưng có chiều cao bbox < 25 pixel (ảnh gốc), hoặc `occluded` ≥ 2, hoặc `truncated` > 0.30, chuyển thành ignore region với `source = difficulty:<class gốc>`. Quy tắc và ngưỡng nằm trong file mapping, nên `mapping_sha256` bao gồm chúng.
+Lọc theo độ khó (mức Moderate của KITTI), áp dụng khi áp mapping: annotation của class đã map nhưng có chiều cao bbox < 25 pixel (ảnh gốc), hoặc `occluded` ≥ 2, hoặc `truncated` > 0.30, chuyển thành ignore region với `source = difficulty:<class gốc>`. Annotation thiếu thuộc tính `truncated` hoặc `occluded` thì không xét điều kiện tương ứng (liên quan dataset riêng ở Phase 10). Quy tắc và ngưỡng nằm trong file mapping, nên `mapping_sha256` bao gồm chúng.
 
 Class mapping là một file JSON riêng, theo schema `ClassMapping`:
 
@@ -119,6 +119,7 @@ Schema `SliceSpec` trong contract.
 - Cấu hình letterbox (giống nhau cho mọi ảnh) là hằng `LETTERBOX_CONFIG` trong `ml_core/preprocess/letterbox.py`: `size`, `pad_value`, `resample`, `align`. Khóa cache (Phase 1) và fingerprint (Phase 2) dùng hằng này, không dùng `scale`/`pad` riêng từng ảnh.
 - Lưu `scale` và `pad` để chuyển ngược tọa độ.
 - Ground truth và ignore region được chuyển sang không gian letterbox khi nạp; manifest luôn lưu tọa độ ảnh gốc.
+- Loader (`ml_core/data/loader.py`) trả batch gồm `image_ids`, `images` (N, 3, 640, 640) float32 [0, 1], `targets` (list dict `boxes` xyxy letterbox float32, `labels` là **chỉ số class trong model** theo `ModelCard.class_names`, int64), `ignore` (list dict `boxes` xyxy letterbox, `sources`) và `infos` (`LetterboxInfo`).
 
 ### Wrapper và estimator
 - Ở chế độ predict: nhận batch `(N, 3, 640, 640)` float32 [0, 1], trả list dict `{"boxes", "labels", "scores"}` theo quy ước `tech-stack.md` mục 2.1.
@@ -135,9 +136,11 @@ Schema `SliceSpec` trong contract.
 - Đăng ký lại cùng weights trả về card đã có (cùng `id`, giữ tên của lần đầu), không chạy lại bài kiểm tra; nếu `--name` khác thì CLI in cảnh báo.
 
 ### Dataset và slice
-- `advertest dataset import-kitti --root <dir> --split training` tạo manifest, lưu vào kho local, in ra `dataset_version_sha256`. Chạy lại trên cùng dữ liệu cho cùng hash.
-- `advertest slice create --dataset <sha> --size 300 --seed 42 [--preset kitti-coco]` tạo slice, không cần model hay mapping. Cùng tham số cho cùng `image_ids_sha256`.
-- `advertest mapping create --dataset <sha> --model <id> --preset kitti-coco` tạo class mapping.
+- `advertest dataset import-kitti --root <dir> --split training` tạo manifest, lưu vào kho local, in ra `dataset_version_sha256`. Chạy lại trên cùng dữ liệu cho cùng hash. `--root` trỏ thẳng tới thư mục chứa `image_2/` và `label_2/` (ví dụ `data/raw/kitti/training/` hoặc `tests/fixtures/kitti/`); `--split` chỉ là nhãn ghi vào manifest.
+- Import ghi thư mục gốc (đường dẫn tuyệt đối) vào store tại `datasets/<sha>/sources/<sha256(đường dẫn)>.json`; import cùng dữ liệu từ thư mục khác thêm một nguồn mới. Loader thử từng nguồn và kiểm tra sha256 từng ảnh với manifest khi nạp; không nguồn nào khớp thì báo lỗi. Phase 3 thay cách này bằng ảnh lưu theo nội dung trên MinIO.
+- `advertest slice create --dataset <sha> --size 300 --seed 42 [--preset kitti-coco]` tạo slice, không cần model hay mapping. Cùng tham số cho cùng `image_ids_sha256`. Lấy mẫu bằng `random.Random(seed).sample` trên danh sách ảnh hợp lệ đã sắp xếp, rồi sắp xếp lại; tái tạo từ seed phụ thuộc Python 3.11, còn nội dung slice luôn tái lập được nhờ `image_ids` được lưu và hash.
+- `advertest mapping create --dataset <sha> --model <id> --preset kitti-coco` tạo class mapping; báo lỗi nếu dataset hoặc model chưa có trong store, hoặc class đích không có trong `ModelCard.class_names`.
+- Các lệnh `dataset`, `slice`, `mapping` in kết quả dạng JSON ra stdout (`import-kitti` in `dataset_version_sha256`, `id`, số ảnh, số annotation, số ignore region; `slice create` in `SliceSpec`; `mapping create` in `ClassMapping`). Lỗi dữ liệu in `Lỗi: …` ra stderr và thoát mã 1.
 
 ### Đánh giá
 - `advertest eval --model <id> --slice <id> --mapping <id> [--device] [--batch-size] --out <file>` xuất `CleanEvalResult`.
