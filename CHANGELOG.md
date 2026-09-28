@@ -27,6 +27,12 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 #### Tồn đọng
 - Lỗ hổng độ phủ chưa có mục trong `validation.md`: nhãn cho attack là ground truth, `new_false_positives` trừ số trên ảnh sạch, mAP sạch từ cache, `experiment_id`, `environment`/`gpu_seconds`/`cost`, `inference_params` đổi fingerprint, `run show`, nội dung PNG nhiễu.
 
+### Replan sau Phase 2 — 2026-09-28
+- Phase 3 `requirements.md`: `RunExecutor` giữ hành vi Phase 2 (mask áp lại sau `generate`, lọc/ghép prediction, top-K chép riêng ảnh, lỗi khi dựng attack → `failed`); checkpoint chứa prediction đã lọc class đích, không chứa ảnh; CLI giữ bố cục `runs/<fingerprint>/`, MinIO dùng `runs/<run_id>/`; image worker đặt `GIT_COMMIT`, `DOCKER_IMAGE_DIGEST`; `submit --config` dùng `LocalRunConfig`; câu hỏi mở mới về `FailureCaseRecord.id` trùng khi hai run cùng fingerprint chạy đồng thời.
+- Phase 3 `plan.md` task 5 và 32; `validation.md` thêm 2 test (manifest trong Docker, checkpoint không chứa ảnh).
+- `roadmap.md`: thêm mục "(Từ Phase 2)" cho Phase 3, 6 (lưới mịn ở eps nhỏ), 7 (khoảng tìm kiếm bắt đầu dưới 1/255), 8 (report ghi eps trên ảnh float letterbox, xem lại số failure case).
+- Rủi ro: checkpoint nặng nếu lưu prediction thô; YOLOv8n trên ảnh float bão hòa ở mọi mức eps của catalog; thời gian và batch size trên GPU vẫn chưa đo (calibration Phase 3 là lần đo đầu tiên).
+
 ### Phase 2 — Group 4 (người duyệt) — 2026-09-28
 #### Thêm
 - Test nghiệm thu `tests/acceptance/phase_02/` (58 test: Chung, Tính đúng của attack, Metric, Failure case, Fingerprint/manifest/cache, Trạng thái), chạy trên fixture thật bằng CPU; luồng dựng qua CLI trong store tạm; khoảng 1 phút 40 giây cả bộ nghiệm thu.
