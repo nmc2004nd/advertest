@@ -6,7 +6,8 @@ import re
 from typing import Protocol, runtime_checkable
 
 # Key là đường dẫn tương đối kiểu POSIX: các đoạn gồm chữ, số, `.`, `_`, `-`, cách nhau bởi `/`.
-_SEGMENT = re.compile(r"^[A-Za-z0-9._-]+$")
+# Đoạn không được bắt đầu bằng `.`: tên ẩn dành cho file tạm của store (`.tmp-*`).
+_SEGMENT = re.compile(r"^[A-Za-z0-9_-][A-Za-z0-9._-]*$")
 
 
 class KeyNotFoundError(KeyError):
@@ -20,7 +21,7 @@ class KeyConflictError(ValueError):
 def validate_key(key: str) -> str:
     """Trả lại key nếu hợp lệ; báo `ValueError` nếu key có thể thoát khỏi gốc của store."""
     segments = key.split("/")
-    if not key or any(not _SEGMENT.fullmatch(s) or s in {".", ".."} for s in segments):
+    if not key or any(not _SEGMENT.fullmatch(s) for s in segments):
         raise ValueError(f"Key không hợp lệ: {key!r}")
     return key
 

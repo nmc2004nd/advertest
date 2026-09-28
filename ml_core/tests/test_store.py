@@ -60,7 +60,20 @@ def test_list_empty_store(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    "key", ["", "/abs/path", "../escape", "a/../b", "a//b", "a/./b", "a\\b", "a/b/", "có dấu"]
+    "key",
+    [
+        "",
+        "/abs/path",
+        "../escape",
+        "a/../b",
+        "a//b",
+        "a/./b",
+        "a\\b",
+        "a/b/",
+        "có dấu",
+        "a/.tmp-x",  # tên ẩn dành cho file tạm, list() không thấy
+        ".hidden",
+    ],
 )
 def test_invalid_keys_rejected(store: LocalStore, key: str) -> None:
     with pytest.raises(ValueError):
@@ -86,3 +99,8 @@ def test_id_index_is_per_kind(store: LocalStore) -> None:
 def test_resolve_unknown_id(store: LocalStore) -> None:
     with pytest.raises(KeyNotFoundError):
         resolve_id(store, "dataset", uuid4())
+
+
+def test_dots_inside_segment_allowed(store: LocalStore) -> None:
+    store.put("models/abc/card.v1.json", b"x")
+    assert store.list("models/") == ["models/abc/card.v1.json"]
