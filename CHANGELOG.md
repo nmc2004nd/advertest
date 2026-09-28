@@ -6,7 +6,7 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 3 — Worker và máy local
 
-**Trạng thái:** đang làm. Group 0 xong trên nhánh `phase03-reviewer-g0` (chưa merge).
+**Trạng thái:** đang làm. Group 0 đã merge.
 
 ### Phase 3 — Group 0 (người duyệt) — 2026-09-29
 #### Contract
@@ -19,7 +19,9 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 - `httpx==0.28.1` thành dependency chính; package `advertest_worker` (`backend/worker/advertest_worker/`, mới có `__init__.py`), script `advertest-worker = advertest_worker.cli:app` (Group 4 viết `cli.py`); mypy, ruff khai package mới.
 #### Thay đổi
 - Test nghiệm thu Phase 0: danh sách enum (`ErrorCode`, `ProtocolStatus`) và endpoint worker theo Phase 3. Phase 2: `test_case_id_is_uuid5_of_fingerprint_run_and_image`.
-- Ngoài thư mục người duyệt (người dùng cho phép): `ml_core/runner/run.py` truyền `run_id` vào `compute_failure_case_id` (1 dòng); `backend/app/tests/api/test_skeleton.py` cập nhật danh sách endpoint worker và gọi thử `GET bundle` thay cho heartbeat/artifact-url (nay có body bắt buộc).
+- Ngoài thư mục người duyệt (người dùng cho phép): `ml_core/runner/run.py` truyền `run_id` vào `compute_failure_case_id` (1 dòng); `backend/app/tests/api/test_skeleton.py` cập nhật danh sách endpoint worker, gọi thử heartbeat và artifact-url kèm body từ `contracts/mocks` (nay có body bắt buộc), thêm `GET bundle`.
+#### Review
+- Review nhanh (do chính agent viết nhánh, không độc lập): 2 điểm phải sửa trước khi merge, đã sửa: `test_skeleton.py` gọi thử lại đủ heartbeat, artifact-url; `validation.md` ghi `RunCompletion` thay `RunResult`. `make check` pass (525 test Python, 153 test nghiệm thu, 36 Vitest); `make test-db` 41 test pass.
 #### Quyết định (người dùng chốt; đã ghi vào `requirements.md` Phase 3)
 - Lease có `lease_id`; request của worker gửi kèm, `lease_id` cũ → `409` (`validation.md` thêm 1 mục).
 - `artifact-url` cấp presigned `PUT`, `GET`, `DELETE`; worker tự chép ứng viên sang `cases/` và xóa phần thừa.
