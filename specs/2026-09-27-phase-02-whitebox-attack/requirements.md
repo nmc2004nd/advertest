@@ -156,6 +156,6 @@ CLI đọc file YAML (PyYAML, `yaml.safe_load`) theo schema `LocalRunConfig` tro
 
 ## Open Questions
 
-- [ ] Dải `eps` của `pgd_l2` (0–16) cần hiệu chỉnh sau khi có kết quả thật trên KITTI.
-- [ ] Số failure case mỗi run (mặc định 20) có đủ cho reviewer không.
+- [x] Dải `eps` của `pgd_l2` (0–16) cần hiệu chỉnh sau khi có kết quả thật trên KITTI. → Giữ dải (người dùng chốt, 2026-09-28): `[min, max]` là giới hạn an toàn, `level` là số thực nên quét được giá trị nhỏ. Trên KITTI (YOLOv8n, 300 ảnh) mAP bão hòa rất sớm: `pgd_l2` eps 1 sụt 90%, eps 2 sụt 97%; `pgd_linf` eps 2/255 sụt 98%; `fgsm` eps 4/255 sụt 67%. Vùng hữu ích để quét và tìm ngưỡng: `pgd_l2` dưới 1, `pgd_linf` dưới 2/255. Chuyển cho Phase 6 (lưới thô → mịn) và Phase 7 (khoảng tìm kiếm mặc định).
+- [x] Số failure case mỗi run (mặc định 20) có đủ cho reviewer không. → Giữ 20; xem lại ở Phase 8 khi có trang review (người dùng chốt, 2026-09-28). Trên KITTI mọi run đều có đủ 20 case có `severity_score > 0`.
 - [x] Preset `kitti-coco`: có map thêm class `bus` của model cho `Truck` của KITTI không (Phase 1: AP `truck` = 0.188 vì KITTI gán `Truck` cả cho xe buýt). → Giữ nguyên, xem Decisions (2026-09-28).

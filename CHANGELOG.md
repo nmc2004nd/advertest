@@ -6,7 +6,7 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 2 — Attack white-box đầu tiên
 
-**Trạng thái:** đang làm. Group 0–3 đã merge (2026-09-28); tiếp theo Group 4 (người duyệt).
+**Trạng thái:** đang làm. Group 0–3 đã merge; Group 4 xong trên nhánh `phase02-reviewer-g4`, chờ người dùng cho phép merge (2026-09-28).
 
 ### Phase 2 — kickoff (spec) — 2026-09-28
 #### Thay đổi
@@ -16,6 +16,40 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 - Manual check cần GPU chạy trên CPU; phần GPU là tồn đọng (`validation.md` Phase 2).
 #### Tồn đọng
 - Lỗ hổng độ phủ chưa có mục trong `validation.md`: nhãn cho attack là ground truth, `new_false_positives` trừ số trên ảnh sạch, mAP sạch từ cache, `experiment_id`, `environment`/`gpu_seconds`/`cost`, `inference_params` đổi fingerprint, `run show`, nội dung PNG nhiễu.
+
+### Phase 2 — Group 4 (người duyệt) — 2026-09-28
+#### Thêm
+- Test nghiệm thu `tests/acceptance/phase_02/` (58 test: Chung, Tính đúng của attack, Metric, Failure case, Fingerprint/manifest/cache, Trạng thái), chạy trên fixture thật bằng CPU; luồng dựng qua CLI trong store tạm; khoảng 1 phút 40 giây cả bộ nghiệm thu.
+- Golden value `tests/fixtures/golden/phase_02.json`: mAP@0.5 sạch 0.5186; `fgsm` eps 4: mAP@0.5 0.2231, ASR 0.6; `pgd_linf` eps 4: mAP@0.5 0.0016, ASR 0.9333; sai số ±0.01.
+- `validation.md`: 9 mục bổ sung độ phủ (nhãn attack là ground truth, FP mới trừ số ảnh sạch và bỏ class không đích, mAP sạch từ cache, `experiment_id`, `environment`/`gpu_seconds`/`cost`, `inference_params` đổi fingerprint, `run show`, bảng tóm tắt, ảnh nhiễu ở vùng pad) và bố cục `attempts/`.
+#### Thay đổi
+- `requirements.md`: ghi các quyết định của Group 1–3 (mask áp lại sau `generate`, `level` ngoài dải, lọc và ghép prediction, bố cục store, đầu ra CLI, box trong failure case, `DOCKER_IMAGE_DIGEST`, `GIT_COMMIT`); trả lời 2 câu hỏi mở.
+- Sửa lỗi import vòng `ml_core.runner.run` ↔ `ml_core.cli` (vai trò ml-core, nhánh `phase02-ml-core-fix`, đã merge): phát hiện khi viết test nghiệm thu.
+#### Số liệu đo được (KITTI, slice 300 ảnh seed 42, YOLOv8n, CPU 16 luồng, batch 8, seed 0)
+- mAP@0.5 sạch 0.5332, mAP@0.5:0.95 sạch 0.3042 (khớp baseline Phase 1, lấy từ cache).
+
+| Attack | eps | mAP@0.5 | Relative drop | ASR |
+|---|---|---|---|---|
+| `pgd_linf` | 2/255 | 0.0123 | 0.977 | 0.767 |
+| `pgd_linf` | 4/255 | 0.0017 | 0.997 | 0.903 |
+| `pgd_linf` | 8/255 | 0.0005 | 0.999 | 0.948 |
+| `pgd_linf` | 16/255 | 0.0001 | 1.000 | 0.984 |
+| `fgsm` | 4/255 | 0.1765 | 0.669 | 0.438 |
+| `fgsm` | 8/255 | 0.1631 | 0.694 | 0.481 |
+| `pgd_l2` | 1 | 0.0556 | 0.896 | 0.623 |
+| `pgd_l2` | 2 | 0.0142 | 0.973 | 0.790 |
+| `pgd_l2` | 4 | 0.0037 | 0.993 | 0.872 |
+| `pgd_l2` | 8 | 0.0010 | 0.998 | 0.932 |
+
+- Thời gian: PGD 1.3 s/ảnh (L∞ và L2), FGSM 0.17 s/ảnh; sweep `pgd_sweep.yaml` 48 phút (2 mức đầu chậm hơn vì test chạy song song), `pgd_l2` 26 phút; RAM tối đa 3.3 GB.
+- Chạy lại với `--force`: 6 run trùng tuyệt đối với lần đầu (mAP, ASR, danh sách failure case), cùng fingerprint, ghi vào `reruns/`. `git_dirty = false` (chạy từ worktree sạch tại `6554445`).
+- Failure case (`pgd_linf` eps 8, 5 case xem bằng mắt): box ground truth, prediction và ignore region khớp ảnh; nhiễu không nhìn thấy trên ảnh sau tấn công; ảnh nhiễu khuếch đại chỉ có nhiễu trong vùng ảnh thật (vùng pad = 128). Sau tấn công xe biến mất và xuất hiện 40–52 detection sai, phần lớn trên nền.
+#### Quyết định (người dùng chốt)
+- Giữ dải eps của catalog; vùng hữu ích nằm dưới `pgd_l2` eps 1 và `pgd_linf` eps 2/255 (`requirements.md`, Open Questions).
+- Giữ 20 failure case mỗi run, xem lại ở Phase 8.
+#### Tồn đọng
+- Manual check cần GPU: thời gian mỗi ảnh và batch lớn nhất khi tính gradient, `--force` trên GPU.
+- Replan (phase-close): Phase 6 cần lưới mịn ở eps nhỏ (dưới 1/255 với L∞); Phase 7 cần khoảng tìm kiếm mặc định nhỏ; YOLOv8n trên ảnh float không lượng tử hóa rất dễ bị tấn công, report nên ghi rõ.
 
 ### Phase 2 — Group 3 (ml-core) — 2026-09-28
 #### Thêm

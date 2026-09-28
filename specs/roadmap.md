@@ -74,12 +74,14 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 
 **Mục tiêu:** chạy FGSM/PGD từ đầu đến cuối, có đủ dữ liệu để tái lập.
 
-- [ ] Interface `Perturbation` và registry attack.
-- [ ] FGSM và PGD (bước nhảy tỷ lệ theo eps).
-- [ ] Tỷ lệ tấn công thành công và mức sụt tương đối.
-- [ ] Fingerprint và `manifest.json` cho mỗi run.
-- [ ] CLI: `advertest run --config ...` xuất `RunResult` đúng schema.
-- [ ] Test: cùng config và seed cho metric nằm trong sai số.
+> Group 0–4 xong (2026-09-28), chờ merge Group 4 và `phase-close`. Tồn đọng: manual check cần GPU (thời gian mỗi ảnh, batch lớn nhất, `--force` trên GPU); số liệu KITTI hiện đo trên CPU.
+
+- [x] Interface `Perturbation` và registry attack.
+- [x] FGSM và PGD (bước nhảy tỷ lệ theo eps).
+- [x] Tỷ lệ tấn công thành công và mức sụt tương đối.
+- [x] Fingerprint và `manifest.json` cho mỗi run.
+- [x] CLI: `advertest run --config ...` xuất `RunResult` đúng schema.
+- [x] Test: cùng config và seed cho metric nằm trong sai số.
 
 **Demo:** mAP trước và sau PGD ở vài mức eps; chạy lại cho kết quả khớp trong sai số.
 
