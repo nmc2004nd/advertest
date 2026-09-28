@@ -25,14 +25,18 @@ def test_sub_app_help(group: str) -> None:
     assert result.exit_code == 0
 
 
-@pytest.mark.parametrize(
-    "args",
-    [
-        ["eval", "--model", ZERO, "--slice", ZERO, "--mapping", ZERO, "--out", "x.json"],
-        ["viz", "--model", ZERO, "--slice", ZERO, "--mapping", ZERO, "--out", "out"],
-    ],
-)
-def test_eval_viz_not_implemented_yet(args: list[str]) -> None:
+def test_eval_unknown_ids_reports_error(tmp_path: Path) -> None:
+    args = ["--store-dir", str(tmp_path), "eval", "--model", ZERO, "--slice", ZERO]
+    args += ["--mapping", ZERO, "--out", str(tmp_path / "x.json")]
+    result = runner.invoke(app, args)
+    assert result.exit_code == 1
+    assert result.stderr.startswith("Lỗi:") and "slice" in result.stderr
+    assert not (tmp_path / "x.json").exists()
+
+
+def test_viz_not_implemented_yet(tmp_path: Path) -> None:
+    args = ["--store-dir", str(tmp_path), "viz", "--model", ZERO, "--slice", ZERO]
+    args += ["--mapping", ZERO, "--out", str(tmp_path / "out")]
     result = runner.invoke(app, args)
     assert result.exit_code == 1
     assert "Group 5" in result.output

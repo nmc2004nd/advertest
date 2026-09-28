@@ -7,14 +7,20 @@ Tùy chọn chung `--store-dir` chọn thư mục của `LocalStore`; store đư
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, NoReturn
 from uuid import UUID
 
 import typer
 
+from ml_core.cli.evaluate import (
+    DEFAULT_BATCH_SIZE,
+    OutOfMemoryError,
+    default_device,
+    run_eval,
+)
 from ml_core.data.cli import dataset_app, mapping_app, slice_app
 from ml_core.models.cli import app as model_app
-from ml_core.store import DEFAULT_STORE_DIR, LocalStore
+from ml_core.store import DEFAULT_STORE_DIR, KeyNotFoundError, LocalStore, require_store
 
 app = typer.Typer(
     name="advertest",
@@ -42,17 +48,40 @@ def _not_implemented(command: str) -> None:
     raise typer.Exit(code=1)
 
 
+def _fail(exc: BaseException) -> NoReturn:
+    message = exc.args[0] if exc.args else str(exc)
+    typer.echo(f"Lỗi: {message}", err=True)
+    raise typer.Exit(code=1) from exc
+
+
 @app.command("eval")
 def eval_(
+    ctx: typer.Context,
     model: Annotated[UUID, typer.Option("--model", help="id của model")],
     slice_id: Annotated[UUID, typer.Option("--slice", help="id của slice")],
     mapping: Annotated[UUID, typer.Option("--mapping", help="id của class mapping")],
     out: Annotated[Path, typer.Option("--out", help="File JSON CleanEvalResult")],
-    device: Annotated[str | None, typer.Option("--device", help="Ví dụ cpu, cuda:0")] = None,
-    batch_size: Annotated[int | None, typer.Option("--batch-size", min=1)] = None,
+    device: Annotated[
+        str | None, typer.Option("--device", help="Ví dụ cpu, cuda:0; mặc định GPU nếu có")
+    ] = None,
+    batch_size: Annotated[int, typer.Option("--batch-size", min=1)] = DEFAULT_BATCH_SIZE,
 ) -> None:
     """Đo mAP của model trên slice (ảnh sạch), xuất CleanEvalResult."""
-    _not_implemented("eval")
+    store = require_store(ctx.obj)
+    try:
+        run = run_eval(store, model, slice_id, mapping, device or default_device(), batch_size)
+    except (KeyNotFoundError, FileNotFoundError, ValueError, OutOfMemoryError) as exc:
+        _fail(exc)
+    for warning in run.warnings:
+        typer.echo(f"Cảnh báo: {warning}", err=True)
+    result = run.result
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(result.model_dump_json(indent=2) + "\n")
+    typer.echo(
+        f"mAP@0.5 = {result.metrics.map50:.4f}, mAP@0.5:0.95 = {result.metrics.map50_95:.4f}, "
+        f"{result.num_images} ảnh, cache {'hit' if result.cache.hit else 'miss'}, "
+        f"{result.timing.sec_per_image:.4f} s/ảnh, {result.device} → {out}"
+    )
 
 
 @app.command("viz")
