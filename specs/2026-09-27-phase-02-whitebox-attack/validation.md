@@ -25,12 +25,14 @@
 - [ ] Trường hợp dựng sẵn: 4 object trong C, 1 object mất sau tấn công → `attack_success_rate = 0.25`.
 - [ ] `|C| = 0` → `attack_success_rate = null`; `map50_sạch = 0` → `relative_drop = null`.
 - [ ] Prediction mới nằm trong ignore region không được tính vào `new_false_positives`.
+- [ ] `new_false_positives` trừ số FP trên ảnh sạch, tối thiểu 0; prediction không thuộc class đích không phải FP.
 - [ ] `absolute_drop` và `relative_drop` đúng công thức trên số liệu dựng sẵn.
 
 ### Failure case — `test_failure_cases.py`
 - [ ] Số case mỗi run ≤ `failure_cases_per_run`, chỉ gồm ảnh có `severity_score > 0`.
 - [ ] Thứ tự case xác định: chạy hai lần cho cùng danh sách `image_id` cùng thứ tự.
 - [ ] Mỗi case có đủ 3 file PNG và `FailureCaseRecord` validate được theo contract.
+- [ ] Ảnh nhiễu khuếch đại có giá trị 0.5 (128) ở vùng pad; ảnh sau tấn công trùng ảnh sạch ở vùng pad.
 - [ ] `FailureCaseRecord.id` là uuid5 xác định từ `fingerprint` và `image_id`.
 
 ### Fingerprint, manifest, cache — `test_reproducibility.py`
@@ -45,10 +47,16 @@
 - [ ] Kết quả với `--force` nằm trong sai số so với lần đầu: `map50` ±0.005, `attack_success_rate` ±0.01.
 - [ ] Batch size 1 và batch size 5 cho kết quả trong cùng sai số trên.
 - [ ] Kết quả `fgsm` eps 4 và `pgd_linf` eps 4 trên fixture nằm trong ±0.01 so với `tests/fixtures/golden/phase_02.json`.
+- [ ] Đổi `inference_params` → fingerprint khác.
+- [ ] Nhãn đưa vào attack là ground truth của loader (`boxes`, `labels`), không phải prediction.
+- [ ] mAP sạch lấy từ cache prediction của Phase 1 (không chạy lại predict ảnh sạch), bằng kết quả `advertest eval`.
+- [ ] `experiment_id = content_id(sha256_of(cấu hình))`; `environment.compute_target_id = null`, `gpu_model = null` trên CPU; `docker_image_digest = "none"`; `gpu_seconds > 0`, `cost = null` với run `completed`.
+- [ ] `advertest run show <fingerprint>` in `RunResult` và đường dẫn artifact (kể cả `reruns/`); fingerprint không có thì mã thoát 1.
+- [ ] Bảng tóm tắt của `advertest run` có đủ cột: attack, level, mAP sạch, mAP tấn công, relative drop, ASR, trạng thái.
 
 ### Trạng thái — `test_statuses.py`
-- [ ] Model card giả có `supports_gradients = false` → run `skipped`, `status_reason.code = incompatible`, attack không được gọi.
-- [ ] Ép một run ném ngoại lệ → run đó `failed` có thông điệp lỗi; các run còn lại trong cùng cấu hình vẫn `completed`.
+- [ ] Model card giả có `supports_gradients = false` → run `skipped`, `status_reason.code = incompatible`, attack không được gọi; kết quả ghi ở `runs/<fingerprint>/attempts/<run_id>/`.
+- [ ] Ép một run ném ngoại lệ → run đó `failed` có thông điệp lỗi, ghi ở `attempts/<run_id>/` (không ở `runs/<fingerprint>/result.json`); các run còn lại trong cùng cấu hình vẫn `completed`.
 - [ ] Mọi `RunResult` xuất ra validate được theo contract (bao gồm quy tắc bắt buộc `status_reason` với trạng thái bất thường).
 
 ## Manual Checks
