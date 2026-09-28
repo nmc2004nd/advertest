@@ -43,6 +43,19 @@ Ghi chú chung: các group của người duyệt (1, 2, 8, 9) do agent soạn t
 #### Thay đổi
 - Fixture là 5 ảnh KITTI kèm label; ID của slice/mapping sinh từ hash toàn bộ nội dung (`slice_sha256`); CLI dùng Typer, lệnh đặt theo thư mục của từng agent; ground truth dưới mức Moderate của KITTI thành ignore region (`requirements.md`, `plan.md`, `validation.md` Phase 1; `tech-stack.md`).
 
+### Phase 1 — Group 2 (ml-data) — 2026-09-28
+#### Thêm
+- `ml_core/data/`: parser label KITTI và `import_kitti`; lưu dataset và thư mục nguồn; preset `kitti-coco`, `apply_mapping` (`unmapped`, `difficulty`), `build_mapping`; slice theo bộ lọc tự mô tả; `SliceLoader`; lệnh `dataset import-kitti`, `mapping create`, `slice create`.
+#### Quyết định
+- Thư mục nguồn của ảnh ghi trong store, loader kiểm tra sha256 từng ảnh; `--root` trỏ thẳng tới thư mục có `image_2/`, `label_2/`; `categories` là 8 class KITTI cố định; lấy mẫu slice bằng `random.Random(seed)`; `labels` của loader là chỉ số class trong model; thiếu `truncated`/`occluded` thì không xét; CLI in JSON (`requirements.md` Phase 1).
+#### Số liệu đo được (fixture)
+- 5 ảnh, 59 annotation, 7 `DontCare`; sau mapping `kitti-coco`: `car = 14`, `truck = 1`, `person = 6`; ignore region 33 `difficulty`, 5 `unmapped`, 7 `dont_care`.
+- `dataset_version_sha256` của fixture theo converter này: `5b3d46a79658bc009e50c69c3e68dedbf49fa0d2e47d913c800e06a5a79f9774` (khác `9f5b413e…` của `tests/fixtures/manifest.json` Phase 0 chỉ ở `file_name` và tên converter; annotation và ignore region giống hệt). Golden value của Group 6 dùng hash mới.
+#### Tồn đọng
+- Phase 3: store đang lưu đường dẫn tuyệt đối của máy local; thay bằng ảnh theo nội dung trên MinIO.
+- Loader import `load_card` từ `ml_core.models.register`, kéo theo ultralytics và ART khi nạp.
+- Manual check: `import-kitti` trên 7.481 ảnh KITTI (bbox vượt khung ảnh sẽ bị contract từ chối).
+
 ### Phase 1 — Group 3 (ml-model) — 2026-09-28
 #### Thêm
 - `ml_core/models/`: `UltralyticsDetector` (predict có NMS theo `conf/iou/max_det`, loss `v8DetectionLoss`, model luôn ở eval), `build_estimator` (`PyTorchYolo`), bài kiểm tra gradient, `register_model` và lệnh `advertest model register`.
