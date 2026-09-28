@@ -43,6 +43,19 @@ Ghi chú chung: các group của người duyệt (1, 2, 8, 9) do agent soạn t
 #### Thay đổi
 - Fixture là 5 ảnh KITTI kèm label; ID của slice/mapping sinh từ hash toàn bộ nội dung (`slice_sha256`); CLI dùng Typer, lệnh đặt theo thư mục của từng agent; ground truth dưới mức Moderate của KITTI thành ignore region (`requirements.md`, `plan.md`, `validation.md` Phase 1; `tech-stack.md`).
 
+### Phase 1 — Group 5 (ml-core) — 2026-09-28
+#### Thêm
+- `ml_core/cli/`: cache prediction thô (`cache.py`), lệnh `eval` (`evaluate.py`), lệnh `viz` (`viz.py`); `letterbox_info` trong `ml_core/preprocess/`.
+#### Quyết định
+- Khi cache hit, ground truth tính từ manifest không đọc ảnh; `device` là thiết bị đã tạo prediction, lưu trong file cache (sửa sau review); mặc định GPU nếu có, batch size 8; hết VRAM báo lỗi kèm gợi ý; `git_commit` từ `GIT_COMMIT` hoặc `git rev-parse HEAD`; `viz` vẽ prediction thuộc class đích có score ≥ `operating_conf` (`requirements.md` Phase 1).
+#### Số liệu đo được (fixture, CPU)
+- `advertest eval`: mAP@0.5 = 0.5186, mAP@0.5:0.95 = 0.3524 (khớp Group 4); cache miss 0.087 s/ảnh, cache hit 0.016 s/ảnh, metric giống hệt.
+- `viz` ảnh `000902`: box ground truth và prediction khớp vị trí xe sau letterbox.
+#### Tồn đọng
+- AP `truck` = 0 trên fixture vì KITTI gán `Truck` cho xe buýt, YOLO nhận là `bus` (không có trong mapping). Xem lại preset `kitti-coco` khi replan, sau khi có baseline KITTI.
+- Mỗi khóa cache khoảng 10 MB JSON với slice 300 ảnh.
+- Trên máy phát triển luôn có cảnh báo working tree bẩn do `.ai-log/` được git theo dõi.
+
 ### Phase 1 — Group 4 (ml-metric) — 2026-09-28
 #### Thêm
 - `ml_core/metrics/`: `filter_classes`, `filter_ignored` (IoA ≥ 0.5); `CleanMetric` (torchmetrics, backend `pycocotools`); `build_clean_eval_result`.

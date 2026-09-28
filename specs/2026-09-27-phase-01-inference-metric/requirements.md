@@ -143,7 +143,9 @@ Schema `SliceSpec` trong contract.
 - Các lệnh `dataset`, `slice`, `mapping` in kết quả dạng JSON ra stdout (`import-kitti` in `dataset_version_sha256`, `id`, số ảnh, số annotation, số ignore region; `slice create` in `SliceSpec`; `mapping create` in `ClassMapping`). Lỗi dữ liệu in `Lỗi: …` ra stderr và thoát mã 1.
 
 ### Đánh giá
-- `advertest eval --model <id> --slice <id> --mapping <id> [--device] [--batch-size] --out <file>` xuất `CleanEvalResult`.
+- `advertest eval --model <id> --slice <id> --mapping <id> [--device] [--batch-size] --out <file>` xuất `CleanEvalResult` vào `--out` và in một dòng tóm tắt (mAP@0.5, mAP@0.5:0.95, số ảnh, cache hit/miss, giây/ảnh, thiết bị) ra stdout. Mặc định `--device` là `cuda:0` nếu có GPU, không thì `cpu`; `--batch-size` mặc định 8. Hết VRAM thì báo lỗi kèm gợi ý giảm batch size một nửa và thoát mã 1.
+- `device` trong kết quả là thiết bị **đã tạo prediction** (`cpu` hoặc `cuda:<i> (<tên GPU>)`); khi cache hit, lấy từ file cache chứ không lấy `--device` của lần chạy đó.
+- `git_commit` lấy từ biến môi trường `GIT_COMMIT` nếu có, không thì `git rev-parse HEAD`; working tree có thay đổi chưa commit thì in cảnh báo; không xác định được commit thì báo lỗi.
 - Tham số inference mặc định khi tính mAP: `conf = 0.001`, `iou = 0.7`, `max_det = 300`.
 - `operating_conf = 0.25` được ghi vào kết quả để Phase 2 dùng khi tính tỷ lệ tấn công thành công và chọn failure case.
 - Prediction thuộc class model không có trong mapping bị loại trước khi tính metric.
@@ -158,6 +160,7 @@ Schema `SliceSpec` trong contract.
 - Khóa cache = sha256 của: `weights_sha256`, `image_ids_sha256`, `dataset_version_sha256`, cấu hình letterbox (`LETTERBOX_CONFIG`), `inference_params`, phiên bản `torch` và `ultralytics`.
 - Cache lưu prediction thô (trước khi lọc class và ignore region), để đổi mapping không phải chạy lại model.
 - Chạy lại cùng khóa: không gọi model, `cache.hit = true`.
+- File cache (`cache/predictions/<key>.json`) lưu prediction thô theo `image_id` và thiết bị đã chạy model. Khi cache hit, ground truth và ignore region được tính từ manifest (kích thước ảnh có sẵn, `letterbox_info`) mà không đọc lại ảnh.
 
 ### Kho lưu trữ local
 - Interface `ArtifactStore` với hai thao tác chính `put(key, bytes)` và `get(key)`. Phase này chỉ cài `LocalStore` (thư mục `data/store/`). Phase 3 thêm `MinioStore` cùng interface.
@@ -168,7 +171,8 @@ Schema `SliceSpec` trong contract.
 - Tùy chọn chung `advertest --store-dir <dir>` chọn thư mục của `LocalStore` (mặc định `data/store/`); lệnh con lấy store bằng `ml_core.store.require_store(ctx.obj)`.
 
 ### Trực quan hóa
-- `advertest viz --slice <id> --mapping <id> --model <id> --n 8 --out <dir>` xuất ảnh PNG vẽ ground truth, prediction và ignore region, để kiểm tra bằng mắt rằng box khớp sau letterbox.
+- `advertest viz --slice <id> --mapping <id> --model <id> --n 8 --out <dir> [--device]` xuất ảnh PNG vẽ ground truth, prediction và ignore region, để kiểm tra bằng mắt rằng box khớp sau letterbox.
+- Vẽ `n` ảnh đầu của slice (theo thứ tự image ID), trên ảnh letterbox: ground truth màu xanh lá, prediction màu đỏ kèm tên class và score, ignore region màu xám. Chỉ vẽ prediction thuộc class đích của mapping và có score ≥ `operating_conf`.
 
 ## Decisions
 

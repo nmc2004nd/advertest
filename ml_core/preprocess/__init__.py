@@ -8,6 +8,7 @@ from ml_core.preprocess.letterbox import (
     boxes_from_letterbox,
     boxes_to_letterbox,
     letterbox,
+    letterbox_info,
 )
 
 __all__ = [
@@ -18,4 +19,5 @@ __all__ = [
     "boxes_from_letterbox",
     "boxes_to_letterbox",
     "letterbox",
+    "letterbox_info",
 ]
