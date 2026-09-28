@@ -36,7 +36,7 @@ Thêm 4 schema mới vào `contracts/`: `ModelCard` (model đã đăng ký), `Cl
 |---|---|---|---|
 | `id` | uuid | ✓ | uuid5 từ `weights_sha256` |
 | `name` | string | ✓ | Ví dụ `yolov8n-coco` |
-| `framework` | string | ✓ | `ultralytics` |
+| `framework` | string | ✓ | `ultralytics`, hoặc `torchvision` nếu kích hoạt phương án Faster R-CNN; contract chỉ nhận hai giá trị này |
 | `architecture` | string | ✓ | Ví dụ `yolov8n` |
 | `weights_sha256` | string | ✓ | |
 | `class_names` | string[] | ✓ | Theo thứ tự index của model |
@@ -53,7 +53,7 @@ Thêm 4 schema mới vào `contracts/`: `ModelCard` (model đã đăng ký), `Cl
 | `slice` | object | ✓ | `id`, `slice_sha256`, `image_ids_sha256`, `dataset_version_sha256` |
 | `class_mapping` | object | ✓ | `id`, `mapping_sha256` |
 | `inference_params` | object | ✓ | `conf`, `iou`, `max_det`, `operating_conf`, `input_size` |
-| `metrics` | object | ✓ | `map50`, `map50_95`, `per_class` (mỗi class: `ap50`, `ap50_95`, `num_gt`) |
+| `metrics` | object | ✓ | `map50`, `map50_95`, `per_class` (mỗi class đích: `ap50`, `ap50_95`, `num_gt`; `ap50` và `ap50_95` là `null` khi và chỉ khi `num_gt = 0`) |
 | `num_images` | int | ✓ | |
 | `cache` | object | ✓ | `key`, `hit` (bool) |
 | `timing` | object | ✓ | `total_s`, `sec_per_image` |
@@ -90,12 +90,12 @@ Class mapping là một file JSON riêng, theo schema `ClassMapping`:
 | Field | Notes |
 |---|---|
 | `id` | uuid5 từ `mapping_sha256` |
-| `mapping_sha256` | sha256 của `canonical_json` toàn bộ nội dung trừ `id` và `mapping_sha256` |
+| `mapping_sha256` | sha256 của `canonical_json` toàn bộ nội dung trừ `id` và `mapping_sha256` (gồm cả `schema_version`, cùng cách với `AttackSpec`) |
 | `dataset_version_sha256` | |
 | `model_id` | Class đích phải có trong `ModelCard.class_names` |
 | `preset` | Ví dụ `kitti-coco`, hoặc `null` |
 | `classes` | Map class gốc → class đích, hoặc `null` (chuyển thành ignore region `unmapped:<class>`) |
-| `difficulty` | `min_height_px` (25), `max_occluded` (1), `max_truncated` (0.30); `null` là không lọc |
+| `difficulty` | `min_height_px` (25), `max_occluded` (1), `max_truncated` (0.30); `null` là không lọc. Ngưỡng tính cả biên: GT được giữ khi cao ≥ `min_height_px`, `occluded` ≤ `max_occluded`, `truncated` ≤ `max_truncated` |
 
 ### Slice
 
@@ -104,11 +104,11 @@ Schema `SliceSpec` trong contract.
 | Field | Notes |
 |---|---|
 | `id` | uuid5 từ `slice_sha256` |
-| `slice_sha256` | sha256 của `canonical_json` gồm `dataset_version_sha256`, `filter`, `seed`, `size`, `image_ids` |
+| `slice_sha256` | sha256 của `canonical_json` gồm đúng 5 trường `dataset_version_sha256`, `filter`, `seed`, `size`, `image_ids` (không gồm `schema_version`) |
 | `dataset_version_sha256` | |
 | `filter` | Tự mô tả, không tham chiếu mapping hay model: `classes` (danh sách class gốc được tính), `difficulty` (cùng cấu trúc với `ClassMapping.difficulty`), `min_objects` (1). Ảnh được chọn khi có ít nhất `min_objects` annotation thuộc `classes` và đạt ngưỡng `difficulty`. Mặc định lấy từ preset `kitti-coco` |
 | `seed` | |
-| `size` | Mặc định 300 |
+| `size` | Mặc định 300. `image_ids` phải có đúng `size` phần tử; không đủ ảnh đạt bộ lọc thì `slice create` báo lỗi |
 | `image_ids` | Danh sách đã sắp xếp |
 | `image_ids_sha256` | |
 
