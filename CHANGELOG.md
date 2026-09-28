@@ -43,6 +43,18 @@ Ghi chú chung: các group của người duyệt (1, 2, 8, 9) do agent soạn t
 #### Thay đổi
 - Fixture là 5 ảnh KITTI kèm label; ID của slice/mapping sinh từ hash toàn bộ nội dung (`slice_sha256`); CLI dùng Typer, lệnh đặt theo thư mục của từng agent; ground truth dưới mức Moderate của KITTI thành ignore region (`requirements.md`, `plan.md`, `validation.md` Phase 1; `tech-stack.md`).
 
+### Phase 1 — Group 3 (ml-model) — 2026-09-28
+#### Thêm
+- `ml_core/models/`: `UltralyticsDetector` (predict có NMS theo `conf/iou/max_det`, loss `v8DetectionLoss`, model luôn ở eval), `build_estimator` (`PyTorchYolo`), bài kiểm tra gradient, `register_model` và lệnh `advertest model register`.
+#### Thay đổi
+- `pyproject.toml`: mypy bỏ qua thiếu type stub của `art` (`tech-stack.md` mục 7), người dùng cho phép.
+#### Quyết định
+- Wrapper tự viết thay cho `is_ultralytics=True` của ART; target của bài kiểm tra gradient là prediction của chính model (score ≥ 0.25); weights chép vào store; đăng ký lại trả card cũ; lỗi khi kiểm tra không ghi card (`requirements.md` Phase 1).
+#### Số liệu đo được (fixture, CPU)
+- Wrapper khớp `YOLO.predict` trên 5 ảnh: cùng số box (245–293), IoU nhỏ nhất 0.99998, score lệch tối đa 1.4e-6.
+- Bài kiểm tra gradient trên YOLOv8n: loss 9.63 → 25.43 sau bước 2/255; state_dict và 114 tensor BatchNorm không đổi; `supports_gradients = true`.
+- YOLOv8n khởi tạo ngẫu nhiên không đạt điều kiện "loss tăng" (loss gần như phẳng theo ảnh): unit test chỉ khẳng định gradient hợp lệ và model không đổi; điều kiện này cần có trong test nghiệm thu trên fixture (Group 6).
+
 ### Phase 1 — Group 1 (ml-core) — 2026-09-28
 #### Thêm
 - `ml_core/store/`: `ArtifactStore`, `LocalStore` (key bất biến, ghi nguyên tử), chỉ mục id → sha `index/<kind>/<id>`.
