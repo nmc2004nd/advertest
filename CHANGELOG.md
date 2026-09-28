@@ -6,7 +6,7 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 2 — Attack white-box đầu tiên
 
-**Trạng thái:** đang làm. Group 0, 1, 2 đã merge (2026-09-28); tiếp theo Group 3.
+**Trạng thái:** đang làm. Group 0–3 đã merge (2026-09-28); tiếp theo Group 4 (người duyệt).
 
 ### Phase 2 — kickoff (spec) — 2026-09-28
 #### Thay đổi
@@ -16,6 +16,27 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 - Manual check cần GPU chạy trên CPU; phần GPU là tồn đọng (`validation.md` Phase 2).
 #### Tồn đọng
 - Lỗ hổng độ phủ chưa có mục trong `validation.md`: nhãn cho attack là ground truth, `new_false_positives` trừ số trên ảnh sạch, mAP sạch từ cache, `experiment_id`, `environment`/`gpu_seconds`/`cost`, `inference_params` đổi fingerprint, `run show`, nội dung PNG nhiễu.
+
+### Phase 2 — Group 3 (ml-core) — 2026-09-28
+#### Thêm
+- `ml_core/runner/`: `config.py` (`LocalRunConfig`, YAML, `experiment_id`, đối chiếu spec với catalog), `env.py` (`git_state` bỏ `.ai-log/`, thiết bị, `environment`, `DOCKER_IMAGE_DIGEST`), `fingerprint.py` (`config_sha256` riêng từng run), `run.py` (quét lưới: cache theo fingerprint, `--force`, attack theo batch có mask letterbox, metric, top-k failure case, PNG, `FailureCaseRecord`, manifest, `RunResult`).
+- CLI `advertest run --config <yaml> [--force]` (stdout: mảng JSON `RunResult`; stderr: tiến độ, cảnh báo, bảng tóm tắt) và `advertest run show <fingerprint>`.
+- `configs/examples/pgd_sweep.yaml` (PGD L∞ 2, 4, 8, 16; FGSM 4, 8) với id KITTI trong `data/store`.
+- 36 unit test (YOLOv8n ngẫu nhiên, KITTI tổng hợp; bài kiểm tra gradient được giả lập).
+#### Thay đổi
+- `current_git_commit`, `describe_device`, `default_device` chuyển sang `ml_core/runner/env.py`; `advertest eval` dùng chung, cảnh báo working tree bẩn nay bỏ qua `.ai-log/`.
+#### Quyết định (cần ghi vào `requirements.md` Phase 2)
+- Bố cục store (người dùng chốt): `runs/<fp>/` chỉ cho `completed` (`result.json` ghi sau cùng); `failed` và `skipped/incompatible` ở `runs/<fp>/attempts/<run_id>/`; `--force` khi đã có kết quả ghi vào `reruns/<run_id>/`, khi chưa có thì ghi thư mục chính.
+- Run `cached` chép `metrics`, `failure_case_ids`, `progress` từ kết quả cũ; không ghi store.
+- Box trong `FailureCaseRecord`: prediction đã lọc (class đích, score ≥ `operating_conf`, ngoài ignore region).
+- `docker_image_digest` từ biến `DOCKER_IMAGE_DIGEST` (không có thì `"none"`); có `GIT_COMMIT` thì `git_dirty = false`.
+#### Review
+- Review (do chính agent viết code, không độc lập) tìm 2 lỗi nên sửa, đã sửa trước khi merge: ảnh failure case giữ view của cả batch (có thể tốn khoảng 1.5 GB RAM với 300 ảnh); lỗi khi dựng attack làm dừng cả lệnh thay vì ghi `failed`.
+#### Số liệu đo được (5 ảnh fixture, YOLOv8n, CPU, `advertest run`)
+- mAP@0.5 sạch 0.5186 (khớp golden Phase 1). Sau tấn công: PGD L∞ eps 4 → 0.0016 (ASR 0.933), eps 16 → 0.0 (ASR 1.0); FGSM eps 4 → 0.2231 (ASR 0.6), eps 8 → 0.2053 (ASR 0.667). Tổng 21 s; lần hai (cached) 3.7 s.
+- Batch 1 và batch 5 cho kết quả trùng tuyệt đối; vùng pad trong PNG của 5 failure case giữ nguyên, ảnh nhiễu ở vùng pad bằng 0.5.
+#### Tồn đọng
+- Phase 3: run lỗi giữa lúc ghi artifact vào `runs/<fp>/` có thể để lại file thừa (nên ghi vào thư mục tạm rồi đổi tên).
 
 ### Phase 2 — Group 2 (ml-metric) — 2026-09-28
 #### Thêm
