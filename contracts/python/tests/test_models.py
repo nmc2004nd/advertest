@@ -231,6 +231,21 @@ def test_run_result_completed_needs_metrics_and_manifest() -> None:
         RunResult.model_validate(_run("completed", manifest_uri=None))
 
 
+def test_run_result_metrics_allow_null_rates() -> None:
+    metrics = {
+        **METRICS,
+        "clean": {"map50": 0.0, "map50_95": 0.0},
+        "attacked": {"map50": 0.0, "map50_95": 0.0},
+        "relative_drop": None,
+        "absolute_drop": 0.0,
+        "attack_success_rate": None,
+    }
+    run = RunResult.model_validate(_run("completed", metrics=metrics))
+    assert run.metrics is not None and run.metrics.attack_success_rate is None
+    with pytest.raises(ValidationError):
+        RunResult.model_validate(_run("completed", metrics={**METRICS, "attack_success_rate": 1.5}))
+
+
 def test_run_result_progress_and_cost() -> None:
     with pytest.raises(ValidationError):
         RunResult.model_validate(_run("running", progress={"images_done": 5, "images_total": 4}))

@@ -251,7 +251,9 @@ class RunMetrics(_Model):
     attacked: MapPair
     relative_drop: float | None = Field(description="null khi mAP@0.5 sạch bằng 0")
     absolute_drop: float
-    attack_success_rate: UnitFloat
+    attack_success_rate: UnitFloat | None = Field(
+        description="null khi không có object nào được detect đúng trên ảnh sạch (|C| = 0)"
+    )
     per_class: dict[str, ClassRunMetrics] | None = None
 
 

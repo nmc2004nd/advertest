@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "run_id": "5b0e7b6e-2f1d-5c8a-9a47-3c6f0f1d2e11",
+  "experiment_id": "37440a93-11db-57a1-a2dd-3de419d3001f",
+  "fingerprint": "3f0a000000000000000000000000000000000000000000000000000000000000",
+  "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+  "level": 2,
+  "status": "completed",
+  "status_reason": null,
+  "progress": {
+    "images_done": 5,
+    "images_total": 5
+  },
+  "metrics": {
+    "clean": {
+      "map50": 0.0,
+      "map50_95": 0.0
+    },
+    "attacked": {
+      "map50": 0.0,
+      "map50_95": 0.0
+    },
+    "relative_drop": null,
+    "absolute_drop": 0.0,
+    "attack_success_rate": null,
+    "per_class": null
+  },
+  "gpu_seconds": 1.4,
+  "cost": null,
+  "failure_case_ids": [],
+  "manifest_uri": "s3://artifacts/runs/5b0e7b6e-2f1d-5c8a-9a47-3c6f0f1d2e11/manifest.json"
+}
