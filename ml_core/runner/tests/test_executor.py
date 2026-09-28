@@ -76,7 +76,7 @@ class FakeEstimator:
         self.car = car
 
     def predict(self, images: np.ndarray, batch_size: int) -> list[Prediction]:
-        preds = []
+        preds: list[Prediction] = []
         for image in images:
             n = int(float(image.sum()) * 1000) % 4 + 1
             boxes = np.asarray([[500 + 20 * k, 10, 515 + 20 * k, 30] for k in range(n)], np.float32)
