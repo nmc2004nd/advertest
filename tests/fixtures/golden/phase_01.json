@@ -1,0 +1,13 @@
+{
+  "description": "Golden value Phase 1: advertest eval trên fixture (5 ảnh KITTI, slice size 5 seed 42, mapping kitti-coco), YOLOv8n, CPU.",
+  "measured_at": "2026-09-28",
+  "dataset_version_sha256": "5b3d46a79658bc009e50c69c3e68dedbf49fa0d2e47d913c800e06a5a79f9774",
+  "slice_sha256": "3ee37de92a37a81f609edca74435cb29eaf80ce96c98a98d019b6e97f753b677",
+  "weights_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36",
+  "inference_params": { "conf": 0.001, "iou": 0.7, "max_det": 300, "operating_conf": 0.25, "input_size": 640 },
+  "device": "cpu",
+  "lib_versions": { "torch": "2.14.0+cpu", "art": "1.20.1", "ultralytics": "8.4.163", "torchmetrics": "1.9.0", "numpy": "2.4.6" },
+  "map50": 0.5186,
+  "map50_95": 0.3524,
+  "tolerance": 0.01
+}
