@@ -7,14 +7,18 @@ from pydantic import BaseModel
 from advertest_contracts.models import (
     AttackConfig,
     AttackSpec,
+    ClassMapping,
+    CleanEvalResult,
     DatasetManifest,
     ErrorResponse,
     ExperimentConfig,
     HealthResponse,
     Manifest,
+    ModelCard,
     ProtocolBody,
     RunResult,
     SearchResult,
+    SliceSpec,
 )
 
 SCHEMAS: dict[str, type[BaseModel]] = {
@@ -28,4 +32,8 @@ SCHEMAS: dict[str, type[BaseModel]] = {
     "error_response": ErrorResponse,
     "health_response": HealthResponse,
     "dataset_manifest": DatasetManifest,
+    "model_card": ModelCard,
+    "class_mapping": ClassMapping,
+    "slice_spec": SliceSpec,
+    "clean_eval_result": CleanEvalResult,
 }

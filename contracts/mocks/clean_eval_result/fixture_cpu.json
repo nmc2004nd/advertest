@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "model": {
+    "id": "81686f0e-32b6-5806-819c-3b0e37072342",
+    "weights_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36"
+  },
+  "slice": {
+    "id": "549f8cba-81af-5f51-b44a-0ad2196b75c2",
+    "slice_sha256": "2ac9477b2a746f3504232f2543025b3df56203c4911aa3a55d60ccba14e76cb0",
+    "image_ids_sha256": "dde3cec90e448097ce240b43dfa4ce84bb54acdbf4df26ccd20442233ec15955",
+    "dataset_version_sha256": "9f5b413eb8a78a6a4b216011c2cf26e5b877728f7a160bbb80964a917d976069"
+  },
+  "class_mapping": {
+    "id": "4c239faf-34f6-5144-a3d5-f0328b0881ac",
+    "mapping_sha256": "a079d92b7be84bbc6f0eb432734c629373114af7d9df05822e6e05293142cb39"
+  },
+  "inference_params": {
+    "conf": 0.001,
+    "iou": 0.7,
+    "max_det": 300,
+    "operating_conf": 0.25,
+    "input_size": 640
+  },
+  "metrics": {
+    "map50": 0.62,
+    "map50_95": 0.41,
+    "per_class": {
+      "car": {
+        "ap50": 0.78,
+        "ap50_95": 0.55,
+        "num_gt": 14
+      },
+      "person": {
+        "ap50": 0.58,
+        "ap50_95": 0.33,
+        "num_gt": 6
+      },
+      "truck": {
+        "ap50": 0.5,
+        "ap50_95": 0.35,
+        "num_gt": 1
+      }
+    }
+  },
+  "num_images": 5,
+  "cache": {
+    "key": "9a92d7ee13b337e90a4ccd08b80bf0cddf154a9610d2eefed070ba4f712c9ee4",
+    "hit": false
+  },
+  "timing": {
+    "total_s": 1.52,
+    "sec_per_image": 0.304
+  },
+  "device": "cpu",
+  "lib_versions": {
+    "torch": "2.14.0",
+    "art": "1.20.1",
+    "ultralytics": "8.4.163",
+    "torchmetrics": "1.9.0",
+    "numpy": "2.4.6"
+  },
+  "git_commit": "6fe6dae20563780f5a88485181a952c69c65435f"
+}
