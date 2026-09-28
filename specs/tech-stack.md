@@ -221,7 +221,7 @@ Quy ước:
 - Fixture nhỏ chạy trên CPU: khoảng 5 ảnh + một model rất nhỏ, mỗi test chạy trong vài giây.
 - So metric với golden value **có sai số**, không so bằng tuyệt đối.
 - Test Vitest chạy trong môi trường node; render component bằng `react-dom/server`. Chưa dùng thư viện test DOM (Testing Library, jsdom) khi chưa được duyệt.
-- Thư viện không kèm type stub (hiện là `boto3`, `botocore`, `art`) được khai `ignore_missing_imports` trong cấu hình mypy, không dùng `# type: ignore` trong code.
+- Thư viện không kèm type stub (hiện là `boto3`, `botocore`, `art`, `yaml`) được khai `ignore_missing_imports` trong cấu hình mypy, không dùng `# type: ignore` trong code.
 - Mỗi nguyên tắc trong `mission.md` mục 4 có ít nhất một test nghiệm thu.
 
 ## 8. Cấu trúc repo và quyền sở hữu
