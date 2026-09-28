@@ -1,7 +1,7 @@
 # Plan: Phase 2 — Attack white-box đầu tiên
 
 > Phân chia thư mục để các agent làm song song:
-> `attacks/` (agent `attack`), `ml_core/metrics/` (agent `ml-metric`), `ml_core/runner/` và `ml_core/cli/` (agent `ml-core`).
+> `attacks/` (agent `attack`), `ml_core/metrics/` (agent `ml-metric`), `ml_core/runner/`, `ml_core/cli/` và `configs/examples/` (agent `ml-core`).
 >
 > Thứ tự: Group 0 → (Group 1, Group 2 song song) → Group 3 → Group 4.
 
@@ -9,9 +9,11 @@
 
 1. Thêm tham số `mask` vào interface `Perturbation`; cập nhật `tech-stack.md` mục 3.1.
 2. Thêm `git_dirty` vào `Manifest.fingerprint_inputs`.
+   - `RunMetrics.attack_success_rate` nhận `null`; cập nhật mock `run_result`.
 3. Thêm schema `FailureCaseRecord` và mock tương ứng.
 4. Rà `contracts/seeds/attack_specs.json` cho `fgsm`, `pgd_linf`, `pgd_l2` theo bảng trong `requirements.md` (Phase 0 đã seed đúng bảng này, dự kiến không phải sửa); nếu sửa thì tăng `version` và tính lại `spec_sha256`.
 5. Chạy `make contracts`, commit; ghi thay đổi vào `CHANGELOG.md`.
+   - Thêm `pyyaml==6.0.3` vào dependency của `pyproject.toml` (đã có trong `uv.lock` qua ultralytics); `tech-stack.md` mục 11 đã ghi; mypy khai `yaml` trong `ignore_missing_imports` (mục 7).
 
 ## Group 1 — Attack `[agent: attack]`
 
@@ -47,7 +49,7 @@
 
 27. Viết test nghiệm thu `tests/acceptance/phase_02/` theo `validation.md`.
 28. Chạy trên fixture, ghi golden value vào `tests/fixtures/golden/phase_02.json`.
-29. Chạy `pgd_sweep.yaml` trên slice KITTI 300 ảnh bằng GPU local; ghi bảng kết quả và thời gian vào `CHANGELOG.md`.
+29. Chạy `pgd_sweep.yaml` trên slice KITTI 300 ảnh (CPU vì máy phát triển không có GPU; phần GPU là tồn đọng); ghi bảng kết quả và thời gian vào `CHANGELOG.md`.
 30. Chạy lại cùng cấu hình với `--force`, so sánh với lần đầu.
 31. Mở vài failure case, kiểm tra bằng mắt ảnh nhiễu và box.
 32. Trả lời các câu hỏi mở; cập nhật `requirements.md` và seed catalog nếu cần.

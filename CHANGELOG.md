@@ -4,6 +4,38 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ---
 
+## Phase 2 — Attack white-box đầu tiên
+
+**Trạng thái:** đang làm. Group 0 xong trên nhánh `phase02-reviewer-g0` (chưa merge).
+
+### Phase 2 — kickoff (spec) — 2026-09-28
+#### Thay đổi
+- `attack_success_rate` là `null` khi `|C| = 0`; chạy bằng CLI thì `compute_target_id = null`; cấu hình đọc bằng PyYAML; `git_dirty` bỏ qua `.ai-log/`; run `cached` chỉ in ra, không ghi store; ảnh nhiễu khuếch đại L2 chia theo `max|δ|`; ml-core được sửa `configs/examples/` (`requirements.md`, `plan.md`, `validation.md` Phase 2; `tech-stack.md` mục 11).
+#### Quyết định
+- Preset `kitti-coco` giữ nguyên, không gộp `bus` vào `truck`; đóng câu hỏi mở (`requirements.md` Phase 2, Decisions).
+- Manual check cần GPU chạy trên CPU; phần GPU là tồn đọng (`validation.md` Phase 2).
+#### Tồn đọng
+- Lỗ hổng độ phủ chưa có mục trong `validation.md`: nhãn cho attack là ground truth, `new_false_positives` trừ số trên ảnh sạch, mAP sạch từ cache, `experiment_id`, `environment`/`gpu_seconds`/`cost`, `inference_params` đổi fingerprint, `run show`, nội dung PNG nhiễu.
+
+### Phase 2 — Group 0 (người duyệt) — 2026-09-28
+#### Contract
+- `Perturbation.apply` thêm `mask: MaskBatch | None = None` (N, 1, H, W), float32; `tech-stack.md` mục 3.1 cập nhật.
+- `FingerprintInputs.git_dirty: bool` (bắt buộc); mock `manifest/gpu_local.json` tính lại fingerprint (`712a8585…`).
+- `RunMetrics.attack_success_rate: UnitFloat | None`; mock mới `run_result/completed_no_detections.json`.
+- Schema mới `FailureCaseRecord` (`schema_version = 1`) với `CaseBox`, `CaseIgnoreRegion`, `CaseDetections`, `CaseArtifacts`, hàm `compute_failure_case_id`; mock `failure_case_record/pgd_linf_eps8.json`. Validator: `id` đúng `compute_failure_case_id(fingerprint, image_id)`, `severity_score = lost_objects + 0.5 × new_false_positives` và > 0, ground truth không có score, prediction bắt buộc có score.
+- Seed `fgsm`, `pgd_linf`, `pgd_l2` khớp bảng `requirements.md`, không sửa.
+- Sinh lại JSON Schema (15), `openapi.json`, `frontend/src/contracts/`.
+#### Thêm
+- Dependency `pyyaml==6.0.3` (đã có trong `uv.lock` qua ultralytics); mypy khai `yaml` trong `ignore_missing_imports` (`tech-stack.md` mục 7, 11).
+#### Thay đổi
+- Test nghiệm thu Phase 0 `test_fingerprint_changes_with_every_input`: thêm `git_dirty` vào danh sách trường phải làm đổi fingerprint (chặt hơn, người dùng cho phép).
+#### Quyết định (người dùng chốt)
+- `FailureCaseRecord` có thêm trường `fingerprint` để schema tự kiểm tra `id`; box ghi `class_name` (class đích), ignore region là `{bbox, source}` (`requirements.md` Phase 2, bảng `FailureCaseRecord`).
+#### Số liệu đo được
+- `make check` pass: 383 test Python, 94 test nghiệm thu, 36 test Vitest; `contracts-check` sạch.
+#### Tồn đọng
+- Phase 3: bảng DB `failure_cases` (`artifact_uri`, `thumbnail_uri`, `details`) khác schema `FailureCaseRecord`; `id` trùng giữa lần chạy gốc và `--force` (cùng fingerprint, cùng ảnh) sẽ xung đột khóa chính khi lưu DB.
+
 ## Phase 1 — Inference và metric
 
 **Trạng thái:** ✅ hoàn thành 2026-09-28, **còn tồn đọng** (người dùng cho phép đóng phase và cập nhật sau). Group 0–6 đã merge; mục chi tiết từng group (`### Phase 1 — Group …`) nằm bên dưới, xen với mục Phase 0 theo thứ tự thời gian.
@@ -12,10 +44,10 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 - **Giao được:** CLI `advertest` chạy trọn `dataset import-kitti` → `model register` → `slice create` → `mapping create` → `eval` → `viz`; wrapper YOLOv8n cho ART (model luôn ở eval, bài kiểm tra gradient); converter KITTI, mapping `kitti-coco` có lọc Moderate, slice theo hash; mAP bằng torchmetrics/pycocotools theo `max_det`; cache prediction thô; kho `LocalStore` bất biến.
 - **Contract:** `ModelCard`, `CleanEvalResult`, `SliceSpec`, `ClassMapping`; `IgnoreRegion.source` chấp nhận `difficulty:`. Người duyệt đã chấp nhận.
 - **Số liệu cuối:** `make check` pass trên `main` (376 test Python, 94 test nghiệm thu gồm 42 của Phase 1, 36 test Vitest). Baseline KITTI (CPU): mAP@0.5 = 0.533, mAP@0.5:0.95 = 0.304; golden trên fixture 0.5186 / 0.3524.
-- **`validation.md`:** 42/42 Automated Tests; 4/7 Manual Checks; Definition of Done 4/6.
+- **`validation.md`:** 42/42 Automated Tests; 4/7 Manual Checks; Definition of Done 5/6.
+- **CI:** xanh sau khi push `main` gồm phần đóng phase (người dùng xác nhận); đánh dấu Definition of Done "Automated Tests pass trên CI".
 - **Tồn đọng (cập nhật khi có kết quả):**
   - 3 manual check cần GPU: `eval` trên GPU local (ghi `sec_per_image`, batch size), lần hai trên GPU (cache hit nhanh rõ rệt), theo dõi VRAM và batch size lớn nhất. Máy phát triển hiện không có GPU; baseline đang là số đo CPU.
-  - Definition of Done "Automated Tests pass trên CI": `main` chưa push; xác nhận khi CI xanh.
 - **Lưu ý:** các group của người duyệt (0, 6) và việc review, merge do agent làm thay theo ủy quyền của người dùng; review do chính agent đã viết code thực hiện nên không phải review độc lập.
 
 ### Replan sau Phase 1 — 2026-09-28

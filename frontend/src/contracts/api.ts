@@ -777,8 +777,11 @@ export interface components {
             relative_drop: number | null;
             /** Absolute Drop */
             absolute_drop: number;
-            /** Attack Success Rate */
-            attack_success_rate: number;
+            /**
+             * Attack Success Rate
+             * @description null khi không có object nào được detect đúng trên ảnh sạch (|C| = 0)
+             */
+            attack_success_rate: number | null;
             /** Per Class */
             per_class?: {
                 [key: string]: components["schemas"]["ClassRunMetrics"];

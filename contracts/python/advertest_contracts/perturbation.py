@@ -15,6 +15,8 @@ from advertest_contracts.models import AttackSpec
 
 # (N, C, H, W), float32, giá trị trong [0, 1], letterbox 640x640.
 ImageBatch = npt.NDArray[np.float32]
+# (N, 1, H, W), float32: 1 ở vùng ảnh thật, 0 ở vùng pad của letterbox.
+MaskBatch = npt.NDArray[np.float32]
 
 
 class Perturbation(Protocol):
@@ -26,10 +28,12 @@ class Perturbation(Protocol):
         targets: list[dict[str, Any]],
         level: float,
         seed: int,
+        mask: MaskBatch | None = None,
     ) -> ImageBatch:
         """Trả batch ảnh đã biến đổi, cùng shape và dtype với `images`.
 
         `targets` theo quy ước detector của ART: mỗi phần tử là dict `boxes`, `labels`,
-        `scores`. `level` là giá trị tham số chính đang quét.
+        `scores`. `level` là giá trị tham số chính đang quét. `mask` giới hạn vùng được
+        biến đổi: điểm ảnh có mask bằng 0 giữ nguyên; `None` là toàn ảnh.
         """
         ...

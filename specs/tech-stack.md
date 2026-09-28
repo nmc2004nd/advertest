@@ -82,8 +82,12 @@ class Perturbation(Protocol):
     def apply(self, images: np.ndarray,   # (N, C, H, W), float32, [0, 1]
               targets: list[dict],
               level: float,               # giá trị tham số chính đang quét
-              seed: int) -> np.ndarray: ...
+              seed: int,
+              mask: np.ndarray | None = None  # (N, 1, H, W), float32: 1 vùng ảnh thật, 0 vùng pad
+              ) -> np.ndarray: ...
 ```
+
+Điểm ảnh có `mask = 0` phải giữ nguyên (so sánh chính xác); `mask = None` là biến đổi toàn ảnh (Phase 2).
 
 Tầng sweep, metric, backend và frontend không được phụ thuộc vào việc bên dưới là ART hay thư viện khác.
 
@@ -217,7 +221,7 @@ Quy ước:
 - Fixture nhỏ chạy trên CPU: khoảng 5 ảnh + một model rất nhỏ, mỗi test chạy trong vài giây.
 - So metric với golden value **có sai số**, không so bằng tuyệt đối.
 - Test Vitest chạy trong môi trường node; render component bằng `react-dom/server`. Chưa dùng thư viện test DOM (Testing Library, jsdom) khi chưa được duyệt.
-- Thư viện không kèm type stub (hiện là `boto3`, `botocore`, `art`) được khai `ignore_missing_imports` trong cấu hình mypy, không dùng `# type: ignore` trong code.
+- Thư viện không kèm type stub (hiện là `boto3`, `botocore`, `art`, `yaml`) được khai `ignore_missing_imports` trong cấu hình mypy, không dùng `# type: ignore` trong code.
 - Mỗi nguyên tắc trong `mission.md` mục 4 có ít nhất một test nghiệm thu.
 
 ## 8. Cấu trúc repo và quyền sở hữu
@@ -269,6 +273,7 @@ Nguồn sự thật là `pyproject.toml` + `uv.lock` (Python) và `frontend/pack
 | torchmetrics | 1.9.0 |
 | pycocotools | 2.0.11 (backend của `MeanAveragePrecision`, Phase 1) |
 | typer / pillow | 0.27.2 / 12.3.0 (Phase 1) |
+| pyyaml | 6.0.3 (Phase 2, đọc cấu hình `advertest run`) |
 | numpy | 2.4.6 |
 | fastapi | 0.141.1 |
 | pydantic | 2.13.5 |

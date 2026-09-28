@@ -19,6 +19,7 @@ dependencies = [
     "pillow==12.3.0",
     "typer==0.27.2",
     "pycocotools==2.0.11",
+    "pyyaml==6.0.3",
 ]
 
 [project.scripts]
@@ -90,9 +91,9 @@ plugins = ["pydantic.mypy"]
 module = ["advertest_contracts.*", "backend.*"]
 strict = true
 
-# boto3/botocore và ART không kèm type stub; gói stub là dependency riêng, chưa được duyệt.
+# boto3/botocore, ART và PyYAML không kèm type stub; gói stub là dependency riêng, chưa được duyệt.
 [[tool.mypy.overrides]]
-module = ["boto3", "botocore.*", "art", "art.*"]
+module = ["boto3", "botocore.*", "art", "art.*", "yaml"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

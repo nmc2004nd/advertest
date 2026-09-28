@@ -111,6 +111,11 @@
           "title": "Git Commit",
           "type": "string"
         },
+        "git_dirty": {
+          "description": "Working tree có thay đổi chưa commit lúc chạy",
+          "title": "Git Dirty",
+          "type": "boolean"
+        },
         "lib_versions": {
           "$ref": "#/$defs/LibVersions"
         },
@@ -130,6 +135,7 @@
         "params",
         "seed",
         "git_commit",
+        "git_dirty",
         "lib_versions",
         "docker_image_digest"
       ],

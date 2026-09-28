@@ -101,6 +101,70 @@ export interface components {
             hit: boolean;
         };
         /**
+         * CaseArtifacts
+         * @description Khóa lưu trữ (LocalStore ở Phase 2, MinIO từ Phase 3) của ảnh PNG letterbox.
+         */
+        CaseArtifacts: {
+            /** Clean Png */
+            clean_png: string;
+            /** Adversarial Png */
+            adversarial_png: string;
+            /**
+             * Perturbation Png
+             * @description Ảnh nhiễu khuếch đại
+             */
+            perturbation_png: string;
+        };
+        /**
+         * CaseBox
+         * @description Box trong failure case: xyxy pixel trong không gian letterbox.
+         */
+        CaseBox: {
+            /** Bbox */
+            bbox: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /**
+             * Class Name
+             * @description Class đích của mapping
+             */
+            class_name: string;
+            /**
+             * Score
+             * @description null với ground truth, bắt buộc với prediction
+             */
+            score: number | null;
+        };
+        /** CaseDetections */
+        CaseDetections: {
+            /** Ground Truth */
+            ground_truth: components["schemas"]["CaseBox"][];
+            /** Clean */
+            clean: components["schemas"]["CaseBox"][];
+            /** Attacked */
+            attacked: components["schemas"]["CaseBox"][];
+            /** Ignore Regions */
+            ignore_regions: components["schemas"]["CaseIgnoreRegion"][];
+        };
+        /** CaseIgnoreRegion */
+        CaseIgnoreRegion: {
+            /**
+             * Bbox
+             * @description xyxy pixel trong không gian letterbox
+             */
+            bbox: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /** Source */
+            source: string;
+        };
+        /**
          * CaseSeverity
          * @enum {string}
          */
@@ -417,6 +481,53 @@ export interface components {
          * @enum {string}
          */
         ExperimentStatus: "draft" | "queued" | "running" | "completed" | "submitted_for_review" | "in_review" | "approved" | "changes_requested" | "rejected" | "cancelled";
+        /**
+         * FailureCaseRecord
+         * @description Một ảnh bị attack làm hỏng nặng trong một run (Phase 2).
+         */
+        FailureCaseRecord: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /**
+             * Id
+             * Format: uuid
+             * @description compute_failure_case_id(fingerprint, image_id)
+             */
+            id: string;
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            /**
+             * Fingerprint
+             * @description Fingerprint của run
+             */
+            fingerprint: string;
+            /** Image Id */
+            image_id: string;
+            /**
+             * Lost Objects
+             * @description Số object bị mất sau tấn công
+             */
+            lost_objects: number;
+            /**
+             * New False Positives
+             * @description Số detection sai mới xuất hiện
+             */
+            new_false_positives: number;
+            /**
+             * Severity Score
+             * @description lost_objects + 0.5 * new_false_positives; chỉ lưu case > 0
+             */
+            severity_score: number;
+            detections: components["schemas"]["CaseDetections"];
+            artifacts: components["schemas"]["CaseArtifacts"];
+        };
         /** FingerprintInputs */
         FingerprintInputs: {
             /** Config Sha256 */
@@ -442,6 +553,11 @@ export interface components {
             seed: number;
             /** Git Commit */
             git_commit: string;
+            /**
+             * Git Dirty
+             * @description Working tree có thay đổi chưa commit lúc chạy
+             */
+            git_dirty: boolean;
             lib_versions: components["schemas"]["LibVersions"];
             /** Docker Image Digest */
             docker_image_digest: string;
@@ -775,8 +891,11 @@ export interface components {
             relative_drop: number | null;
             /** Absolute Drop */
             absolute_drop: number;
-            /** Attack Success Rate */
-            attack_success_rate: number;
+            /**
+             * Attack Success Rate
+             * @description null khi không có object nào được detect đúng trên ảnh sạch (|C| = 0)
+             */
+            attack_success_rate: number | null;
             /**
              * Per Class
              * @default null
@@ -1040,6 +1159,10 @@ export type AttackKind = components['schemas']['AttackKind'];
 export type AttackSpec = components['schemas']['AttackSpec'];
 export type BillingMode = components['schemas']['BillingMode'];
 export type CacheInfo = components['schemas']['CacheInfo'];
+export type CaseArtifacts = components['schemas']['CaseArtifacts'];
+export type CaseBox = components['schemas']['CaseBox'];
+export type CaseDetections = components['schemas']['CaseDetections'];
+export type CaseIgnoreRegion = components['schemas']['CaseIgnoreRegion'];
 export type CaseSeverity = components['schemas']['CaseSeverity'];
 export type ClassEvalMetrics = components['schemas']['ClassEvalMetrics'];
 export type ClassMapping = components['schemas']['ClassMapping'];
@@ -1062,6 +1185,7 @@ export type EvalModelRef = components['schemas']['EvalModelRef'];
 export type EvalSliceRef = components['schemas']['EvalSliceRef'];
 export type ExperimentConfig = components['schemas']['ExperimentConfig'];
 export type ExperimentStatus = components['schemas']['ExperimentStatus'];
+export type FailureCaseRecord = components['schemas']['FailureCaseRecord'];
 export type FingerprintInputs = components['schemas']['FingerprintInputs'];
 export type GradientCheck = components['schemas']['GradientCheck'];
 export type GridConfig = components['schemas']['GridConfig'];

@@ -251,7 +251,9 @@ class RunMetrics(_Model):
     attacked: MapPair
     relative_drop: float | None = Field(description="null khi mAP@0.5 sạch bằng 0")
     absolute_drop: float
-    attack_success_rate: UnitFloat
+    attack_success_rate: UnitFloat | None = Field(
+        description="null khi không có object nào được detect đúng trên ảnh sạch (|C| = 0)"
+    )
     per_class: dict[str, ClassRunMetrics] | None = None
 
 
@@ -313,6 +315,7 @@ class FingerprintInputs(_Model):
     params: dict[str, JsonValue]
     seed: NonNegativeInt
     git_commit: GitCommit
+    git_dirty: bool = Field(description="Working tree có thay đổi chưa commit lúc chạy")
     lib_versions: LibVersions
     docker_image_digest: DockerDigest
 
@@ -700,6 +703,77 @@ class CleanEvalResult(_Model):
         _check_content_id("model", self.model.id, self.model.weights_sha256)
         _check_content_id("slice", self.slice.id, self.slice.slice_sha256)
         _check_content_id("class_mapping", self.class_mapping.id, self.class_mapping.mapping_sha256)
+        return self
+
+
+# ---------------------------------------------------------------- Phase 2: failure case
+
+
+class CaseBox(_Model):
+    """Box trong failure case: xyxy pixel trong không gian letterbox."""
+
+    bbox: PixelBBox
+    class_name: str = Field(min_length=1, description="Class đích của mapping")
+    score: UnitFloat | None = Field(description="null với ground truth, bắt buộc với prediction")
+
+
+class CaseIgnoreRegion(_Model):
+    bbox: PixelBBox = Field(description="xyxy pixel trong không gian letterbox")
+    source: str = Field(pattern=r"^(dont_care|unmapped:.+|difficulty:.+)$")
+
+
+class CaseDetections(_Model):
+    ground_truth: list[CaseBox]
+    clean: list[CaseBox]
+    attacked: list[CaseBox]
+    ignore_regions: list[CaseIgnoreRegion]
+
+    @model_validator(mode="after")
+    def _check_scores(self) -> CaseDetections:
+        if any(box.score is not None for box in self.ground_truth):
+            raise ValueError("ground_truth không có score")
+        if any(box.score is None for box in (*self.clean, *self.attacked)):
+            raise ValueError("prediction (clean, attacked) bắt buộc có score")
+        return self
+
+
+class CaseArtifacts(_Model):
+    """Khóa lưu trữ (LocalStore ở Phase 2, MinIO từ Phase 3) của ảnh PNG letterbox."""
+
+    clean_png: str = Field(min_length=1)
+    adversarial_png: str = Field(min_length=1)
+    perturbation_png: str = Field(min_length=1, description="Ảnh nhiễu khuếch đại")
+
+
+def compute_failure_case_id(fingerprint: str, image_id: str) -> UUID:
+    """id của failure case: content_id của sha256 {"fingerprint", "image_id"}."""
+    return content_id(sha256_of({"fingerprint": fingerprint, "image_id": image_id}))
+
+
+class FailureCaseRecord(_Model):
+    """Một ảnh bị attack làm hỏng nặng trong một run (Phase 2)."""
+
+    schema_version: Literal[1] = 1
+    id: UUID = Field(description="compute_failure_case_id(fingerprint, image_id)")
+    run_id: UUID
+    fingerprint: Sha256Hex = Field(description="Fingerprint của run")
+    image_id: str = Field(min_length=1)
+    lost_objects: NonNegativeInt = Field(description="Số object bị mất sau tấn công")
+    new_false_positives: NonNegativeInt = Field(description="Số detection sai mới xuất hiện")
+    severity_score: float = Field(
+        gt=0, description="lost_objects + 0.5 * new_false_positives; chỉ lưu case > 0"
+    )
+    detections: CaseDetections
+    artifacts: CaseArtifacts
+
+    @model_validator(mode="after")
+    def _check(self) -> FailureCaseRecord:
+        expected_id = compute_failure_case_id(self.fingerprint, self.image_id)
+        if self.id != expected_id:
+            raise ValueError(f"id phải là compute_failure_case_id (tính lại: {expected_id})")
+        expected = self.lost_objects + 0.5 * self.new_false_positives
+        if self.severity_score != expected:
+            raise ValueError(f"severity_score phải bằng {expected}")
         return self
 
 
