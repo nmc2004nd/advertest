@@ -24,7 +24,7 @@
 |---|---|---|---|---|
 | 0 ✅ | Contract và khung dự án | Người duyệt (chính) | — | — |
 | 1 ✅ | CLI đo mAP trên slice KITTI | ml-core | 0 | — |
-| 2 | FGSM/PGD trên CLI, có manifest | ml-core, attack | 1 | 4 |
+| 2 ✅ | FGSM/PGD trên CLI, có manifest | ml-core, attack | 1 | 4 |
 | 3 | Job chạy qua API trên máy local | backend, attack | 2 | 4 |
 | 4 | Yêu cầu truy cập, duyệt, RBAC | backend, frontend | 0 | 2, 3 |
 | 5 | Wizard tạo experiment, theo dõi tiến độ | frontend, backend | 3, 4 | 6 |
@@ -70,11 +70,11 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 
 **Demo:** CLI in ra mAP của YOLO trên slice KITTI.
 
-## Phase 2 — Attack white-box đầu tiên
+## Phase 2 — Attack white-box đầu tiên ✅ Hoàn thành (2026-09-28), còn tồn đọng
 
 **Mục tiêu:** chạy FGSM/PGD từ đầu đến cuối, có đủ dữ liệu để tái lập.
 
-> Group 0–4 xong (2026-09-28), chờ merge Group 4 và `phase-close`. Tồn đọng: manual check cần GPU (thời gian mỗi ảnh, batch lớn nhất, `--force` trên GPU); số liệu KITTI hiện đo trên CPU.
+> Tồn đọng (người dùng cho phép đóng phase, cập nhật sau): 2 manual check cần GPU trong `validation.md` (thời gian mỗi ảnh và batch lớn nhất khi tính gradient, `--force` trên GPU); xác nhận CI xanh sau khi push `main`. Số liệu KITTI hiện đo trên CPU.
 
 - [x] Interface `Perturbation` và registry attack.
 - [x] FGSM và PGD (bước nhảy tỷ lệ theo eps).
@@ -100,6 +100,7 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 - [ ] Calibration cost profile cho máy local.
 - [ ] (Từ Phase 0) User MinIO riêng cho api và worker thay cho root; image CUDA dùng chung (`TORCH=cuda`); chặn ghi kết quả ở API (chỉ worker); `lease` trả `204` hoặc `WorkerJobBundle`.
 - [ ] (Từ Phase 1) `MinioStore` thay đường dẫn tuyệt đối trong `datasets/<sha>/sources/` bằng ảnh lưu theo sha256; `DEFAULT_STORE_DIR` chỉ đúng khi cài editable; `import-local` đọc bố cục `LocalStore` (`index/`, `models/<sha>/weights.pt`, `cache/predictions/` có trường `device`); chỉ admin được đăng ký model (weights nạp bằng pickle).
+- [ ] (Từ Phase 2) `RunExecutor` giữ hành vi Phase 2 (mask áp lại sau `generate`, lọc/ghép prediction, top-K chép riêng ảnh), checkpoint không chứa ảnh; image đặt `GIT_COMMIT`, `DOCKER_IMAGE_DIGEST`; xử lý `FailureCaseRecord.id` trùng khi hai run cùng fingerprint chạy đồng thời.
 
 **Demo:** gửi job qua API, xem tiến độ; tắt worker giữa chừng, bật lại thì job chạy tiếp.
 
@@ -140,6 +141,7 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 - [ ] Occlusion theo tỷ lệ bounding box.
 - [ ] Quét lưới thô trước, mịn sau; dừng sớm khi mAP gần 0.
 - [ ] Trang admin xem attack catalog.
+- [ ] (Từ Phase 2) Lưới mịn ở eps nhỏ: trên KITTI, PGD L∞ eps 2/255 đã sụt 98%, PGD L2 eps 1 sụt 90% (vùng hữu ích dưới 2/255 và dưới 1).
 
 **Demo:** một experiment quét toàn bộ catalog, ra bảng xếp hạng attack gây hại nhất.
 
@@ -153,6 +155,7 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 - [ ] Các trạng thái kết quả tìm kiếm.
 - [ ] Wizard: chế độ "Tự tìm ngưỡng".
 - [ ] Biểu đồ điểm gãy và so sánh điểm gãy giữa các attack.
+- [ ] (Từ Phase 2) Khoảng tìm kiếm mặc định cho PGD phải bắt đầu dưới 1/255; ngưỡng sụt 20% nằm dưới mức eps nhỏ nhất đã đo.
 
 **Demo:** chọn ngưỡng sụt 20% cho PGD, hệ thống trả về điểm gãy kèm khoảng tin cậy.
 
@@ -168,6 +171,7 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 - [ ] Kiểm tra điều kiện trước khi approve.
 - [ ] Report PDF/JSON sinh ở server, lưu sha256; trang `/verify/:id`.
 - [ ] Audit log cho toàn bộ vòng đời experiment.
+- [ ] (Từ Phase 2) Report ghi rõ eps tính trên ảnh letterbox dạng float (không lượng tử hóa 8-bit); xem lại số failure case mỗi run (mặc định 20).
 
 **Demo:** engineer gửi duyệt; reviewer khác review và approve; xuất report; trang xác minh báo khớp.
 

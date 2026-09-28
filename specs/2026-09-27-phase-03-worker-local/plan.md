@@ -15,7 +15,7 @@
 
 ## Group 1 — Executor và lưu trữ `[agent: ml-core]`
 
-5. Tách runner Phase 2 thành `RunExecutor` (`init`, `process_batch`, `finalize`) với trạng thái tuần tự hóa được (`to_checkpoint()`, `from_checkpoint()`).
+5. Tách `ml_core/runner/run.py` (Phase 2) thành `RunExecutor` (`init`, `process_batch`, `finalize`) với trạng thái tuần tự hóa được (`to_checkpoint()`, `from_checkpoint()`), giữ các hành vi Phase 2 ghi trong `requirements.md`; checkpoint không chứa ảnh.
 6. Theo dõi top-K ứng viên failure case theo batch với quy tắc xác định của Phase 2.
 7. Tạo thumbnail WebP rộng 320 px.
 8. Cài đặt `MinioStore` và `PresignedStore` (chỉ ghi qua URL do API cấp) theo interface `ArtifactStore`.
@@ -54,7 +54,7 @@
 ## Group 5 — CLI quản trị và hạ tầng `[agent: backend]`
 
 31. `advertest-admin`: `compute-target create|rotate-token|list`, `import-local`, `submit`, `experiment list|show|cancel`; `show --watch` làm mới mỗi 2 giây.
-32. Thêm service `worker` vào `docker/compose.yaml` với profile GPU (nvidia runtime) và profile CPU (cho CI).
+32. Thêm service `worker` vào `docker/compose.yaml` với profile GPU (nvidia runtime) và profile CPU (cho CI); image đặt `GIT_COMMIT` và `DOCKER_IMAGE_DIGEST` (build arg) để fingerprint đúng.
 33. Cập nhật `.env.example`.
 34. Viết hướng dẫn chạy worker trên máy local vào tài liệu vận hành.
 
