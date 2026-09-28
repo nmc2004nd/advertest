@@ -55,8 +55,8 @@ Ghi chú chung: các group của người duyệt (1, 2, 8, 9) do agent soạn t
 - `slice_sha256` hash đúng 5 trường theo `requirements.md` (không gồm `schema_version`); `mapping_sha256` hash mọi trường trừ `id` và chính nó (gồm `schema_version`, cùng cách với `AttackSpec`).
 #### Thay đổi
 - Test contract `test_dataset_manifest_rejects_inconsistent`: case `difficulty:Car` (trước đây bị từ chối) đổi thành `foo:Car`, vì contract nay chấp nhận `difficulty:`.
-#### Tồn đọng
-- Ghi 3 quyết định trên vào `requirements.md` Phase 1.
+#### Sau review
+- Các quyết định trên đã ghi vào `requirements.md` Phase 1; `DifficultyFilter` ghi rõ ngưỡng tính cả biên (giữ khi cao ≥ 25, `occluded` ≤ 1, `truncated` ≤ 0.30).
 
 ### Phase 1 — kickoff lần 2 (spec) — 2026-09-28
 #### Thay đổi
