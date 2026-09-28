@@ -521,11 +521,14 @@ class ModelCard(_Model):
 
 
 class DifficultyFilter(_Model):
-    """Ngưỡng độ khó (mức Moderate của KITTI: 25, 1, 0.30). GT không đạt thành ignore region."""
+    """Ngưỡng độ khó (mức Moderate của KITTI: 25, 1, 0.30). Ngưỡng tính cả biên: GT được giữ khi
+    đạt cả ba điều kiện, không đạt thì thành ignore region `difficulty:<class>`."""
 
-    min_height_px: NonNegativeFloat = Field(description="Chiều cao bbox tối thiểu, pixel ảnh gốc")
-    max_occluded: NonNegativeInt
-    max_truncated: UnitFloat
+    min_height_px: NonNegativeFloat = Field(
+        description="Giữ khi chiều cao bbox (y2 - y1, pixel ảnh gốc) >= min_height_px"
+    )
+    max_occluded: NonNegativeInt = Field(description="Giữ khi occluded <= max_occluded")
+    max_truncated: UnitFloat = Field(description="Giữ khi truncated <= max_truncated")
 
 
 class ClassMappingBody(_Model):

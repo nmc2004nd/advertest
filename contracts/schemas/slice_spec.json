@@ -2,20 +2,22 @@
   "$defs": {
     "DifficultyFilter": {
       "additionalProperties": false,
-      "description": "Ngưỡng độ khó (mức Moderate của KITTI: 25, 1, 0.30). GT không đạt thành ignore region.",
+      "description": "Ngưỡng độ khó (mức Moderate của KITTI: 25, 1, 0.30). Ngưỡng tính cả biên: GT được giữ khi\nđạt cả ba điều kiện, không đạt thì thành ignore region `difficulty:<class>`.",
       "properties": {
         "min_height_px": {
-          "description": "Chiều cao bbox tối thiểu, pixel ảnh gốc",
+          "description": "Giữ khi chiều cao bbox (y2 - y1, pixel ảnh gốc) >= min_height_px",
           "minimum": 0,
           "title": "Min Height Px",
           "type": "number"
         },
         "max_occluded": {
+          "description": "Giữ khi occluded <= max_occluded",
           "minimum": 0,
           "title": "Max Occluded",
           "type": "integer"
         },
         "max_truncated": {
+          "description": "Giữ khi truncated <= max_truncated",
           "maximum": 1.0,
           "minimum": 0.0,
           "title": "Max Truncated",

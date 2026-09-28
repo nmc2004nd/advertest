@@ -263,17 +263,24 @@ export interface components {
         };
         /**
          * DifficultyFilter
-         * @description Ngưỡng độ khó (mức Moderate của KITTI: 25, 1, 0.30). GT không đạt thành ignore region.
+         * @description Ngưỡng độ khó (mức Moderate của KITTI: 25, 1, 0.30). Ngưỡng tính cả biên: GT được giữ khi
+         *     đạt cả ba điều kiện, không đạt thì thành ignore region `difficulty:<class>`.
          */
         DifficultyFilter: {
             /**
              * Min Height Px
-             * @description Chiều cao bbox tối thiểu, pixel ảnh gốc
+             * @description Giữ khi chiều cao bbox (y2 - y1, pixel ảnh gốc) >= min_height_px
              */
             min_height_px: number;
-            /** Max Occluded */
+            /**
+             * Max Occluded
+             * @description Giữ khi occluded <= max_occluded
+             */
             max_occluded: number;
-            /** Max Truncated */
+            /**
+             * Max Truncated
+             * @description Giữ khi truncated <= max_truncated
+             */
             max_truncated: number;
         };
         /**
