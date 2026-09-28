@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import io
+import json
 import shutil
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -17,7 +18,9 @@ from typing import Any, cast
 import numpy as np
 import pytest
 import torch
+import yaml
 from PIL import Image
+from typer.testing import CliRunner
 from ultralytics.models import YOLO
 from ultralytics.nn.tasks import DetectionModel
 
@@ -32,6 +35,7 @@ from advertest_contracts.models import (
 )
 from attacks.art_adapter import ArtPerturbation, build_perturbation
 from attacks.registry import get_spec, load_catalog
+from ml_core.cli import app
 from ml_core.data.dataset import save_dataset
 from ml_core.data.kitti import import_kitti
 from ml_core.data.mapping import build_mapping, save_mapping
@@ -387,3 +391,48 @@ def test_failure_case_record_and_pngs(base: Base, store: LocalStore) -> None:
 def test_report_type(base: Base, store: LocalStore) -> None:
     report = run_config(store, _config(base, [_attack("fgsm", [0])]))
     assert isinstance(report, RunReport) and not report.git_dirty
+
+
+def _write_config(path: Path, config: LocalRunConfig) -> Path:
+    path.write_text(yaml.safe_dump(config.model_dump(mode="json")))
+    return path
+
+
+def test_cli_run_and_show(base: Base, store: LocalStore, tmp_path: Path) -> None:
+    config_path = _write_config(tmp_path / "run.yaml", _config(base, [_attack("fgsm", [0, 4])]))
+    runner = CliRunner()
+    args = ["--store-dir", str(store.root), "run", "--config", str(config_path)]
+    first = runner.invoke(app, args)
+    assert first.exit_code == 0, first.output
+    results = [RunResult.model_validate(r) for r in json.loads(first.stdout)]
+    assert [r.status for r in results] == [RunStatus.COMPLETED] * 2
+    for column in ("attack", "mAP sạch", "mAP tấn công", "relative drop", "ASR", "trạng thái"):
+        assert column in first.stderr
+    assert "completed" in first.stderr
+
+    second = runner.invoke(app, args)
+    assert second.exit_code == 0, second.output
+    assert all(r["status"] == "skipped" for r in json.loads(second.stdout))
+    assert "skipped (cached)" in second.stderr
+
+    forced = runner.invoke(app, [*args, "--force"])
+    assert forced.exit_code == 0, forced.output
+
+    fp = results[1].fingerprint
+    shown = runner.invoke(app, ["--store-dir", str(store.root), "run", "show", fp])
+    assert shown.exit_code == 0, shown.output
+    assert RunResult.model_validate_json(shown.stdout) == results[1]
+    assert "manifest.json" in shown.stderr and "reruns" in shown.stderr
+
+    missing = runner.invoke(app, ["--store-dir", str(store.root), "run", "show", "0" * 64])
+    assert missing.exit_code == 1 and "Không có run" in missing.stderr
+
+
+def test_cli_run_errors(base: Base, store: LocalStore, tmp_path: Path) -> None:
+    runner = CliRunner()
+    no_config = runner.invoke(app, ["--store-dir", str(store.root), "run"])
+    assert no_config.exit_code == 2
+    bad = tmp_path / "bad.yaml"
+    bad.write_text("model_id: 1\n")
+    result = runner.invoke(app, ["--store-dir", str(store.root), "run", "--config", str(bad)])
+    assert result.exit_code == 1 and "Lỗi" in result.stderr

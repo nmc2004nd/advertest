@@ -1,6 +1,7 @@
 """CLI `advertest` của ML core.
 
-File này chỉ đăng ký các nhóm lệnh của từng agent và định nghĩa `eval`, `viz` (Group 5).
+File này chỉ đăng ký các nhóm lệnh của từng agent và định nghĩa `eval`, `viz` (Phase 1 Group 5);
+`run` nằm trong `ml_core/cli/run.py` (Phase 2).
 Tùy chọn chung `--store-dir` chọn thư mục của `LocalStore`; store được đặt vào `ctx.obj`.
 """
 
@@ -13,6 +14,7 @@ from uuid import UUID
 import typer
 
 from ml_core.cli.evaluate import DEFAULT_BATCH_SIZE, OutOfMemoryError, run_eval
+from ml_core.cli.run import run_app
 from ml_core.cli.viz import run_viz
 from ml_core.data.cli import dataset_app, mapping_app, slice_app
 from ml_core.models.cli import app as model_app
@@ -21,13 +23,14 @@ from ml_core.store import DEFAULT_STORE_DIR, KeyNotFoundError, LocalStore, requi
 
 app = typer.Typer(
     name="advertest",
-    help="AdverTest ML core: đăng ký model, dataset, slice và đo metric.",
+    help="AdverTest ML core: đăng ký model, dataset, slice, đo metric và chạy attack.",
     no_args_is_help=True,
 )
 app.add_typer(model_app, name="model")
 app.add_typer(dataset_app, name="dataset")
 app.add_typer(slice_app, name="slice")
 app.add_typer(mapping_app, name="mapping")
+app.add_typer(run_app, name="run")
 
 
 @app.callback()
