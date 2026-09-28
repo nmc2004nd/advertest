@@ -4,11 +4,21 @@ import numpy as np
 import pytest
 import torch
 from numpy.typing import NDArray
-from torchvision.ops import box_iou
+from ultralytics.engine.results import Results
 from ultralytics.models import YOLO
 
 from ml_core.models.tests.conftest import LOW_PARAMS
 from ml_core.models.wrapper import LOSS_KEYS, UltralyticsDetector, load_detection_model
+
+
+def _box_iou(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+    """IoU từng cặp giữa (N, 4) và (M, 4), box xyxy."""
+    lt = torch.maximum(a[:, None, :2], b[None, :, :2])
+    rb = torch.minimum(a[:, None, 2:], b[None, :, 2:])
+    inter = (rb - lt).clamp(min=0).prod(dim=2)
+    area_a = (a[:, 2:] - a[:, :2]).prod(dim=1)
+    area_b = (b[:, 2:] - b[:, :2]).prod(dim=1)
+    return inter / (area_a[:, None] + area_b[None, :] - inter).clamp(min=1e-9)
 
 
 @pytest.fixture
@@ -45,12 +55,14 @@ def test_predict_matches_ultralytics(
         verbose=False,
     )
     for ours, ref in zip(mine, reference, strict=True):
-        assert len(ours["boxes"]) == len(ref.boxes) > 0
-        iou = box_iou(ours["boxes"], ref.boxes.xyxy)
+        assert isinstance(ref, Results) and ref.boxes is not None
+        ref_boxes = torch.as_tensor(ref.boxes.xyxy)
+        assert len(ours["boxes"]) == len(ref_boxes) > 0
+        iou = _box_iou(ours["boxes"], ref_boxes)
         matched = iou.argmax(dim=1)
         assert torch.all(iou.max(dim=1).values >= 0.99)
-        assert torch.equal(ours["labels"], ref.boxes.cls[matched].long())
-        assert torch.all((ours["scores"] - ref.boxes.conf[matched]).abs() < 1e-3)
+        assert torch.equal(ours["labels"], torch.as_tensor(ref.boxes.cls)[matched].long())
+        assert torch.all((ours["scores"] - torch.as_tensor(ref.boxes.conf)[matched]).abs() < 1e-3)
 
 
 def test_inner_model_stays_eval_and_frozen(detector: UltralyticsDetector) -> None:
