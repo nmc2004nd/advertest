@@ -38,7 +38,9 @@
 - [ ] Đổi `level`, `seed`, spec hoặc mapping → fingerprint khác.
 - [ ] Đổi `batch_size` hoặc `device` → fingerprint **không đổi**.
 - [ ] Working tree có thay đổi chưa commit → `git_dirty = true`.
+- [ ] Chỉ `.ai-log/` thay đổi → `git_dirty = false`.
 - [ ] Chạy lần hai cùng cấu hình: run có `status = skipped`, `status_reason.code = cached`, attack không được gọi (kiểm tra bằng spy).
+- [ ] Run `cached` không tạo hay sửa file nào trong `runs/<fingerprint>/`.
 - [ ] Chạy với `--force`: kết quả mới nằm trong `reruns/`, file `result.json` gốc không bị thay đổi (so sánh hash trước và sau).
 - [ ] Kết quả với `--force` nằm trong sai số so với lần đầu: `map50` ±0.005, `attack_success_rate` ±0.01.
 - [ ] Batch size 1 và batch size 5 cho kết quả trong cùng sai số trên.
@@ -50,6 +52,8 @@
 - [ ] Mọi `RunResult` xuất ra validate được theo contract (bao gồm quy tắc bắt buộc `status_reason` với trạng thái bất thường).
 
 ## Manual Checks
+
+> Máy phát triển không có GPU: các mục ghi "GPU" chạy trên CPU và ghi số liệu CPU; phần GPU chuyển thành tồn đọng, không chặn việc đóng phase (như Phase 1).
 
 - [ ] Chạy `configs/examples/pgd_sweep.yaml` trên slice KITTI 300 ảnh bằng GPU local; bảng tóm tắt hiển thị đủ cột và trạng thái.
 - [ ] mAP giảm dần theo eps với PGD L∞; ghi bảng kết quả vào `CHANGELOG.md`.

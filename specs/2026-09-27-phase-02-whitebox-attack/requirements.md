@@ -52,6 +52,8 @@ Cuối phase: mAP trước và sau PGD ở nhiều mức eps trên slice KITTI, 
 | `detections` | object | ✓ | `ground_truth`, `clean`, `attacked`, `ignore_regions`, mỗi cái là list box có class và score, trong không gian letterbox |
 | `artifacts` | object | ✓ | Khóa lưu trữ của `clean_png`, `adversarial_png`, `perturbation_png` |
 
+4. **`RunMetrics.attack_success_rate`** đổi thành `UnitFloat | None` (null khi `|C| = 0`, xem Behaviour).
+
 ### Catalog attack (giá trị trong `contracts/seeds/attack_specs.json`)
 
 | Spec | `art_class` | Tham số chính | Dải | Tham số cố định |
@@ -64,7 +66,7 @@ Nếu giá trị đã seed ở Phase 0 khác bảng này, người duyệt sửa
 
 ### Cấu hình chạy local (không thuộc contract)
 
-CLI đọc file YAML theo schema `LocalRunConfig` trong `ml_core/runner/`:
+CLI đọc file YAML (PyYAML, `yaml.safe_load`) theo schema `LocalRunConfig` trong `ml_core/runner/`:
 
 | Field | Notes |
 |---|---|
@@ -99,18 +101,18 @@ CLI đọc file YAML theo schema `LocalRunConfig` trong `ml_core/runner/`:
 ### Failure case
 - `severity_score = lost_objects + 0.5 × new_false_positives`.
 - Mỗi run giữ `failure_cases_per_run` ảnh có `severity_score` cao nhất (lớn hơn 0), cùng điểm thì ưu tiên `image_id` nhỏ hơn để kết quả xác định.
-- Lưu cho mỗi case: ảnh sạch và ảnh sau tấn công dạng PNG (letterbox), ảnh nhiễu khuếch đại dạng PNG (`0.5 + δ / (2·eps)` với L∞, cắt về [0, 1]), và `FailureCaseRecord`.
+- Lưu cho mỗi case: ảnh sạch và ảnh sau tấn công dạng PNG (letterbox), ảnh nhiễu khuếch đại dạng PNG (cắt về [0, 1]: `0.5 + δ / (2·eps)` với L∞; `0.5 + δ / (2·max|δ|)` của chính ảnh đó với L2, δ = 0 thì toàn ảnh 0.5), và `FailureCaseRecord`.
 - Metric luôn tính trên ảnh float, không tính lại từ PNG.
 
 ### Fingerprint và manifest
 - `fingerprint_inputs` đúng như contract, trong đó `config_sha256` là hash của cấu hình **riêng run đó**: `spec_sha256`, `level`, `fixed_params`, `inference_params`, cấu hình letterbox (`LETTERBOX_CONFIG`), `class_mapping_sha256`.
-- `git_commit` lấy như `advertest eval` của Phase 1 (biến `GIT_COMMIT`, không thì `git rev-parse HEAD`); nếu working tree có thay đổi chưa commit thì `git_dirty = true` và CLI in cảnh báo.
+- `git_commit` lấy như `advertest eval` của Phase 1 (biến `GIT_COMMIT`, không thì `git rev-parse HEAD`); nếu working tree có thay đổi chưa commit (bỏ qua `.ai-log/`, dùng pathspec `:(exclude).ai-log`) thì `git_dirty = true` và CLI in cảnh báo.
 - `docker_image_digest` là `"none"` khi chạy ngoài Docker.
-- `environment` ghi thiết bị, GPU, CUDA, driver; `compute_target_id` là `"local-cli"`.
+- `environment` ghi GPU, CUDA, driver (null khi chạy trên CPU); `compute_target_id = null` khi chạy bằng CLI.
 - Manifest lưu tại `runs/<fingerprint>/manifest.json`; `RunResult` tại `runs/<fingerprint>/result.json`; failure case tại `runs/<fingerprint>/cases/`.
 
 ### Cache theo fingerprint
-- Trước khi chạy, CLI kiểm tra `runs/<fingerprint>/result.json`. Nếu đã có kết quả `completed`: không chạy lại, xuất `RunResult` mới với `status = skipped`, `status_reason.code = cached`, trỏ tới manifest cũ.
+- Trước khi chạy, CLI kiểm tra `runs/<fingerprint>/result.json`. Nếu đã có kết quả `completed`: không chạy lại, xuất `RunResult` mới với `status = skipped`, `status_reason.code = cached`, `run_id` mới (uuid4), `manifest_uri` trỏ tới manifest cũ. `RunResult` này chỉ in ra (bảng tóm tắt và JSON trên stdout), không ghi vào store; `runs/<fingerprint>/` không đổi.
 - Cờ `--force` bỏ qua cache và chạy lại, ghi vào thư mục `runs/<fingerprint>/reruns/<run_id>/` (không ghi đè kết quả cũ).
 
 ### CLI
@@ -132,6 +134,7 @@ CLI đọc file YAML theo schema `LocalRunConfig` trong `ml_core/runner/`:
 - **Metric tính trên ảnh float, PNG chỉ để hiển thị.** *Lý do:* lượng tử hóa về 8-bit làm mất nhiễu ở eps nhỏ; mô phỏng lưu ảnh thật là một tùy chọn có thể thêm sau.
 - **Chạy lại với `--force` không ghi đè kết quả cũ.** *Lý do:* nguyên tắc 3 trong `mission.md`: kết quả không bị xóa hay thay thế.
 - **`attacks/` không phụ thuộc `ml_core/`.** Adapter nhận estimator ART qua factory `build_perturbation(spec, estimator)`. *Lý do:* giữ ranh giới thư mục giữa các agent và cho phép thay model mà không sửa attack.
+- **Preset `kitti-coco` giữ nguyên, không gộp `bus` của model vào `truck`** (người dùng chốt, 2026-09-28). *Lý do:* slice KITTI chỉ có 26 ground truth `truck`; đổi preset làm đổi `mapping_sha256`, baseline và golden Phase 1. Report ghi rõ hạn chế về AP `truck`.
 
 ## Context
 
@@ -144,4 +147,4 @@ CLI đọc file YAML theo schema `LocalRunConfig` trong `ml_core/runner/`:
 
 - [ ] Dải `eps` của `pgd_l2` (0–16) cần hiệu chỉnh sau khi có kết quả thật trên KITTI.
 - [ ] Số failure case mỗi run (mặc định 20) có đủ cho reviewer không.
-- [ ] Preset `kitti-coco`: có map thêm class `bus` của model cho `Truck` của KITTI không (Phase 1: AP `truck` = 0.188 vì KITTI gán `Truck` cả cho xe buýt). Phải chốt **trước** khi ghi golden Phase 2, vì đổi preset làm đổi `mapping_sha256`, fingerprint và kết quả.
+- [x] Preset `kitti-coco`: có map thêm class `bus` của model cho `Truck` của KITTI không (Phase 1: AP `truck` = 0.188 vì KITTI gán `Truck` cả cho xe buýt). → Giữ nguyên, xem Decisions (2026-09-28).

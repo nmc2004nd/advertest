@@ -269,6 +269,7 @@ Nguồn sự thật là `pyproject.toml` + `uv.lock` (Python) và `frontend/pack
 | torchmetrics | 1.9.0 |
 | pycocotools | 2.0.11 (backend của `MeanAveragePrecision`, Phase 1) |
 | typer / pillow | 0.27.2 / 12.3.0 (Phase 1) |
+| pyyaml | 6.0.3 (Phase 2, đọc cấu hình `advertest run`) |
 | numpy | 2.4.6 |
 | fastapi | 0.141.1 |
 | pydantic | 2.13.5 |
