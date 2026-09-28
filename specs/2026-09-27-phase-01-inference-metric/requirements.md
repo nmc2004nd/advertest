@@ -28,7 +28,7 @@
 
 ### Thay đổi contract (cần người duyệt chấp nhận)
 
-Thêm schema mới `CleanEvalResult` vào `contracts/`, và thêm `ModelCard` để mô tả model đã đăng ký. Cả hai schema có `schema_version` (bắt đầu từ `1`) như mọi schema khác của Phase 0. Dùng lại kiểu đã có trong `advertest_contracts.models`: `Sha256Hex`, `GitCommit`, `LibVersions` (cho `CleanEvalResult.lib_versions`), thời gian `UtcDatetime` (cho `gradient_check.checked_at`). Đây là thay đổi contract nên phải được người duyệt thêm và merge trước khi agent bắt đầu Group 4 trong `plan.md`.
+Thêm 4 schema mới vào `contracts/`: `ModelCard` (model đã đăng ký), `CleanEvalResult`, `SliceSpec` và `ClassMapping`. Mỗi schema có `schema_version` riêng, bắt đầu từ `1`, như mọi schema của Phase 0; gói contract không có version chung. Dùng lại kiểu đã có trong `advertest_contracts.models`: `Sha256Hex`, `GitCommit`, `LibVersions` (cho `lib_versions` của cả `ModelCard` và `CleanEvalResult`), thời gian `UtcDatetime` (cho `gradient_check.checked_at`). Mở rộng pattern của `IgnoreRegion.source` thành `^(dont_care|unmapped:.+|difficulty:.+)$`; converter vẫn chỉ sinh `dont_care`, nên hash của manifest hiện có không đổi. Đây là thay đổi contract nên người duyệt phải thêm và merge trước khi agent bắt đầu Group 2–4 trong `plan.md`.
 
 **`ModelCard`**
 
@@ -43,7 +43,7 @@ Thêm schema mới `CleanEvalResult` vào `contracts/`, và thêm `ModelCard` đ
 | `input_size` | int | ✓ | 640 |
 | `supports_gradients` | bool | ✓ | Chỉ `true` khi bài kiểm tra gradient pass |
 | `gradient_check` | object | ✓ | `passed`, `checked_at`, `details` (lý do nếu fail) |
-| `lib_versions` | object | ✓ | `torch`, `ultralytics`, `art` |
+| `lib_versions` | `LibVersions` | ✓ | Cùng kiểu với `CleanEvalResult.lib_versions` |
 
 **`CleanEvalResult`**
 
@@ -85,16 +85,28 @@ Hash của dataset version là sha256 của manifest đã chuẩn hóa (`canonic
 
 Lọc theo độ khó (mức Moderate của KITTI), áp dụng khi áp mapping: annotation của class đã map nhưng có chiều cao bbox < 25 pixel (ảnh gốc), hoặc `occluded` ≥ 2, hoặc `truncated` > 0.30, chuyển thành ignore region với `source = difficulty:<class gốc>`. Quy tắc và ngưỡng nằm trong file mapping, nên `mapping_sha256` bao gồm chúng.
 
-Class mapping là một file JSON riêng, tham chiếu đến dataset version và model. `mapping_sha256` = sha256 của `canonical_json` toàn bộ nội dung mapping (trừ `id`); `id` = uuid5(`mapping_sha256`).
+Class mapping là một file JSON riêng, theo schema `ClassMapping`:
+
+| Field | Notes |
+|---|---|
+| `id` | uuid5 từ `mapping_sha256` |
+| `mapping_sha256` | sha256 của `canonical_json` toàn bộ nội dung trừ `id` và `mapping_sha256` |
+| `dataset_version_sha256` | |
+| `model_id` | Class đích phải có trong `ModelCard.class_names` |
+| `preset` | Ví dụ `kitti-coco`, hoặc `null` |
+| `classes` | Map class gốc → class đích, hoặc `null` (chuyển thành ignore region `unmapped:<class>`) |
+| `difficulty` | `min_height_px` (25), `max_occluded` (1), `max_truncated` (0.30); `null` là không lọc |
 
 ### Slice
+
+Schema `SliceSpec` trong contract.
 
 | Field | Notes |
 |---|---|
 | `id` | uuid5 từ `slice_sha256` |
 | `slice_sha256` | sha256 của `canonical_json` gồm `dataset_version_sha256`, `filter`, `seed`, `size`, `image_ids` |
 | `dataset_version_sha256` | |
-| `filter` | Mặc định: ảnh có ít nhất 1 object thuộc class đã map |
+| `filter` | Tự mô tả, không tham chiếu mapping hay model: `classes` (danh sách class gốc được tính), `difficulty` (cùng cấu trúc với `ClassMapping.difficulty`), `min_objects` (1). Ảnh được chọn khi có ít nhất `min_objects` annotation thuộc `classes` và đạt ngưỡng `difficulty`. Mặc định lấy từ preset `kitti-coco` |
 | `seed` | |
 | `size` | Mặc định 300 |
 | `image_ids` | Danh sách đã sắp xếp |
@@ -120,7 +132,7 @@ Class mapping là một file JSON riêng, tham chiếu đến dataset version v�
 
 ### Dataset và slice
 - `advertest dataset import-kitti --root <dir> --split training` tạo manifest, lưu vào kho local, in ra `dataset_version_sha256`. Chạy lại trên cùng dữ liệu cho cùng hash.
-- `advertest slice create --dataset <sha> --size 300 --seed 42` tạo slice. Cùng tham số cho cùng `image_ids_sha256`.
+- `advertest slice create --dataset <sha> --size 300 --seed 42 [--preset kitti-coco]` tạo slice, không cần model hay mapping. Cùng tham số cho cùng `image_ids_sha256`.
 - `advertest mapping create --dataset <sha> --model <id> --preset kitti-coco` tạo class mapping.
 
 ### Đánh giá
@@ -156,6 +168,9 @@ Class mapping là một file JSON riêng, tham chiếu đến dataset version v�
 - **ID của slice và mapping sinh từ hash toàn bộ nội dung, không chỉ từ danh sách image ID.** *Lý do:* image ID của KITTI giữ nguyên qua các dataset version; nếu chỉ hash danh sách ID, slice của hai version khác nhau sẽ trùng ID và ghi đè lẫn nhau.
 - **Ground truth dưới mức Moderate của KITTI trở thành ignore region.** *Lý do:* letterbox thu ảnh KITTI còn khoảng 51%; object nhỏ hoặc bị che nhiều làm baseline thấp giả tạo và gây nhiễu phép so sánh sạch/tấn công ở Phase 2. Cách này gần với đánh giá chính thức của KITTI.
 - **Mỗi agent viết lệnh CLI trong thư mục của mình** (`ml_core/data/cli.py`, `ml_core/models/cli.py`, ...); `ml_core/cli/` chỉ đăng ký các nhóm lệnh. CLI dùng Typer. *Lý do:* các group song song không sửa chung file.
+- **Backend của `MeanAveragePrecision` là `pycocotools`.** *Lý do:* là mặc định của torchmetrics, khớp chuẩn COCO; dependency được thêm vào `tech-stack.md` mục 2 và 11.
+- **Bộ lọc slice tự mô tả, không phụ thuộc model.** *Lý do:* cùng một slice dùng được để so nhiều model. Ngưỡng độ khó có mặt ở cả mapping (quyết định ignore region khi tính metric) và bộ lọc slice (quyết định ảnh nào được chọn); preset `kitti-coco` cho cùng giá trị ở hai nơi.
+- **Slice và class mapping là schema contract (`SliceSpec`, `ClassMapping`).** *Lý do:* `FingerprintInputs` và bảng `slices` ở Phase 3 dùng tới; hash không được lệch giữa ml_core và backend.
 - **Phase này chỉ dùng kho local qua interface `ArtifactStore`.** *Lý do:* ML core chạy được độc lập với backend; Phase 3 chỉ thêm một cài đặt mới.
 
 ## Context

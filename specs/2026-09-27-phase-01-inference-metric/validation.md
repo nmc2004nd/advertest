@@ -7,7 +7,8 @@
 ### Chung
 - [ ] `make check` pass (lint, type check, unit test, test nghiệm thu Phase 0 và Phase 1).
 - [ ] `make contracts` không tạo thay đổi so với bản đã commit.
-- [ ] Mock `ModelCard` và `CleanEvalResult` validate được.
+- [ ] Mock `ModelCard`, `CleanEvalResult`, `SliceSpec`, `ClassMapping` validate được.
+- [ ] `IgnoreRegion` chấp nhận `source = difficulty:Car`; manifest fixture giữ nguyên `dataset_version_sha256`.
 - [ ] `advertest --help` liệt kê đủ các nhóm lệnh `model`, `dataset`, `slice`, `mapping`, `eval`, `viz`.
 
 ### Letterbox — `test_letterbox.py`
@@ -28,6 +29,8 @@
 - [ ] `import-kitti` trên `tests/fixtures/kitti/` chạy được và cho manifest validate được.
 - [ ] GT `Car` cao 20px (ảnh gốc) → ignore region `difficulty:Car`; GT `Car` có `occluded = 2` hoặc `truncated = 0.5` → ignore region; GT `Car` cao 30px, `occluded = 1`, `truncated = 0.2` → giữ làm annotation.
 - [ ] Ảnh chỉ có object bị chuyển thành ignore region do độ khó không lọt vào slice mặc định.
+- [ ] `slice create` chạy được mà không cần model hay mapping; đổi một ngưỡng trong `filter.difficulty` → `slice_sha256` khác.
+- [ ] File slice và mapping lưu trong store validate được theo `SliceSpec` và `ClassMapping`.
 
 ### Model — `test_model.py`
 - [ ] Prediction của wrapper khớp predict gốc của Ultralytics trên 5 ảnh fixture: cùng số box; mỗi box ghép cặp có IoU ≥ 0.99, cùng class, chênh lệch score < 1e-3.
@@ -43,6 +46,7 @@
 ### Metric — `test_metric.py`
 - [ ] Prediction trùng hệt ground truth (score 1.0) → mAP@0.5 = 1.0.
 - [ ] Không có prediction nào → mAP@0.5 = 0.
+- [ ] `MeanAveragePrecision` chạy với backend `pycocotools` trên CPU.
 - [ ] Một prediction nằm hoàn toàn trong ignore region không làm giảm mAP (so với khi không có prediction đó).
 - [ ] Prediction thuộc class không có trong mapping (ví dụ `traffic light`) không làm thay đổi mAP.
 - [ ] `per_class` có đủ các class đích `car`, `truck`, `person` với `num_gt` đúng; trên fixture (sau mapping `kitti-coco` và lọc Moderate) là `car = 14`, `truck = 1`, `person = 6`.

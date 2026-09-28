@@ -34,7 +34,7 @@ Quy tắc kiến trúc:
 | Deep learning | PyTorch | |
 | Model chính | Ultralytics YOLOv8/v11 | Cần wrapper tự viết cho ART (xem 2.1) |
 | Model dự phòng | torchvision Faster R-CNN + `PyTorchFasterRCNN` của ART | Dùng nếu wrapper YOLO không cho gradient đúng sau khoảng 2 ngày |
-| Metric | `torchmetrics` `MeanAveragePrecision` | |
+| Metric | `torchmetrics` `MeanAveragePrecision` | Backend `pycocotools` (Phase 1) |
 | CLI | Typer | Lệnh `advertest` cho ML core |
 | Xử lý và vẽ ảnh | Pillow | Đọc ảnh dataset, vẽ box cho `viz` |
 | Dataset mặc định | KITTI 2D object | Tập đánh giá cố định khoảng 300 ảnh |

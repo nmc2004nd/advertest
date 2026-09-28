@@ -9,8 +9,8 @@
 
 ## Group 0 — Cập nhật contract `[người duyệt]`
 
-1. Thêm `ModelCard` và `CleanEvalResult` (có `schema_version`, `slice.slice_sha256`, `class_mapping.{id, mapping_sha256}`) vào `contracts/python/advertest_contracts/`, tăng `schema_version` của gói contract.
-2. Thêm mock cho hai schema mới vào `contracts/mocks/`.
+1. Thêm `ModelCard` (`lib_versions: LibVersions`), `CleanEvalResult` (có `slice.slice_sha256`, `class_mapping.{id, mapping_sha256}`), `SliceSpec`, `ClassMapping` vào `contracts/python/advertest_contracts/` và `registry.py`, mỗi schema có `schema_version = 1`. Mở rộng pattern của `IgnoreRegion.source` để chấp nhận `difficulty:.+`.
+2. Thêm mock cho 4 schema mới vào `contracts/mocks/`.
 3. Chạy `make contracts`, commit file sinh ra.
 4. Ghi thay đổi contract vào `CHANGELOG.md`.
 
@@ -19,15 +19,15 @@
 5. `ml_core/store/`: interface `ArtifactStore` (`put`, `get`, `exists`, `list`) và cài đặt `LocalStore` tại `data/store/`.
 6. Dùng `advertest_contracts.ids.content_id` cho mọi ID sinh từ hash; không tạo namespace uuid5 riêng trong `ml_core`.
 7. `ml_core/preprocess/letterbox.py`: letterbox ảnh về 640×640 (pad 114/255), trả `scale` và `pad`; hàm chuyển box sang không gian letterbox và chuyển ngược.
-8. Khung CLI `advertest` (Typer): `ml_core/cli/` chỉ gắn các sub-app `model`, `dataset`, `slice`, `mapping` (import từ `ml_core/models/cli.py`, `ml_core/data/cli.py`) và định nghĩa `eval`, `viz`. Tạo sẵn các file `cli.py` rỗng cho ml-data và ml-model. Thêm `typer` và `pillow` (đã có trong `tech-stack.md`) vào `pyproject.toml` kèm phiên bản pin, và entry point `[project.scripts] advertest = "ml_core.cli:app"`; ghi phiên bản vào `tech-stack.md` mục 11.
+8. Khung CLI `advertest` (Typer): `ml_core/cli/` chỉ gắn các sub-app `model`, `dataset`, `slice`, `mapping` (import từ `ml_core/models/cli.py`, `ml_core/data/cli.py`) và định nghĩa `eval`, `viz`. Tạo sẵn các file `cli.py` rỗng cho ml-data và ml-model. Thêm `typer`, `pillow` và `pycocotools` (đã có trong `tech-stack.md`) vào `pyproject.toml` kèm phiên bản pin, và entry point `[project.scripts] advertest = "ml_core.cli:app"`; ghi phiên bản vào `tech-stack.md` mục 11.
 
 ## Group 2 — Dữ liệu `[agent: ml-data]`
 
 9. Parser file label KITTI: đọc bbox (left, top, right, bottom), class, truncated, occluded.
 10. Converter `import-kitti`: duyệt ảnh và label, tính sha256 từng ảnh, tạo manifest nội bộ, ghi ignore region cho `DontCare`.
 11. Preset mapping `kitti-coco` theo bảng trong `requirements.md`; class không map được và GT dưới mức Moderate (`difficulty:<class>`) chuyển thành ignore region khi áp mapping.
-12. Tạo và lưu class mapping; `mapping_sha256` và `id = uuid5(mapping_sha256)` (`mapping create`).
-13. Tạo slice: lọc ảnh có ít nhất 1 object đã map (không tính object đã thành ignore region), lấy mẫu theo seed, sắp xếp ID, tính `image_ids_sha256` và `slice_sha256` (`slice create`).
+12. Tạo và lưu class mapping theo schema `ClassMapping`; `mapping_sha256` và `id = uuid5(mapping_sha256)` (`mapping create`).
+13. Tạo slice theo `SliceSpec`: lọc ảnh theo `filter` tự mô tả (`classes`, `difficulty`, `min_objects`; mặc định lấy từ preset `kitti-coco`, không cần model hay mapping), lấy mẫu theo seed, sắp xếp ID, tính `image_ids_sha256` và `slice_sha256` (`slice create`).
 14. Dataset loader: nạp ảnh theo slice, áp letterbox cho ảnh, ground truth và ignore region; trả batch numpy float32 channels_first [0, 1].
 15. Lệnh CLI `dataset import-kitti`, `mapping create`, `slice create` trong `ml_core/data/cli.py`.
 

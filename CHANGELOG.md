@@ -43,6 +43,17 @@ Ghi chú chung: các group của người duyệt (1, 2, 8, 9) do agent soạn t
 #### Thay đổi
 - Fixture là 5 ảnh KITTI kèm label; ID của slice/mapping sinh từ hash toàn bộ nội dung (`slice_sha256`); CLI dùng Typer, lệnh đặt theo thư mục của từng agent; ground truth dưới mức Moderate của KITTI thành ignore region (`requirements.md`, `plan.md`, `validation.md` Phase 1; `tech-stack.md`).
 
+### Phase 1 — kickoff lần 2 (spec) — 2026-09-28
+#### Thay đổi
+- Group 0 thêm 4 schema `ModelCard`, `CleanEvalResult`, `SliceSpec`, `ClassMapping` (mỗi schema `schema_version = 1`, không có version chung của gói); `ModelCard.lib_versions` dùng `LibVersions`; pattern `IgnoreRegion.source` chấp nhận `difficulty:.+` (`requirements.md`, `plan.md`, `validation.md` Phase 1).
+- Bộ lọc slice tự mô tả (`classes`, `difficulty`, `min_objects`, mặc định từ preset `kitti-coco`); `slice create` không cần model hay mapping (`requirements.md`, `plan.md`, `validation.md` Phase 1).
+- Cấu trúc file `ClassMapping` được định nghĩa (`requirements.md` Phase 1).
+#### Quyết định
+- Backend của `MeanAveragePrecision` là `pycocotools`; Group 1 thêm vào `pyproject.toml` (`tech-stack.md` mục 2, `plan.md` task 8).
+#### Tồn đọng
+- Group 0 chưa merge: Group 2–4 bị chặn.
+- Lỗ hổng độ phủ chưa có test trong `validation.md`: `LocalStore` và chỉ mục id → sha, đầu ra dataset loader, letterbox căn giữa, `mapping_sha256` đổi khi đổi ngưỡng, các thành phần khác của khóa cache, thông báo hết VRAM, `mapping create --model`.
+
 ### Phase 0 — Group 3 (backend) — 2026-09-27
 #### Thêm
 - SQLAlchemy 2, Alembic, model ORM và migration `0001` cho 23 bảng; enum Postgres khớp contract.
