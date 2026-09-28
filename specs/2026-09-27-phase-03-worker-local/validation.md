@@ -41,7 +41,7 @@
 - [ ] Gửi lại experiment cùng cấu hình → các run `skipped` với `status_reason.code = cached`, có `cached_from_run_id`, metric bằng metric của run gốc; attack không được gọi (spy).
 - [ ] Model không hỗ trợ gradient → run `skipped` (`incompatible`).
 - [ ] Ép một run ném ngoại lệ → run đó `failed` có thông điệp; run còn lại `completed`.
-- [ ] `RunResult` nhận từ worker cho run chưa `running` → bị từ chối.
+- [ ] `RunCompletion` nhận từ worker cho run chưa `running` → bị từ chối.
 - [ ] Manifest do worker trong Docker tạo có `docker_image_digest` khác `"none"` và `git_dirty = false`.
 - [ ] Checkpoint không chứa dữ liệu ảnh; chạy tiếp từ checkpoint cho mAP và ASR trùng lần chạy liền mạch.
 
