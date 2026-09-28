@@ -82,3 +82,10 @@ def test_experiment_id_depends_on_whole_config() -> None:
     a = LocalRunConfig.model_validate(_config())
     assert experiment_id(a) == experiment_id(LocalRunConfig.model_validate(_config()))
     assert experiment_id(a) != experiment_id(LocalRunConfig.model_validate(_config(batch_size=4)))
+
+
+def test_example_config_is_valid() -> None:
+    path = Path(__file__).resolve().parents[3] / "configs" / "examples" / "pgd_sweep.yaml"
+    config = load_config(path)
+    assert [s.name for s in resolve_specs(config)] == ["pgd_linf", "fgsm"]
+    assert [a.grid.levels for a in config.attacks if a.grid] == [[2, 4, 8, 16], [4, 8]]
