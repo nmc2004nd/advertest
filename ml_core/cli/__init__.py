@@ -12,15 +12,11 @@ from uuid import UUID
 
 import typer
 
-from ml_core.cli.evaluate import (
-    DEFAULT_BATCH_SIZE,
-    OutOfMemoryError,
-    default_device,
-    run_eval,
-)
+from ml_core.cli.evaluate import DEFAULT_BATCH_SIZE, OutOfMemoryError, run_eval
 from ml_core.cli.viz import run_viz
 from ml_core.data.cli import dataset_app, mapping_app, slice_app
 from ml_core.models.cli import app as model_app
+from ml_core.runner.env import default_device
 from ml_core.store import DEFAULT_STORE_DIR, KeyNotFoundError, LocalStore, require_store
 
 app = typer.Typer(
