@@ -38,6 +38,7 @@ dependencies = [
     { name = "argon2-cffi" },
     { name = "boto3" },
     { name = "fastapi" },
+    { name = "httpx" },
     { name = "numpy" },
     { name = "pillow" },
     { name = "psycopg", extra = ["binary"] },
@@ -65,7 +66,6 @@ cuda = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "httpx" },
     { name = "mypy" },
     { name = "pytest" },
     { name = "ruff" },
@@ -78,6 +78,7 @@ requires-dist = [
     { name = "argon2-cffi", specifier = "==25.1.0" },
     { name = "boto3", specifier = "==1.43.103" },
     { name = "fastapi", specifier = "==0.141.1" },
+    { name = "httpx", specifier = "==0.28.1" },
     { name = "numpy", specifier = "==2.4.6" },
     { name = "pillow", specifier = "==12.3.0" },
     { name = "psycopg", extras = ["binary"], specifier = "==3.3.6" },
@@ -98,7 +99,6 @@ provides-extras = ["cpu", "cuda"]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "httpx", specifier = "==0.28.1" },
     { name = "mypy", specifier = "==2.3.1" },
     { name = "pytest", specifier = "==9.1.1" },
     { name = "ruff", specifier = "==0.16.9" },
