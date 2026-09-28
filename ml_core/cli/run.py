@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Annotated, NoReturn
+from typing import TYPE_CHECKING, Annotated, NoReturn
 
 import typer
 from pydantic import ValidationError
@@ -16,8 +16,13 @@ from pydantic import ValidationError
 from advertest_contracts.models import RunResult
 from attacks.registry import UnknownAttack
 from ml_core.runner.config import load_config
-from ml_core.runner.run import Runner, RunOutcome, result_key, run_prefix
 from ml_core.store import ArtifactStore, KeyNotFoundError, require_store
+
+if TYPE_CHECKING:
+    from ml_core.runner.run import RunOutcome
+
+# `ml_core.runner.run` được import trong từng lệnh: runner dùng `ml_core.cli.cache` và
+# `ml_core.cli.evaluate`, nên import ở đầu file tạo vòng runner.run → ml_core.cli → cli.run.
 
 run_app = typer.Typer(
     help="Chạy attack theo cấu hình (quét lưới), xem kết quả theo fingerprint.",
@@ -81,6 +86,8 @@ def run(
     if config is None:
         _err("Cần --config <yaml> (hoặc lệnh con `show`)")
         raise typer.Exit(code=2)
+    from ml_core.runner.run import Runner
+
     store = require_store(ctx.obj)
     try:
         runner = Runner(store, load_config(config), force=force, progress=_err)
@@ -115,6 +122,8 @@ def show(
     fingerprint: Annotated[str, typer.Argument(help="Fingerprint của run (sha256)")],
 ) -> None:
     """In RunResult của fingerprint và đường dẫn artifact (kể cả các lần --force và run lỗi)."""
+    from ml_core.runner.run import result_key, run_prefix
+
     store = require_store(ctx.obj)
     prefix = run_prefix(fingerprint)
     try:
