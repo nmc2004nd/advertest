@@ -14,51 +14,31 @@ Run `skipped` (`cached`) chỉ được trả về, không ghi vào store.
 
 from __future__ import annotations
 
-import io
-import time
-from collections.abc import Callable, Sequence
-from dataclasses import dataclass, field, replace
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-import numpy as np
-from numpy.typing import NDArray
-from PIL import Image
-
 from advertest_contracts.enums import RunStatus, SkipReason
 from advertest_contracts.models import (
     AttackSpec,
-    CaseArtifacts,
-    CaseBox,
-    CaseDetections,
-    CaseIgnoreRegion,
     EvalMetrics,
-    FailureCaseRecord,
     FingerprintInputs,
     InferenceParams,
     Manifest,
     Progress,
     RunResult,
     StatusReason,
-    compute_failure_case_id,
 )
 from attacks.art_adapter import ArtPerturbation, IncompatibleAttack, build_perturbation
-from ml_core.cli.cache import Prediction, load_predictions, prediction_cache_key, save_predictions
-from ml_core.cli.evaluate import ground_truth, load_model_from_store, predict_slice
+from ml_core.cli.cache import Prediction
+from ml_core.cli.evaluate import load_model_from_store, predict_slice
 from ml_core.data.loader import SliceLoader
-from ml_core.metrics.attack import (
-    ImageAttackStats,
-    build_run_metrics,
-    image_attack_stats,
-    select_failure_cases,
-)
-from ml_core.metrics.clean import CleanMetric
-from ml_core.metrics.filters import filter_classes, filter_ignored
 from ml_core.models.estimator import build_estimator
 from ml_core.models.register import lib_versions
 from ml_core.models.wrapper import DEFAULT_INFERENCE_PARAMS
-from ml_core.preprocess import LetterboxInfo
+from ml_core.runner.candidates import MemoryCandidates
 from ml_core.runner.config import LocalRunConfig, experiment_id, resolve_specs
 from ml_core.runner.env import (
     default_device,
@@ -67,8 +47,18 @@ from ml_core.runner.env import (
     environment,
     git_state,
 )
+from ml_core.runner.executor import (
+    RunContext,
+    RunExecutor,
+    build_context,
+    linf_eps,
+    load_clean_predictions,
+)
 from ml_core.runner.fingerprint import build_fingerprint_inputs, fingerprint
+from ml_core.runner.images import amplified_perturbation, letterbox_mask
 from ml_core.store import ArtifactStore
+
+__all__ = ["amplified_perturbation", "letterbox_mask"]
 
 PerturbationFactory = Callable[[AttackSpec, Any], ArtPerturbation]
 ProgressFn = Callable[[str], None]
@@ -99,75 +89,6 @@ class RunReport:
     git_dirty: bool
     clean: EvalMetrics
     outcomes: list[RunOutcome] = field(default_factory=list)
-
-
-def letterbox_mask(infos: Sequence[LetterboxInfo]) -> NDArray[np.float32]:
-    """(N, 1, size, size): 1 ở vùng ảnh thật, 0 ở vùng pad (cùng hình học với `letterbox`)."""
-    size = infos[0].size
-    mask = np.zeros((len(infos), 1, size, size), dtype=np.float32)
-    for i, info in enumerate(infos):
-        width, height = info.orig_size
-        new_w = max(1, min(size, round(width * info.scale)))
-        new_h = max(1, min(size, round(height * info.scale)))
-        left, top = info.pad
-        mask[i, :, top : top + new_h, left : left + new_w] = 1.0
-    return mask
-
-
-def _bbox(box: NDArray[Any]) -> tuple[float, float, float, float]:
-    x1, y1, x2, y2 = (float(v) for v in np.asarray(box).reshape(4))
-    return x1, y1, x2, y2
-
-
-def _png(image: NDArray[np.float32]) -> bytes:
-    """(C, H, W) trong [0, 1] → PNG RGB 8-bit (chỉ để hiển thị)."""
-    pixels = np.round(np.clip(image, 0.0, 1.0) * 255).astype(np.uint8).transpose(1, 2, 0)
-    buffer = io.BytesIO()
-    Image.fromarray(pixels).save(buffer, format="PNG")
-    return buffer.getvalue()
-
-
-def amplified_perturbation(
-    clean: NDArray[np.float32], adversarial: NDArray[np.float32], linf_eps: float | None
-) -> NDArray[np.float32]:
-    """Ảnh nhiễu khuếch đại: `0.5 + δ / (2·eps)` với L∞; `0.5 + δ / (2·max|δ|)` với L2
-    (`linf_eps = None`), δ = 0 thì toàn ảnh 0.5; cắt về [0, 1]."""
-    delta = adversarial.astype(np.float64) - clean.astype(np.float64)
-    scale = linf_eps if linf_eps is not None else float(np.abs(delta).max())
-    if scale <= 0:
-        return np.full(clean.shape, 0.5, dtype=np.float32)
-    return np.clip(0.5 + delta / (2 * scale), 0.0, 1.0).astype(np.float32)
-
-
-@dataclass(frozen=True)
-class _Candidate:
-    stats: ImageAttackStats
-    clean: NDArray[np.float32]
-    adversarial: NDArray[np.float32]
-    attacked_pred: Prediction
-    target: dict[str, NDArray[Any]]
-    ignore: dict[str, Any]
-
-
-class _TopCases:
-    """Giữ tối đa `limit` ảnh theo đúng quy tắc của `select_failure_cases`, để không phải giữ
-    ảnh của cả slice trong bộ nhớ."""
-
-    def __init__(self, limit: int) -> None:
-        self.limit = limit
-        self.items: dict[str, _Candidate] = {}
-
-    def offer(self, image_id: str, candidate: _Candidate) -> None:
-        if self.limit == 0 or candidate.stats.severity_score <= 0:
-            return
-        self.items[image_id] = candidate
-        keep = select_failure_cases({k: v.stats for k, v in self.items.items()}, self.limit)
-        self.items = {k: self.items[k] for k, _ in keep}
-        if image_id in self.items:
-            # Ảnh là view của mảng cả batch: chép riêng để không giữ cả batch trong bộ nhớ.
-            self.items[image_id] = replace(
-                candidate, clean=candidate.clean.copy(), adversarial=candidate.adversarial.copy()
-            )
 
 
 class Runner:
@@ -203,9 +124,6 @@ class Runner:
             )
         self.slice = self.loader.slice
         self.mapping = self.loader.mapping
-        target_classes = {c for c in self.mapping.classes.values() if c is not None}
-        self.target_classes = target_classes
-        self.target_labels = sorted(self.card.class_names.index(c) for c in target_classes)
         self._estimator: Any = None
 
     # ------------------------------------------------------------------ chuẩn bị
@@ -220,39 +138,31 @@ class Runner:
 
     def clean_predictions(self) -> dict[str, Prediction]:
         """Prediction thô trên ảnh sạch từ cache của Phase 1; chưa có thì chạy như `eval`."""
-        key = prediction_cache_key(self.card.weights_sha256, self.slice, self.params)
-        cached = load_predictions(self.store, key)
-        if cached is not None:
-            predictions = cached.predictions
-        else:
-            self.progress("Chưa có cache prediction ảnh sạch: chạy predict trên slice")
-            predictions = predict_slice(self.loader, self.estimator, self.config.batch_size)
-            save_predictions(self.store, key, predictions, describe_device(self.device))
-        missing = [i for i in self.slice.image_ids if i not in predictions]
-        if missing:
-            raise ValueError(f"Cache thiếu prediction của {len(missing)} ảnh, ví dụ {missing[:3]}")
-        return predictions
-
-    def _new_metric(self) -> CleanMetric:
-        return CleanMetric(self.card.class_names, self.target_classes, self.params.max_det)
+        return load_clean_predictions(
+            self.store,
+            self.loader,
+            self.params,
+            lambda: self.estimator,
+            self.config.batch_size,
+            lambda: describe_device(self.device),
+            self.progress,
+            # Tra `predict_slice` lúc gọi: test thay hàm này để kiểm tra đã dùng cache.
+            lambda loader, estimator, batch_size: predict_slice(loader, estimator, batch_size),
+        )
 
     # ------------------------------------------------------------------ chạy
 
     def run(self) -> RunReport:
-        clean_preds = self.clean_predictions()
-        targets, ignores = ground_truth(self.loader)
-        ids = self.slice.image_ids
-        clean_metric = self._new_metric()
-        clean_metric.update(
-            [clean_preds[i] for i in ids], [targets[i] for i in ids], [ignores[i] for i in ids]
+        context = build_context(
+            self.loader, self.clean_predictions(), self.params, self.config.failure_cases_per_run
         )
         report = RunReport(
-            experiment_id=self.experiment_id, git_dirty=self.git.dirty, clean=clean_metric.compute()
+            experiment_id=self.experiment_id, git_dirty=self.git.dirty, clean=context.clean_metrics
         )
         for attack, spec in zip(self.config.attacks, self.specs, strict=True):
             assert attack.grid is not None  # LocalRunConfig chỉ nhận mode = grid
             for level in attack.grid.levels:
-                outcome = self._run_one(spec, float(level), attack.seed, clean_preds, report.clean)
+                outcome = self._run_one(spec, float(level), attack.seed, context)
                 report.outcomes.append(outcome)
         return report
 
@@ -316,8 +226,7 @@ class Runner:
         spec: AttackSpec,
         level: float,
         seed: int,
-        clean_preds: dict[str, Prediction],
-        clean: EvalMetrics,
+        context: RunContext,
     ) -> RunOutcome:
         inputs = self._fingerprint_inputs(spec, level, seed)
         fp = fingerprint(inputs)
@@ -384,8 +293,7 @@ class Runner:
                 fp,
                 inputs,
                 prefix,
-                clean_preds,
-                clean,
+                context,
                 state,
             )
         except Exception as exc:  # một run lỗi không dừng các run khác (requirements.md, CLI)
@@ -432,62 +340,29 @@ class Runner:
         fp: str,
         inputs: FingerprintInputs,
         prefix: str,
-        clean_preds: dict[str, Prediction],
-        clean: EvalMetrics,
+        context: RunContext,
         state: _Execution,
     ) -> RunResult:
         total = len(self.slice.image_ids)
-        metric = self._new_metric()
-        stats: dict[str, ImageAttackStats] = {}
-        top = _TopCases(self.config.failure_cases_per_run)
-        conf = self.params.operating_conf
-
-        for batch in self.loader.batches(self.config.batch_size):
-            start = time.perf_counter()
-            mask = letterbox_mask(batch.infos)
-            adversarial = perturbation.apply(batch.images, batch.targets, level, seed, mask)
-            preds = self.estimator.predict(adversarial, batch_size=self.config.batch_size)
-            state.device_seconds += time.perf_counter() - start
-
-            ignore_boxes = [item["boxes"] for item in batch.ignore]
-            metric.update(preds, batch.targets, ignore_boxes)
-            for i, image_id in enumerate(batch.image_ids):
-                s = image_attack_stats(
-                    clean_preds[image_id],
-                    preds[i],
-                    batch.targets[i],
-                    ignore_boxes[i],
-                    self.target_labels,
-                    conf,
-                )
-                stats[image_id] = s
-                top.offer(
-                    image_id,
-                    _Candidate(
-                        stats=s,
-                        clean=batch.images[i],
-                        adversarial=adversarial[i],
-                        attacked_pred=preds[i],
-                        target=batch.targets[i],
-                        ignore=batch.ignore[i],
-                    ),
-                )
-            state.images_done += len(batch.image_ids)
+        executor = RunExecutor(
+            fingerprint=fp,
+            level=level,
+            seed=seed,
+            perturbation=perturbation,
+            estimator=self.estimator,
+            context=context,
+            candidates=MemoryCandidates(self.store, prefix, linf_eps(spec, perturbation, level)),
+        )
+        for batch in executor.batches(self.loader, self.config.batch_size):
+            executor.process_batch(batch)
+            state.images_done = executor.images_done
+            state.device_seconds = executor.processing_seconds
             self.progress(f"[{spec.name} {level:g}] {state.images_done}/{total} ảnh")
 
-        metrics = build_run_metrics(clean, metric.compute(), stats.values())
-        selected = select_failure_cases(stats, self.config.failure_cases_per_run)
-        if [image_id for image_id, _ in selected] != list(top.items):
-            raise RuntimeError("Failure case giữ trong lúc chạy lệch với select_failure_cases")
-
-        linf = str(spec.fixed_params.get("norm")) == "inf"
-        linf_eps = perturbation.eps(level) if linf else None
-        case_ids = [
-            self._write_case(
-                prefix, run_id, fp, image_id, top.items[image_id], clean_preds[image_id], linf_eps
-            )
-            for image_id, _ in selected
-        ]
+        finalized = executor.finalize(run_id)
+        for record in finalized.failure_cases:
+            key = f"{prefix}/cases/{record.image_id}/record.json"
+            self.store.put(key, (record.model_dump_json(indent=2) + "\n").encode())
         manifest_uri = self._write_manifest(prefix, run_id, inputs)
         result = self._result(
             run_id,
@@ -496,90 +371,14 @@ class Runner:
             level,
             RunStatus.COMPLETED,
             progress=Progress(images_done=total, images_total=total),
-            metrics=metrics,
-            gpu_seconds=state.device_seconds,
-            failure_case_ids=case_ids,
+            metrics=finalized.metrics,
+            gpu_seconds=executor.processing_seconds,
+            failure_case_ids=[record.id for record in finalized.failure_cases],
             manifest_uri=manifest_uri,
         )
         # result.json ghi sau cùng: có result.json nghĩa là run đã ghi đủ artifact.
         self._write_result(prefix, result)
         return result
-
-    # ------------------------------------------------------------------ failure case
-
-    def _boxes(self, pred: Prediction, ignore: NDArray[Any]) -> list[CaseBox]:
-        kept = filter_ignored(filter_classes(pred, self.target_labels), ignore)
-        confident = kept["scores"] >= self.params.operating_conf
-        return [
-            CaseBox(
-                bbox=_bbox(box),
-                class_name=self.card.class_names[int(label)],
-                score=float(score),
-            )
-            for box, label, score in zip(
-                kept["boxes"][confident],
-                kept["labels"][confident],
-                kept["scores"][confident],
-                strict=True,
-            )
-        ]
-
-    def _write_case(
-        self,
-        prefix: str,
-        run_id: UUID,
-        fp: str,
-        image_id: str,
-        case: _Candidate,
-        clean_pred: Prediction,
-        linf_eps: float | None,
-    ) -> UUID:
-        base = f"{prefix}/cases/{image_id}"
-        artifacts = CaseArtifacts(
-            clean_png=f"{base}/clean.png",
-            adversarial_png=f"{base}/adversarial.png",
-            perturbation_png=f"{base}/perturbation.png",
-        )
-        self.store.put(artifacts.clean_png, _png(case.clean))
-        self.store.put(artifacts.adversarial_png, _png(case.adversarial))
-        self.store.put(
-            artifacts.perturbation_png,
-            _png(amplified_perturbation(case.clean, case.adversarial, linf_eps)),
-        )
-        ignore_boxes = np.asarray(case.ignore["boxes"]).reshape(-1, 4)
-        detections = CaseDetections(
-            ground_truth=[
-                CaseBox(
-                    bbox=_bbox(box),
-                    class_name=self.card.class_names[int(label)],
-                    score=None,
-                )
-                for box, label in zip(
-                    np.asarray(case.target["boxes"]).reshape(-1, 4),
-                    case.target["labels"],
-                    strict=True,
-                )
-            ],
-            clean=self._boxes(clean_pred, ignore_boxes),
-            attacked=self._boxes(case.attacked_pred, ignore_boxes),
-            ignore_regions=[
-                CaseIgnoreRegion(bbox=_bbox(box), source=source)
-                for box, source in zip(ignore_boxes, case.ignore["sources"], strict=True)
-            ],
-        )
-        record = FailureCaseRecord(
-            id=compute_failure_case_id(fp, run_id, image_id),
-            run_id=run_id,
-            fingerprint=fp,
-            image_id=image_id,
-            lost_objects=case.stats.lost,
-            new_false_positives=case.stats.new_false_positives,
-            severity_score=case.stats.severity_score,
-            detections=detections,
-            artifacts=artifacts,
-        )
-        self.store.put(f"{base}/record.json", (record.model_dump_json(indent=2) + "\n").encode())
-        return record.id
 
 
 @dataclass
