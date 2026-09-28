@@ -267,6 +267,8 @@ Nguồn sự thật là `pyproject.toml` + `uv.lock` (Python) và `frontend/pack
 | adversarial-robustness-toolbox | 1.20.1 |
 | ultralytics | 8.4.163 |
 | torchmetrics | 1.9.0 |
+| pycocotools | 2.0.11 (backend của `MeanAveragePrecision`, Phase 1) |
+| typer / pillow | 0.27.2 / 12.3.0 (Phase 1) |
 | numpy | 2.4.6 |
 | fastapi | 0.141.1 |
 | pydantic | 2.13.5 |

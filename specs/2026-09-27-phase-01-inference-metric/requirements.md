@@ -115,7 +115,8 @@ Schema `SliceSpec` trong contract.
 ## Behaviour
 
 ### Letterbox
-- Resize giữ tỉ lệ để cạnh dài bằng 640, pad về 640×640 bằng giá trị 114/255, căn giữa.
+- Resize giữ tỉ lệ để cạnh dài bằng 640 (Pillow `BILINEAR`), pad về 640×640 bằng giá trị 114/255, căn giữa.
+- Cấu hình letterbox (giống nhau cho mọi ảnh) là hằng `LETTERBOX_CONFIG` trong `ml_core/preprocess/letterbox.py`: `size`, `pad_value`, `resample`, `align`. Khóa cache (Phase 1) và fingerprint (Phase 2) dùng hằng này, không dùng `scale`/`pad` riêng từng ảnh.
 - Lưu `scale` và `pad` để chuyển ngược tọa độ.
 - Ground truth và ignore region được chuyển sang không gian letterbox khi nạp; manifest luôn lưu tọa độ ảnh gốc.
 
@@ -144,14 +145,17 @@ Schema `SliceSpec` trong contract.
 - Metric tính bằng `torchmetrics` `MeanAveragePrecision` (`box_format="xyxy"`, `iou_type="bbox"`, `class_metrics=True`).
 
 ### Cache
-- Khóa cache = sha256 của: `weights_sha256`, `image_ids_sha256`, `dataset_version_sha256`, cấu hình letterbox, `inference_params`, phiên bản `torch` và `ultralytics`.
+- Khóa cache = sha256 của: `weights_sha256`, `image_ids_sha256`, `dataset_version_sha256`, cấu hình letterbox (`LETTERBOX_CONFIG`), `inference_params`, phiên bản `torch` và `ultralytics`.
 - Cache lưu prediction thô (trước khi lọc class và ignore region), để đổi mapping không phải chạy lại model.
 - Chạy lại cùng khóa: không gọi model, `cache.hit = true`.
 
 ### Kho lưu trữ local
 - Interface `ArtifactStore` với hai thao tác chính `put(key, bytes)` và `get(key)`. Phase này chỉ cài `LocalStore` (thư mục `data/store/`). Phase 3 thêm `MinioStore` cùng interface.
 - Bố cục theo nội dung: `datasets/<sha>/manifest.json`, `slices/<slice_sha256>.json`, `mappings/<mapping_sha256>.json`, `models/<weights_sha>/card.json`, `cache/predictions/<key>.json`.
-- CLI nhận `id` (uuid) cho `--slice`, `--mapping`, `--model`; store giữ chỉ mục id → sha.
+- Key là đường dẫn tương đối kiểu POSIX; mỗi đoạn gồm chữ, số, `.`, `_`, `-` và không bắt đầu bằng `.` (tên ẩn dành cho file tạm).
+- Artifact là bất biến: `put` cùng nội dung vào key đã có là no-op, nội dung khác báo `KeyConflictError`. `LocalStore` ghi nguyên tử (file tạm rồi đổi tên).
+- CLI nhận `id` (uuid) cho `--slice`, `--mapping`, `--model`; store giữ chỉ mục id → sha tại `index/<kind>/<id>` (`kind` là `dataset`, `slice`, `mapping`, `model`), qua `register_id` và `resolve_id` của `ml_core.store`.
+- Tùy chọn chung `advertest --store-dir <dir>` chọn thư mục của `LocalStore` (mặc định `data/store/`); lệnh con lấy store bằng `ml_core.store.require_store(ctx.obj)`.
 
 ### Trực quan hóa
 - `advertest viz --slice <id> --mapping <id> --model <id> --n 8 --out <dir>` xuất ảnh PNG vẽ ground truth, prediction và ignore region, để kiểm tra bằng mắt rằng box khớp sau letterbox.
