@@ -24,7 +24,7 @@
 |---|---|---|---|---|
 | 0 ✅ | Contract và khung dự án | Người duyệt (chính) | — | — |
 | 1 ✅ | CLI đo mAP trên slice KITTI | ml-core | 0 | — |
-| 2 | FGSM/PGD trên CLI, có manifest | ml-core, attack | 1 | 4 |
+| 2 ✅ | FGSM/PGD trên CLI, có manifest | ml-core, attack | 1 | 4 |
 | 3 | Job chạy qua API trên máy local | backend, attack | 2 | 4 |
 | 4 | Yêu cầu truy cập, duyệt, RBAC | backend, frontend | 0 | 2, 3 |
 | 5 | Wizard tạo experiment, theo dõi tiến độ | frontend, backend | 3, 4 | 6 |
@@ -70,11 +70,11 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 
 **Demo:** CLI in ra mAP của YOLO trên slice KITTI.
 
-## Phase 2 — Attack white-box đầu tiên
+## Phase 2 — Attack white-box đầu tiên ✅ Hoàn thành (2026-09-28), còn tồn đọng
 
 **Mục tiêu:** chạy FGSM/PGD từ đầu đến cuối, có đủ dữ liệu để tái lập.
 
-> Group 0–4 xong (2026-09-28), chờ merge Group 4 và `phase-close`. Tồn đọng: manual check cần GPU (thời gian mỗi ảnh, batch lớn nhất, `--force` trên GPU); số liệu KITTI hiện đo trên CPU.
+> Tồn đọng (người dùng cho phép đóng phase, cập nhật sau): 2 manual check cần GPU trong `validation.md` (thời gian mỗi ảnh và batch lớn nhất khi tính gradient, `--force` trên GPU); xác nhận CI xanh sau khi push `main`. Số liệu KITTI hiện đo trên CPU.
 
 - [x] Interface `Perturbation` và registry attack.
 - [x] FGSM và PGD (bước nhảy tỷ lệ theo eps).

@@ -6,7 +6,17 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 2 — Attack white-box đầu tiên
 
-**Trạng thái:** đang làm. Group 0–3 đã merge; Group 4 xong trên nhánh `phase02-reviewer-g4`, chờ người dùng cho phép merge (2026-09-28).
+**Trạng thái:** ✅ hoàn thành 2026-09-28, **còn tồn đọng** (người dùng cho phép đóng phase và cập nhật sau). Group 0–4 đã merge.
+
+### Phase 2 — Tổng kết (phase-close) — 2026-09-28
+- **Giao được:** adapter ART → `Perturbation` cho `fgsm`, `pgd_linf`, `pgd_l2` (mask vùng ảnh thật, áp lại sau `generate`); metric sau tấn công (ASR, FP mới, mức sụt, `RunMetrics`); chọn failure case kèm 3 PNG và `FailureCaseRecord`; fingerprint, manifest, cache theo fingerprint, `--force`; CLI `advertest run --config [--force]`, `advertest run show`.
+- **Contract:** `Perturbation.apply(..., mask)`, `FingerprintInputs.git_dirty`, `RunMetrics.attack_success_rate` nhận `null`, schema `FailureCaseRecord`. Người duyệt đã chấp nhận (Group 0).
+- **Số liệu cuối:** `make check` pass trên `main` (463 test Python, 152 test nghiệm thu gồm 58 của Phase 2, 36 test Vitest); `make test-db` 41 test pass. KITTI (CPU): mAP@0.5 sạch 0.5332 → PGD L∞ eps 2/255: 0.0123, eps 4/255: 0.0017; FGSM eps 4/255: 0.1765; PGD L2 eps 1: 0.0556. PGD 1.3 s/ảnh, FGSM 0.17 s/ảnh. Chạy lại `--force` trùng tuyệt đối.
+- **`validation.md`:** Automated Tests đủ; 5/7 Manual Checks (người dùng xác nhận); Definition of Done 3/5.
+- **Tồn đọng (cập nhật khi có kết quả):**
+  - 2 manual check cần GPU: thời gian mỗi ảnh và batch size lớn nhất khi tính gradient trên GPU; `--force` trên GPU nằm trong sai số.
+  - Definition of Done "Automated Tests pass trên CI": `main` chưa push; xác nhận khi CI xanh.
+- **Lưu ý:** các group của người duyệt (0, 4), việc review và merge do agent làm thay theo ủy quyền của người dùng; review do chính agent đã viết code thực hiện nên không phải review độc lập.
 
 ### Phase 2 — kickoff (spec) — 2026-09-28
 #### Thay đổi
