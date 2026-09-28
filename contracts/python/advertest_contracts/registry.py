@@ -12,6 +12,7 @@ from advertest_contracts.models import (
     DatasetManifest,
     ErrorResponse,
     ExperimentConfig,
+    FailureCaseRecord,
     HealthResponse,
     Manifest,
     ModelCard,
@@ -36,4 +37,5 @@ SCHEMAS: dict[str, type[BaseModel]] = {
     "class_mapping": ClassMapping,
     "slice_spec": SliceSpec,
     "clean_eval_result": CleanEvalResult,
+    "failure_case_record": FailureCaseRecord,
 }

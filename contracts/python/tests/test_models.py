@@ -17,6 +17,7 @@ from advertest_contracts.models import (
     DatasetManifest,
     ErrorResponse,
     ExperimentConfig,
+    FailureCaseRecord,
     HealthResponse,
     IgnoreRegion,
     Manifest,
@@ -25,6 +26,7 @@ from advertest_contracts.models import (
     RunResult,
     SearchResult,
     SliceSpec,
+    compute_failure_case_id,
     compute_mapping_sha256,
     compute_slice_sha256,
     compute_spec_sha256,
@@ -694,3 +696,65 @@ def test_clean_eval_result_rejects(mutate: Any) -> None:
     mutate(data)
     with pytest.raises(ValidationError):
         CleanEvalResult.model_validate(data)
+
+
+def _case(**overrides: Any) -> dict[str, Any]:
+    fingerprint, image_id = "a" * 64, "000057"
+    data: dict[str, Any] = {
+        "id": str(compute_failure_case_id(fingerprint, image_id)),
+        "run_id": str(uuid4()),
+        "fingerprint": fingerprint,
+        "image_id": image_id,
+        "lost_objects": 2,
+        "new_false_positives": 1,
+        "severity_score": 2.5,
+        "detections": {
+            "ground_truth": [{"bbox": [1, 2, 30, 40], "class_name": "car", "score": None}],
+            "clean": [{"bbox": [1, 2, 31, 41], "class_name": "car", "score": 0.9}],
+            "attacked": [],
+            "ignore_regions": [{"bbox": [0, 0, 5, 5], "source": "dont_care"}],
+        },
+        "artifacts": {
+            "clean_png": "runs/x/cases/000057/clean.png",
+            "adversarial_png": "runs/x/cases/000057/adversarial.png",
+            "perturbation_png": "runs/x/cases/000057/perturbation.png",
+        },
+    }
+    data.update(overrides)
+    return data
+
+
+def test_failure_case_valid_and_id_is_deterministic() -> None:
+    case = FailureCaseRecord.model_validate(_case())
+    assert case.id == compute_failure_case_id("a" * 64, "000057")
+    assert case.id != compute_failure_case_id("a" * 64, "000058")
+    assert case.id != compute_failure_case_id("b" * 64, "000057")
+
+
+def test_failure_case_rejects_wrong_id_and_severity() -> None:
+    with pytest.raises(ValidationError, match="compute_failure_case_id"):
+        FailureCaseRecord.model_validate(_case(id=str(uuid4())))
+    with pytest.raises(ValidationError, match="severity_score"):
+        FailureCaseRecord.model_validate(_case(severity_score=3.0))
+    with pytest.raises(ValidationError):
+        FailureCaseRecord.model_validate(
+            _case(lost_objects=0, new_false_positives=0, severity_score=0.0)
+        )
+
+
+def test_failure_case_score_rules() -> None:
+    base = _case()
+    gt_with_score = copy.deepcopy(base)
+    gt_with_score["detections"]["ground_truth"][0]["score"] = 0.5
+    with pytest.raises(ValidationError, match="ground_truth"):
+        FailureCaseRecord.model_validate(gt_with_score)
+    pred_without_score = copy.deepcopy(base)
+    pred_without_score["detections"]["attacked"] = [
+        {"bbox": [1, 2, 3, 4], "class_name": "car", "score": None}
+    ]
+    with pytest.raises(ValidationError, match="prediction"):
+        FailureCaseRecord.model_validate(pred_without_score)
+    bad_source = copy.deepcopy(base)
+    bad_source["detections"]["ignore_regions"][0]["source"] = "foo"
+    with pytest.raises(ValidationError):
+        FailureCaseRecord.model_validate(bad_source)
