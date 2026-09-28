@@ -1,0 +1,26 @@
+# Quét PGD L∞ (eps 2, 4, 8, 16) và FGSM (eps 4, 8), đơn vị eps là 1/255 trên ảnh letterbox.
+# Chạy: uv run --extra cpu advertest run --config configs/examples/pgd_sweep.yaml
+#
+# model_id, slice_id, mapping_id là của store trong data/store: YOLOv8n, slice KITTI 300 ảnh seed 42
+# (Phase 1), mapping preset kitti-coco. Store khác thì thay bằng id in ra từ
+# `advertest model register`, `advertest slice create`, `advertest mapping create`.
+# attack_spec_id và spec_sha256 lấy từ contracts/seeds/attack_specs.json.
+model_id: 81686f0e-32b6-5806-819c-3b0e37072342
+slice_id: 37341deb-7761-5c9b-adf1-e84a9d3f53a8
+mapping_id: 820ed6c7-5af9-599b-ac06-905c59f826d6
+device: null  # null: GPU nếu có, không thì CPU
+batch_size: 8
+failure_cases_per_run: 20
+attacks:
+  - attack_spec_id: 449774ff-ded0-5909-b549-90a1e410bd62  # pgd_linf v1
+    spec_sha256: 68fe8f72f176fe27981eadfe8b5e98bb36b8e85fc41c97b5702e2e149f52d72c
+    mode: grid
+    grid:
+      levels: [2, 4, 8, 16]
+    seed: 0
+  - attack_spec_id: 8d15422d-f111-5c7e-96eb-e704767e6218  # fgsm v1
+    spec_sha256: a6d81b6643af13e1d2f7983ce51340f54c26629304f1fdd98b954c236c1e735f
+    mode: grid
+    grid:
+      levels: [4, 8]
+    seed: 0

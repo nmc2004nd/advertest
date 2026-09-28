@@ -31,8 +31,6 @@ from ml_core.cli import evaluate as evaluate_module
 from ml_core.cli.cache import prediction_cache_key, save_predictions
 from ml_core.cli.evaluate import (
     OutOfMemoryError,
-    current_git_commit,
-    describe_device,
     ground_truth,
     predict_slice,
     run_eval,
@@ -47,6 +45,7 @@ from ml_core.data.tests.kitti_factory import label_line, make_kitti
 from ml_core.models.register import register_model
 from ml_core.models.wrapper import DEFAULT_INFERENCE_PARAMS
 from ml_core.preprocess import letterbox
+from ml_core.runner.env import current_git_commit, describe_device
 from ml_core.store import LocalStore
 
 COMMIT = "1" * 40

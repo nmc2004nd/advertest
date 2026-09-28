@@ -10,9 +10,6 @@ cache hit không phải đọc lại ảnh; kết quả trùng với `SliceLoade
 
 from __future__ import annotations
 
-import os
-import re
-import subprocess
 import tempfile
 import time
 from dataclasses import dataclass, field
@@ -39,11 +36,10 @@ from ml_core.models.estimator import build_estimator
 from ml_core.models.register import lib_versions, weights_key
 from ml_core.models.wrapper import DEFAULT_INFERENCE_PARAMS, load_detection_model
 from ml_core.preprocess import boxes_to_letterbox, letterbox_info
+from ml_core.runner.env import current_git_commit, describe_device
 from ml_core.store import ArtifactStore
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_BATCH_SIZE = 8
-_GIT_COMMIT = re.compile(r"^[0-9a-f]{40}$")
 
 
 class OutOfMemoryError(RuntimeError):
@@ -54,44 +50,6 @@ class OutOfMemoryError(RuntimeError):
 class EvalRun:
     result: CleanEvalResult
     warnings: list[str] = field(default_factory=list)
-
-
-def default_device() -> str:
-    return "cuda:0" if torch.cuda.is_available() else "cpu"
-
-
-def describe_device(device: str) -> str:
-    """Ví dụ `cuda:0 (NVIDIA GeForce RTX 3050)` hoặc `cpu`."""
-    torch_device = torch.device(device)
-    if torch_device.type != "cuda":
-        return torch_device.type
-    index = torch_device.index if torch_device.index is not None else torch.cuda.current_device()
-    return f"cuda:{index} ({torch.cuda.get_device_name(index)})"
-
-
-def current_git_commit() -> tuple[str, list[str]]:
-    """Commit của mã đang chạy: biến `GIT_COMMIT` nếu có, không thì `git rev-parse HEAD`.
-
-    Trả thêm cảnh báo nếu working tree có thay đổi chưa commit.
-    """
-    env = os.environ.get("GIT_COMMIT", "").strip()
-    if env:
-        if not _GIT_COMMIT.fullmatch(env):
-            raise ValueError(f"GIT_COMMIT không phải commit hash 40 ký tự: {env!r}")
-        return env, []
-
-    def git(*args: str) -> str:
-        return subprocess.run(
-            ["git", *args], cwd=REPO_ROOT, capture_output=True, text=True, check=True
-        ).stdout.strip()
-
-    try:
-        commit = git("rev-parse", "HEAD")
-        dirty = git("status", "--porcelain", "--untracked-files=no")
-    except (OSError, subprocess.CalledProcessError) as exc:
-        raise ValueError("Không xác định được git commit; đặt biến GIT_COMMIT") from exc
-    warnings = ["Working tree có thay đổi chưa commit; git_commit không mô tả đủ mã đã chạy"]
-    return commit, warnings if dirty else []
 
 
 def ground_truth(
