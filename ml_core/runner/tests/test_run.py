@@ -436,3 +436,41 @@ def test_cli_run_errors(base: Base, store: LocalStore, tmp_path: Path) -> None:
     bad.write_text("model_id: 1\n")
     result = runner.invoke(app, ["--store-dir", str(store.root), "run", "--config", str(bad)])
     assert result.exit_code == 1 and "Lỗi" in result.stderr
+
+
+def test_error_while_building_attack_fails_only_that_run(base: Base, store: LocalStore) -> None:
+    def factory(spec: Any, estimator: Any) -> ArtPerturbation:
+        if spec.name == "fgsm":
+            raise RuntimeError("không dựng được attack (giả lập)")
+        return build_perturbation(spec, estimator)
+
+    config = _config(base, [_attack("fgsm", [4]), _attack("pgd_l2", [1])])
+    report = run_config(store, config, perturbation_factory=factory)
+    failed, other = report.outcomes
+    assert failed.result.status == RunStatus.FAILED
+    assert failed.result.status_reason is not None
+    assert "không dựng được" in failed.result.status_reason.message
+    assert failed.prefix is not None and "/attempts/" in failed.prefix
+    assert store.exists(f"{failed.prefix}/result.json")
+    assert other.result.status == RunStatus.COMPLETED
+
+
+def test_top_cases_keep_own_copies() -> None:
+    batch = np.zeros((4, 3, 8, 8), np.float32)
+    top = run_module._TopCases(limit=2)
+    for i, severity in enumerate([1, 3, 2, 0]):
+        stats = ImageAttackStats(correct=severity, lost=severity, clean_fp=0, attacked_fp=0)
+        top.offer(
+            f"{i:06d}",
+            _Candidate(
+                stats=stats,
+                clean=batch[i],
+                adversarial=batch[i],
+                attacked_pred={},
+                target={},
+                ignore={},
+            ),
+        )
+    assert list(top.items) == ["000001", "000002"]
+    for candidate in top.items.values():
+        assert candidate.clean.base is None and candidate.adversarial.base is None

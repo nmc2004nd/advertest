@@ -17,7 +17,7 @@ from __future__ import annotations
 import io
 import time
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
@@ -163,6 +163,11 @@ class _TopCases:
         self.items[image_id] = candidate
         keep = select_failure_cases({k: v.stats for k, v in self.items.items()}, self.limit)
         self.items = {k: self.items[k] for k, _ in keep}
+        if image_id in self.items:
+            # Ảnh là view của mảng cả batch: chép riêng để không giữ cả batch trong bộ nhớ.
+            self.items[image_id] = replace(
+                candidate, clean=candidate.clean.copy(), adversarial=candidate.adversarial.copy()
+            )
 
 
 class Runner:
@@ -350,6 +355,8 @@ class Runner:
                 perturbation = self.perturbation_factory(spec, self.estimator)
             except IncompatibleAttack as exc:
                 reason = str(exc)
+            except Exception as exc:  # lỗi khi dựng attack: run này failed, các run khác chạy tiếp
+                return self._failed(spec, level, run_id, fp, inputs, attempt, exc, _Execution())
         if perturbation is None:
             self.progress(f"[{spec.name} {level:g}] skipped: {reason}")
             manifest_uri = self._write_manifest(attempt, run_id, inputs)
@@ -382,24 +389,38 @@ class Runner:
                 state,
             )
         except Exception as exc:  # một run lỗi không dừng các run khác (requirements.md, CLI)
-            self.progress(f"[{spec.name} {level:g}] failed: {type(exc).__name__}: {exc}")
-            manifest_uri = self._write_manifest(attempt, run_id, inputs)
-            result = self._result(
-                run_id,
-                fp,
-                spec,
-                level,
-                RunStatus.FAILED,
-                status_reason=StatusReason(code="error", message=f"{type(exc).__name__}: {exc}"),
-                progress=Progress(
-                    images_done=state.images_done, images_total=len(self.slice.image_ids)
-                ),
-                gpu_seconds=state.device_seconds,
-                manifest_uri=manifest_uri,
-            )
-            self._write_result(attempt, result)
-            return RunOutcome(result=result, spec_name=spec.name, prefix=attempt)
+            return self._failed(spec, level, run_id, fp, inputs, attempt, exc, state)
         return RunOutcome(result=result, spec_name=spec.name, prefix=prefix)
+
+    def _failed(
+        self,
+        spec: AttackSpec,
+        level: float,
+        run_id: UUID,
+        fp: str,
+        inputs: FingerprintInputs,
+        attempt: str,
+        exc: Exception,
+        state: _Execution,
+    ) -> RunOutcome:
+        message = f"{type(exc).__name__}: {exc}"
+        self.progress(f"[{spec.name} {level:g}] failed: {message}")
+        manifest_uri = self._write_manifest(attempt, run_id, inputs)
+        result = self._result(
+            run_id,
+            fp,
+            spec,
+            level,
+            RunStatus.FAILED,
+            status_reason=StatusReason(code="error", message=message),
+            progress=Progress(
+                images_done=state.images_done, images_total=len(self.slice.image_ids)
+            ),
+            gpu_seconds=state.device_seconds,
+            manifest_uri=manifest_uri,
+        )
+        self._write_result(attempt, result)
+        return RunOutcome(result=result, spec_name=spec.name, prefix=attempt)
 
     def _execute(
         self,
