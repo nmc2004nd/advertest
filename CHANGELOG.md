@@ -6,7 +6,7 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 2 — Attack white-box đầu tiên
 
-**Trạng thái:** đang làm. Group 0 đã merge (2026-09-28); Group 1, 2 có thể bắt đầu.
+**Trạng thái:** đang làm. Group 0, 1 đã merge (2026-09-28); tiếp theo Group 2.
 
 ### Phase 2 — kickoff (spec) — 2026-09-28
 #### Thay đổi
@@ -16,6 +16,17 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 - Manual check cần GPU chạy trên CPU; phần GPU là tồn đọng (`validation.md` Phase 2).
 #### Tồn đọng
 - Lỗ hổng độ phủ chưa có mục trong `validation.md`: nhãn cho attack là ground truth, `new_false_positives` trừ số trên ảnh sạch, mAP sạch từ cache, `experiment_id`, `environment`/`gpu_seconds`/`cost`, `inference_params` đổi fingerprint, `run show`, nội dung PNG nhiễu.
+
+### Phase 2 — Group 1 (attack) — 2026-09-28
+#### Thêm
+- `attacks/registry.py`: `load_catalog`, `get_spec` (theo `name` trả version cao nhất, hoặc theo `spec_sha256`), `UnknownAttack`.
+- `attacks/art_adapter.py`: `ArtPerturbation` (FGSM, PGD L∞, PGD L2 qua ART), `build_perturbation(spec, estimator)`, `IncompatibleAttack`, `UnsupportedAttack`; 27 unit test với estimator giả (`PyTorchYolo` bọc model tuyến tính nhỏ).
+#### Quyết định (cần ghi vào `requirements.md` Phase 2)
+- ART 1.20.1 bỏ qua `mask` trong `FastGradientMethod` khi estimator là object detector (đã xác nhận: nhiễu 8/255 ở vùng pad); adapter truyền mask cho ART rồi áp lại mask sau `generate` (vùng pad lấy nguyên ảnh gốc) và cắt về `clip_values`.
+- `level` ngoài `[min, max]` của spec → `ValueError`; PGD thiếu `eps_step_ratio` dùng 0.25.
+#### Số liệu đo được (YOLOv8n, 2 ảnh fixture, CPU)
+- FGSM eps 8: 0.16 s/ảnh; PGD L∞ eps 8: 1.3 s/ảnh; PGD L2 eps 2: 1.5 s/ảnh. Vùng pad giữ nguyên chính xác; loss tăng (PGD L∞ 2.1 → 27.3).
+- PGD L∞ làm số detection ≥ 0.25 tăng mạnh (7 → 46, 10 → 67): FP mới nhiều, ASR có thể thấp hơn kỳ vọng.
 
 ### Phase 2 — Group 0 (người duyệt) — 2026-09-28
 #### Contract
