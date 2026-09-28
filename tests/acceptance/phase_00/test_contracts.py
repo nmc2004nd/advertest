@@ -136,6 +136,7 @@ def test_fingerprint_changes_with_every_input(repo: Path) -> None:
         "params": {"eps": 8},
         "seed": inputs["seed"] + 1,
         "git_commit": "1" * 40,
+        "git_dirty": not inputs["git_dirty"],
         "lib_versions": {**inputs["lib_versions"], "torch": "0.0.1"},
         "docker_image_digest": "none",
     }

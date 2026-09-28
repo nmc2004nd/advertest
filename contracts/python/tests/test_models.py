@@ -251,6 +251,7 @@ def _manifest(**env: Any) -> dict[str, Any]:
         "params": {"eps": 4},
         "seed": 42,
         "git_commit": "0" * 40,
+        "git_dirty": False,
         "lib_versions": {
             "torch": "2.14.0",
             "art": "1.20.1",
@@ -294,6 +295,7 @@ def test_fingerprint_ignores_environment() -> None:
         ("params", {"eps": 8}),
         ("seed", 43),
         ("git_commit", "1" * 40),
+        ("git_dirty", True),
         (
             "lib_versions",
             {

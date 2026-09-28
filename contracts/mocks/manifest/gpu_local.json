@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "run_id": "acd64412-55de-5ac6-b8d0-8ca96f218a64",
-  "fingerprint": "575d7eaa0c86b91fef6c11d823e1dc1076b5f36e12a90d92d466f85c864da28b",
+  "fingerprint": "712a858506e014b9477bae28fa19f1f2f13479ee65db8b47c4db94c12f1494b0",
   "fingerprint_inputs": {
     "config_sha256": "813150ad5cc124991064aaa9d82f978970bbfeebb43cd8fddf74c13f3faa3a08",
     "weights_sha256": "436b0ea8b820172a2eafa1e02a70c302d737f3f55e2223566ac55fd20fae7e44",
@@ -14,6 +14,7 @@
     },
     "seed": 42,
     "git_commit": "85abc30000000000000000000000000000000000",
+    "git_dirty": false,
     "lib_versions": {
       "torch": "2.14.0",
       "art": "1.20.1",

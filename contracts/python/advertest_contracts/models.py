@@ -313,6 +313,7 @@ class FingerprintInputs(_Model):
     params: dict[str, JsonValue]
     seed: NonNegativeInt
     git_commit: GitCommit
+    git_dirty: bool = Field(description="Working tree có thay đổi chưa commit lúc chạy")
     lib_versions: LibVersions
     docker_image_digest: DockerDigest
 
