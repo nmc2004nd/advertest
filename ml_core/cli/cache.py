@@ -10,6 +10,7 @@ khóa ghi một lần.
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
@@ -53,8 +54,18 @@ def cache_key_path(key: str) -> str:
     return f"cache/predictions/{key}.json"
 
 
-def save_predictions(store: ArtifactStore, key: str, predictions: dict[str, Prediction]) -> None:
-    """Prediction thô theo `image_id`: box xyxy letterbox, label là chỉ số class trong model."""
+@dataclass(frozen=True)
+class CachedPredictions:
+    predictions: dict[str, Prediction]
+    device: str  # thiết bị đã chạy model tạo ra prediction, ví dụ `cuda:0 (NVIDIA ...)`
+
+
+def save_predictions(
+    store: ArtifactStore, key: str, predictions: dict[str, Prediction], device: str
+) -> None:
+    """Prediction thô theo `image_id` (box xyxy letterbox, label là chỉ số class trong model),
+    kèm thiết bị đã chạy model: khi cache hit, kết quả ghi thiết bị này chứ không phải thiết bị
+    của lần chạy sau (mission.md nguyên tắc 3, 4)."""
     body = {
         image_id: {
             "boxes": np.asarray(p["boxes"], dtype=np.float32).reshape(-1, 4).tolist(),
@@ -63,10 +74,11 @@ def save_predictions(store: ArtifactStore, key: str, predictions: dict[str, Pred
         }
         for image_id, p in sorted(predictions.items())
     }
-    store.put(cache_key_path(key), json.dumps({"key": key, "predictions": body}).encode())
+    data = {"key": key, "device": device, "predictions": body}
+    store.put(cache_key_path(key), json.dumps(data, ensure_ascii=False).encode())
 
 
-def load_predictions(store: ArtifactStore, key: str) -> dict[str, Prediction] | None:
+def load_predictions(store: ArtifactStore, key: str) -> CachedPredictions | None:
     """Prediction đã cache, hoặc `None` nếu chưa có khóa này."""
     path = cache_key_path(key)
     if not store.exists(path):
@@ -74,7 +86,7 @@ def load_predictions(store: ArtifactStore, key: str) -> dict[str, Prediction] | 
     data = json.loads(store.get(path))
     if data.get("key") != key:
         raise ValueError(f"File cache {path} không khớp khóa")
-    return {
+    predictions: dict[str, Prediction] = {
         image_id: {
             "boxes": np.asarray(p["boxes"], dtype=np.float32).reshape(-1, 4),
             "labels": np.asarray(p["labels"], dtype=np.int64),
@@ -82,3 +94,4 @@ def load_predictions(store: ArtifactStore, key: str) -> dict[str, Prediction] | 
         }
         for image_id, p in data["predictions"].items()
     }
+    return CachedPredictions(predictions=predictions, device=data["device"])

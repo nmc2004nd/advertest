@@ -161,9 +161,11 @@ def run_eval(
             load_model_from_store(store, card.weights_sha256), params, device
         )
         predictions = predict_slice(loader, estimator, batch_size)
-        save_predictions(store, key, predictions)
+        predicted_on = describe_device(device)
+        save_predictions(store, key, predictions, predicted_on)
     else:
-        predictions = cached
+        # Thiết bị ghi vào kết quả là thiết bị đã tạo prediction, không phải `device` lần này.
+        predictions, predicted_on = cached.predictions, cached.device
 
     targets, ignores = ground_truth(loader)
     target_classes = {t for t in loader.mapping.classes.values() if t is not None}
@@ -185,7 +187,7 @@ def run_eval(
         cache_key=key,
         cache_hit=cached is not None,
         total_s=time.perf_counter() - start,
-        device=describe_device(device),
+        device=predicted_on,
         lib_versions=lib_versions(),
         git_commit=git_commit,
     )

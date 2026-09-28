@@ -28,6 +28,7 @@ from advertest_contracts.models import (
 )
 from ml_core.cli import app
 from ml_core.cli import evaluate as evaluate_module
+from ml_core.cli.cache import prediction_cache_key, save_predictions
 from ml_core.cli.evaluate import (
     OutOfMemoryError,
     current_git_commit,
@@ -244,3 +245,29 @@ def test_cli_viz_writes_png(env: Env, tmp_path: Path) -> None:
     pixels = np.asarray(Image.open(out / "000001.png"))
     assert (pixels == GT_COLOR).all(axis=2).any()
     assert (pixels == IGNORE_COLOR).all(axis=2).any()
+
+
+def test_cache_hit_reports_device_that_made_predictions(
+    env: Env, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Prediction tạo trên GPU (giả lập) được dùng lại khi chạy trên CPU: kết quả ghi GPU."""
+    params = DEFAULT_INFERENCE_PARAMS.model_copy(update={"conf": 0.002})
+    key = prediction_cache_key(env.card.weights_sha256, env.slice_spec, params)
+    empty = {"boxes": np.zeros((0, 4)), "labels": np.zeros(0), "scores": np.zeros(0)}
+    save_predictions(
+        env.store, key, {i: empty for i in env.slice_spec.image_ids}, "cuda:0 (NVIDIA Test)"
+    )
+    monkeypatch.setattr(evaluate_module, "load_detection_model", _no_model)
+    result = run_eval(
+        env.store, env.card.id, env.slice_spec.id, env.mapping.id, "cpu", params=params
+    ).result
+    assert result.cache.hit
+    assert result.device == "cuda:0 (NVIDIA Test)"
+
+
+def test_cache_miss_reports_current_device(env: Env) -> None:
+    params = DEFAULT_INFERENCE_PARAMS.model_copy(update={"conf": 0.003})
+    result = run_eval(
+        env.store, env.card.id, env.slice_spec.id, env.mapping.id, "cpu", params=params
+    ).result
+    assert not result.cache.hit and result.device == "cpu"

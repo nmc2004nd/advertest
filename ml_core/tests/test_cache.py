@@ -73,12 +73,14 @@ def test_roundtrip_and_immutable(tmp_path: Path) -> None:
         },
     }
     assert load_predictions(store, "k" * 64) is None
-    save_predictions(store, "k" * 64, preds)
-    loaded = load_predictions(store, "k" * 64)
-    assert loaded is not None and set(loaded) == {"000001", "000002"}
+    save_predictions(store, "k" * 64, preds, "cuda:0 (NVIDIA Test)")
+    cached = load_predictions(store, "k" * 64)
+    assert cached is not None and cached.device == "cuda:0 (NVIDIA Test)"
+    loaded = cached.predictions
+    assert set(loaded) == {"000001", "000002"}
     np.testing.assert_array_equal(loaded["000001"]["boxes"], preds["000001"]["boxes"])
     assert loaded["000001"]["scores"][0] == np.float32(0.123456789)  # float32 khứ hồi chính xác
     assert loaded["000002"]["boxes"].shape == (0, 4)
-    save_predictions(store, "k" * 64, preds)  # cùng nội dung: không lỗi
+    save_predictions(store, "k" * 64, preds, "cuda:0 (NVIDIA Test)")  # cùng nội dung: không lỗi
     with pytest.raises(KeyConflictError):
-        save_predictions(store, "k" * 64, {"000001": preds["000002"]})
+        save_predictions(store, "k" * 64, {"000001": preds["000002"]}, "cuda:0 (NVIDIA Test)")
