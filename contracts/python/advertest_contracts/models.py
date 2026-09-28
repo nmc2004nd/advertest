@@ -49,9 +49,7 @@ PresignedUrl = Annotated[str, StringConstraints(pattern=r"^https?://\S+$")]
 # Khóa đối tượng trong bucket: các đoạn ngăn bởi "/", không rỗng, không bắt đầu bằng "."
 # (nên không có "." hay ".."), không có "/" ở đầu hay cuối.
 _KEY_SEGMENT = r"[A-Za-z0-9_-][A-Za-z0-9._-]*"
-ObjectKey = Annotated[
-    str, StringConstraints(pattern=rf"^{_KEY_SEGMENT}(/{_KEY_SEGMENT})*$")
-]
+ObjectKey = Annotated[str, StringConstraints(pattern=rf"^{_KEY_SEGMENT}(/{_KEY_SEGMENT})*$")]
 
 
 def _require_utc(value: datetime) -> datetime:
@@ -757,20 +755,17 @@ class CaseDetections(_Model):
         return self
 
 
+_THUMB = "Thumbnail WebP rộng 320 px (Phase 3); null khi chạy bằng CLI, bắt buộc qua worker"
+
+
 class CaseArtifacts(_Model):
     """Khóa lưu trữ (LocalStore ở Phase 2, MinIO từ Phase 3) của ảnh PNG letterbox."""
 
     clean_png: str = Field(min_length=1)
     adversarial_png: str = Field(min_length=1)
     perturbation_png: str = Field(min_length=1, description="Ảnh nhiễu khuếch đại")
-    clean_thumb: str | None = Field(
-        default=None,
-        description="Thumbnail WebP rộng 320 px (Phase 3); null khi chạy bằng CLI, bắt buộc qua worker",
-    )
-    adversarial_thumb: str | None = Field(
-        default=None,
-        description="Thumbnail WebP rộng 320 px (Phase 3); null khi chạy bằng CLI, bắt buộc qua worker",
-    )
+    clean_thumb: str | None = Field(default=None, description=_THUMB)
+    adversarial_thumb: str | None = Field(default=None, description=_THUMB)
 
 
 def compute_failure_case_id(fingerprint: str, run_id: UUID, image_id: str) -> UUID:
@@ -966,7 +961,8 @@ class RunStartResponse(_Model):
     @model_validator(mode="after")
     def _check(self) -> RunStartResponse:
         skip = self.action == "skip_cached"
-        if (self.cached_from_run_id is not None) != skip or (self.cached_result is not None) != skip:
+        has_id, has_result = self.cached_from_run_id is not None, self.cached_result is not None
+        if has_id != skip or has_result != skip:
             raise ValueError("cached_from_run_id và cached_result có khi và chỉ khi skip_cached")
         result = self.cached_result
         if result is not None and (

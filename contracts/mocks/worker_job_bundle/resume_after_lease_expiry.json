@@ -1,0 +1,339 @@
+{
+  "schema_version": 1,
+  "experiment_id": "37440a93-11db-57a1-a2dd-3de419d3001f",
+  "config": {
+    "schema_version": 1,
+    "protocol_id": "f1d27cae-7d48-5cfc-87b1-3bc44066c390",
+    "model_version_id": "81686f0e-32b6-5806-819c-3b0e37072342",
+    "slice_id": "549f8cba-81af-5f51-b44a-0ad2196b75c2",
+    "class_mapping_id": "4c239faf-34f6-5144-a3d5-f0328b0881ac",
+    "compute_target_id": "8679be42-13ce-51fb-876b-ca6d4d3f3c74",
+    "attacks": [
+      {
+        "schema_version": 1,
+        "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+        "spec_sha256": "68fe8f72f176fe27981eadfe8b5e98bb36b8e85fc41c97b5702e2e149f52d72c",
+        "mode": "grid",
+        "grid": {
+          "levels": [
+            4
+          ]
+        },
+        "search": null,
+        "seed": 0
+      },
+      {
+        "schema_version": 1,
+        "attack_spec_id": "8d15422d-f111-5c7e-96eb-e704767e6218",
+        "spec_sha256": "a6d81b6643af13e1d2f7983ce51340f54c26629304f1fdd98b954c236c1e735f",
+        "mode": "grid",
+        "grid": {
+          "levels": [
+            4,
+            8
+          ]
+        },
+        "search": null,
+        "seed": 0
+      }
+    ],
+    "limit": {
+      "kind": "time",
+      "value": "7200"
+    }
+  },
+  "model_card": {
+    "schema_version": 1,
+    "id": "81686f0e-32b6-5806-819c-3b0e37072342",
+    "name": "yolov8n-coco",
+    "framework": "ultralytics",
+    "architecture": "yolov8n",
+    "weights_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36",
+    "class_names": [
+      "person",
+      "bicycle",
+      "car",
+      "motorcycle",
+      "airplane",
+      "bus",
+      "train",
+      "truck",
+      "boat",
+      "traffic light",
+      "fire hydrant",
+      "stop sign",
+      "parking meter",
+      "bench",
+      "bird",
+      "cat",
+      "dog",
+      "horse",
+      "sheep",
+      "cow",
+      "elephant",
+      "bear",
+      "zebra",
+      "giraffe",
+      "backpack",
+      "umbrella",
+      "handbag",
+      "tie",
+      "suitcase",
+      "frisbee",
+      "skis",
+      "snowboard",
+      "sports ball",
+      "kite",
+      "baseball bat",
+      "baseball glove",
+      "skateboard",
+      "surfboard",
+      "tennis racket",
+      "bottle",
+      "wine glass",
+      "cup",
+      "fork",
+      "knife",
+      "spoon",
+      "bowl",
+      "banana",
+      "apple",
+      "sandwich",
+      "orange",
+      "broccoli",
+      "carrot",
+      "hot dog",
+      "pizza",
+      "donut",
+      "cake",
+      "chair",
+      "couch",
+      "potted plant",
+      "bed",
+      "dining table",
+      "toilet",
+      "tv",
+      "laptop",
+      "mouse",
+      "remote",
+      "keyboard",
+      "cell phone",
+      "microwave",
+      "oven",
+      "toaster",
+      "sink",
+      "refrigerator",
+      "book",
+      "clock",
+      "vase",
+      "scissors",
+      "teddy bear",
+      "hair drier",
+      "toothbrush"
+    ],
+    "input_size": 640,
+    "supports_gradients": true,
+    "gradient_check": {
+      "passed": true,
+      "checked_at": "2026-09-28T09:00:00Z",
+      "details": null
+    },
+    "lib_versions": {
+      "torch": "2.14.0",
+      "art": "1.20.1",
+      "ultralytics": "8.4.163",
+      "torchmetrics": "1.9.0",
+      "numpy": "2.4.6"
+    }
+  },
+  "slice": {
+    "schema_version": 1,
+    "id": "549f8cba-81af-5f51-b44a-0ad2196b75c2",
+    "slice_sha256": "2ac9477b2a746f3504232f2543025b3df56203c4911aa3a55d60ccba14e76cb0",
+    "dataset_version_sha256": "9f5b413eb8a78a6a4b216011c2cf26e5b877728f7a160bbb80964a917d976069",
+    "filter": {
+      "classes": [
+        "Car",
+        "Pedestrian",
+        "Person_sitting",
+        "Truck",
+        "Van"
+      ],
+      "difficulty": {
+        "min_height_px": 25,
+        "max_occluded": 1,
+        "max_truncated": 0.3
+      },
+      "min_objects": 1
+    },
+    "seed": 42,
+    "size": 5,
+    "image_ids": [
+      "000902",
+      "002571",
+      "004499",
+      "004965",
+      "005866"
+    ],
+    "image_ids_sha256": "dde3cec90e448097ce240b43dfa4ce84bb54acdbf4df26ccd20442233ec15955"
+  },
+  "class_mapping": {
+    "schema_version": 1,
+    "id": "4c239faf-34f6-5144-a3d5-f0328b0881ac",
+    "mapping_sha256": "a079d92b7be84bbc6f0eb432734c629373114af7d9df05822e6e05293142cb39",
+    "dataset_version_sha256": "9f5b413eb8a78a6a4b216011c2cf26e5b877728f7a160bbb80964a917d976069",
+    "model_id": "81686f0e-32b6-5806-819c-3b0e37072342",
+    "preset": "kitti-coco",
+    "classes": {
+      "Car": "car",
+      "Van": "car",
+      "Truck": "truck",
+      "Pedestrian": "person",
+      "Person_sitting": "person",
+      "Cyclist": null,
+      "Tram": null,
+      "Misc": null
+    },
+    "difficulty": {
+      "min_height_px": 25,
+      "max_occluded": 1,
+      "max_truncated": 0.3
+    }
+  },
+  "attack_specs": [
+    {
+      "id": "449774ff-ded0-5909-b549-90a1e410bd62",
+      "schema_version": 1,
+      "name": "pgd_linf",
+      "version": 1,
+      "kind": "attack",
+      "access": "white_box",
+      "art_class": "ProjectedGradientDescent",
+      "primary_param": {
+        "name": "eps",
+        "type": "continuous",
+        "min": 0,
+        "max": 32,
+        "values": null,
+        "unit": "1/255"
+      },
+      "fixed_params": {
+        "norm": "inf",
+        "max_iter": 10,
+        "eps_step_ratio": 0.25,
+        "num_random_init": 0
+      },
+      "cost_model": {
+        "passes_per_image": 10,
+        "cpu_only": false
+      },
+      "requires_gradients": true,
+      "spec_sha256": "68fe8f72f176fe27981eadfe8b5e98bb36b8e85fc41c97b5702e2e149f52d72c"
+    },
+    {
+      "id": "8d15422d-f111-5c7e-96eb-e704767e6218",
+      "schema_version": 1,
+      "name": "fgsm",
+      "version": 1,
+      "kind": "attack",
+      "access": "white_box",
+      "art_class": "FastGradientMethod",
+      "primary_param": {
+        "name": "eps",
+        "type": "continuous",
+        "min": 0,
+        "max": 32,
+        "values": null,
+        "unit": "1/255"
+      },
+      "fixed_params": {
+        "norm": "inf"
+      },
+      "cost_model": {
+        "passes_per_image": 1,
+        "cpu_only": false
+      },
+      "requires_gradients": true,
+      "spec_sha256": "a6d81b6643af13e1d2f7983ce51340f54c26629304f1fdd98b954c236c1e735f"
+    }
+  ],
+  "inference_params": {
+    "conf": 0.001,
+    "iou": 0.7,
+    "max_det": 300,
+    "operating_conf": 0.25,
+    "input_size": 640
+  },
+  "failure_cases_per_run": 20,
+  "cost_profiles": [
+    {
+      "schema_version": 1,
+      "compute_target_id": "8679be42-13ce-51fb-876b-ca6d4d3f3c74",
+      "model_version_id": "81686f0e-32b6-5806-819c-3b0e37072342",
+      "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+      "sec_per_image": 0.21,
+      "peak_vram_mb": 3480,
+      "batch_size": 4,
+      "measured_at": "2026-09-29T08:00:00Z",
+      "environment": {
+        "compute_target_id": "8679be42-13ce-51fb-876b-ca6d4d3f3c74",
+        "gpu_model": "NVIDIA GeForce RTX 3050 Laptop GPU",
+        "cuda_version": "12.6",
+        "driver_version": "560.35"
+      }
+    }
+  ],
+  "downloads": {
+    "weights": "http://127.0.0.1:9000/models/f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36/weights.pt?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=900&X-Amz-Signature=0123abcd",
+    "dataset_manifest": "http://127.0.0.1:9000/datasets/9f5b413eb8a78a6a4b216011c2cf26e5b877728f7a160bbb80964a917d976069/manifest.json?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=900&X-Amz-Signature=0123abcd",
+    "images": {
+      "000902": "http://127.0.0.1:9000/datasets/9f5b413eb8a78a6a4b216011c2cf26e5b877728f7a160bbb80964a917d976069/images/000902.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=900&X-Amz-Signature=0123abcd",
+      "002571": "http://127.0.0.1:9000/datasets/9f5b413eb8a78a6a4b216011c2cf26e5b877728f7a160bbb80964a917d976069/images/002571.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=900&X-Amz-Signature=0123abcd",
+      "004499": "http://127.0.0.1:9000/datasets/9f5b413eb8a78a6a4b216011c2cf26e5b877728f7a160bbb80964a917d976069/images/004499.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=900&X-Amz-Signature=0123abcd",
+      "004965": "http://127.0.0.1:9000/datasets/9f5b413eb8a78a6a4b216011c2cf26e5b877728f7a160bbb80964a917d976069/images/004965.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=900&X-Amz-Signature=0123abcd",
+      "005866": "http://127.0.0.1:9000/datasets/9f5b413eb8a78a6a4b216011c2cf26e5b877728f7a160bbb80964a917d976069/images/005866.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=900&X-Amz-Signature=0123abcd"
+    },
+    "expires_at": "2026-09-29T08:15:00Z"
+  },
+  "limit": {
+    "kind": "time",
+    "value": "7200",
+    "used": "412.5"
+  },
+  "runs": [
+    {
+      "run_id": "acd64412-55de-5ac6-b8d0-8ca96f218a64",
+      "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+      "level": 4,
+      "seed": 0,
+      "status": "completed",
+      "images_done": 5,
+      "images_total": 5,
+      "checkpoint": null
+    },
+    {
+      "run_id": "2c8e4b1a-9f3d-5e6c-a7b8-1d2e3f4a5b6c",
+      "attack_spec_id": "8d15422d-f111-5c7e-96eb-e704767e6218",
+      "level": 4,
+      "seed": 0,
+      "status": "running",
+      "images_done": 2,
+      "images_total": 5,
+      "checkpoint": {
+        "batch_index": 0,
+        "key": "runs/2c8e4b1a-9f3d-5e6c-a7b8-1d2e3f4a5b6c/checkpoints/0.json",
+        "url": "http://127.0.0.1:9000/artifacts/runs/2c8e4b1a-9f3d-5e6c-a7b8-1d2e3f4a5b6c/checkpoints/0.json?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Expires=900&X-Amz-Signature=0123abcd"
+      }
+    },
+    {
+      "run_id": "7d9f5c2b-0a4e-5f7d-b8c9-2e3f4a5b6c7d",
+      "attack_spec_id": "8d15422d-f111-5c7e-96eb-e704767e6218",
+      "level": 8,
+      "seed": 0,
+      "status": "queued",
+      "images_done": 0,
+      "images_total": 5,
+      "checkpoint": null
+    }
+  ]
+}
