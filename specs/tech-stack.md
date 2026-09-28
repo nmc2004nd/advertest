@@ -82,8 +82,12 @@ class Perturbation(Protocol):
     def apply(self, images: np.ndarray,   # (N, C, H, W), float32, [0, 1]
               targets: list[dict],
               level: float,               # giá trị tham số chính đang quét
-              seed: int) -> np.ndarray: ...
+              seed: int,
+              mask: np.ndarray | None = None  # (N, 1, H, W), float32: 1 vùng ảnh thật, 0 vùng pad
+              ) -> np.ndarray: ...
 ```
+
+Điểm ảnh có `mask = 0` phải giữ nguyên (so sánh chính xác); `mask = None` là biến đổi toàn ảnh (Phase 2).
 
 Tầng sweep, metric, backend và frontend không được phụ thuộc vào việc bên dưới là ART hay thư viện khác.
 

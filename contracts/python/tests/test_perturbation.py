@@ -3,7 +3,7 @@ from typing import Any
 import numpy as np
 
 from advertest_contracts.models import AttackSpec, compute_spec_sha256
-from advertest_contracts.perturbation import ImageBatch, Perturbation
+from advertest_contracts.perturbation import ImageBatch, MaskBatch, Perturbation
 
 
 class _Identity:
@@ -11,7 +11,12 @@ class _Identity:
         self.spec = spec
 
     def apply(
-        self, images: ImageBatch, targets: list[dict[str, Any]], level: float, seed: int
+        self,
+        images: ImageBatch,
+        targets: list[dict[str, Any]],
+        level: float,
+        seed: int,
+        mask: MaskBatch | None = None,
     ) -> ImageBatch:
         return images.copy()
 
@@ -49,3 +54,5 @@ def test_class_with_matching_signature_satisfies_protocol() -> None:
     out = perturbation.apply(images, [], level=0.5, seed=0)
     assert out.shape == images.shape
     assert out.dtype == np.float32
+    mask = np.ones((2, 1, 640, 640), dtype=np.float32)
+    assert perturbation.apply(images, [], level=0.5, seed=0, mask=mask).shape == images.shape
