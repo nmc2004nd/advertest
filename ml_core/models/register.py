@@ -2,14 +2,14 @@
 
 Bố cục trong store: `models/<weights_sha>/weights.pt` (bản sao weights, để `eval --model <id>`
 nạp lại), `models/<weights_sha>/card.json`, chỉ mục `index/model/<id>`.
-Store là bất biến: đăng ký lại cùng weights trả card đã có, không chạy lại bài kiểm tra.
+Store là bất biến: đăng ký lại cùng weights trả card đã có (giữ tên của lần đầu), không chạy lại
+bài kiểm tra.
 """
 
 from __future__ import annotations
 
 import hashlib
 import tempfile
-from datetime import UTC, datetime
 from pathlib import Path
 
 import art
@@ -22,7 +22,7 @@ from PIL import Image
 from ultralytics.nn.tasks import DetectionModel
 
 from advertest_contracts.ids import content_id
-from advertest_contracts.models import GradientCheck, InferenceParams, LibVersions, ModelCard
+from advertest_contracts.models import InferenceParams, LibVersions, ModelCard
 from ml_core.fixtures import FIXTURES_DIR
 from ml_core.models.estimator import build_estimator
 from ml_core.models.gradient_check import run_gradient_check
@@ -93,15 +93,10 @@ def register_model(
         model = load_detection_model(copy)
         architecture = _architecture(model, copy)
 
-    try:
-        estimator = build_estimator(model, params, device)
-        check = run_gradient_check(estimator, images, params.operating_conf)
-    except Exception as exc:  # lỗi khi tính loss/gradient là một lý do fail, ghi vào card
-        check = GradientCheck(
-            passed=False,
-            checked_at=datetime.now(UTC),
-            details=f"lỗi khi kiểm tra gradient: {type(exc).__name__}: {exc}",
-        )
+    # Lỗi khi chạy bài kiểm tra (không phải kết quả "không đạt") được báo ra và không ghi card:
+    # store là bất biến, nên ghi card lúc này sẽ khóa model ở trạng thái sai.
+    estimator = build_estimator(model, params, device)
+    check = run_gradient_check(estimator, images, params.operating_conf)
 
     card = ModelCard(
         id=content_id(sha),

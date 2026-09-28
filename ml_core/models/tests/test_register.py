@@ -48,7 +48,7 @@ def test_register_again_returns_same_card(
     assert second == first  # cùng id, không chạy lại bài kiểm tra
 
 
-def test_gradient_check_error_recorded_in_card(
+def test_gradient_check_error_raises_and_writes_nothing(
     store: LocalStore,
     random_weights: Path,
     images: NDArray[np.float32],
@@ -58,10 +58,9 @@ def test_gradient_check_error_recorded_in_card(
         raise RuntimeError("hỏng")
 
     monkeypatch.setattr(register_module, "run_gradient_check", broken)
-    card = register_model(store, random_weights, "yolov8n-random", images)
-    assert not card.supports_gradients
-    assert card.gradient_check.details is not None
-    assert "RuntimeError: hỏng" in card.gradient_check.details
+    with pytest.raises(RuntimeError, match="hỏng"):
+        register_model(store, random_weights, "yolov8n-random", images)
+    assert store.list() == []
 
 
 def test_cli_register(
@@ -84,3 +83,21 @@ def test_cli_register(
 def test_load_check_images_missing_dir(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError, match="make fixtures"):
         register_module.load_check_images(tmp_path)
+
+
+def test_cli_register_again_with_other_name_warns(
+    tmp_path: Path,
+    random_weights: Path,
+    images: NDArray[np.float32],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("ml_core.models.cli.load_check_images", lambda: images)
+    base = ["--store-dir", str(tmp_path / "store"), "model", "register"]
+    base += ["--weights", str(random_weights)]
+    runner = CliRunner()
+    first = runner.invoke(app, [*base, "--name", "tên-đầu"])
+    assert first.exit_code == 0 and "Cảnh báo" not in first.stderr
+    second = runner.invoke(app, [*base, "--name", "tên-khác"])
+    assert second.exit_code == 0
+    assert ModelCard.model_validate_json(second.stdout).name == "tên-đầu"
+    assert "Cảnh báo" in second.stderr and "tên-khác" in second.stderr

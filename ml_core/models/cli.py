@@ -29,6 +29,12 @@ def register(
     store = require_store(ctx.obj)
     card = register_model(store, weights, name, load_check_images(), device=device)
     typer.echo(card.model_dump_json(indent=2))
+    if card.name != name:
+        typer.echo(
+            f"Cảnh báo: weights này đã được đăng ký với tên {card.name!r}; "
+            f"tên {name!r} không được dùng.",
+            err=True,
+        )
     if not card.supports_gradients:
         typer.echo(
             f"Bài kiểm tra gradient fail: {card.gradient_check.details}. "
