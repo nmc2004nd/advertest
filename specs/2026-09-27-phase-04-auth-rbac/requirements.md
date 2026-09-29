@@ -119,6 +119,7 @@ Chi tiết phản hồi (chốt ở review Group 0): `POST /auth/login` thành c
 - Giới hạn đăng nhập sai: quá 5 lần trong 15 phút cho cùng email hoặc cùng IP → `429 rate_limited`.
 - IP của client: chỉ lấy từ `X-Forwarded-For` khi kết nối đến từ proxy khai báo trong biến `TRUSTED_PROXIES` (uvicorn `--forwarded-allow-ips`); nếu không thì dùng địa chỉ kết nối. *Lý do:* API đứng sau proxy `/api`; tin mọi header thì bị giả mạo, không tin header nào thì mọi người dùng chung một IP.
 - Cookie `csrf_token` (không httpOnly) được đặt khi đăng nhập thành công và xóa khi đăng xuất.
+- Chi tiết cài đặt (chốt ở review Group 1): `X-Forwarded-For` xử lý trong app bằng `ProxyHeadersMiddleware` của uvicorn theo `TRUSTED_PROXIES`, uvicorn chạy với `--no-proxy-headers`. Chỉ sai email hoặc mật khẩu mới ghi `login_failed` và tính vào giới hạn; lần bị chặn `429` và lần đúng mật khẩu nhưng tài khoản chưa `active` không ghi `auth_events`. Link đặt lại không tồn tại, đã dùng hoặc hết hạn → `422 invalid_request`. Lỗi HTTP của framework trả `ErrorResponse` với mã theo status (`404` → `not_found`, `405` và mã 4xx khác → `invalid_request`).
 - Mọi lỗi trả body `{"error": {"code": ErrorCode, "message": ...}}`.
 
 ### Bảo vệ endpoint
@@ -132,7 +133,7 @@ Chi tiết phản hồi (chốt ở review Group 0): `POST /auth/login` thành c
 - Admin không vô hiệu hóa được chính mình.
 - Không thể bỏ role admin hoặc vô hiệu hóa admin `active` cuối cùng.
 - Chuyển trạng thái không hợp lệ (approve/reject user không `pending`, disable user không `active`, enable user không `disabled`) → `409 conflict`.
-- Mỗi thao tác quản trị ghi `audit_log` với `before` và `after` (trạng thái, role): `user.approved`, `user.rejected`, `user.roles_changed`, `user.disabled`, `user.enabled`, `user.reset_link_created`. Người dùng tự đổi mật khẩu ghi `user.password_changed`; dùng link đặt lại ghi `user.password_reset` (không ghi mật khẩu hay token).
+- Mỗi thao tác quản trị ghi `audit_log` với `before` và `after` (trạng thái, role): `user.approved`, `user.rejected`, `user.roles_changed`, `user.disabled`, `user.enabled`, `user.reset_link_created`. Người dùng tự đổi mật khẩu ghi `user.password_changed`; dùng link đặt lại ghi `user.password_reset` (không ghi mật khẩu hay token; `before`/`after` là `null`).
 - Yêu cầu truy cập ghi `user.access_requested`. Actor của `user.access_requested`, `user.password_changed`, `user.password_reset` là chính người dùng đó.
 - Đăng nhập thành công/thất bại và đăng xuất ghi vào `auth_events`, không ghi vào `audit_log`.
 

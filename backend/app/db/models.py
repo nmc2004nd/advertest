@@ -103,6 +103,57 @@ class User(Base):
     approved_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"))
     approved_at: Mapped[datetime | None]
     created_at: Mapped[datetime] = _created_at()
+    # Phase 4: lý do từ chối, thời điểm vô hiệu hóa.
+    reject_reason: Mapped[str | None] = mapped_column(Text)
+    disabled_at: Mapped[datetime | None]
+
+
+class AuthEventKind(enum.StrEnum):
+    LOGIN_SUCCESS = "login_success"
+    LOGIN_FAILED = "login_failed"
+    LOGOUT = "logout"
+
+
+class UserSession(Base):
+    """Phiên đăng nhập phía server (Phase 4). Chỉ lưu sha256 của token trong cookie."""
+
+    __tablename__ = "sessions"
+
+    id: Mapped[UUID] = _uuid_pk()
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    token_sha256: Mapped[str] = mapped_column(Sha256, unique=True)
+    created_at: Mapped[datetime]
+    expires_at: Mapped[datetime]
+    last_seen_at: Mapped[datetime]
+    revoked_at: Mapped[datetime | None]
+    user_agent: Mapped[str | None] = mapped_column(Text)
+    ip: Mapped[str | None] = mapped_column(Text)
+
+
+class PasswordResetToken(Base):
+    """Token đặt lại mật khẩu do admin tạo (Phase 4); dùng một lần."""
+
+    __tablename__ = "password_reset_tokens"
+
+    id: Mapped[UUID] = _uuid_pk()
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    token_sha256: Mapped[str] = mapped_column(Sha256, unique=True)
+    created_by: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = _created_at()
+    expires_at: Mapped[datetime]
+    used_at: Mapped[datetime | None]
+
+
+class AuthEvent(Base):
+    """Sự kiện đăng nhập, đăng xuất (Phase 4); chỉ thêm, tách khỏi audit_log."""
+
+    __tablename__ = "auth_events"
+
+    id: Mapped[UUID] = _uuid_pk()
+    email: Mapped[str] = mapped_column(Text, index=True)
+    ip: Mapped[str | None] = mapped_column(Text, index=True)
+    kind: Mapped[AuthEventKind] = mapped_column(pg_enum(AuthEventKind, "auth_event_kind"))
+    created_at: Mapped[datetime] = mapped_column(index=True)
 
 
 class UserRole(Base):

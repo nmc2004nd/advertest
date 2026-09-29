@@ -69,6 +69,9 @@ services:
       MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-http://127.0.0.1:9000}
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      # Phase 4: cookie Secure khi phục vụ qua HTTPS; proxy được tin X-Forwarded-For.
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1}
     volumes:
       # `advertest-admin import-local` đọc ảnh theo đường dẫn tuyệt đối ghi lúc import vào
       # LocalStore: mount thư mục dữ liệu vào đúng đường dẫn đó, chỉ đọc.

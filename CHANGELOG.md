@@ -6,7 +6,25 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 4 — Xác thực và phân quyền
 
-**Trạng thái:** đang làm. Group 0 xong trên nhánh `phase04-reviewer-g0`, chờ merge.
+**Trạng thái:** đang làm. Group 0, 1 đã merge.
+
+### Phase 4 — Group 1 (backend) — 2026-09-29
+#### Thêm
+- Migration `0003`: `sessions` (sha256 token, `UPDATE` không `DELETE`), `password_reset_tokens` (`UPDATE` không `DELETE`), `auth_events` (chỉ thêm), `users.reject_reason`, `users.disabled_at`.
+- `backend/app/auth/`: argon2id và chính sách mật khẩu (`passwords.py`); phiên phía server 12 giờ, cookie `advertest_session` (HttpOnly, SameSite=Lax, Secure theo `COOKIE_SECURE`) và `csrf_token` (`sessions.py`); `current_user` đọc phiên, user, trạng thái, role từ DB (`deps.py`); middleware CSRF double-submit (`csrf.py`); giới hạn 5 lần sai trong 15 phút theo email và IP (`rate_limit.py`); nghiệp vụ (`service.py`).
+- Endpoint `/auth/request-access`, `login`, `logout`, `me`, `password`, `password-reset` (OpenAPI không đổi).
+- Lỗi thống nhất: body sai schema → `422 validation_error` (không lặp lại giá trị gửi lên); lỗi HTTP của framework → `ErrorResponse`.
+- `TRUSTED_PROXIES`, `COOKIE_SECURE` trong compose và `.env.example`; entrypoint `--no-proxy-headers`.
+- Test: `tests/db/test_auth_api.py` (24), `test_auth_sessions.py`, `tests/auth/test_csrf.py`, `test_passwords.py`, `tests/api/test_errors.py`.
+#### Quyết định (người dùng chốt, đã ghi vào `requirements.md` Phase 4)
+- Đúng mật khẩu nhưng tài khoản chưa `active`, và lần bị chặn `429`: không ghi `auth_events`, không tính vào giới hạn.
+- `ProxyHeadersMiddleware` trong app thay cờ uvicorn (test được); audit đổi/đặt lại mật khẩu có `before`/`after` null; `405` → `invalid_request`; link đặt lại sai/đã dùng/hết hạn → `422 invalid_request`.
+- `current_user` làm ở Group 1; Group 2 còn `require_permission`, gắn cho mọi route và kiểm tra lúc khởi động.
+#### Review
+- Review do chính agent viết nhánh (không độc lập): không có phát hiện chặn. Chuyển cho Group 4: `xfwd: true` cho proxy Vite (`plan.md` task 19). Còn mở (contract): lỗi `500` chưa có `ErrorCode`; OpenAPI khai `422` là `HTTPValidationError`.
+- `make check` (645 test Python, 153 nghiệm thu, 36 Vitest) và `make test-db` (155) pass.
+#### Manual check còn lại
+- `make up`: đăng nhập admin seed, xem cờ cookie trong DevTools (entrypoint mới chưa chạy trong Docker).
 
 ### Phase 4 — Group 0 (người duyệt, người dùng giao) — 2026-09-29
 #### Contract
