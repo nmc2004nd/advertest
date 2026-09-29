@@ -50,7 +50,7 @@ SERVICE_ERRORS: dict[type[ServiceError], tuple[int, ErrorCode]] = {
 }
 
 
-def _error(status_code: int, code: ErrorCode, message: str) -> JSONResponse:
+def error_response(status_code: int, code: ErrorCode, message: str) -> JSONResponse:
     body = ErrorResponse(error=ErrorBody(code=code, message=message))
     return JSONResponse(status_code=status_code, content=body.model_dump(mode="json"))
 
@@ -58,11 +58,11 @@ def _error(status_code: int, code: ErrorCode, message: str) -> JSONResponse:
 def install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(ApiError)
     async def _api_error(_: Request, exc: ApiError) -> JSONResponse:
-        return _error(exc.status_code, exc.code, exc.message)
+        return error_response(exc.status_code, exc.code, exc.message)
 
     @app.exception_handler(ServiceError)
     async def _service_error(_: Request, exc: ServiceError) -> JSONResponse:
         status_code, code = next(
             mapping for cls, mapping in SERVICE_ERRORS.items() if isinstance(exc, cls)
         )
-        return _error(status_code, code, str(exc))
+        return error_response(status_code, code, str(exc))

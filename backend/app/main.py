@@ -8,11 +8,13 @@ from fastapi import FastAPI
 
 from backend.app.api import health, public, worker
 from backend.app.api.errors import install_error_handlers
+from backend.app.auth.csrf import CsrfMiddleware
 
 
 def create_app() -> FastAPI:
     app = FastAPI(title="AdverTest API", version=version("advertest"))
     install_error_handlers(app)
+    app.add_middleware(CsrfMiddleware)
     app.include_router(health.router)
     app.include_router(public.auth_public_router)
     app.include_router(public.router)
