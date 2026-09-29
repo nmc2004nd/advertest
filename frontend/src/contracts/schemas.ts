@@ -538,7 +538,7 @@ export interface components {
          * ErrorCode
          * @enum {string}
          */
-        ErrorCode: "not_implemented" | "unauthenticated" | "forbidden" | "not_found" | "conflict" | "invalid_request";
+        ErrorCode: "not_implemented" | "unauthenticated" | "forbidden" | "not_found" | "conflict" | "invalid_request" | "invalid_credentials" | "account_pending" | "account_rejected" | "account_disabled" | "rate_limited" | "csrf_failed" | "validation_error";
         /**
          * ErrorResponse
          * @description Body lỗi thống nhất của mọi endpoint: {"error": {"code", "message"}}.
@@ -977,6 +977,11 @@ export interface components {
              */
             class_filter: string[] | null;
         };
+        /**
+         * Permission
+         * @enum {string}
+         */
+        Permission: "experiment.read" | "experiment.create" | "experiment.cancel_own" | "experiment.submit_review" | "dataset.read" | "dataset.upload" | "slice.create" | "model.read" | "model.manage" | "attack_catalog.read" | "attack_catalog.manage" | "protocol.read" | "protocol.manage" | "review.decide" | "report.export" | "report.read" | "user.manage" | "compute_target.read" | "compute_target.manage" | "budget.manage" | "audit.read";
         /** PrimaryParam */
         PrimaryParam: {
             /** Name */
@@ -1490,6 +1495,11 @@ export interface components {
              */
             lease_expires_at: string;
         };
+        /**
+         * Permission
+         * @enum {string}
+         */
+        _P: "experiment.read" | "experiment.create" | "experiment.cancel_own" | "experiment.submit_review" | "dataset.read" | "dataset.upload" | "slice.create" | "model.read" | "model.manage" | "attack_catalog.read" | "attack_catalog.manage" | "protocol.read" | "protocol.manage" | "review.decide" | "report.export" | "report.read" | "user.manage" | "compute_target.read" | "compute_target.manage" | "budget.manage" | "audit.read";
     };
     responses: never;
     parameters: never;
@@ -1555,6 +1565,7 @@ export type ManifestSource = components['schemas']['ManifestSource'];
 export type MapPair = components['schemas']['MapPair'];
 export type ModelCard = components['schemas']['ModelCard'];
 export type PassCriterion = components['schemas']['PassCriterion'];
+export type Permission = components['schemas']['Permission'];
 export type PrimaryParam = components['schemas']['PrimaryParam'];
 export type Progress = components['schemas']['Progress'];
 export type ProgressReport = components['schemas']['ProgressReport'];
@@ -1585,6 +1596,7 @@ export type UserStatus = components['schemas']['UserStatus'];
 export type WorkerDirective = components['schemas']['WorkerDirective'];
 export type WorkerJobBundle = components['schemas']['WorkerJobBundle'];
 export type WorkerLease = components['schemas']['WorkerLease'];
+export type P = components['schemas']['_P'];
 export type $defs = Record<string, never>;
 type FlattenedDeepRequired<T> = {
     [K in keyof T]-?: FlattenedDeepRequired<T[K] extends unknown[] | undefined | null ? Extract<T[K], unknown[]>[number] : T[K]>;
@@ -1601,12 +1613,13 @@ export const attackKindValues: ReadonlyArray<FlattenedDeepRequired<components>["
 export const billingModeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["BillingMode"]> = ["none", "hourly"];
 export const caseSeverityValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["CaseSeverity"]> = ["critical", "major", "minor", "acceptable"];
 export const computeKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ComputeKind"]> = ["local", "rented"];
-export const errorCodeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ErrorCode"]> = ["not_implemented", "unauthenticated", "forbidden", "not_found", "conflict", "invalid_request"];
+export const errorCodeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ErrorCode"]> = ["not_implemented", "unauthenticated", "forbidden", "not_found", "conflict", "invalid_request", "invalid_credentials", "account_pending", "account_rejected", "account_disabled", "rate_limited", "csrf_failed", "validation_error"];
 export const experimentStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ExperimentStatus"]> = ["draft", "queued", "running", "completed", "submitted_for_review", "in_review", "approved", "changes_requested", "rejected", "cancelled"];
 export const healthResponseStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["HealthResponse"]["status"]> = ["ok", "degraded"];
 export const limitKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["LimitKind"]> = ["budget", "time"];
 export const manifestSourceFormatValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ManifestSource"]["format"]> = ["kitti", "yolo", "coco"];
 export const modelCardFrameworkValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ModelCard"]["framework"]> = ["ultralytics", "torchvision"];
+export const permissionValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["Permission"]> = ["experiment.read", "experiment.create", "experiment.cancel_own", "experiment.submit_review", "dataset.read", "dataset.upload", "slice.create", "model.read", "model.manage", "attack_catalog.read", "attack_catalog.manage", "protocol.read", "protocol.manage", "review.decide", "report.export", "report.read", "user.manage", "compute_target.read", "compute_target.manage", "budget.manage", "audit.read"];
 export const primaryParamTypeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["PrimaryParam"]["type"]> = ["continuous", "discrete"];
 export const protocolStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ProtocolStatus"]> = ["active", "retired", "dev"];
 export const reviewDecisionValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ReviewDecision"]> = ["approve", "changes_requested", "reject"];
@@ -1622,4 +1635,5 @@ export const thresholdKindValues: ReadonlyArray<FlattenedDeepRequired<components
 export const trajectoryPointScopeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["TrajectoryPoint"]["scope"]> = ["subset", "full"];
 export const userStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["UserStatus"]> = ["pending", "active", "rejected", "disabled"];
 export const workerDirectiveActionValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["WorkerDirective"]["action"]> = ["continue", "cancel", "stop_limit"];
+export const _PValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["_P"]> = ["experiment.read", "experiment.create", "experiment.cancel_own", "experiment.submit_review", "dataset.read", "dataset.upload", "slice.create", "model.read", "model.manage", "attack_catalog.read", "attack_catalog.manage", "protocol.read", "protocol.manage", "review.decide", "report.export", "report.read", "user.manage", "compute_target.read", "compute_target.manage", "budget.manage", "audit.read"];
 export type operations = Record<string, never>;

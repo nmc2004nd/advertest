@@ -916,7 +916,7 @@ export interface components {
          * ErrorCode
          * @enum {string}
          */
-        ErrorCode: "not_implemented" | "unauthenticated" | "forbidden" | "not_found" | "conflict" | "invalid_request";
+        ErrorCode: "not_implemented" | "unauthenticated" | "forbidden" | "not_found" | "conflict" | "invalid_request" | "invalid_credentials" | "account_pending" | "account_rejected" | "account_disabled" | "rate_limited" | "csrf_failed" | "validation_error";
         /**
          * ErrorResponse
          * @description Body lỗi thống nhất của mọi endpoint: {"error": {"code", "message"}}.

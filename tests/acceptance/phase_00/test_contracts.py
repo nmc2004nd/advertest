@@ -48,9 +48,11 @@ ENUMS = {
     "ReviewDecision": {"approve", "changes_requested", "reject"},
     "CaseSeverity": {"critical", "major", "minor", "acceptable"},
     # Phase 3: mã lỗi của API worker, enum ProtocolStatus (requirements.md Phase 3).
+    # Phase 4: mã xác thực và phân quyền (requirements.md Phase 4, enum ErrorCode).
     "ErrorCode": {
         "not_implemented", "unauthenticated", "forbidden", "not_found", "conflict",
-        "invalid_request",
+        "invalid_request", "invalid_credentials", "account_pending", "account_rejected",
+        "account_disabled", "rate_limited", "csrf_failed", "validation_error",
     },
     "ProtocolStatus": {"active", "retired", "dev"},
 }  # fmt: skip
