@@ -74,7 +74,8 @@ def test_matching_header_passes_the_middleware(client: TestClient) -> None:
 
 def test_get_does_not_need_csrf(client: TestClient) -> None:
     client.cookies.set(SESSION_COOKIE, "phien")
-    assert not _is_csrf_failure(client.get("/models"))
+    # Route GET còn là khung (không cần DB); /models đã đọc DB từ Phase 5 Group 1.
+    assert not _is_csrf_failure(client.get("/budget"))
 
 
 def test_post_without_session_cookie_does_not_need_csrf(client: TestClient) -> None:
