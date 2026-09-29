@@ -1,7 +1,9 @@
 import { createBrowserRouter, type RouteObject } from 'react-router'
 
+import { RequirePermission } from './auth/RequirePermission'
 import { AppShell } from './layout/AppShell'
 import { AccountPage } from './pages/AccountPage'
+import { UsersPage } from './pages/admin/UsersPage'
 import { ForbiddenPage } from './pages/ForbiddenPage'
 import { HomePage } from './pages/HomePage'
 import { LandingPage } from './pages/LandingPage'
@@ -18,12 +20,20 @@ const routes: RouteObject[] = [
   { path: '/request-access/sent', element: <RequestAccessSentPage /> },
   { path: '/pending', element: <PendingPage /> },
   { path: '/reset-password/:token', element: <ResetPasswordPage /> },
-  // Trang cần đăng nhập nằm trong khung ứng dụng (Group 6 thêm trang admin).
+  // Trang cần đăng nhập nằm trong khung ứng dụng; trang admin chặn thêm theo permission.
   {
     element: <AppShell />,
     children: [
       { path: '/home', element: <HomePage /> },
       { path: '/account', element: <AccountPage /> },
+      {
+        path: '/admin/users',
+        element: (
+          <RequirePermission requirement="user.manage">
+            <UsersPage />
+          </RequirePermission>
+        ),
+      },
     ],
   },
 ]

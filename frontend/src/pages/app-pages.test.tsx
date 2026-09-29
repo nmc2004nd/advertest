@@ -47,11 +47,16 @@ describe('/home', () => {
   })
 })
 
-describe('điều hướng sau Group 5', () => {
-  it('mọi người dùng thấy Trang chủ và Tài khoản', () => {
-    for (const name of ['engineer', 'reviewer', 'admin']) {
+describe('điều hướng (trang đã có đến Group 6)', () => {
+  it('engineer và reviewer thấy Trang chủ, Tài khoản; admin thấy thêm trang quản trị', () => {
+    for (const name of ['engineer', 'reviewer']) {
       expect(visibleNav(mockMe(name)).map((i) => i.path)).toEqual(['/home', '/account'])
     }
+    expect(visibleNav(mockMe('admin')).map((i) => i.path)).toEqual([
+      '/home',
+      '/admin/users',
+      '/account',
+    ])
   })
 })
 
