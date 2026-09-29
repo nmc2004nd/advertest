@@ -332,3 +332,28 @@ def test_cancel_stops_after_current_batch(
     assert [r.status for r in runs] == [RunStatus.CANCELLED, RunStatus.CANCELLED]
     assert processed == world.local.slice.image_ids[:1]
     assert runs[0].images_done == 1 and runs[1].images_done == 0
+
+
+def test_corrupt_checkpoint_fails_only_that_run(
+    app_engine: Engine, world: World, api: TestClient, clock: FakeClock, buckets: Buckets,
+    tmp_path: Path,
+) -> None:  # fmt: skip
+    setup = _submit(app_engine, world, api, clock, seed=505)
+    _profile(setup, world, sec_per_image=0.01, batch_size=1)
+
+    def crash(_run_id: UUID, _ids: Sequence[str]) -> None:
+        raise Crash
+
+    with pytest.raises(Crash):
+        _lease_and_run(_runner(setup, tmp_path / "a", clock, on_batch=crash), setup)
+    _, runs = _state(app_engine, setup.experiment_id)
+    assert runs[0].checkpoint_key is not None
+    # Checkpoint trong MinIO bị hỏng (ghi thẳng bằng client S3, bỏ qua tính bất biến).
+    raw: Any = buckets.artifacts.client
+    raw.put_object(Bucket="artifacts", Key=runs[0].checkpoint_key, Body=b"{hong")
+    clock.advance(61)
+    _lease_and_run(_runner(setup, tmp_path / "b", clock), setup)
+    experiment, runs = _state(app_engine, setup.experiment_id)
+    assert [r.status for r in runs] == [RunStatus.FAILED, RunStatus.COMPLETED]
+    assert runs[0].status_reason is not None and "Error" in runs[0].status_reason["message"]
+    assert experiment.status == ExperimentStatus.COMPLETED

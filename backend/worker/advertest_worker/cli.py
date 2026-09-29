@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Callable
 from typing import Annotated
 from uuid import UUID
 
@@ -23,6 +24,7 @@ from advertest_worker.config import WorkerSettings
 from advertest_worker.job import JobRunner
 from ml_core.runner.env import default_device
 
+logger = logging.getLogger(__name__)
 app = typer.Typer(help="Worker của AdverTest: nhận job qua API nội bộ và chạy trên máy này.")
 
 
@@ -35,6 +37,34 @@ def _runner(settings: WorkerSettings) -> tuple[WorkerClient, JobRunner]:
         heartbeat_interval_s=settings.heartbeat_interval_s,
     )
     return client, runner
+
+
+def serve(
+    client: WorkerClient,
+    runner: JobRunner,
+    *,
+    once: bool = False,
+    poll_interval_s: float,
+    sleep: Callable[[float], None] = time.sleep,
+) -> None:
+    """Vòng lặp lease → chạy. Lỗi của một job (hoặc API tạm không gọi được sau khi client đã
+    retry) chỉ được ghi log; worker chờ rồi tiếp tục, không thoát."""
+    while True:
+        lease = None
+        try:
+            lease = client.lease()
+            if lease is not None:
+                logger.info("Nhận experiment %s", lease.experiment_id)
+                runner.run_lease(lease)
+        except Exception:
+            logger.exception(
+                "Lỗi khi nhận hoặc chạy experiment %s", lease.experiment_id if lease else "-"
+            )
+            lease = None  # chờ trước khi thử lại
+        if once:
+            return
+        if lease is None:
+            sleep(poll_interval_s)
 
 
 def _logging() -> None:
@@ -51,15 +81,7 @@ def run(
     _logging()
     settings = WorkerSettings.from_env()
     client, runner = _runner(settings)
-    while True:
-        lease = client.lease()
-        if lease is not None:
-            logging.info("Nhận experiment %s", lease.experiment_id)
-            runner.run_lease(lease)
-        if once:
-            return
-        if lease is None:
-            time.sleep(settings.poll_interval_s)
+    serve(client, runner, once=once, poll_interval_s=settings.poll_interval_s)
 
 
 @app.command()

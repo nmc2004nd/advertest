@@ -345,9 +345,15 @@ class JobRunner:
             return
 
         candidates = StoreCandidates(store, prefix, linf_eps(spec, perturbation, run.level))
-        executor, batch_index = self._executor(
-            job, run_id, fp, run.level, run.seed, perturbation, candidates
-        )
+        try:
+            executor, batch_index = self._executor(
+                job, run_id, fp, run.level, run.seed, perturbation, candidates
+            )
+        except LeaseLost:
+            raise
+        except Exception as exc:  # checkpoint hỏng hoặc không tải được: run failed, run khác chạy
+            finish.failed(exc, None)
+            return
         profile = job.profiles.get(spec.id)
         batch_size = profile.batch_size if profile else DEFAULT_BATCH_SIZE
         try:
