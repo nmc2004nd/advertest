@@ -1824,8 +1824,6 @@ export interface components {
              * Format: uuid
              */
             experiment_id: string;
-            /** Fingerprint */
-            fingerprint: string;
             /**
              * Attack Spec Id
              * Format: uuid
@@ -1859,6 +1857,8 @@ export interface components {
              * @default null
              */
             cached_from_run_id: string | null;
+            /** Fingerprint */
+            fingerprint: string;
         };
         /** RunStartRequest */
         RunStartRequest: {
@@ -1896,7 +1896,11 @@ export interface components {
          * @enum {string}
          */
         RunStatus: "queued" | "running" | "completed" | "failed" | "skipped" | "stopped_limit" | "cancelled";
-        /** RunView */
+        /**
+         * RunView
+         * @description Run hiển thị cho người dùng. `fingerprint` null khi và chỉ khi run chưa bắt đầu: worker
+         *     tính fingerprint ở `start` (đề xuất contract 001, Phase 5).
+         */
         RunView: {
             /**
              * Schema Version
@@ -1914,8 +1918,6 @@ export interface components {
              * Format: uuid
              */
             experiment_id: string;
-            /** Fingerprint */
-            fingerprint: string;
             /**
              * Attack Spec Id
              * Format: uuid
@@ -1949,6 +1951,11 @@ export interface components {
              * @default null
              */
             cached_from_run_id: string | null;
+            /**
+             * Fingerprint
+             * @description null khi run chưa bắt đầu (queued, hoặc bị hủy/dừng trước khi chạy)
+             */
+            fingerprint: string | null;
             attack_spec: components["schemas"]["RunAttackSpec"];
         };
         /** SearchConfig */

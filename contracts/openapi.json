@@ -7688,11 +7688,6 @@
             "format": "uuid",
             "title": "Experiment Id"
           },
-          "fingerprint": {
-            "type": "string",
-            "pattern": "^[0-9a-f]{64}$",
-            "title": "Fingerprint"
-          },
           "attack_spec_id": {
             "type": "string",
             "format": "uuid",
@@ -7775,6 +7770,11 @@
             ],
             "title": "Cached From Run Id",
             "description": "Run gốc khi status = skipped với code = cached (Phase 3)"
+          },
+          "fingerprint": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Fingerprint"
           }
         },
         "additionalProperties": false,
@@ -7782,13 +7782,13 @@
         "required": [
           "run_id",
           "experiment_id",
-          "fingerprint",
           "attack_spec_id",
           "level",
           "status",
           "progress",
           "gpu_seconds",
-          "failure_case_ids"
+          "failure_case_ids",
+          "fingerprint"
         ],
         "title": "RunResult"
       },
@@ -7809,11 +7809,6 @@
             "type": "string",
             "format": "uuid",
             "title": "Experiment Id"
-          },
-          "fingerprint": {
-            "type": "string",
-            "pattern": "^[0-9a-f]{64}$",
-            "title": "Fingerprint"
           },
           "attack_spec_id": {
             "type": "string",
@@ -7897,6 +7892,11 @@
             ],
             "title": "Cached From Run Id",
             "description": "Run gốc khi status = skipped với code = cached (Phase 3)"
+          },
+          "fingerprint": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Fingerprint"
           }
         },
         "additionalProperties": false,
@@ -7904,13 +7904,13 @@
         "required": [
           "run_id",
           "experiment_id",
-          "fingerprint",
           "attack_spec_id",
           "level",
           "status",
           "progress",
           "gpu_seconds",
-          "failure_case_ids"
+          "failure_case_ids",
+          "fingerprint"
         ],
         "title": "RunResult"
       },
@@ -8016,11 +8016,6 @@
             "format": "uuid",
             "title": "Experiment Id"
           },
-          "fingerprint": {
-            "type": "string",
-            "pattern": "^[0-9a-f]{64}$",
-            "title": "Fingerprint"
-          },
           "attack_spec_id": {
             "type": "string",
             "format": "uuid",
@@ -8104,6 +8099,19 @@
             "title": "Cached From Run Id",
             "description": "Run gốc khi status = skipped với code = cached (Phase 3)"
           },
+          "fingerprint": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fingerprint",
+            "description": "null khi run chưa bắt đầu (queued, hoặc bị hủy/dừng trước khi chạy)"
+          },
           "attack_spec": {
             "$ref": "#/components/schemas/RunAttackSpec"
           }
@@ -8113,16 +8121,17 @@
         "required": [
           "run_id",
           "experiment_id",
-          "fingerprint",
           "attack_spec_id",
           "level",
           "status",
           "progress",
           "gpu_seconds",
           "failure_case_ids",
+          "fingerprint",
           "attack_spec"
         ],
-        "title": "RunView"
+        "title": "RunView",
+        "description": "Run hiển thị cho người dùng. `fingerprint` null khi và chỉ khi run chưa bắt đầu: worker\ntính fingerprint ở `start` (đề xuất contract 001, Phase 5)."
       },
       "SearchConfig": {
         "properties": {

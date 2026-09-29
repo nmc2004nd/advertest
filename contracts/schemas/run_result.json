@@ -263,11 +263,6 @@
       "title": "Experiment Id",
       "type": "string"
     },
-    "fingerprint": {
-      "pattern": "^[0-9a-f]{64}$",
-      "title": "Fingerprint",
-      "type": "string"
-    },
     "attack_spec_id": {
       "format": "uuid",
       "title": "Attack Spec Id",
@@ -355,18 +350,23 @@
       "default": null,
       "description": "Run gốc khi status = skipped với code = cached (Phase 3)",
       "title": "Cached From Run Id"
+    },
+    "fingerprint": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Fingerprint",
+      "type": "string"
     }
   },
   "required": [
     "run_id",
     "experiment_id",
-    "fingerprint",
     "attack_spec_id",
     "level",
     "status",
     "progress",
     "gpu_seconds",
-    "failure_case_ids"
+    "failure_case_ids",
+    "fingerprint"
   ],
   "title": "RunResult",
   "type": "object"

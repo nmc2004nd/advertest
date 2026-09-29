@@ -277,11 +277,13 @@ class Cost(_Model):
     currency: CurrencyCode
 
 
-class RunResult(_Model):
+class _RunCommon(_Model):
+    """Trường chung của `RunResult` (worker gửi) và `RunView` (người dùng xem); khác nhau ở
+    `fingerprint` (đề xuất contract 001, Phase 5)."""
+
     schema_version: Literal[1] = 1
     run_id: UUID
     experiment_id: UUID
-    fingerprint: Sha256Hex
     attack_spec_id: UUID
     level: float
     status: RunStatus
@@ -297,7 +299,7 @@ class RunResult(_Model):
     )
 
     @model_validator(mode="after")
-    def _check_status(self) -> RunResult:
+    def _check_status(self) -> _RunCommon:
         reason = self.status_reason
         if self.status in _ABNORMAL and reason is None:
             raise ValueError(f"status = {self.status} bắt buộc có status_reason")
@@ -317,6 +319,10 @@ class RunResult(_Model):
             if self.metrics.partial != stopped:
                 raise ValueError("metrics.partial = true khi và chỉ khi status = stopped_limit")
         return self
+
+
+class RunResult(_RunCommon):
+    fingerprint: Sha256Hex
 
 
 # ---------------------------------------------------------------- Manifest
@@ -1456,8 +1462,33 @@ class RunAttackSpec(_Model):
     param_unit: str = Field(description="Đơn vị tham số chính (primary_param.unit)")
 
 
-class RunView(RunResult):
+class RunView(_RunCommon):
+    """Run hiển thị cho người dùng. `fingerprint` null khi và chỉ khi run chưa bắt đầu: worker
+    tính fingerprint ở `start` (đề xuất contract 001, Phase 5)."""
+
+    fingerprint: Sha256Hex | None = Field(
+        description="null khi run chưa bắt đầu (queued, hoặc bị hủy/dừng trước khi chạy)"
+    )
     attack_spec: RunAttackSpec
+
+    @model_validator(mode="after")
+    def _check_not_started(self) -> RunView:
+        if self.fingerprint is None and (
+            self.status not in _NOT_STARTED
+            or self.progress.images_done != 0
+            or self.metrics is not None
+            or self.manifest_uri is not None
+            or self.failure_case_ids
+        ):
+            raise ValueError(
+                "fingerprint chỉ null khi run chưa bắt đầu (queued, cancelled hoặc stopped_limit;"
+                " chưa xử lý ảnh nào; không có metric, manifest, failure case)"
+            )
+        return self
+
+
+# Trạng thái của run có thể chưa từng bắt đầu (chưa có fingerprint).
+_NOT_STARTED = frozenset({RunStatus.QUEUED, RunStatus.CANCELLED, RunStatus.STOPPED_LIMIT})
 
 
 class FailureCaseUrls(_Model):
