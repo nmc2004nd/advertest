@@ -165,6 +165,7 @@ Mọi trạng thái bất thường (`failed`, `skipped`, `stopped_limit`, `canc
 - Fingerprint **không** gồm compute target và model GPU (để dùng lại kết quả giữa các máy). Hai thông tin này ghi trong manifest.
 - Mỗi run có `manifest.json` trong MinIO.
 - Fingerprint trùng với run đã hoàn thành → `skipped` với lý do `cached`.
+- Kết quả có thể phụ thuộc nhẹ vào batch size (đo ở Phase 3: PGD trên KITTI, batch 2 so với 8, lệch ≤ 0.0006 mAP@0.5, ≤ 0.006 ASR); sai số tái lập ±0.01 bao được mức này. Batch size không thuộc fingerprint.
 - Chỉ lưu ảnh của failure case (kèm thumbnail). Ảnh khác tái tạo được từ manifest và seed.
 
 ## 5. Frontend

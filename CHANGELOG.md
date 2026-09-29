@@ -6,7 +6,27 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 3 — Worker và máy local
 
-**Trạng thái:** đang làm. Group 0–5 đã merge; đã sửa checkpoint quá nặng; Group 6 (test nghiệm thu, manual check) xong trên nhánh `phase03-reviewer-g6`.
+**Trạng thái:** ✅ hoàn thành 2026-09-29, **còn tồn đọng** (người dùng cho phép đóng phase). Group 0–6 đã merge.
+
+### Replan sau Phase 3 — 2026-09-29
+- Phase 4 `requirements.md`: danh sách `ErrorCode` gộp các mã đã có từ Phase 3 (`invalid_request` cho 422 nghiệp vụ; `validation_error` cho 422 do sai schema).
+- Phase 5 `requirements.md`: `POST /experiments` dùng lại `experiments.submit` (inference params, `failure_cases_per_run`, action audit `experiment.submit`/`experiment.cancel`); `ErrorResponse` cần đường dẫn trường; câu hỏi mở mới về cách phục vụ ảnh cho điện thoại (presigned URL hiện ký cho `127.0.0.1:9000`).
+- Phase 6 `requirements.md`: làm mờ ở `StoreCandidates` của worker; `targets` chưa có `image_id` trong `RunExecutor`; thời gian train patch báo qua `progress`; PGD phụ thuộc nhẹ batch size.
+- `tech-stack.md` mục 4.4: tái lập với batch size khác nhau (±0.01).
+- `roadmap.md`: "Từ Phase 3" cho Phase 9 (user MinIO riêng, GPU) và Phase 10 (`DEFAULT_STORE_DIR`, quyền 0600 của `LocalStore`).
+- Rủi ro: ảnh trên điện thoại ở Phase 5; thời gian job acceptance của CI tăng; tái lập và calibration trên GPU chưa đo.
+
+### Phase 3 — Tổng kết (phase-close) — 2026-09-29
+- **Giao được:** experiment gửi qua `advertest-admin` (compute target, token, `import-local`, `submit`, `experiment list|show|cancel`); API nội bộ `/internal/worker` (lease có `lease_id`, bundle, heartbeat, start có cache toàn hệ thống, progress, artifact-url, complete, cost profile); worker `advertest-worker` (chạy trực tiếp hoặc Docker `cpu`/`gpu`) chạy `RunExecutor` theo batch, checkpoint lên MinIO qua presigned URL, chạy tiếp sau gián đoạn, calibration, giới hạn thời gian, hủy; artifact và thumbnail trong MinIO; đủ trạng thái run có lý do.
+- **Contract:** schema API worker (`WorkerLease`, `WorkerJobBundle`, `RunStartRequest/Response`, `ProgressReport`, `WorkerDirective`, `ArtifactUrlRequest/Response`, `CostProfile`, `RunCompletion`), `RunResult.cached_from_run_id`, `RunMetrics.partial`, `FailureCaseRecord.id` gồm `run_id`, thumbnail, `ProtocolStatus`, `ErrorCode` (401/403/404/409/422). Người dùng chấp nhận (làm thay người duyệt theo ủy quyền).
+- **Số liệu cuối:** `make check` pass trên `main` (562 test Python, 156 test nghiệm thu không cần DB, 36 Vitest); `make test-db` 124 test (41 test nghiệm thu Phase 3). KITTI 300 ảnh, CPU, worker trong Docker: `pgd_sweep` 28 phút xử lý, metric trong ±0.01 so với Phase 2 (FGSM trùng tuyệt đối); `kill -9` chạy tiếp sau 59 giây; checkpoint 27 MB cho 6 run; calibration PGD batch 2 1.229 s/ảnh, FGSM batch 2 0.158 s/ảnh.
+- **`validation.md`:** Automated Tests đủ; Manual Checks 9/10; Definition of Done 5/6.
+- **CI:** xanh sau khi push `main` gồm Group 6 (người dùng xác nhận, 2026-09-29).
+- **Tồn đọng (cập nhật khi có kết quả):**
+  - Manual check profile `gpu` và số calibration trên GPU.
+  - User MinIO riêng cho API (từ Phase 0), `DEFAULT_STORE_DIR` chỉ đúng khi cài editable (từ Phase 1): chưa có task, đề xuất chuyển sang phase sau (replan).
+  - Kết quả PGD phụ thuộc nhẹ vào batch size trên KITTI thật (trong sai số).
+- **Lưu ý:** Group 0, 6, việc review, merge và phase-close do agent làm thay người duyệt theo ủy quyền của người dùng; review và test nghiệm thu do chính agent đã viết code thực hiện nên không độc lập.
 
 ### Phase 3 — Group 6 (người duyệt, người dùng cho phép) — 2026-09-29
 #### Thêm

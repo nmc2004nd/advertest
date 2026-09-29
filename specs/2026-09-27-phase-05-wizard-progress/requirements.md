@@ -49,6 +49,10 @@ Cuối phase: engineer tạo experiment trên web, theo dõi tiến độ trên 
 | `experiments` | Thêm `name`, `cloned_from`, `finished_at` |
 | `email_outbox` | Bảng mới: `id`, `to`, `subject`, `body_html`, `body_text`, `status` (`pending` / `sent` / `failed`), `attempts`, `last_error`, `created_at`, `sent_at` |
 
+### Dùng lại từ Phase 3 (replan)
+- `POST /experiments` dùng lại service `experiments.submit` của Phase 3: `inference_params` mặc định (`DEFAULT_INFERENCE_PARAMS`) và `failure_cases_per_run = 20` lưu ở bảng `experiments` (không nằm trong `ExperimentConfig`); audit dùng action đã có `experiment.submit` / `experiment.cancel` (không phải `experiment.created`).
+- Lỗi 422 có đường dẫn trường: `ErrorResponse` hiện không có trường cho đường dẫn → Group 0 của Phase 5 cần thêm (ví dụ `error.fields`).
+
 ## Behaviour
 
 ### API đọc tài nguyên
@@ -98,7 +102,7 @@ Worker được coi là `online` nếu có heartbeat trong 60 giây gần nhất
 - `queue.ahead_seconds` = tổng ước lượng còn lại của các experiment đứng trước trong hàng đợi của target (bỏ qua phần không ước lượng được).
 
 ### Hiển thị ảnh và quyền riêng tư (tạm thời đến Phase 10)
-- Ảnh được phục vụ bằng URL tạm thời (hết hạn 10 phút) do API cấp sau khi kiểm tra `experiment.read`.
+- Ảnh được phục vụ bằng URL tạm thời (hết hạn 10 phút) do API cấp sau khi kiểm tra `experiment.read`. Presigned URL của Phase 3 ký cho `MINIO_PUBLIC_ENDPOINT` (`127.0.0.1:9000`), nên trình duyệt ở máy khác (điện thoại qua LAN) không tải được; Phase 5 phải chọn cách phục vụ ảnh (xem Open Questions).
 - Dataset có `anonymized = false`:
   - mặc định: `display_mode = hidden_unanonymized`, không cấp URL ảnh; giao diện hiển thị khung giữ chỗ "Ảnh bị ẩn: dataset chưa được làm mờ" và vẫn vẽ box trên nền trống;
   - khi server bật `DEV_ALLOW_UNBLURRED=true`: `display_mode = dev_unblurred`, cấp URL và giao diện hiển thị dải cảnh báo "Chưa làm mờ – chỉ dùng cho phát triển".
@@ -165,6 +169,8 @@ Worker được coi là `online` nếu có heartbeat trong 60 giây gần nhất
 - Phase 4: phiên, permission, khung điều hướng, form, hộp xác nhận.
 
 ## Open Questions
+
+- [ ] Ảnh failure case cho điện thoại: API proxy ảnh qua `/api`, hay presigned URL với `MINIO_PUBLIC_ENDPOINT` là địa chỉ LAN?
 
 - [ ] Có nên đưa tính năng làm mờ lên sớm (trước Phase 8) để report không bị thiếu ảnh không.
 - [ ] Giới hạn 3 experiment đang chờ mỗi người có phù hợp không.

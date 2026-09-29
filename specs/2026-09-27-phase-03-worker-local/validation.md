@@ -82,9 +82,9 @@
 
 ## Definition of Done
 
-- [ ] Toàn bộ Automated Tests pass trên CI.
+- [x] Toàn bộ Automated Tests pass trên CI.
 - [ ] Toàn bộ Manual Checks đã thực hiện, đặc biệt là kịch bản `kill -9` trên máy thật.
-- [ ] Người duyệt đã chấp nhận thay đổi contract.
-- [ ] Câu hỏi mở đã có câu trả lời; `tech-stack.md` đã cập nhật nếu cần.
-- [ ] Tài liệu chạy worker trên máy local đã có.
-- [ ] `CHANGELOG.md` và `roadmap.md` đã cập nhật; Phase 3 được đánh dấu hoàn thành.
+- [x] Người duyệt đã chấp nhận thay đổi contract.
+- [x] Câu hỏi mở đã có câu trả lời; `tech-stack.md` đã cập nhật nếu cần.
+- [x] Tài liệu chạy worker trên máy local đã có.
+- [x] `CHANGELOG.md` và `roadmap.md` đã cập nhật; Phase 3 được đánh dấu hoàn thành.
