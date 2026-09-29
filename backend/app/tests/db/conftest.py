@@ -11,6 +11,7 @@ import os
 import uuid
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 import pytest
 from alembic import command
@@ -20,6 +21,13 @@ from sqlalchemy.orm import Session
 
 from advertest_contracts.enums import Role, UserStatus
 from backend.app.db import models as m
+from backend.app.storage import (
+    BUCKET_ARTIFACTS,
+    BUCKET_DATASETS,
+    BUCKET_MODELS,
+    Buckets,
+    make_s3_client,
+)
 
 ALEMBIC_INI = Path(__file__).resolve().parents[3] / "alembic.ini"
 
@@ -80,3 +88,19 @@ def make_user(session: Session, *, role: Role | None = Role.ADMIN, active: bool 
 @pytest.fixture
 def admin(db: Session) -> m.User:
     return make_user(db)
+
+
+@pytest.fixture(scope="session")
+def buckets() -> Buckets:
+    """MinIO tạm của `make test-db`, đủ 3 bucket mà backend dùng."""
+    client = make_s3_client(
+        _url("ADVERTEST_TEST_MINIO_ENDPOINT"),
+        _url("ADVERTEST_TEST_MINIO_ACCESS_KEY"),
+        _url("ADVERTEST_TEST_MINIO_SECRET_KEY"),
+    )
+    raw: Any = client
+    existing = {b["Name"] for b in raw.list_buckets().get("Buckets", [])}
+    for name in (BUCKET_MODELS, BUCKET_DATASETS, BUCKET_ARTIFACTS):
+        if name not in existing:
+            raw.create_bucket(Bucket=name)
+    return Buckets.from_client(client)
