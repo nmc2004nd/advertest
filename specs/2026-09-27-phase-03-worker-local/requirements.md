@@ -106,7 +106,9 @@ Cuối phase: gửi experiment, theo dõi tiến độ; tắt worker giữa ch�
 - Worker là package `advertest_worker`, lệnh `advertest-worker run|calibrate`; client HTTP dùng `httpx` (thử lại với backoff khi mất kết nối hoặc lỗi 5xx; không thử lại lỗi 4xx; `409` nghĩa là bỏ experiment đang chạy).
 - `advertest-worker run [--once]`: lặp lease; lỗi của một job (hoặc API tạm không gọi được) chỉ ghi log, worker chờ rồi tiếp tục, không thoát. `advertest-worker calibrate --experiment <id>`: đo lại cost profile cho mọi attack của một experiment đang `running` thuộc target và gửi lên API; không lease, không chạy run.
 - Cache trên máy worker: `CACHE_DIR` (mặc định `~/.cache/advertest-worker`), gồm `images/<sha256>` và `store/` (`LocalStore` của `ml_core`: weights, card, manifest, slice, mapping, cache prediction ảnh sạch dùng lại giữa các job). Mọi file tải về được kiểm tra sha256.
-- Cách chạy mặc định trên máy phát triển: chạy trực tiếp (`uv run advertest-worker run`). Compose có profile `cpu` (CI, test manifest trong Docker) và profile `gpu` (nvidia runtime, kiểm khi có máy GPU).
+- Cách chạy mặc định trên máy phát triển: chạy trực tiếp (`uv run --extra cuda|cpu advertest-worker run`). Compose có profile `cpu` (service `worker-cpu`, CI, test manifest trong Docker) và profile `gpu` (service `worker`, nvidia runtime, kiểm khi có máy GPU), khởi động bằng `docker/worker/up.sh cpu|gpu`: script chỉ build từ working tree sạch, truyền `GIT_COMMIT` là commit hiện tại và `DOCKER_IMAGE_DIGEST` là image ID thật của image vừa build (biến môi trường lúc chạy; image không tự biết digest lúc build).
+- Worker trong compose dùng host network: API (`127.0.0.1:API_PORT`) và MinIO (`127.0.0.1:9000`, mở cổng chỉ gắn 127.0.0.1) cùng địa chỉ với worker chạy trực tiếp; API ký presigned URL qua `MINIO_PUBLIC_ENDPOINT=http://127.0.0.1:9000`. Chỉ Linux.
+- Image dùng chung cho `api` và worker cài `libgl1`, `libglib2.0-0`, `libxcb1` (opencv của ultralytics), chứa `contracts/seeds/`; cấu hình matplotlib/ultralytics ở `/tmp`; cache worker ở `/app/cache` (named volume).
 - Fingerprint: image Docker của worker đặt biến `GIT_COMMIT` và `DOCKER_IMAGE_DIGEST` (Phase 2); chạy ngoài Docker thì lấy như CLI (`git rev-parse`, `git_dirty` bỏ qua `.ai-log/`).
 
 1. Gọi `lease` theo chu kỳ (mặc định 5 giây khi rảnh).
@@ -158,7 +160,9 @@ Cuối phase: gửi experiment, theo dõi tiến độ; tắt worker giữa ch�
 - Hàm ước lượng ở backend: `thời_gian ≈ Σ_run (số ảnh × sec_per_image) × 1.2`. `advertest-admin submit` in ước lượng này; thiếu cost profile thì báo "chưa có ước lượng".
 
 ### CLI quản trị (`advertest-admin`, chạy trong container `api`)
-- `import-local --store data/store`: đăng ký model, dataset version, slice, mapping từ `LocalStore` vào DB và MinIO. Chỉ upload ảnh thuộc các slice được đăng ký.
+- `import-local --store data/store --as <email>`: đăng ký model, dataset version, slice, mapping từ `LocalStore` vào DB và MinIO. Chỉ upload ảnh thuộc các slice được đăng ký. `--as` bắt buộc (chỉ admin được đăng ký model). Thư mục dữ liệu (`ADVERTEST_DATA_DIR`, đường dẫn tuyệt đối) được mount chỉ đọc vào `api` ở đúng đường dẫn đó vì `LocalStore` ghi đường dẫn tuyệt đối của ảnh; file của `LocalStore` có quyền 0600 nên lệnh chạy bằng uid của máy (`exec -u`).
+- `compute-target list`; target `local-dev` do seed tạo chưa có token: cấp bằng `compute-target rotate-token local-dev`.
+- Seed (`python -m backend.admin_cli.seed`) nhận `ADVERTEST_ADMIN_EMAIL`, `ADVERTEST_ADMIN_PASSWORD` qua `exec -e` khi chạy; mật khẩu admin không nằm trong môi trường thường trực của `api`.
 - `submit --config <yaml> --target <name> [--time-limit s] --as <email>`: tạo experiment `queued` gắn protocol `dev-open`, lập danh sách run. `<yaml>` theo `LocalRunConfig` của Phase 2 (id là `content_id` nên trùng giữa `LocalStore` và DB sau `import-local`); `device`, `batch_size` bị bỏ qua (worker dùng cost profile).
 - `experiment list`, `experiment show <id> [--watch]`: trạng thái experiment, từng run, tiến độ, thời gian đã dùng.
 - `experiment cancel <id> --as <email>`.
