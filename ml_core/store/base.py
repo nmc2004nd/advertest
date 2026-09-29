@@ -44,6 +44,23 @@ class ArtifactStore(Protocol):
         ...
 
 
+@runtime_checkable
+class DeletableStore(Protocol):
+    """Store có thể xóa key (Phase 3: `MinioStore`, `PresignedStore`).
+
+    Chỉ dùng cho dữ liệu chưa phải kết quả (ứng viên failure case); `delete` key không tồn tại
+    là no-op. `LocalStore` không cài đặt interface này.
+    """
+
+    def put(self, key: str, data: bytes) -> None: ...
+
+    def get(self, key: str) -> bytes: ...
+
+    def exists(self, key: str) -> bool: ...
+
+    def delete(self, key: str) -> None: ...
+
+
 def require_store(obj: object) -> ArtifactStore:
     """Store mà callback của CLI `advertest` đặt vào `ctx.obj` (tùy chọn `--store-dir`)."""
     if not isinstance(obj, ArtifactStore):

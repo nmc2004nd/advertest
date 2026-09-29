@@ -27,11 +27,11 @@ from ultralytics.nn.tasks import DetectionModel
 from advertest_contracts.enums import RunStatus
 from advertest_contracts.hashing import sha256_of
 from advertest_contracts.models import (
-    FailureCaseRecord,
     GradientCheck,
     Manifest,
     ModelCard,
     RunResult,
+    compute_failure_case_id,
 )
 from attacks.art_adapter import ArtPerturbation, build_perturbation
 from attacks.registry import get_spec, load_catalog
@@ -47,11 +47,12 @@ from ml_core.models import register as register_module
 from ml_core.models.register import register_model
 from ml_core.preprocess import PAD_VALUE, letterbox
 from ml_core.runner import run as run_module
+from ml_core.runner.candidates import MemoryCandidates
 from ml_core.runner.config import LocalRunConfig, experiment_id
 from ml_core.runner.env import GitState
+from ml_core.runner.executor import RunExecutor, build_context
 from ml_core.runner.run import (
     RunReport,
-    _Candidate,
     amplified_perturbation,
     letterbox_mask,
     run_config,
@@ -359,22 +360,35 @@ def test_failure_case_record_and_pngs(base: Base, store: LocalStore) -> None:
         "scores": np.asarray([0.9, 0.9], np.float32),
     }
     stats = ImageAttackStats(correct=len(target["labels"]), lost=1, clean_fp=0, attacked_fp=1)
-    candidate = _Candidate(
-        stats=stats,
-        clean=image,
-        adversarial=adversarial,
-        attacked_pred=fp_pred,
-        target=target,
-        ignore=loader_batch.ignore[0],
+    image_id = loader_batch.image_ids[0]
+    context = build_context(
+        runner.loader, {i: empty for i in runner.slice.image_ids}, runner.params, 2
     )
-    fp = "e" * 64
-    case_id = runner._write_case(
-        "runs/x", runner.experiment_id, fp, loader_batch.image_ids[0], candidate, empty, 4 / 255
+    candidates = MemoryCandidates(store, "runs/x", 4 / 255)
+    executor = RunExecutor(
+        fingerprint="e" * 64,
+        level=4,
+        seed=0,
+        perturbation=cast(ArtPerturbation, None),
+        estimator=None,
+        context=context,
+        candidates=candidates,
     )
-    record = FailureCaseRecord.model_validate_json(
-        store.get(f"runs/x/cases/{loader_batch.image_ids[0]}/record.json")
-    )
-    assert record.id == case_id and record.severity_score == 1.5
+    # Trạng thái như sau khi process_batch đưa ảnh vào top-K.
+    executor.predictions[image_id] = fp_pred
+    executor.stats[image_id] = stats
+    executor.top = [image_id]
+    executor.case_inputs[image_id] = {
+        "gt_boxes": target["boxes"].tolist(),
+        "gt_labels": target["labels"].tolist(),
+        "ignore_boxes": loader_batch.ignore[0]["boxes"].tolist(),
+        "ignore_sources": loader_batch.ignore[0]["sources"],
+    }
+    candidates.add(image_id, image, adversarial)
+    run_id = runner.experiment_id
+    record = executor._record(run_id, image_id, stats)
+    assert record.id == compute_failure_case_id("e" * 64, run_id, image_id)
+    assert record.severity_score == 1.5
     assert [b.class_name for b in record.detections.attacked] == ["car"]  # class 14 bị lọc
     assert all(b.score is None for b in record.detections.ground_truth)
     assert len(record.detections.ground_truth) == len(target["labels"])
@@ -455,22 +469,12 @@ def test_error_while_building_attack_fails_only_that_run(base: Base, store: Loca
     assert other.result.status == RunStatus.COMPLETED
 
 
-def test_top_cases_keep_own_copies() -> None:
+def test_memory_candidates_keep_own_copies(tmp_path: Path) -> None:
     batch = np.zeros((4, 3, 8, 8), np.float32)
-    top = run_module._TopCases(limit=2)
-    for i, severity in enumerate([1, 3, 2, 0]):
-        stats = ImageAttackStats(correct=severity, lost=severity, clean_fp=0, attacked_fp=0)
-        top.offer(
-            f"{i:06d}",
-            _Candidate(
-                stats=stats,
-                clean=batch[i],
-                adversarial=batch[i],
-                attacked_pred={},
-                target={},
-                ignore={},
-            ),
-        )
-    assert list(top.items) == ["000001", "000002"]
-    for candidate in top.items.values():
-        assert candidate.clean.base is None and candidate.adversarial.base is None
+    candidates = MemoryCandidates(LocalStore(tmp_path), "runs/x", None)
+    for i in range(4):
+        candidates.add(f"{i:06d}", batch[i], batch[i])
+    candidates.evict("000000")
+    assert list(candidates._items) == ["000001", "000002", "000003"]
+    for clean, adversarial in candidates._items.values():
+        assert clean.base is None and adversarial.base is None
