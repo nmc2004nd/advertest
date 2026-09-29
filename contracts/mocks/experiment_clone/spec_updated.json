@@ -1,0 +1,57 @@
+{
+  "config": {
+    "schema_version": 1,
+    "protocol_id": "2edcdef5-0d3a-5d5f-98ac-b02637fa6718",
+    "model_version_id": "81686f0e-32b6-5806-819c-3b0e37072342",
+    "slice_id": "0ed10c11-0bc2-5615-a171-4a08748dfda9",
+    "class_mapping_id": "4c239faf-34f6-5144-a3d5-f0328b0881ac",
+    "compute_target_id": "8679be42-13ce-51fb-876b-ca6d4d3f3c74",
+    "attacks": [
+      {
+        "schema_version": 1,
+        "attack_spec_id": "8d15422d-f111-5c7e-96eb-e704767e6218",
+        "spec_sha256": "a6d81b6643af13e1d2f7983ce51340f54c26629304f1fdd98b954c236c1e735f",
+        "mode": "grid",
+        "grid": {
+          "levels": [
+            2,
+            4,
+            8
+          ]
+        },
+        "search": null,
+        "seed": 0
+      },
+      {
+        "schema_version": 1,
+        "attack_spec_id": "784d7b76-cc9e-54e2-9b81-f37cecd34921",
+        "spec_sha256": "05d0ad9589e46111b2834e5070cbafda72cb107cc427fd408d92784575880cfc",
+        "mode": "grid",
+        "grid": {
+          "levels": [
+            2,
+            4,
+            8,
+            16
+          ]
+        },
+        "search": null,
+        "seed": 0
+      }
+    ],
+    "limit": {
+      "kind": "time",
+      "value": "7200"
+    },
+    "name": null,
+    "cloned_from": "c22f67c0-e184-5d74-a3df-43aff5b9e82e"
+  },
+  "warnings": [
+    {
+      "attack_spec_id": "784d7b76-cc9e-54e2-9b81-f37cecd34921",
+      "from_version": 1,
+      "to_version": 2,
+      "message": "pgd_linf đã cập nhật từ version 1 lên 2; kết quả có thể khác lần trước."
+    }
+  ]
+}

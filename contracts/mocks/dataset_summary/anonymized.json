@@ -1,0 +1,24 @@
+{
+  "id": "ed7ee87b-c3a6-5f50-b071-e297c20e5ab7",
+  "name": "noi-bo-da-lam-mo",
+  "anonymized": true,
+  "versions": [
+    {
+      "id": "f94760d1-0412-5491-ae5d-2f5bdadf27a3",
+      "dataset_id": "ed7ee87b-c3a6-5f50-b071-e297c20e5ab7",
+      "manifest_sha256": "e0acd9b55c86f29859c02308a8b80d1fb86deecb0f6ac7e55abbb8eacde09738",
+      "num_images": 1200,
+      "class_names": [
+        "Car",
+        "Cyclist",
+        "Misc",
+        "Pedestrian",
+        "Person_sitting",
+        "Tram",
+        "Truck",
+        "Van"
+      ],
+      "created_at": "2026-09-29T08:00:00Z"
+    }
+  ]
+}

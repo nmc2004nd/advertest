@@ -1,0 +1,43 @@
+{
+  "runs": [
+    {
+      "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+      "level": 2,
+      "images": 300,
+      "sec_per_image": 1.229,
+      "est_seconds": 442.44,
+      "skip_reason": null
+    },
+    {
+      "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+      "level": 4,
+      "images": 300,
+      "sec_per_image": 1.229,
+      "est_seconds": 442.44,
+      "skip_reason": null
+    },
+    {
+      "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+      "level": 8,
+      "images": 300,
+      "sec_per_image": 1.229,
+      "est_seconds": 442.44,
+      "skip_reason": null
+    },
+    {
+      "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+      "level": 16,
+      "images": 300,
+      "sec_per_image": 1.229,
+      "est_seconds": 442.44,
+      "skip_reason": null
+    }
+  ],
+  "total_seconds": 1769.76,
+  "missing_profiles": [],
+  "exceeds_limit": true,
+  "queue": {
+    "position": 2,
+    "ahead_seconds": 442.4
+  }
+}

@@ -12,10 +12,11 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
-from advertest_contracts.enums import Role, UserStatus
-from advertest_contracts.models import ErrorResponse
+from advertest_contracts.enums import ErrorCode, Role, UserStatus
+from advertest_contracts.models import ErrorResponse, FieldError
 from advertest_contracts.permissions import AUTHENTICATED, Permission
 from backend.app.api.deps import get_sessionmaker
+from backend.app.api.errors import ApiError
 from backend.app.auth.deps import Principal, current_user
 from backend.app.main import create_app
 
@@ -45,6 +46,21 @@ SAMPLE_CALLS = [
     ("get", "/attack-specs"),
     ("get", "/failure-cases/" + RUN_ID),
     ("get", "/runs/" + RUN_ID),
+    # Phase 5 Group 0: khung cho wizard, experiment, run, failure case, ảnh.
+    ("get", "/models/" + RUN_ID),
+    ("get", "/dataset-versions/" + RUN_ID),
+    ("get", "/class-mappings"),
+    ("get", "/protocols"),
+    ("get", "/experiments"),
+    ("post", "/experiments"),
+    ("post", "/experiments/estimate"),
+    ("get", "/experiments/" + RUN_ID),
+    ("get", "/experiments/" + RUN_ID + "/runs"),
+    ("post", "/experiments/" + RUN_ID + "/cancel"),
+    ("get", "/experiments/" + RUN_ID + "/clone"),
+    ("get", "/runs/" + RUN_ID + "/manifest"),
+    ("get", "/runs/" + RUN_ID + "/failure-cases"),
+    ("get", "/artifacts/token-mau"),
     ("get", "/reviews"),
     ("get", "/reports/" + RUN_ID),
     ("get", "/compute-targets"),
@@ -56,6 +72,8 @@ SAMPLE_CALLS = [
 # Endpoint có body bắt buộc: gửi body hợp lệ lấy từ contracts/mocks.
 MOCKS = Path(__file__).resolve().parents[4] / "contracts" / "mocks"
 BODIES = {
+    "/experiments": "experiment_create/fgsm_pgd.json",
+    "/experiments/estimate": "experiment_create/fgsm_pgd.json",
     "/internal/worker/heartbeat": "heartbeat_request/default.json",
     "/internal/worker/runs/" + RUN_ID + "/artifact-url": "artifact_url_request/put_candidate.json",
     "/internal/worker/runs/" + RUN_ID + "/start": "run_start_request/gpu_local.json",
@@ -211,3 +229,51 @@ def test_missing_permission_is_403_before_501() -> None:
     response = _client(as_user=engineer).get("/audit-log")
     assert response.status_code == 403
     assert ErrorResponse.model_validate(response.json()).error.code == "forbidden"
+
+
+# ---------------------------------------------------------------- lỗi chung (Phase 5, task 1a)
+
+
+def test_openapi_declares_422_as_error_response(openapi: dict[str, Any]) -> None:
+    """Route người dùng có tham số hoặc body khai 422 là ErrorResponse, không phải
+    HTTPValidationError mặc định của FastAPI (API nội bộ của worker chưa đổi)."""
+    checked = 0
+    for path, ops in openapi["paths"].items():
+        if path.startswith("/internal/worker"):
+            continue
+        for method, op in ops.items():
+            if "422" not in op["responses"]:
+                continue
+            schema = op["responses"]["422"]["content"]["application/json"]["schema"]
+            assert schema == {"$ref": "#/components/schemas/ErrorResponse"}, (method, path)
+            checked += 1
+    assert checked >= 20
+
+
+def test_unhandled_exception_is_internal_error_without_details() -> None:
+    app = create_app()
+
+    @app.get("/loi-bat-ngo")
+    def boom() -> None:
+        raise RuntimeError("postgres://advertest:mat-khau@db/advertest")
+
+    response = TestClient(app, raise_server_exceptions=False).get("/loi-bat-ngo")
+    assert response.status_code == 500
+    body = ErrorResponse.model_validate(response.json())
+    assert body.error.code == "internal_error"
+    assert "mat-khau" not in response.text
+    assert response.json()["error"].keys() == {"code", "message"}
+
+
+def test_api_error_fields_are_returned_only_when_present() -> None:
+    app = create_app()
+    fields = [FieldError(path="attacks.0.grid.levels", message="Ngoài dải")]
+
+    @app.get("/loi-co-truong")
+    def with_fields() -> None:
+        raise ApiError(422, ErrorCode.INVALID_REQUEST, "Cấu hình không hợp lệ", fields)
+
+    response = TestClient(app).get("/loi-co-truong")
+    assert response.status_code == 422
+    body = ErrorResponse.model_validate(response.json())
+    assert body.error.fields == fields

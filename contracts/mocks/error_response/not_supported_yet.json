@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "error": {
+    "code": "not_supported_yet",
+    "message": "Chế độ tự tìm ngưỡng chưa có ở phiên bản này.",
+    "fields": [
+      {
+        "path": "attacks.0.mode",
+        "message": "Chỉ hỗ trợ mode = grid."
+      }
+    ]
+  }
+}

@@ -1,0 +1,365 @@
+{
+  "$defs": {
+    "CaseArtifacts": {
+      "additionalProperties": false,
+      "description": "Khóa lưu trữ (LocalStore ở Phase 2, MinIO từ Phase 3) của ảnh PNG letterbox.",
+      "properties": {
+        "clean_png": {
+          "minLength": 1,
+          "title": "Clean Png",
+          "type": "string"
+        },
+        "adversarial_png": {
+          "minLength": 1,
+          "title": "Adversarial Png",
+          "type": "string"
+        },
+        "perturbation_png": {
+          "description": "Ảnh nhiễu khuếch đại",
+          "minLength": 1,
+          "title": "Perturbation Png",
+          "type": "string"
+        },
+        "clean_thumb": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Thumbnail WebP rộng 320 px (Phase 3); null khi chạy bằng CLI, bắt buộc qua worker",
+          "title": "Clean Thumb"
+        },
+        "adversarial_thumb": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Thumbnail WebP rộng 320 px (Phase 3); null khi chạy bằng CLI, bắt buộc qua worker",
+          "title": "Adversarial Thumb"
+        }
+      },
+      "required": [
+        "clean_png",
+        "adversarial_png",
+        "perturbation_png"
+      ],
+      "title": "CaseArtifacts",
+      "type": "object"
+    },
+    "CaseBox": {
+      "additionalProperties": false,
+      "description": "Box trong failure case: xyxy pixel trong không gian letterbox.",
+      "properties": {
+        "bbox": {
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Bbox",
+          "type": "array"
+        },
+        "class_name": {
+          "description": "Class đích của mapping",
+          "minLength": 1,
+          "title": "Class Name",
+          "type": "string"
+        },
+        "score": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null với ground truth, bắt buộc với prediction",
+          "title": "Score"
+        }
+      },
+      "required": [
+        "bbox",
+        "class_name",
+        "score"
+      ],
+      "title": "CaseBox",
+      "type": "object"
+    },
+    "CaseDetections": {
+      "additionalProperties": false,
+      "properties": {
+        "ground_truth": {
+          "items": {
+            "$ref": "#/$defs/CaseBox"
+          },
+          "title": "Ground Truth",
+          "type": "array"
+        },
+        "clean": {
+          "items": {
+            "$ref": "#/$defs/CaseBox"
+          },
+          "title": "Clean",
+          "type": "array"
+        },
+        "attacked": {
+          "items": {
+            "$ref": "#/$defs/CaseBox"
+          },
+          "title": "Attacked",
+          "type": "array"
+        },
+        "ignore_regions": {
+          "items": {
+            "$ref": "#/$defs/CaseIgnoreRegion"
+          },
+          "title": "Ignore Regions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "ground_truth",
+        "clean",
+        "attacked",
+        "ignore_regions"
+      ],
+      "title": "CaseDetections",
+      "type": "object"
+    },
+    "CaseIgnoreRegion": {
+      "additionalProperties": false,
+      "properties": {
+        "bbox": {
+          "description": "xyxy pixel trong không gian letterbox",
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Bbox",
+          "type": "array"
+        },
+        "source": {
+          "pattern": "^(dont_care|unmapped:.+|difficulty:.+)$",
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "bbox",
+        "source"
+      ],
+      "title": "CaseIgnoreRegion",
+      "type": "object"
+    },
+    "DisplayMode": {
+      "description": "Cách hiển thị ảnh failure case (Phase 5, tạm thời đến khi có làm mờ ở Phase 10).",
+      "enum": [
+        "normal",
+        "hidden_unanonymized",
+        "dev_unblurred"
+      ],
+      "title": "DisplayMode",
+      "type": "string"
+    },
+    "FailureCaseUrls": {
+      "additionalProperties": false,
+      "description": "URL tạm thời của từng artifact; null khi không cấp (ảnh bị ẩn, hoặc danh sách chỉ có\nthumbnail).",
+      "properties": {
+        "clean": {
+          "anyOf": [
+            {
+              "pattern": "^/artifacts/[A-Za-z0-9._~-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Clean"
+        },
+        "adversarial": {
+          "anyOf": [
+            {
+              "pattern": "^/artifacts/[A-Za-z0-9._~-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Adversarial"
+        },
+        "perturbation": {
+          "anyOf": [
+            {
+              "pattern": "^/artifacts/[A-Za-z0-9._~-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Perturbation"
+        },
+        "clean_thumb": {
+          "anyOf": [
+            {
+              "pattern": "^/artifacts/[A-Za-z0-9._~-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Clean Thumb"
+        },
+        "adversarial_thumb": {
+          "anyOf": [
+            {
+              "pattern": "^/artifacts/[A-Za-z0-9._~-]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Adversarial Thumb"
+        }
+      },
+      "required": [
+        "clean",
+        "adversarial",
+        "perturbation",
+        "clean_thumb",
+        "adversarial_thumb"
+      ],
+      "title": "FailureCaseUrls",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "id": {
+      "description": "compute_failure_case_id(fingerprint, run_id, image_id)",
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "run_id": {
+      "format": "uuid",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "fingerprint": {
+      "description": "Fingerprint của run",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Fingerprint",
+      "type": "string"
+    },
+    "image_id": {
+      "minLength": 1,
+      "title": "Image Id",
+      "type": "string"
+    },
+    "lost_objects": {
+      "description": "Số object bị mất sau tấn công",
+      "minimum": 0,
+      "title": "Lost Objects",
+      "type": "integer"
+    },
+    "new_false_positives": {
+      "description": "Số detection sai mới xuất hiện",
+      "minimum": 0,
+      "title": "New False Positives",
+      "type": "integer"
+    },
+    "severity_score": {
+      "description": "lost_objects + 0.5 * new_false_positives; chỉ lưu case > 0",
+      "exclusiveMinimum": 0,
+      "title": "Severity Score",
+      "type": "number"
+    },
+    "detections": {
+      "$ref": "#/$defs/CaseDetections"
+    },
+    "artifacts": {
+      "$ref": "#/$defs/CaseArtifacts"
+    },
+    "urls": {
+      "$ref": "#/$defs/FailureCaseUrls"
+    },
+    "urls_expire_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "null khi display_mode = hidden_unanonymized",
+      "title": "Urls Expire At"
+    },
+    "display_mode": {
+      "$ref": "#/$defs/DisplayMode"
+    }
+  },
+  "required": [
+    "id",
+    "run_id",
+    "fingerprint",
+    "image_id",
+    "lost_objects",
+    "new_false_positives",
+    "severity_score",
+    "detections",
+    "artifacts",
+    "urls",
+    "urls_expire_at",
+    "display_mode"
+  ],
+  "title": "FailureCaseView",
+  "type": "object"
+}

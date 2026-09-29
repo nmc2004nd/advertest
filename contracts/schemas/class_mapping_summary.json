@@ -1,0 +1,61 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "dataset_version_id": {
+      "format": "uuid",
+      "title": "Dataset Version Id",
+      "type": "string"
+    },
+    "model_version_id": {
+      "format": "uuid",
+      "title": "Model Version Id",
+      "type": "string"
+    },
+    "mapping_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Mapping Sha256",
+      "type": "string"
+    },
+    "preset": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Preset"
+    },
+    "classes": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "description": "Class gốc → class model; null là bỏ",
+      "title": "Classes",
+      "type": "object"
+    }
+  },
+  "required": [
+    "id",
+    "dataset_version_id",
+    "model_version_id",
+    "mapping_sha256",
+    "preset",
+    "classes"
+  ],
+  "title": "ClassMappingSummary",
+  "type": "object"
+}

@@ -1,0 +1,15 @@
+{
+  "id": "0ed10c11-0bc2-5615-a171-4a08748dfda9",
+  "name": "kitti-moderate-300",
+  "dataset_version_id": "eed55315-8353-5321-8a46-1d317733d786",
+  "slice_sha256": "99d8821f1503e759ca4c525fa9592c6ceffbb6092547f50f9c5b9a977d89fe08",
+  "size": 300,
+  "seed": 42,
+  "classes": [
+    "Car",
+    "Pedestrian",
+    "Person_sitting",
+    "Truck",
+    "Van"
+  ]
+}

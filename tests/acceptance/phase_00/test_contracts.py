@@ -53,8 +53,12 @@ ENUMS = {
         "not_implemented", "unauthenticated", "forbidden", "not_found", "conflict",
         "invalid_request", "invalid_credentials", "account_pending", "account_rejected",
         "account_disabled", "rate_limited", "csrf_failed", "validation_error",
+        # Phase 5 (requirements.md Phase 5, ErrorCode bổ sung; internal_error: plan.md task 1a).
+        "not_supported_yet", "queue_limit_reached", "internal_error",
     },
     "ProtocolStatus": {"active", "retired", "dev"},
+    # Phase 5: cách hiển thị ảnh failure case.
+    "DisplayMode": {"normal", "hidden_unanonymized", "dev_unblurred"},
 }  # fmt: skip
 
 

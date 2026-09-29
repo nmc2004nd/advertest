@@ -23,9 +23,9 @@
 ### Ước lượng — `test_estimate.py`
 - [ ] Có đủ cost profile: `est_seconds` từng run và `total_seconds` đúng công thức.
 - [ ] Thiếu profile cho một attack: run đó có `est_seconds = null`, attack nằm trong `missing_profiles`, `total_seconds = null`; vẫn tạo được experiment.
-- [ ] Tổng ước lượng lớn hơn giới hạn → `exceeds_limit = true`.
+- [ ] Tổng ước lượng lớn hơn giới hạn → `exceeds_limit = true`; thiếu profile nhưng phần ước lượng được đã vượt giới hạn → vẫn `true`.
 - [ ] Hai experiment đang chờ trước → `queue.position = 3`, `ahead_seconds` bằng tổng ước lượng còn lại của chúng.
-- [ ] Model không hỗ trợ gradient + attack cần gradient → ước lượng đánh dấu run sẽ bị bỏ qua.
+- [ ] Model không hỗ trợ gradient + attack cần gradient → run có `skip_reason = incompatible`, `est_seconds = 0`.
 
 ### Quyền và vòng đời — `test_experiment_lifecycle.py`
 - [ ] Engineer tạo experiment → `queued`, có `audit_log` `experiment.submit`; worker chạy xong → `completed`, có `finished_at`.
@@ -33,13 +33,21 @@
 - [ ] Mọi người dùng `active` xem được experiment của người khác.
 - [ ] Engineer hủy experiment của người khác → `403`; hủy của mình khi `running` → worker dừng, trạng thái `cancelled`, có `audit_log`.
 - [ ] Hủy experiment đã `completed` → `409 conflict`.
-- [ ] `clone` trả cấu hình giống experiment gốc; khi spec đã có version mới thì dùng version mới và kèm cảnh báo.
+- [ ] `clone` trả `ExperimentClone`: cấu hình giống experiment gốc; khi spec đã có version mới thì dùng version mới và `warnings` có mục tương ứng.
+- [ ] Tạo không có `name` → tên theo quy tắc `<model> · <slice> · <ngày UTC>`; experiment `cancelled` có `finished_at`.
+- [ ] `limit.value` bằng `max_time_limit_s` (mặc định 28800) được chấp nhận; lớn hơn 1 giây → `422`.
 
 ### Ảnh và quyền riêng tư — `test_failure_case_access.py`
 - [ ] Dataset `anonymized = true`: `display_mode = normal`, có URL ảnh, URL hết hạn sau 10 phút.
 - [ ] Dataset `anonymized = false`, không bật cờ dev: `display_mode = hidden_unanonymized`, **không** có URL ảnh sạch, ảnh sau tấn công hay thumbnail; vẫn có dữ liệu box.
 - [ ] Dataset `anonymized = false`, `DEV_ALLOW_UNBLURRED=true`: `display_mode = dev_unblurred`, có URL.
 - [ ] URL tạm thời chỉ đọc được đúng đối tượng được cấp.
+- [ ] URL ảnh có dạng `/artifacts/{token}`; token hết hạn hoặc bị sửa → `404`; token của khóa A không đọc được khóa B; không có phiên → `401`.
+
+### Đọc tài nguyên — `test_catalog_read.py`
+- [ ] `GET /attack-specs` chỉ trả spec đang hoạt động; `GET /protocols` không trả `retired`; `GET /class-mappings` lọc đúng theo dataset version và model.
+- [ ] `online` đúng theo heartbeat 60 giây; `queue_length` đúng.
+- [ ] `GET /experiments` lọc theo `owner`, `status`, `model`; phân trang cursor.
 
 ### Email — `test_email.py`
 - [ ] Experiment `completed` → đúng một email trong outbox gửi chủ sở hữu, có tên, câu tóm tắt trạng thái, link chi tiết.
@@ -53,8 +61,12 @@
 - [ ] Chip chỉnh level từ chối giá trị ngoài dải và giá trị trùng.
 - [ ] Hook polling ngừng gọi API khi experiment ở trạng thái cuối.
 - [ ] `CaseViewer` hiển thị khung giữ chỗ khi `hidden_unanonymized` và dải cảnh báo khi `dev_unblurred`.
+- [ ] Hook ảnh xin lại URL trước khi `urls_expire_at` đến.
 
 ### Frontend — E2E (Playwright, cả 3 viewport)
+
+Môi trường E2E bật `DEV_ALLOW_UNBLURRED=true` (fixture KITTI có `anonymized = false`): trình xem hiển thị dải cảnh báo.
+
 - [ ] Engineer đi hết wizard (FGSM eps 4, PGD eps 4 trên slice fixture, máy `local-dev`), thấy ước lượng ở bước 6, xác nhận → được chuyển tới trang chi tiết.
 - [ ] Trang chi tiết cập nhật tiến độ không cần tải lại; khi xong, trạng thái `completed`, tab Kết quả hiển thị biểu đồ và bảng.
 - [ ] Tab Failure case có thumbnail kèm watermark; mở một case, bật tắt được từng lớp box.
@@ -65,6 +77,9 @@
 - [ ] Reviewer không thấy mục "Tạo experiment"; truy cập trực tiếp `/experiments/new` → `/forbidden`.
 - [ ] Ở viewport 390px: wizard một bước một màn hình, thanh dưới hiển thị thời gian ước lượng; trình xem case dùng slider; không trang nào cuộn ngang.
 - [ ] Hủy experiment đang chạy qua hộp xác nhận → trạng thái chuyển `cancelled`.
+- [ ] Bước 6 hiển thị seed 0.
+- [ ] Engineer có 3 experiment đang chờ → gửi lần thứ 4 hiện thông báo `queue_limit_reached`.
+- [ ] `/home` của engineer có khối experiment đang chạy và nút "Tạo experiment"; tab Chi phí hiển thị thời gian đã dùng so với giới hạn.
 
 ## Manual Checks
 

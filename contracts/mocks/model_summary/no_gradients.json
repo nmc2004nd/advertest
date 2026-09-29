@@ -1,0 +1,14 @@
+{
+  "id": "85076148-49dc-555c-87cf-2dd025d750cc",
+  "name": "fasterrcnn-export-onnx",
+  "framework": "torchvision",
+  "weights_sha256": "9ae941beb1d9bdf434d61d93f77739acc2bcfd2ce5ef12a13dfce7671d445260",
+  "class_names": [
+    "person",
+    "car",
+    "truck"
+  ],
+  "input_size": 640,
+  "supports_gradients": false,
+  "created_at": "2026-09-29T08:00:00Z"
+}

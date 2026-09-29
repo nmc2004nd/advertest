@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "run_id": "acd64412-55de-5ac6-b8d0-8ca96f218a64",
+  "experiment_id": "c22f67c0-e184-5d74-a3df-43aff5b9e82e",
+  "fingerprint": "712a858506e014b9477bae28fa19f1f2f13479ee65db8b47c4db94c12f1494b0",
+  "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+  "level": 4,
+  "status": "completed",
+  "status_reason": null,
+  "progress": {
+    "images_done": 300,
+    "images_total": 300
+  },
+  "metrics": {
+    "clean": {
+      "map50": 0.512,
+      "map50_95": 0.298
+    },
+    "attacked": {
+      "map50": 0.021,
+      "map50_95": 0.0105
+    },
+    "relative_drop": 0.959,
+    "absolute_drop": 0.491,
+    "attack_success_rate": 0.96,
+    "per_class": null
+  },
+  "gpu_seconds": 442.3,
+  "cost": null,
+  "failure_case_ids": [
+    "69228d88-e1a3-5f2f-bbdb-cbd2b266863c",
+    "fb91cde3-7bcf-507b-8da0-49bc6498eaf3"
+  ],
+  "manifest_uri": "s3://artifacts/runs/acd64412-55de-5ac6-b8d0-8ca96f218a64/manifest.json",
+  "cached_from_run_id": null,
+  "attack_spec": {
+    "name": "pgd_linf",
+    "version": 1,
+    "param_name": "eps",
+    "param_unit": "1/255"
+  }
+}

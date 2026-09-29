@@ -1,0 +1,72 @@
+{
+  "$defs": {
+    "ComputeKind": {
+      "enum": [
+        "local",
+        "rented"
+      ],
+      "title": "ComputeKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "kind": {
+      "$ref": "#/$defs/ComputeKind"
+    },
+    "gpu_model": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "null với máy chỉ có CPU",
+      "title": "Gpu Model"
+    },
+    "online": {
+      "description": "Có heartbeat trong 60 giây gần nhất",
+      "title": "Online",
+      "type": "boolean"
+    },
+    "queue_length": {
+      "description": "Số experiment đang queued trên target",
+      "minimum": 0,
+      "title": "Queue Length",
+      "type": "integer"
+    },
+    "default_time_limit_s": {
+      "exclusiveMinimum": 0,
+      "title": "Default Time Limit S",
+      "type": "integer"
+    },
+    "max_time_limit_s": {
+      "exclusiveMinimum": 0,
+      "title": "Max Time Limit S",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "kind",
+    "gpu_model",
+    "online",
+    "queue_length",
+    "default_time_limit_s",
+    "max_time_limit_s"
+  ],
+  "title": "ComputeTargetPublic",
+  "type": "object"
+}

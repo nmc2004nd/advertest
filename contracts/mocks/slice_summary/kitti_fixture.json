@@ -1,0 +1,15 @@
+{
+  "id": "549f8cba-81af-5f51-b44a-0ad2196b75c2",
+  "name": "kitti-fixture-5",
+  "dataset_version_id": "eed55315-8353-5321-8a46-1d317733d786",
+  "slice_sha256": "2ac9477b2a746f3504232f2543025b3df56203c4911aa3a55d60ccba14e76cb0",
+  "size": 5,
+  "seed": 42,
+  "classes": [
+    "Car",
+    "Pedestrian",
+    "Person_sitting",
+    "Truck",
+    "Van"
+  ]
+}

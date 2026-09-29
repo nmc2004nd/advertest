@@ -116,6 +116,10 @@ class ErrorCode(StrEnum):
     RATE_LIMITED = "rate_limited"  # 429
     CSRF_FAILED = "csrf_failed"  # 403
     VALIDATION_ERROR = "validation_error"  # 422: body không đúng schema
+    # Phase 5: experiment trên web; lỗi máy chủ không xử lý được.
+    NOT_SUPPORTED_YET = "not_supported_yet"  # 422: tính năng chưa có ở phase này (mode = search)
+    QUEUE_LIMIT_REACHED = "queue_limit_reached"  # 409: đã có 3 experiment đang chờ
+    INTERNAL_ERROR = "internal_error"  # 500: không kèm chi tiết (chi tiết chỉ ghi log server)
 
 
 class ProtocolStatus(StrEnum):
@@ -129,3 +133,11 @@ class CaseSeverity(StrEnum):
     MAJOR = "major"
     MINOR = "minor"
     ACCEPTABLE = "acceptable"
+
+
+class DisplayMode(StrEnum):
+    """Cách hiển thị ảnh failure case (Phase 5, tạm thời đến khi có làm mờ ở Phase 10)."""
+
+    NORMAL = "normal"  # dataset đã ẩn danh: có URL ảnh
+    HIDDEN_UNANONYMIZED = "hidden_unanonymized"  # dataset chưa làm mờ: không cấp URL ảnh
+    DEV_UNBLURRED = "dev_unblurred"  # chưa làm mờ nhưng server bật DEV_ALLOW_UNBLURRED

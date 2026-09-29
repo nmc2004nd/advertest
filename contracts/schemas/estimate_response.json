@@ -1,0 +1,145 @@
+{
+  "$defs": {
+    "EstimateRun": {
+      "additionalProperties": false,
+      "properties": {
+        "attack_spec_id": {
+          "format": "uuid",
+          "title": "Attack Spec Id",
+          "type": "string"
+        },
+        "level": {
+          "title": "Level",
+          "type": "number"
+        },
+        "images": {
+          "exclusiveMinimum": 0,
+          "title": "Images",
+          "type": "integer"
+        },
+        "sec_per_image": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null khi thiếu cost profile",
+          "title": "Sec Per Image"
+        },
+        "est_seconds": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "images * sec_per_image * 1.2; null khi thiếu profile; 0 khi run sẽ bị bỏ qua",
+          "title": "Est Seconds"
+        },
+        "skip_reason": {
+          "anyOf": [
+            {
+              "const": "incompatible",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Run sẽ bị `skipped`: attack cần gradient, model không hỗ trợ",
+          "title": "Skip Reason"
+        }
+      },
+      "required": [
+        "attack_spec_id",
+        "level",
+        "images",
+        "sec_per_image",
+        "est_seconds",
+        "skip_reason"
+      ],
+      "title": "EstimateRun",
+      "type": "object"
+    },
+    "QueueEstimate": {
+      "additionalProperties": false,
+      "properties": {
+        "position": {
+          "description": "Vị trí của experiment mới trong hàng đợi của target",
+          "exclusiveMinimum": 0,
+          "title": "Position",
+          "type": "integer"
+        },
+        "ahead_seconds": {
+          "description": "Tổng ước lượng còn lại của các experiment đứng trước (bỏ phần không ước lượng được)",
+          "minimum": 0,
+          "title": "Ahead Seconds",
+          "type": "number"
+        }
+      },
+      "required": [
+        "position",
+        "ahead_seconds"
+      ],
+      "title": "QueueEstimate",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "runs": {
+      "items": {
+        "$ref": "#/$defs/EstimateRun"
+      },
+      "minItems": 1,
+      "title": "Runs",
+      "type": "array"
+    },
+    "total_seconds": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "null khi có run thiếu profile",
+      "title": "Total Seconds"
+    },
+    "missing_profiles": {
+      "description": "attack_spec_id thiếu cost profile, không trùng",
+      "items": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "title": "Missing Profiles",
+      "type": "array"
+    },
+    "exceeds_limit": {
+      "description": "Tổng ước lượng của các run ước lượng được (cận dưới khi thiếu profile) lớn hơn giới hạn thời gian",
+      "title": "Exceeds Limit",
+      "type": "boolean"
+    },
+    "queue": {
+      "$ref": "#/$defs/QueueEstimate"
+    }
+  },
+  "required": [
+    "runs",
+    "total_seconds",
+    "missing_profiles",
+    "exceeds_limit",
+    "queue"
+  ],
+  "title": "EstimateResponse",
+  "type": "object"
+}

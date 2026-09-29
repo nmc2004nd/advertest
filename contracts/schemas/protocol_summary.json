@@ -1,0 +1,47 @@
+{
+  "$defs": {
+    "ProtocolStatus": {
+      "enum": [
+        "active",
+        "retired",
+        "dev"
+      ],
+      "title": "ProtocolStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "version": {
+      "exclusiveMinimum": 0,
+      "title": "Version",
+      "type": "integer"
+    },
+    "status": {
+      "$ref": "#/$defs/ProtocolStatus"
+    },
+    "body_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Body Sha256",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "version",
+    "status",
+    "body_sha256"
+  ],
+  "title": "ProtocolSummary",
+  "type": "object"
+}

@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "error": {
+    "code": "queue_limit_reached",
+    "message": "Bạn đã có 3 experiment đang chờ; hãy chờ một experiment chạy xong."
+  }
+}

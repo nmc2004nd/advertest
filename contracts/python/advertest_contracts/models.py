@@ -27,8 +27,12 @@ from advertest_contracts.enums import (
     AttackAccess,
     AttackKind,
     CaseSeverity,
+    ComputeKind,
+    DisplayMode,
     ErrorCode,
+    ExperimentStatus,
     LimitKind,
+    ProtocolStatus,
     Role,
     RunMode,
     RunStatus,
@@ -1029,9 +1033,24 @@ class RunCompletion(_Model):
 # ---------------------------------------------------------------- API chung
 
 
+class FieldError(_Model):
+    """Lỗi của một trường (Phase 5): giao diện hiển thị tại đúng bước và đúng trường."""
+
+    path: str = Field(
+        min_length=1,
+        examples=["attacks.0.grid.levels"],
+        description="Đường dẫn trường trong body, các đoạn ngăn bởi dấu chấm, chỉ số mảng từ 0",
+    )
+    message: str = Field(min_length=1)
+
+
 class ErrorBody(_Model):
     code: ErrorCode
     message: str = Field(min_length=1)
+    fields: list[FieldError] | None = Field(
+        default=None,
+        description="Chỉ có ở lỗi 422 gắn được với trường cụ thể; không có thì bỏ khỏi body",
+    )
 
 
 class ErrorResponse(_Model):
@@ -1237,3 +1256,311 @@ class UserAdminPage(Page[UserAdminView]):
 
 class AuditLogPage(Page[AuditLogEntry]):
     pass
+
+
+# ---------------------------------------------------------------- Experiment trên web (Phase 5)
+
+Seconds = NonNegativeFloat
+# URL ảnh tạm thời, tương đối với gốc API (frontend thêm VITE_API_BASE_URL): chỉ đọc được đúng một
+# đối tượng, cần cả phiên đăng nhập có `experiment.read` lẫn token chưa hết hạn.
+ArtifactUrl = Annotated[str, StringConstraints(pattern=r"^/artifacts/[A-Za-z0-9._~-]+$")]
+ExperimentName = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)
+]
+
+# Trạng thái experiment chưa kết thúc (chưa có finished_at).
+_UNFINISHED = frozenset({ExperimentStatus.DRAFT, ExperimentStatus.QUEUED, ExperimentStatus.RUNNING})
+
+
+class ExperimentCreate(ExperimentConfig):
+    """Body của `POST /experiments` và `POST /experiments/estimate`."""
+
+    name: ExperimentName | None = Field(
+        default=None, description="Bỏ trống: server đặt `<model> · <slice> · <YYYY-MM-DD UTC>`"
+    )
+    cloned_from: UUID | None = Field(default=None, description="Experiment gốc khi nhân bản")
+
+
+class CloneWarning(_Model):
+    attack_spec_id: UUID = Field(description="ID của spec ở version hiện hành (trong config)")
+    from_version: PositiveInt
+    to_version: PositiveInt
+    message: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _check(self) -> CloneWarning:
+        if self.to_version <= self.from_version:
+            raise ValueError("to_version phải lớn hơn from_version")
+        return self
+
+
+class ExperimentClone(_Model):
+    """`GET /experiments/{id}/clone`: cấu hình điền sẵn; spec cũ đã lên version hiện hành."""
+
+    config: ExperimentCreate
+    warnings: list[CloneWarning]
+
+    @model_validator(mode="after")
+    def _check(self) -> ExperimentClone:
+        ids = {attack.attack_spec_id for attack in self.config.attacks}
+        if any(w.attack_spec_id not in ids for w in self.warnings):
+            raise ValueError("warnings[].attack_spec_id phải có trong config.attacks")
+        return self
+
+
+class EstimateRun(_Model):
+    attack_spec_id: UUID
+    level: float
+    images: PositiveInt
+    sec_per_image: NonNegativeFloat | None = Field(description="null khi thiếu cost profile")
+    est_seconds: Seconds | None = Field(
+        description="images * sec_per_image * 1.2; null khi thiếu profile; 0 khi run sẽ bị bỏ qua"
+    )
+    skip_reason: Literal["incompatible"] | None = Field(
+        description="Run sẽ bị `skipped`: attack cần gradient, model không hỗ trợ"
+    )
+
+    @model_validator(mode="after")
+    def _check(self) -> EstimateRun:
+        if self.skip_reason is not None:
+            if self.est_seconds != 0:
+                raise ValueError("run sẽ bị bỏ qua phải có est_seconds = 0")
+        elif (self.sec_per_image is None) != (self.est_seconds is None):
+            raise ValueError("sec_per_image và est_seconds cùng null hoặc cùng có giá trị")
+        return self
+
+
+class QueueEstimate(_Model):
+    position: PositiveInt = Field(description="Vị trí của experiment mới trong hàng đợi của target")
+    ahead_seconds: Seconds = Field(
+        description="Tổng ước lượng còn lại của các experiment đứng trước"
+        " (bỏ phần không ước lượng được)"
+    )
+
+
+class EstimateResponse(_Model):
+    runs: list[EstimateRun] = Field(min_length=1)
+    total_seconds: Seconds | None = Field(description="null khi có run thiếu profile")
+    missing_profiles: list[UUID] = Field(
+        description="attack_spec_id thiếu cost profile, không trùng"
+    )
+    exceeds_limit: bool = Field(
+        description="Tổng ước lượng của các run ước lượng được (cận dưới khi thiếu profile) lớn"
+        " hơn giới hạn thời gian"
+    )
+    queue: QueueEstimate
+
+    @model_validator(mode="after")
+    def _check(self) -> EstimateResponse:
+        unknown = [r for r in self.runs if r.skip_reason is None and r.est_seconds is None]
+        if (self.total_seconds is None) != bool(unknown):
+            raise ValueError("total_seconds là null khi và chỉ khi có run thiếu ước lượng")
+        if len(set(self.missing_profiles)) != len(self.missing_profiles):
+            raise ValueError("missing_profiles không được trùng")
+        if set(self.missing_profiles) != {r.attack_spec_id for r in unknown}:
+            raise ValueError("missing_profiles phải đúng bằng các attack của run thiếu ước lượng")
+        return self
+
+
+class UserRef(_Model):
+    id: UUID
+    full_name: str
+
+
+class ModelRef(_Model):
+    id: UUID = Field(description="ID của model version")
+    name: str
+
+
+class SliceRef(_Model):
+    id: UUID
+    name: str
+    size: PositiveInt
+
+
+class ComputeTargetRef(_Model):
+    id: UUID
+    name: str
+    kind: ComputeKind
+
+
+class ProtocolRef(_Model):
+    id: UUID
+    name: str
+    status: ProtocolStatus
+
+
+class RunCounts(_Model):
+    """Số run theo từng `RunStatus`."""
+
+    queued: NonNegativeInt
+    running: NonNegativeInt
+    completed: NonNegativeInt
+    failed: NonNegativeInt
+    skipped: NonNegativeInt
+    stopped_limit: NonNegativeInt
+    cancelled: NonNegativeInt
+
+
+class ExperimentSummary(_Model):
+    id: UUID
+    name: ExperimentName
+    owner: UserRef
+    status: ExperimentStatus
+    model: ModelRef
+    slice: SliceRef
+    compute_target: ComputeTargetRef
+    run_counts: RunCounts
+    progress: Progress = Field(description="Tổng số ảnh đã xử lý trên mọi run")
+    created_at: UtcDatetime
+    finished_at: UtcDatetime | None = Field(description="null khi draft, queued hoặc running")
+
+    @model_validator(mode="after")
+    def _check_finished(self) -> ExperimentSummary:
+        if (self.finished_at is None) != (self.status in _UNFINISHED):
+            raise ValueError("finished_at là null khi và chỉ khi status là draft, queued, running")
+        if self.finished_at is not None and self.finished_at < self.created_at:
+            raise ValueError("finished_at không được trước created_at")
+        return self
+
+
+class ExperimentDetail(ExperimentSummary):
+    config: ExperimentConfig
+    config_sha256: Sha256Hex
+    protocol: ProtocolRef
+    limit: Limit
+    processing_seconds_used: Seconds
+    queue_position: PositiveInt | None = Field(description="Chỉ có khi status = queued")
+    cloned_from: UUID | None
+    clean_metrics: MapPair | None = Field(
+        description="mAP ảnh sạch; null khi chưa run nào có metric"
+    )
+
+    @model_validator(mode="after")
+    def _check_detail(self) -> ExperimentDetail:
+        if (self.queue_position is not None) != (self.status == ExperimentStatus.QUEUED):
+            raise ValueError("queue_position có khi và chỉ khi status = queued")
+        if self.limit != self.config.limit:
+            raise ValueError("limit phải bằng config.limit")
+        return self
+
+
+class ExperimentPage(Page[ExperimentSummary]):
+    pass
+
+
+class RunAttackSpec(_Model):
+    name: str
+    version: PositiveInt
+    param_name: str = Field(description="Tên tham số chính (primary_param.name)")
+    param_unit: str = Field(description="Đơn vị tham số chính (primary_param.unit)")
+
+
+class RunView(RunResult):
+    attack_spec: RunAttackSpec
+
+
+class FailureCaseUrls(_Model):
+    """URL tạm thời của từng artifact; null khi không cấp (ảnh bị ẩn, hoặc danh sách chỉ có
+    thumbnail)."""
+
+    clean: ArtifactUrl | None
+    adversarial: ArtifactUrl | None
+    perturbation: ArtifactUrl | None
+    clean_thumb: ArtifactUrl | None
+    adversarial_thumb: ArtifactUrl | None
+
+
+class FailureCaseView(FailureCaseRecord):
+    urls: FailureCaseUrls
+    urls_expire_at: UtcDatetime | None = Field(
+        description="null khi display_mode = hidden_unanonymized"
+    )
+    display_mode: DisplayMode
+
+    @model_validator(mode="after")
+    def _check_display(self) -> FailureCaseView:
+        hidden = self.display_mode == DisplayMode.HIDDEN_UNANONYMIZED
+        any_url = any(value is not None for value in self.urls.model_dump().values())
+        if hidden and (any_url or self.urls_expire_at is not None):
+            raise ValueError("hidden_unanonymized không có URL ảnh nào và không có urls_expire_at")
+        if not hidden and (not any_url or self.urls_expire_at is None):
+            raise ValueError("display_mode khác hidden_unanonymized phải có URL và urls_expire_at")
+        return self
+
+
+class ComputeTargetPublic(_Model):
+    id: UUID
+    name: str
+    kind: ComputeKind
+    gpu_model: str | None = Field(description="null với máy chỉ có CPU")
+    online: bool = Field(description="Có heartbeat trong 60 giây gần nhất")
+    queue_length: NonNegativeInt = Field(description="Số experiment đang queued trên target")
+    default_time_limit_s: PositiveInt
+    max_time_limit_s: PositiveInt
+
+    @model_validator(mode="after")
+    def _check(self) -> ComputeTargetPublic:
+        if self.default_time_limit_s > self.max_time_limit_s:
+            raise ValueError("default_time_limit_s không được lớn hơn max_time_limit_s")
+        return self
+
+
+class ModelSummary(_Model):
+    id: UUID = Field(description="ID của model version")
+    name: str
+    framework: str = Field(description="Ví dụ ultralytics; hiển thị ở ô kiến trúc của wizard")
+    weights_sha256: Sha256Hex
+    class_names: list[str] = Field(min_length=1)
+    input_size: PositiveInt
+    supports_gradients: bool
+    created_at: UtcDatetime
+
+
+class DatasetVersionSummary(_Model):
+    id: UUID
+    dataset_id: UUID
+    manifest_sha256: Sha256Hex
+    num_images: PositiveInt
+    class_names: list[str]
+    created_at: UtcDatetime
+
+
+class DatasetSummary(_Model):
+    id: UUID
+    name: str
+    anonymized: bool = Field(description="false: ảnh bị ẩn trên giao diện cho tới Phase 10")
+    versions: list[DatasetVersionSummary] = Field(description="Mới nhất trước")
+
+    @model_validator(mode="after")
+    def _check(self) -> DatasetSummary:
+        if any(version.dataset_id != self.id for version in self.versions):
+            raise ValueError("versions[].dataset_id phải bằng id của dataset")
+        return self
+
+
+class SliceSummary(_Model):
+    id: UUID
+    name: str
+    dataset_version_id: UUID
+    slice_sha256: Sha256Hex | None
+    size: PositiveInt
+    seed: NonNegativeInt
+    classes: list[str] = Field(description="Class gốc được tính (filter.classes)")
+
+
+class ClassMappingSummary(_Model):
+    id: UUID
+    dataset_version_id: UUID
+    model_version_id: UUID
+    mapping_sha256: Sha256Hex
+    preset: str | None
+    classes: dict[str, str | None] = Field(description="Class gốc → class model; null là bỏ")
+
+
+class ProtocolSummary(_Model):
+    id: UUID
+    name: str
+    version: PositiveInt
+    status: ProtocolStatus
+    body_sha256: Sha256Hex

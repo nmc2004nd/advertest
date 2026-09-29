@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "error": {
+    "code": "invalid_request",
+    "message": "Cấu hình experiment không hợp lệ (2 lỗi).",
+    "fields": [
+      {
+        "path": "attacks.0.grid.levels",
+        "message": "Level 40 nằm ngoài dải [0, 32] của fgsm."
+      },
+      {
+        "path": "limit.value",
+        "message": "Giới hạn tối đa của local-dev là 28800 giây."
+      }
+    ]
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "id": "4c239faf-34f6-5144-a3d5-f0328b0881ac",
+  "dataset_version_id": "eed55315-8353-5321-8a46-1d317733d786",
+  "model_version_id": "81686f0e-32b6-5806-819c-3b0e37072342",
+  "mapping_sha256": "a079d92b7be84bbc6f0eb432734c629373114af7d9df05822e6e05293142cb39",
+  "preset": "kitti-coco",
+  "classes": {
+    "Car": "car",
+    "Van": "car",
+    "Truck": "truck",
+    "Pedestrian": "person",
+    "Person_sitting": "person",
+    "Cyclist": null,
+    "Tram": null,
+    "Misc": null
+  }
+}

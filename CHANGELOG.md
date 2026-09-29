@@ -4,6 +4,41 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ---
 
+## Phase 5 — Wizard tạo experiment và theo dõi tiến độ
+
+**Trạng thái:** đang làm. Group 0 xong trên nhánh `phase05-reviewer-g0` (chưa merge).
+
+### Phase 5 — Group 0 (người duyệt, người dùng giao) — 2026-09-29
+#### Contract
+- `ErrorCode` thêm `not_supported_yet` (422), `queue_limit_reached` (409), `internal_error` (500); enum mới `DisplayMode` (`normal`, `hidden_unanonymized`, `dev_unblurred`).
+- `ErrorBody.fields` (`FieldError {path, message}`, path dạng `attacks.0.grid.levels`); bỏ khỏi body khi không có, nên lỗi cũ vẫn chỉ có `{code, message}`.
+- 15 schema mới: `ExperimentCreate` (`ExperimentConfig` + `name`, `cloned_from`), `ExperimentClone {config, warnings}`, `EstimateResponse` (run có `skip_reason = incompatible` thì `est_seconds = 0`; `total_seconds` null khi và chỉ khi có run thiếu profile; `missing_profiles` đúng bằng các attack đó), `ExperimentSummary` (`finished_at` null khi và chỉ khi `draft`/`queued`/`running`), `ExperimentDetail` (`queue_position` chỉ khi `queued`, `limit` bằng `config.limit`), `ExperimentPage`, `RunView` (`RunResult` + tên, version, tham số chính của spec), `FailureCaseView` (`hidden_unanonymized` thì không URL nào; URL dạng `/artifacts/<token>` tương đối với gốc API), `ComputeTargetPublic`, `ModelSummary`, `DatasetSummary`, `DatasetVersionSummary`, `SliceSummary`, `ClassMappingSummary`, `ProtocolSummary`. 54 JSON Schema.
+- Mock sinh bằng script, ID tham chiếu chéo khớp nhau: experiment đủ 10 trạng thái; experiment `completed` có 8 run (hoàn thành, `cached`, lỗi, `stopped_limit` có `metrics.partial`, chưa chạy do chạm trần); run đủ 7 trạng thái; `EstimateResponse` đủ, thiếu profile, vượt giới hạn, `incompatible`; `FailureCaseView` đủ 3 `display_mode`; lỗi có `fields`, `queue_limit_reached`, `not_supported_yet`. Test độ phủ mock trong `contracts/python/tests/test_experiment_models.py`.
+- OpenAPI: khung `501` qua `**guard(p)` cho `GET /models`, `/models/{id}`, `/datasets`, `/dataset-versions/{id}`, `/slices`, `/class-mappings`, `/attack-specs`, `/protocols`, `/compute-targets`, `GET|POST /experiments` (`POST` trả `201`), `POST /experiments/estimate`, `GET /experiments/{id}`, `/runs`, `POST /cancel` (`experiment.cancel_own`), `GET /clone`, `GET /runs/{id}` (nay trả `RunView`), `/runs/{id}/manifest`, `/runs/{id}/failure-cases`, `/failure-cases/{id}`, `/artifacts/{token}` (`experiment.read`, trả `image/png`/`image/webp`). Route người dùng khai `422` là `ErrorResponse`. Permission có route: 12 → 14.
+#### Thay đổi
+- `backend/app/api/errors.py`: `VALIDATION_ERROR_RESPONSE`; `ApiError` và `error_response` nhận `fields`; handler lỗi không lường trước trả `500 internal_error`, không lộ chi tiết (ghi log).
+- Test Phase 0 (`test_contracts.py`, `contracts/python/tests/test_enums.py`): bảng enum thêm mã Phase 5 và `DisplayMode`.
+- Ngoài thư mục người duyệt (người dùng cho phép): `backend/app/api/public.py`, `errors.py`, `backend/app/tests/api/test_skeleton.py` (route mới, kiểm tra `422` khai `ErrorResponse`, `500`, `fields`), `backend/app/tests/db/test_route_protection_db.py` (14 permission), `frontend/src/api/messages.ts` (thông điệp 3 mã mới).
+#### Quyết định (người dùng chốt, đã ghi vào spec Phase 5)
+- Kickoff: ảnh qua API proxy bằng token 10 phút; `skip_reason` và `ExperimentClone` trong contract; E2E bật `DEV_ALLOW_UNBLURRED`; seed cố định 0; code backend mở rộng `backend/app/services/`; `max_time_limit_s` mặc định 28800; tên experiment do server đặt khi bỏ trống; làm mờ giữ ở Phase 10; giữ giới hạn 3 experiment đang chờ.
+- Group 0: `GET /artifacts/{token}` cần cả phiên (`experiment.read`) lẫn token, không công khai (không phải sửa test Phase 4, thêm một lớp bảo vệ); thêm cột `experiments.created_at` (Group 1, điền `submitted_at`).
+- Người duyệt (agent) tự chọn: `ModelSummary` dùng `framework` thay kiến trúc (DB không có cột); `GET /experiments` mặc định `owner=all`; danh sách tài nguyên của wizard trả mảng (không phân trang).
+#### Chuyển cho group sau (`plan.md` task 5a, 5b)
+- Router API nội bộ của worker vẫn khai `422` là `HTTPValidationError` (chỉ OpenAPI; runtime đã trả `ErrorResponse`).
+- Khi route khung được cài đặt thật: cập nhật `IMPLEMENTED_GROUPS` (Phase 0), `test_multiple_roles_get_the_union` (Phase 4) và `test_union_of_roles` (backend), vốn đòi `POST /experiments` trả `501`.
+#### Số liệu
+- `make check`: 808 test Python, 218 test nghiệm thu không cần DB, 103 Vitest. `make test-db`: 264 test.
+#### Review (phase-review, 2026-09-29)
+- Không có phát hiện chặn. Phát hiện #1 (người dùng yêu cầu sửa trước merge): contract cấm `exceeds_limit = true` khi thiếu profile, nên phần ước lượng được đã vượt giới hạn cũng không cảnh báo → bỏ ràng buộc, `exceeds_limit` tính trên cận dưới; ghi vào `requirements.md` mục Ước lượng và `validation.md`. Phát hiện #6: `cloned_from` phải tồn tại (ghi vào `plan.md` task 9).
+- Ghi nhận: khóa MinIO trong `FailureCaseView.artifacts` vẫn trả khi ảnh bị ẩn (không cho quyền đọc; xem lại ở Phase 11).
+#### Lưu ý
+- Group 0, review và phần sửa sau review do cùng một agent làm thay người duyệt theo ủy quyền của người dùng; không độc lập.
+
+### Kickoff Phase 5 — 2026-09-29
+- Chốt 8 câu hỏi (xem Quyết định ở Group 0), bổ sung độ phủ vào `validation.md` (đọc tài nguyên, `online`/`queue_length`, lọc và phân trang, `finished_at` khi hủy, xin lại URL, `queue_limit_reached` trên giao diện, `/home`, tab Chi phí) và task 3a (worker và `DEV_ALLOW_UNBLURRED` trong `scripts/e2e.sh`).
+
+---
+
 ## Phase 4 — Xác thực và phân quyền
 
 **Trạng thái:** ✅ hoàn thành 2026-09-29. Group 0–7 đã merge.
