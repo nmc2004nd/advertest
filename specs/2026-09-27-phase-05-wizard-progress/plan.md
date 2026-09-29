@@ -1,7 +1,7 @@
 # Plan: Phase 5 — Wizard tạo experiment và theo dõi tiến độ
 
 > Phân chia thư mục:
-> `backend/app/catalog/`, `backend/app/experiments/`, `backend/app/notifications/` (agent `backend`);
+> `backend/app/services/` (mở rộng `experiments.py`, `estimate.py`; thêm `catalog.py`, `notifications.py`, `artifacts.py`), route trong `backend/app/api/`, `backend/migrations/` (agent `backend`);
 > `frontend/src/features/experiments/`, `frontend/src/features/wizard/`, `frontend/src/components/case-viewer/`, `frontend/src/components/charts/` (agent `frontend`, có thể chia cho hai agent: một làm wizard, một làm chi tiết và trình xem).
 >
 > Thứ tự: Group 0 → (Group 1–3 backend song song với Group 4–6 frontend dùng mock) → Group 7.
@@ -10,14 +10,16 @@
 
 1. Thêm các schema trong `requirements.md` và mã lỗi mới.
 1a. (Từ Phase 4) Khi thêm `error.fields`: OpenAPI khai `422` là `ErrorResponse` (hiện vẫn là `HTTPValidationError`); cân nhắc thêm `ErrorCode` cho lỗi `500` (hiện chưa trả `ErrorResponse`).
+1b. (Kickoff) `EstimateResponse.runs[].skip_reason`, `ExperimentClone`, `ErrorBody.fields`, `GET /artifacts/{token}`.
 2. Cập nhật OpenAPI với các endpoint đọc tài nguyên và endpoint experiment, kèm `x-permission`.
 2a. (Từ Phase 4) OpenAPI sinh từ app: endpoint khung thêm vào `backend/app/api/public.py` bằng `**guard(p)`. Cập nhật con số `len(REPRESENTATIVES)` trong `backend/app/tests/db/test_route_protection_db.py` khi có permission mới có route.
 3. Viết mock: experiment ở mọi trạng thái; experiment `completed` có run đủ các trạng thái (kể cả `metrics.partial`); `EstimateResponse` đủ, thiếu profile, vượt giới hạn; `FailureCaseView` với cả 3 `display_mode`.
+3a. (Kickoff) `scripts/e2e.sh`: khởi động worker CPU (target `local-dev`) và đặt `DEV_ALLOW_UNBLURRED=true`.
 4. `make contracts`; ghi `CHANGELOG.md`.
 
 ## Group 1 — Backend: đọc tài nguyên `[agent: backend]`
 
-5. Migration: `compute_targets.max_time_limit_s`; `experiments.name`, `cloned_from`, `finished_at`; bảng `email_outbox`.
+5. Migration: `compute_targets.max_time_limit_s` (mặc định 28800); `experiments.name` (NOT NULL, điền tên cho experiment cũ), `cloned_from`, `finished_at`; bảng `email_outbox`.
 6. Endpoint đọc model, dataset, dataset version, slice, class mapping, attack spec, protocol, compute target (tính `online` và `queue_length`).
 
 ## Group 2 — Backend: experiment `[agent: backend]`
@@ -26,8 +28,8 @@
 8. Mở rộng hàm ước lượng Phase 3: theo run, `missing_profiles`, `exceeds_limit`, vị trí và thời gian chờ trong hàng đợi.
 9. `POST /experiments/estimate`, `POST /experiments` (giới hạn 3 experiment đang chờ; ghi `audit_log`).
 10. `GET /experiments` (lọc, phân trang), `GET /experiments/{id}`, `GET /experiments/{id}/runs`, `GET /runs/{id}/manifest`.
-11. `POST /experiments/{id}/cancel` (chỉ chủ sở hữu; tái sử dụng logic hủy Phase 3), `GET /experiments/{id}/clone`.
-12. `GET /runs/{id}/failure-cases`, `GET /failure-cases/{id}`: cấp URL tạm thời 10 phút; áp dụng `display_mode` theo cờ `anonymized` của dataset và `DEV_ALLOW_UNBLURRED`.
+11. `POST /experiments/{id}/cancel` (chỉ chủ sở hữu; tái sử dụng logic hủy Phase 3), `GET /experiments/{id}/clone` (trả `ExperimentClone`).
+12. `GET /runs/{id}/failure-cases`, `GET /failure-cases/{id}`: cấp URL tạm thời 10 phút qua `/api/artifacts/{token}` (token HMAC gắn một khóa, API stream từ MinIO); áp dụng `display_mode` theo cờ `anonymized` của dataset và `DEV_ALLOW_UNBLURRED`.
 13. Đặt `finished_at` khi experiment vào trạng thái cuối.
 
 ## Group 3 — Backend: email `[agent: backend]`
@@ -48,7 +50,7 @@
 ## Group 5 — Frontend: wizard `[agent: frontend]`
 
 23. Khung wizard 6 bước: thanh bước, điều hướng tới/lui, lưu sessionStorage, bố cục điện thoại (một bước một màn hình, thanh dưới cố định) và desktop (cột tóm tắt).
-24. Các bước 1–5 theo `requirements.md`; chip chỉnh level có kiểm tra dải; preset level.
+24. Các bước 1–5 theo `requirements.md`; chip chỉnh level có kiểm tra dải; preset level; seed cố định 0; tự chọn class mapping khi chỉ có một, báo lỗi khi không có.
 25. Gọi ước lượng có debounce; hiển thị cảnh báo.
 26. Bước 6: tóm tắt, hộp xác nhận, gửi, chuyển tới trang chi tiết; hiển thị lỗi `422` tại đúng bước và trường; xử lý `409 queue_limit_reached`.
 27. Mở wizard từ "Nhân bản" với dữ liệu điền sẵn và cảnh báo spec đã cập nhật.
