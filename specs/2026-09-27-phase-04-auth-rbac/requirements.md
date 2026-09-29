@@ -144,7 +144,7 @@ Chi tiết phản hồi (chốt ở review Group 0): `POST /auth/login` thành c
 
 **Điều hướng:**
 - Cấu hình điều hướng tập trung: mỗi mục có đường dẫn, nhãn, icon, permission yêu cầu, và cờ trang đã có hay chưa. Chỉ hiện mục người dùng có quyền **và** trang đã có.
-- Desktop (≥ 1280px): sidebar; tablet (768–1279px): cột icon; điện thoại (< 768px): thanh tab dưới đáy, tối đa 4 mục, các mục còn lại trong mục "Thêm".
+- Desktop (≥ 1280px): sidebar; tablet (768–1279px): cột icon; điện thoại (< 768px): thanh tab dưới đáy, tối đa 4 ô: không quá 4 mục thì hiện hết, dư thì 3 mục đầu và ô "Thêm" (bottom sheet) chứa phần còn lại (chốt ở Group 4).
 - `/home` hiển thị các khối "việc của tôi" theo từng role người dùng có. Trong phase này: khối admin hiển thị số tài khoản chờ duyệt; khối engineer và reviewer hiển thị "Sắp có".
 
 **Trang:**
@@ -162,10 +162,10 @@ Chi tiết phản hồi (chốt ở review Group 0): `POST /auth/login` thành c
 | Không có quyền | `/forbidden` | Thông báo và nút về trang chủ |
 
 **Hành vi chung:**
-- `401` từ API → chuyển về `/login` kèm đường dẫn hiện tại; `403` → `/forbidden`.
+- `401` từ API → chuyển về `/login` kèm đường dẫn hiện tại; `403` → `/forbidden`. Chỉ áp dụng cho mã `unauthenticated` và `forbidden`; các mã khác (`invalid_credentials`, `account_*`, `csrf_failed`, `rate_limited`...) do trang tự hiển thị. `next` chỉ nhận đường dẫn nội bộ (bắt đầu bằng một `/`) (chốt ở review Group 4).
 - Client tự gửi `X-CSRF-Token` từ cookie cho mọi request thay đổi dữ liệu.
 - Hộp xác nhận cho: từ chối, vô hiệu hóa, bỏ role admin.
-- Form dùng `react-hook-form` + `zod`; lỗi hiển thị cạnh ô nhập.
+- Form dùng `react-hook-form` + `zod` (resolver tự viết, không dùng `@hookform/resolvers`); lỗi hiển thị cạnh ô nhập.
 - Nội dung giao diện bằng tiếng Việt.
 - Responsive theo `tech-stack.md` mục 5.1: không cuộn ngang ở 375px, vùng chạm ≥ 44px, font ô nhập ≥ 16px; dialog thành bottom sheet trên điện thoại.
 - Có nhãn cho mọi ô nhập, điều hướng được bằng bàn phím.

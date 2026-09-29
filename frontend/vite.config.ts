@@ -20,6 +20,8 @@ export default defineConfig({
       '/api': {
         target: process.env.API_PROXY_TARGET ?? 'http://127.0.0.1:8000',
         changeOrigin: true,
+        // Thêm X-Forwarded-For: backend giới hạn đăng nhập sai theo IP gốc (TRUSTED_PROXIES).
+        xfwd: true,
         rewrite: (p) => p.replace(/^\/api/, ''),
       },
     },
