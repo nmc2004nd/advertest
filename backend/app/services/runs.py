@@ -16,6 +16,8 @@ from sqlalchemy.orm import Session
 
 from advertest_contracts.enums import ExperimentStatus, RunStatus, SkipReason, StopReason
 from advertest_contracts.models import (
+    ArtifactUrlRequest,
+    ArtifactUrlResponse,
     CostProfile,
     FailureCaseRecord,
     Progress,
@@ -30,6 +32,7 @@ from advertest_contracts.models import (
 )
 from backend.app import storage
 from backend.app.db import models as m
+from backend.app.presign import Presigner
 from backend.app.services import leasing
 from backend.app.services.clock import Clock, utcnow
 from backend.app.services.errors import Conflict, Forbidden, Invalid, NotFound
@@ -305,6 +308,30 @@ def _after_run(session: Session, experiment: m.Experiment, run: m.Run, clock: Cl
         experiment.lease_id = None
         experiment.lease_expires_at = None
     session.flush()
+
+
+# ---------------------------------------------------------------- artifact URL
+
+
+def artifact_url(
+    session: Session,
+    target: m.ComputeTarget,
+    run_id: UUID,
+    request: ArtifactUrlRequest,
+    presigner: Presigner,
+    clock: Clock = utcnow,
+) -> ArtifactUrlResponse:
+    """Presigned URL cho một khóa nằm trong `runs/<run_id>/` của run đang `running` (worker giữ
+    đúng lease). Run đã kết thúc không xin được URL nữa: artifact của nó là bất biến."""
+    run, _ = _run_for_worker(session, target, run_id, request.lease_id)
+    if run.status != RunStatus.RUNNING:
+        raise Conflict(f"Run đang ở trạng thái {run.status}, không cấp URL")
+    if not request.key.startswith(storage.run_prefix(run.id)):
+        raise Forbidden(f"Chỉ cấp URL trong runs/{run.id}/")
+    signed = presigner.url(storage.BUCKET_ARTIFACTS, request.key, request.method, clock())
+    return ArtifactUrlResponse(
+        key=request.key, method=request.method, url=signed.url, expires_at=signed.expires_at
+    )
 
 
 # ---------------------------------------------------------------- cost profile
