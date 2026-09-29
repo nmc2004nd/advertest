@@ -69,6 +69,14 @@ function CurveChart({
 }) {
   const { title, format } = METRICS[metric]
   const unit = curve.paramUnit ? ` (${curve.paramUnit})` : ''
+  if (plotted(curve, metric).length === 0) {
+    return (
+      <figure className="min-w-0 space-y-2">
+        <figcaption className="text-sm font-medium">{title}</figcaption>
+        <p className="text-sm text-muted-foreground">Chưa có run nào có metric để vẽ.</p>
+      </figure>
+    )
+  }
   return (
     <figure className="min-w-0 space-y-2">
       <figcaption className="text-sm font-medium">{title}</figcaption>

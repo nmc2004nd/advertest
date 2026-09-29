@@ -56,6 +56,10 @@ describe('MetricCurves (validation.md: biểu đồ đánh dấu run partial, b�
     expect(html).toContain('aria-selected="true"')
   })
 
+  it('attack không có run nào có metric: báo thay vì vẽ khung trống', () => {
+    expect(html).toContain('Chưa có run nào có metric để vẽ.')
+  })
+
   it('không có run thì báo rõ', () => {
     expect(renderToStaticMarkup(<MetricCurves runs={[]} cleanMap50={null} />)).toContain(
       'Chưa có run nào.',

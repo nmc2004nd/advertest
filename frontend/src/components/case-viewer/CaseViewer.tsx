@@ -285,8 +285,10 @@ export function CaseViewer({ caseView, onPrev, onNext, onImageError, aside }: Ca
     ignoreRegions: layers.ignore_regions ? detections.ignore_regions : [],
     lost,
   }
+  // Object bị mất chỉ tô đỏ trên ảnh sau tấn công (trên ảnh sạch chúng vẫn được phát hiện).
   const cleanBoxes: BoxSet = {
     ...common,
+    lost: [],
     predictions: layers.clean ? detections.clean : [],
     predictionKind: 'clean',
   }
