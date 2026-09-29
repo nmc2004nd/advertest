@@ -8,6 +8,9 @@ const PORT = 4173
 export default defineConfig({
   testDir: './e2e',
   forbidOnly: !!process.env.CI,
+  // Tuần tự: các kịch bản dùng chung một DB (ví dụ số tài khoản chờ duyệt trên /home), chạy song
+  // song thì kết quả phụ thuộc thứ tự (người dùng chốt ở Phase 4 Group 7).
+  workers: 1,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {
