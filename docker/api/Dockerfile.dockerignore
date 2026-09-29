@@ -3,6 +3,7 @@
 !pyproject.toml
 !uv.lock
 !contracts/python/
+!contracts/seeds/
 !ml_core/
 !attacks/
 !backend/
