@@ -1,0 +1,38 @@
+{
+  "id": "22de8a37-d4f1-5bbc-87d2-83c9014c1d2a",
+  "name": "Experiment (approved)",
+  "owner": {
+    "id": "0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e02",
+    "full_name": "Nguyễn Văn An"
+  },
+  "status": "approved",
+  "model": {
+    "id": "81686f0e-32b6-5806-819c-3b0e37072342",
+    "name": "yolov8n-coco"
+  },
+  "slice": {
+    "id": "0ed10c11-0bc2-5615-a171-4a08748dfda9",
+    "name": "kitti-moderate-300",
+    "size": 300
+  },
+  "compute_target": {
+    "id": "8679be42-13ce-51fb-876b-ca6d4d3f3c74",
+    "name": "local-dev",
+    "kind": "local"
+  },
+  "run_counts": {
+    "queued": 0,
+    "running": 0,
+    "completed": 4,
+    "failed": 1,
+    "skipped": 1,
+    "stopped_limit": 2,
+    "cancelled": 0
+  },
+  "progress": {
+    "images_done": 1748,
+    "images_total": 2400
+  },
+  "created_at": "2026-09-29T08:00:00Z",
+  "finished_at": "2026-09-29T10:02:11Z"
+}

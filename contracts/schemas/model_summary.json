@@ -1,0 +1,59 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "description": "ID của model version",
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "framework": {
+      "description": "Ví dụ ultralytics; hiển thị ở ô kiến trúc của wizard",
+      "title": "Framework",
+      "type": "string"
+    },
+    "weights_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Weights Sha256",
+      "type": "string"
+    },
+    "class_names": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Class Names",
+      "type": "array"
+    },
+    "input_size": {
+      "exclusiveMinimum": 0,
+      "title": "Input Size",
+      "type": "integer"
+    },
+    "supports_gradients": {
+      "title": "Supports Gradients",
+      "type": "boolean"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "framework",
+    "weights_sha256",
+    "class_names",
+    "input_size",
+    "supports_gradients",
+    "created_at"
+  ],
+  "title": "ModelSummary",
+  "type": "object"
+}

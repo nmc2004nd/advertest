@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "run_id": "f566dfe4-c0a8-558c-9262-946101f3b5b8",
+  "experiment_id": "476465e8-081b-5c02-aa08-96411a898918",
+  "fingerprint": "2a73821c7cff3edbcefd4ef7e28350ee152dbfe5cddff19cc8811a9c739151ca",
+  "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+  "level": 4,
+  "status": "cancelled",
+  "status_reason": {
+    "code": "cancelled",
+    "message": "Chủ sở hữu đã hủy experiment."
+  },
+  "progress": {
+    "images_done": 30,
+    "images_total": 300
+  },
+  "metrics": null,
+  "gpu_seconds": 44.0,
+  "cost": null,
+  "failure_case_ids": [],
+  "manifest_uri": null,
+  "cached_from_run_id": null,
+  "attack_spec": {
+    "name": "pgd_linf",
+    "version": 1,
+    "param_name": "eps",
+    "param_unit": "1/255"
+  }
+}

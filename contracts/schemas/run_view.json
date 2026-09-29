@@ -1,0 +1,409 @@
+{
+  "$defs": {
+    "ClassRunMetrics": {
+      "additionalProperties": false,
+      "properties": {
+        "clean_ap50": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Clean Ap50"
+        },
+        "attacked_ap50": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Attacked Ap50"
+        }
+      },
+      "required": [
+        "clean_ap50",
+        "attacked_ap50"
+      ],
+      "title": "ClassRunMetrics",
+      "type": "object"
+    },
+    "Cost": {
+      "additionalProperties": false,
+      "properties": {
+        "amount": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "title": "Amount"
+        },
+        "currency": {
+          "pattern": "^[A-Z]{3}$",
+          "title": "Currency",
+          "type": "string"
+        }
+      },
+      "required": [
+        "amount",
+        "currency"
+      ],
+      "title": "Cost",
+      "type": "object"
+    },
+    "MapPair": {
+      "additionalProperties": false,
+      "properties": {
+        "map50": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Map50",
+          "type": "number"
+        },
+        "map50_95": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Map50 95",
+          "type": "number"
+        }
+      },
+      "required": [
+        "map50",
+        "map50_95"
+      ],
+      "title": "MapPair",
+      "type": "object"
+    },
+    "Progress": {
+      "additionalProperties": false,
+      "properties": {
+        "images_done": {
+          "minimum": 0,
+          "title": "Images Done",
+          "type": "integer"
+        },
+        "images_total": {
+          "minimum": 0,
+          "title": "Images Total",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "images_done",
+        "images_total"
+      ],
+      "title": "Progress",
+      "type": "object"
+    },
+    "RunAttackSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "exclusiveMinimum": 0,
+          "title": "Version",
+          "type": "integer"
+        },
+        "param_name": {
+          "description": "Tên tham số chính (primary_param.name)",
+          "title": "Param Name",
+          "type": "string"
+        },
+        "param_unit": {
+          "description": "Đơn vị tham số chính (primary_param.unit)",
+          "title": "Param Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version",
+        "param_name",
+        "param_unit"
+      ],
+      "title": "RunAttackSpec",
+      "type": "object"
+    },
+    "RunMetrics": {
+      "additionalProperties": false,
+      "properties": {
+        "clean": {
+          "$ref": "#/$defs/MapPair"
+        },
+        "attacked": {
+          "$ref": "#/$defs/MapPair"
+        },
+        "relative_drop": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null khi mAP@0.5 sạch bằng 0",
+          "title": "Relative Drop"
+        },
+        "absolute_drop": {
+          "title": "Absolute Drop",
+          "type": "number"
+        },
+        "attack_success_rate": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null khi không có object nào được detect đúng trên ảnh sạch (|C| = 0)",
+          "title": "Attack Success Rate"
+        },
+        "per_class": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/ClassRunMetrics"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Per Class"
+        },
+        "partial": {
+          "default": false,
+          "description": "true khi metric chỉ tính trên phần ảnh đã xử lý (stopped_limit)",
+          "title": "Partial",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "clean",
+        "attacked",
+        "relative_drop",
+        "absolute_drop",
+        "attack_success_rate"
+      ],
+      "title": "RunMetrics",
+      "type": "object"
+    },
+    "RunStatus": {
+      "enum": [
+        "queued",
+        "running",
+        "completed",
+        "failed",
+        "skipped",
+        "stopped_limit",
+        "cancelled"
+      ],
+      "title": "RunStatus",
+      "type": "string"
+    },
+    "SkipReason": {
+      "enum": [
+        "cached",
+        "incompatible"
+      ],
+      "title": "SkipReason",
+      "type": "string"
+    },
+    "StatusReason": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StopReason"
+            },
+            {
+              "$ref": "#/$defs/SkipReason"
+            },
+            {
+              "enum": [
+                "error",
+                "cancelled"
+              ],
+              "type": "string"
+            }
+          ],
+          "title": "Code"
+        },
+        "message": {
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "StatusReason",
+      "type": "object"
+    },
+    "StopReason": {
+      "enum": [
+        "budget",
+        "time"
+      ],
+      "title": "StopReason",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "run_id": {
+      "format": "uuid",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "experiment_id": {
+      "format": "uuid",
+      "title": "Experiment Id",
+      "type": "string"
+    },
+    "fingerprint": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Fingerprint",
+      "type": "string"
+    },
+    "attack_spec_id": {
+      "format": "uuid",
+      "title": "Attack Spec Id",
+      "type": "string"
+    },
+    "level": {
+      "title": "Level",
+      "type": "number"
+    },
+    "status": {
+      "$ref": "#/$defs/RunStatus"
+    },
+    "status_reason": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/StatusReason"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "progress": {
+      "$ref": "#/$defs/Progress"
+    },
+    "metrics": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RunMetrics"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "gpu_seconds": {
+      "minimum": 0,
+      "title": "Gpu Seconds",
+      "type": "number"
+    },
+    "cost": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Cost"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "null với máy local"
+    },
+    "failure_case_ids": {
+      "items": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "title": "Failure Case Ids",
+      "type": "array"
+    },
+    "manifest_uri": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Manifest Uri"
+    },
+    "cached_from_run_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Run gốc khi status = skipped với code = cached (Phase 3)",
+      "title": "Cached From Run Id"
+    },
+    "attack_spec": {
+      "$ref": "#/$defs/RunAttackSpec"
+    }
+  },
+  "required": [
+    "run_id",
+    "experiment_id",
+    "fingerprint",
+    "attack_spec_id",
+    "level",
+    "status",
+    "progress",
+    "gpu_seconds",
+    "failure_case_ids",
+    "attack_spec"
+  ],
+  "title": "RunView",
+  "type": "object"
+}

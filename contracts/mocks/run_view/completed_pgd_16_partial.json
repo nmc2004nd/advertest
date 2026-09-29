@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "run_id": "7377afd7-e297-5b5e-92a8-7138c9bf6c80",
+  "experiment_id": "c22f67c0-e184-5d74-a3df-43aff5b9e82e",
+  "fingerprint": "7704037fa43ca89212fbed8aaa08487bb8567ee7550e502954016281b0cb94a8",
+  "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+  "level": 16,
+  "status": "stopped_limit",
+  "status_reason": {
+    "code": "time",
+    "message": "Chạm trần thời gian xử lý của experiment (7200 s)."
+  },
+  "progress": {
+    "images_done": 184,
+    "images_total": 300
+  },
+  "metrics": {
+    "clean": {
+      "map50": 0.512,
+      "map50_95": 0.298
+    },
+    "attacked": {
+      "map50": 0.004,
+      "map50_95": 0.002
+    },
+    "relative_drop": 0.9922,
+    "absolute_drop": 0.508,
+    "attack_success_rate": 0.99,
+    "per_class": null,
+    "partial": true
+  },
+  "gpu_seconds": 6480.0,
+  "cost": null,
+  "failure_case_ids": [],
+  "manifest_uri": "s3://artifacts/runs/7377afd7-e297-5b5e-92a8-7138c9bf6c80/manifest.json",
+  "cached_from_run_id": null,
+  "attack_spec": {
+    "name": "pgd_linf",
+    "version": 1,
+    "param_name": "eps",
+    "param_unit": "1/255"
+  }
+}

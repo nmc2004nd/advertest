@@ -1,0 +1,631 @@
+{
+  "$defs": {
+    "AttackConfig": {
+      "additionalProperties": false,
+      "description": "Một attack trong experiment.",
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "attack_spec_id": {
+          "format": "uuid",
+          "title": "Attack Spec Id",
+          "type": "string"
+        },
+        "spec_sha256": {
+          "description": "Chốt đúng version spec",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Spec Sha256",
+          "type": "string"
+        },
+        "mode": {
+          "$ref": "#/$defs/RunMode"
+        },
+        "grid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GridConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "search": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SearchConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "seed": {
+          "minimum": 0,
+          "title": "Seed",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "attack_spec_id",
+        "spec_sha256",
+        "mode",
+        "seed"
+      ],
+      "title": "AttackConfig",
+      "type": "object"
+    },
+    "ComputeKind": {
+      "enum": [
+        "local",
+        "rented"
+      ],
+      "title": "ComputeKind",
+      "type": "string"
+    },
+    "ComputeTargetRef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ComputeKind"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "kind"
+      ],
+      "title": "ComputeTargetRef",
+      "type": "object"
+    },
+    "ExperimentConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "protocol_id": {
+          "format": "uuid",
+          "title": "Protocol Id",
+          "type": "string"
+        },
+        "model_version_id": {
+          "format": "uuid",
+          "title": "Model Version Id",
+          "type": "string"
+        },
+        "slice_id": {
+          "format": "uuid",
+          "title": "Slice Id",
+          "type": "string"
+        },
+        "class_mapping_id": {
+          "format": "uuid",
+          "title": "Class Mapping Id",
+          "type": "string"
+        },
+        "compute_target_id": {
+          "format": "uuid",
+          "title": "Compute Target Id",
+          "type": "string"
+        },
+        "attacks": {
+          "items": {
+            "$ref": "#/$defs/AttackConfig"
+          },
+          "minItems": 1,
+          "title": "Attacks",
+          "type": "array"
+        },
+        "limit": {
+          "$ref": "#/$defs/Limit"
+        }
+      },
+      "required": [
+        "protocol_id",
+        "model_version_id",
+        "slice_id",
+        "class_mapping_id",
+        "compute_target_id",
+        "attacks",
+        "limit"
+      ],
+      "title": "ExperimentConfig",
+      "type": "object"
+    },
+    "ExperimentStatus": {
+      "enum": [
+        "draft",
+        "queued",
+        "running",
+        "completed",
+        "submitted_for_review",
+        "in_review",
+        "approved",
+        "changes_requested",
+        "rejected",
+        "cancelled"
+      ],
+      "title": "ExperimentStatus",
+      "type": "string"
+    },
+    "GridConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "levels": {
+          "items": {
+            "type": "number"
+          },
+          "minItems": 1,
+          "title": "Levels",
+          "type": "array"
+        }
+      },
+      "required": [
+        "levels"
+      ],
+      "title": "GridConfig",
+      "type": "object"
+    },
+    "Limit": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/LimitKind"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "description": "Tiền (budget) hoặc giây (time)",
+          "title": "Value"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "title": "Limit",
+      "type": "object"
+    },
+    "LimitKind": {
+      "enum": [
+        "budget",
+        "time"
+      ],
+      "title": "LimitKind",
+      "type": "string"
+    },
+    "MapPair": {
+      "additionalProperties": false,
+      "properties": {
+        "map50": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Map50",
+          "type": "number"
+        },
+        "map50_95": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Map50 95",
+          "type": "number"
+        }
+      },
+      "required": [
+        "map50",
+        "map50_95"
+      ],
+      "title": "MapPair",
+      "type": "object"
+    },
+    "ModelRef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "ID của model version",
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "ModelRef",
+      "type": "object"
+    },
+    "Progress": {
+      "additionalProperties": false,
+      "properties": {
+        "images_done": {
+          "minimum": 0,
+          "title": "Images Done",
+          "type": "integer"
+        },
+        "images_total": {
+          "minimum": 0,
+          "title": "Images Total",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "images_done",
+        "images_total"
+      ],
+      "title": "Progress",
+      "type": "object"
+    },
+    "ProtocolRef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/ProtocolStatus"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "status"
+      ],
+      "title": "ProtocolRef",
+      "type": "object"
+    },
+    "ProtocolStatus": {
+      "enum": [
+        "active",
+        "retired",
+        "dev"
+      ],
+      "title": "ProtocolStatus",
+      "type": "string"
+    },
+    "RunCounts": {
+      "additionalProperties": false,
+      "description": "Số run theo từng `RunStatus`.",
+      "properties": {
+        "queued": {
+          "minimum": 0,
+          "title": "Queued",
+          "type": "integer"
+        },
+        "running": {
+          "minimum": 0,
+          "title": "Running",
+          "type": "integer"
+        },
+        "completed": {
+          "minimum": 0,
+          "title": "Completed",
+          "type": "integer"
+        },
+        "failed": {
+          "minimum": 0,
+          "title": "Failed",
+          "type": "integer"
+        },
+        "skipped": {
+          "minimum": 0,
+          "title": "Skipped",
+          "type": "integer"
+        },
+        "stopped_limit": {
+          "minimum": 0,
+          "title": "Stopped Limit",
+          "type": "integer"
+        },
+        "cancelled": {
+          "minimum": 0,
+          "title": "Cancelled",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "queued",
+        "running",
+        "completed",
+        "failed",
+        "skipped",
+        "stopped_limit",
+        "cancelled"
+      ],
+      "title": "RunCounts",
+      "type": "object"
+    },
+    "RunMode": {
+      "enum": [
+        "grid",
+        "search"
+      ],
+      "title": "RunMode",
+      "type": "string"
+    },
+    "SearchConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "threshold_kind": {
+          "$ref": "#/$defs/ThresholdKind"
+        },
+        "threshold": {
+          "title": "Threshold",
+          "type": "number"
+        },
+        "lo": {
+          "title": "Lo",
+          "type": "number"
+        },
+        "hi": {
+          "title": "Hi",
+          "type": "number"
+        },
+        "tol": {
+          "exclusiveMinimum": 0,
+          "title": "Tol",
+          "type": "number"
+        },
+        "coarse_n": {
+          "exclusiveMinimum": 0,
+          "title": "Coarse N",
+          "type": "integer"
+        },
+        "subset_size": {
+          "exclusiveMinimum": 0,
+          "title": "Subset Size",
+          "type": "integer"
+        },
+        "class_filter": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Class Filter"
+        }
+      },
+      "required": [
+        "threshold_kind",
+        "threshold",
+        "lo",
+        "hi",
+        "tol",
+        "coarse_n",
+        "subset_size"
+      ],
+      "title": "SearchConfig",
+      "type": "object"
+    },
+    "SliceRef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "size": {
+          "exclusiveMinimum": 0,
+          "title": "Size",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "size"
+      ],
+      "title": "SliceRef",
+      "type": "object"
+    },
+    "ThresholdKind": {
+      "enum": [
+        "relative_drop",
+        "absolute_drop",
+        "attack_success_rate"
+      ],
+      "title": "ThresholdKind",
+      "type": "string"
+    },
+    "UserRef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "full_name": {
+          "title": "Full Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "full_name"
+      ],
+      "title": "UserRef",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "owner": {
+      "$ref": "#/$defs/UserRef"
+    },
+    "status": {
+      "$ref": "#/$defs/ExperimentStatus"
+    },
+    "model": {
+      "$ref": "#/$defs/ModelRef"
+    },
+    "slice": {
+      "$ref": "#/$defs/SliceRef"
+    },
+    "compute_target": {
+      "$ref": "#/$defs/ComputeTargetRef"
+    },
+    "run_counts": {
+      "$ref": "#/$defs/RunCounts"
+    },
+    "progress": {
+      "$ref": "#/$defs/Progress",
+      "description": "Tổng số ảnh đã xử lý trên mọi run"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "finished_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "null khi draft, queued hoặc running",
+      "title": "Finished At"
+    },
+    "config": {
+      "$ref": "#/$defs/ExperimentConfig"
+    },
+    "config_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Config Sha256",
+      "type": "string"
+    },
+    "protocol": {
+      "$ref": "#/$defs/ProtocolRef"
+    },
+    "limit": {
+      "$ref": "#/$defs/Limit"
+    },
+    "processing_seconds_used": {
+      "minimum": 0,
+      "title": "Processing Seconds Used",
+      "type": "number"
+    },
+    "queue_position": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Chỉ có khi status = queued",
+      "title": "Queue Position"
+    },
+    "cloned_from": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Cloned From"
+    },
+    "clean_metrics": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MapPair"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "mAP ảnh sạch; null khi chưa run nào có metric"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "owner",
+    "status",
+    "model",
+    "slice",
+    "compute_target",
+    "run_counts",
+    "progress",
+    "created_at",
+    "finished_at",
+    "config",
+    "config_sha256",
+    "protocol",
+    "limit",
+    "processing_seconds_used",
+    "queue_position",
+    "cloned_from",
+    "clean_metrics"
+  ],
+  "title": "ExperimentDetail",
+  "type": "object"
+}

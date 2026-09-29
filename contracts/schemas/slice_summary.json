@@ -1,0 +1,60 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "dataset_version_id": {
+      "format": "uuid",
+      "title": "Dataset Version Id",
+      "type": "string"
+    },
+    "slice_sha256": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Slice Sha256"
+    },
+    "size": {
+      "exclusiveMinimum": 0,
+      "title": "Size",
+      "type": "integer"
+    },
+    "seed": {
+      "minimum": 0,
+      "title": "Seed",
+      "type": "integer"
+    },
+    "classes": {
+      "description": "Class gốc được tính (filter.classes)",
+      "items": {
+        "type": "string"
+      },
+      "title": "Classes",
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "dataset_version_id",
+    "slice_sha256",
+    "size",
+    "seed",
+    "classes"
+  ],
+  "title": "SliceSummary",
+  "type": "object"
+}

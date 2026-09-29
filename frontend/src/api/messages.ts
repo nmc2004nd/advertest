@@ -17,6 +17,10 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
   rate_limited: 'Đăng nhập sai quá nhiều lần. Vui lòng thử lại sau 15 phút.',
   csrf_failed: 'Phiên làm việc không hợp lệ. Vui lòng tải lại trang.',
   validation_error: 'Dữ liệu nhập chưa hợp lệ.',
+  not_supported_yet: 'Tính năng này chưa có ở phiên bản hiện tại.',
+  queue_limit_reached:
+    'Bạn đã có 3 experiment đang chờ. Hãy chờ một experiment chạy xong rồi tạo tiếp.',
+  internal_error: 'Máy chủ gặp lỗi. Vui lòng thử lại sau.',
 }
 
 export const UNKNOWN_ERROR_MESSAGE = 'Đã có lỗi xảy ra. Vui lòng thử lại.'

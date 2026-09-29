@@ -1,0 +1,27 @@
+{
+  "runs": [
+    {
+      "attack_spec_id": "8d15422d-f111-5c7e-96eb-e704767e6218",
+      "level": 4,
+      "images": 300,
+      "sec_per_image": 0.158,
+      "est_seconds": 0,
+      "skip_reason": "incompatible"
+    },
+    {
+      "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+      "level": 4,
+      "images": 300,
+      "sec_per_image": 1.229,
+      "est_seconds": 0,
+      "skip_reason": "incompatible"
+    }
+  ],
+  "total_seconds": 0,
+  "missing_profiles": [],
+  "exceeds_limit": false,
+  "queue": {
+    "position": 1,
+    "ahead_seconds": 0
+  }
+}

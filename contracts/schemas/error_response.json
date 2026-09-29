@@ -10,6 +10,22 @@
           "minLength": 1,
           "title": "Message",
           "type": "string"
+        },
+        "fields": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/FieldError"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Chỉ có ở lỗi 422 gắn được với trường cụ thể; không có thì bỏ khỏi body",
+          "title": "Fields"
         }
       },
       "required": [
@@ -33,10 +49,39 @@
         "account_disabled",
         "rate_limited",
         "csrf_failed",
-        "validation_error"
+        "validation_error",
+        "not_supported_yet",
+        "queue_limit_reached",
+        "internal_error"
       ],
       "title": "ErrorCode",
       "type": "string"
+    },
+    "FieldError": {
+      "additionalProperties": false,
+      "description": "Lỗi của một trường (Phase 5): giao diện hiển thị tại đúng bước và đúng trường.",
+      "properties": {
+        "path": {
+          "description": "Đường dẫn trường trong body, các đoạn ngăn bởi dấu chấm, chỉ số mảng từ 0",
+          "examples": [
+            "attacks.0.grid.levels"
+          ],
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "message": {
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "message"
+      ],
+      "title": "FieldError",
+      "type": "object"
     }
   },
   "additionalProperties": false,

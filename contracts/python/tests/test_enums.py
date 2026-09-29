@@ -54,9 +54,15 @@ EXPECTED = {
         "rate_limited",
         "csrf_failed",
         "validation_error",
+        # Phase 5.
+        "not_supported_yet",
+        "queue_limit_reached",
+        "internal_error",
     },
     # Phase 3: protocol phát triển dev-open.
     "ProtocolStatus": {"active", "retired", "dev"},
+    # Phase 5: cách hiển thị ảnh failure case.
+    "DisplayMode": {"normal", "hidden_unanonymized", "dev_unblurred"},
 }
 
 

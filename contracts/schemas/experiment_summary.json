@@ -1,0 +1,261 @@
+{
+  "$defs": {
+    "ComputeKind": {
+      "enum": [
+        "local",
+        "rented"
+      ],
+      "title": "ComputeKind",
+      "type": "string"
+    },
+    "ComputeTargetRef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ComputeKind"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "kind"
+      ],
+      "title": "ComputeTargetRef",
+      "type": "object"
+    },
+    "ExperimentStatus": {
+      "enum": [
+        "draft",
+        "queued",
+        "running",
+        "completed",
+        "submitted_for_review",
+        "in_review",
+        "approved",
+        "changes_requested",
+        "rejected",
+        "cancelled"
+      ],
+      "title": "ExperimentStatus",
+      "type": "string"
+    },
+    "ModelRef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "ID của model version",
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "ModelRef",
+      "type": "object"
+    },
+    "Progress": {
+      "additionalProperties": false,
+      "properties": {
+        "images_done": {
+          "minimum": 0,
+          "title": "Images Done",
+          "type": "integer"
+        },
+        "images_total": {
+          "minimum": 0,
+          "title": "Images Total",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "images_done",
+        "images_total"
+      ],
+      "title": "Progress",
+      "type": "object"
+    },
+    "RunCounts": {
+      "additionalProperties": false,
+      "description": "Số run theo từng `RunStatus`.",
+      "properties": {
+        "queued": {
+          "minimum": 0,
+          "title": "Queued",
+          "type": "integer"
+        },
+        "running": {
+          "minimum": 0,
+          "title": "Running",
+          "type": "integer"
+        },
+        "completed": {
+          "minimum": 0,
+          "title": "Completed",
+          "type": "integer"
+        },
+        "failed": {
+          "minimum": 0,
+          "title": "Failed",
+          "type": "integer"
+        },
+        "skipped": {
+          "minimum": 0,
+          "title": "Skipped",
+          "type": "integer"
+        },
+        "stopped_limit": {
+          "minimum": 0,
+          "title": "Stopped Limit",
+          "type": "integer"
+        },
+        "cancelled": {
+          "minimum": 0,
+          "title": "Cancelled",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "queued",
+        "running",
+        "completed",
+        "failed",
+        "skipped",
+        "stopped_limit",
+        "cancelled"
+      ],
+      "title": "RunCounts",
+      "type": "object"
+    },
+    "SliceRef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "size": {
+          "exclusiveMinimum": 0,
+          "title": "Size",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "size"
+      ],
+      "title": "SliceRef",
+      "type": "object"
+    },
+    "UserRef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "full_name": {
+          "title": "Full Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "full_name"
+      ],
+      "title": "UserRef",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "owner": {
+      "$ref": "#/$defs/UserRef"
+    },
+    "status": {
+      "$ref": "#/$defs/ExperimentStatus"
+    },
+    "model": {
+      "$ref": "#/$defs/ModelRef"
+    },
+    "slice": {
+      "$ref": "#/$defs/SliceRef"
+    },
+    "compute_target": {
+      "$ref": "#/$defs/ComputeTargetRef"
+    },
+    "run_counts": {
+      "$ref": "#/$defs/RunCounts"
+    },
+    "progress": {
+      "$ref": "#/$defs/Progress",
+      "description": "Tổng số ảnh đã xử lý trên mọi run"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "finished_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "null khi draft, queued hoặc running",
+      "title": "Finished At"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "owner",
+    "status",
+    "model",
+    "slice",
+    "compute_target",
+    "run_counts",
+    "progress",
+    "created_at",
+    "finished_at"
+  ],
+  "title": "ExperimentSummary",
+  "type": "object"
+}

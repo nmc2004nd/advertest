@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "run_id": "f9023708-463a-5eb7-ac95-594e9eb6ec76",
+  "experiment_id": "c22f67c0-e184-5d74-a3df-43aff5b9e82e",
+  "fingerprint": "7c4a53b3ebe68192740ebcf58d1e1d164525b860df4c91bf09b7fc3c3d975aeb",
+  "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+  "level": 8,
+  "status": "failed",
+  "status_reason": {
+    "code": "error",
+    "message": "Worker hết bộ nhớ ở batch 8."
+  },
+  "progress": {
+    "images_done": 64,
+    "images_total": 300
+  },
+  "metrics": null,
+  "gpu_seconds": 95.0,
+  "cost": null,
+  "failure_case_ids": [],
+  "manifest_uri": "s3://artifacts/runs/f9023708-463a-5eb7-ac95-594e9eb6ec76/manifest.json",
+  "cached_from_run_id": null,
+  "attack_spec": {
+    "name": "pgd_linf",
+    "version": 1,
+    "param_name": "eps",
+    "param_unit": "1/255"
+  }
+}

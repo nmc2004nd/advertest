@@ -1169,12 +1169,17 @@ export interface components {
             code: components["schemas"]["ErrorCode"];
             /** Message */
             message: string;
+            /**
+             * Fields
+             * @description Chỉ có ở lỗi 422 gắn được với trường cụ thể; không có thì bỏ khỏi body
+             */
+            fields?: components["schemas"]["FieldError"][] | null;
         };
         /**
          * ErrorCode
          * @enum {string}
          */
-        ErrorCode: "not_implemented" | "unauthenticated" | "forbidden" | "not_found" | "conflict" | "invalid_request" | "invalid_credentials" | "account_pending" | "account_rejected" | "account_disabled" | "rate_limited" | "csrf_failed" | "validation_error";
+        ErrorCode: "not_implemented" | "unauthenticated" | "forbidden" | "not_found" | "conflict" | "invalid_request" | "invalid_credentials" | "account_pending" | "account_rejected" | "account_disabled" | "rate_limited" | "csrf_failed" | "validation_error" | "not_supported_yet" | "queue_limit_reached" | "internal_error";
         /**
          * ErrorResponse
          * @description Body lỗi thống nhất của mọi endpoint: {"error": {"code", "message"}}.
@@ -1308,6 +1313,20 @@ export interface components {
             severity_score: number;
             detections: components["schemas"]["CaseDetections"];
             artifacts: components["schemas"]["CaseArtifacts"];
+        };
+        /**
+         * FieldError
+         * @description Lỗi của một trường (Phase 5): giao diện hiển thị tại đúng bước và đúng trường.
+         */
+        FieldError: {
+            /**
+             * Path
+             * @description Đường dẫn trường trong body, các đoạn ngăn bởi dấu chấm, chỉ số mảng từ 0
+             * @example attacks.0.grid.levels
+             */
+            path: string;
+            /** Message */
+            message: string;
         };
         /** FingerprintInputs */
         FingerprintInputs: {
@@ -2188,6 +2207,7 @@ export type ErrorResponse = components['schemas']['ErrorResponse'];
 export type ExperimentConfigInput = components['schemas']['ExperimentConfig-Input'];
 export type ExperimentConfigOutput = components['schemas']['ExperimentConfig-Output'];
 export type FailureCaseRecord = components['schemas']['FailureCaseRecord'];
+export type FieldError = components['schemas']['FieldError'];
 export type FingerprintInputs = components['schemas']['FingerprintInputs'];
 export type GradientCheck = components['schemas']['GradientCheck'];
 export type GridConfig = components['schemas']['GridConfig'];

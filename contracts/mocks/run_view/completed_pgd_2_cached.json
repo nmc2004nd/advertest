@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "run_id": "f27389b7-5343-5edc-8dff-dd5ee6952ac4",
+  "experiment_id": "c22f67c0-e184-5d74-a3df-43aff5b9e82e",
+  "fingerprint": "fdad6c76ffb18add6cb17c93cc5f0f4575dcf5c555de9d891ffc7ae7130dd69f",
+  "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+  "level": 2,
+  "status": "skipped",
+  "status_reason": {
+    "code": "cached",
+    "message": "Đã có kết quả với cùng fingerprint."
+  },
+  "progress": {
+    "images_done": 300,
+    "images_total": 300
+  },
+  "metrics": {
+    "clean": {
+      "map50": 0.512,
+      "map50_95": 0.298
+    },
+    "attacked": {
+      "map50": 0.058,
+      "map50_95": 0.029
+    },
+    "relative_drop": 0.8867,
+    "absolute_drop": 0.454,
+    "attack_success_rate": 0.9,
+    "per_class": null
+  },
+  "gpu_seconds": 0.0,
+  "cost": null,
+  "failure_case_ids": [],
+  "manifest_uri": null,
+  "cached_from_run_id": "47e9edbe-a747-5978-a3dc-2d59b14f25c8",
+  "attack_spec": {
+    "name": "pgd_linf",
+    "version": 1,
+    "param_name": "eps",
+    "param_unit": "1/255"
+  }
+}

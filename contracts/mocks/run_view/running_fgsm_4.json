@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "run_id": "c634f1db-856e-588d-82e8-db780f628b1c",
+  "experiment_id": "b871c7f4-3bba-5db5-a1ab-76fdcf7a684d",
+  "fingerprint": "fb67e3db7b06ae36208846e7825fc0c54b8f1314bfae783785668cf4f2425ec2",
+  "attack_spec_id": "8d15422d-f111-5c7e-96eb-e704767e6218",
+  "level": 4,
+  "status": "running",
+  "status_reason": null,
+  "progress": {
+    "images_done": 120,
+    "images_total": 300
+  },
+  "metrics": null,
+  "gpu_seconds": 21.9,
+  "cost": null,
+  "failure_case_ids": [],
+  "manifest_uri": null,
+  "cached_from_run_id": null,
+  "attack_spec": {
+    "name": "fgsm",
+    "version": 1,
+    "param_name": "eps",
+    "param_unit": "1/255"
+  }
+}

@@ -3748,6 +3748,21 @@
             "type": "string",
             "minLength": 1,
             "title": "Message"
+          },
+          "fields": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/FieldError"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fields",
+            "description": "Chỉ có ở lỗi 422 gắn được với trường cụ thể; không có thì bỏ khỏi body"
           }
         },
         "additionalProperties": false,
@@ -3773,7 +3788,10 @@
           "account_disabled",
           "rate_limited",
           "csrf_failed",
-          "validation_error"
+          "validation_error",
+          "not_supported_yet",
+          "queue_limit_reached",
+          "internal_error"
         ],
         "title": "ErrorCode"
       },
@@ -3983,6 +4001,32 @@
         ],
         "title": "FailureCaseRecord",
         "description": "Một ảnh bị attack làm hỏng nặng trong một run (Phase 2)."
+      },
+      "FieldError": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Path",
+            "description": "Đường dẫn trường trong body, các đoạn ngăn bởi dấu chấm, chỉ số mảng từ 0",
+            "examples": [
+              "attacks.0.grid.levels"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Message"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "path",
+          "message"
+        ],
+        "title": "FieldError",
+        "description": "Lỗi của một trường (Phase 5): giao diện hiển thị tại đúng bước và đúng trường."
       },
       "FingerprintInputs": {
         "properties": {

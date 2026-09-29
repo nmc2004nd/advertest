@@ -1,0 +1,10 @@
+{
+  "id": "38faccdc-2a94-5c7f-ad5f-68e891d70901",
+  "name": "lab-cpu-2",
+  "kind": "local",
+  "gpu_model": null,
+  "online": false,
+  "queue_length": 0,
+  "default_time_limit_s": 7200,
+  "max_time_limit_s": 28800
+}
