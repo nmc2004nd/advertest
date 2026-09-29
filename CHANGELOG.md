@@ -6,7 +6,25 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 3 — Worker và máy local
 
-**Trạng thái:** đang làm. Group 0–3 đã merge.
+**Trạng thái:** đang làm. Group 0–4 đã merge.
+
+### Phase 3 — Group 4 (worker) — 2026-09-29
+#### Thêm
+- Package `advertest_worker` (`backend/worker/advertest_worker/`): `config.py` (`API_URL`, `WORKER_TOKEN`, `CACHE_DIR`, `DEVICE`), `client.py` (API nội bộ, retry với backoff, `409` → `LeaseLost`), `cache.py` (tải theo sha256, `LocalStore` trong cache, `ShaCacheLoader`), `calibrate.py` (n = min(20, số ảnh), batch tối đa min(n, 32), dừng khi hết VRAM hoặc hết lợi trên CPU, có lượt khởi động), `job.py` (vòng lặp start → batch → checkpoint → `progress` → chỉ thị → `complete`; chạy tiếp từ checkpoint; tự dừng khi không đủ thời gian; giảm batch khi hết VRAM; heartbeat ở luồng riêng), `cli.py` (`advertest-worker run [--once]`, `calibrate --experiment <id>`).
+- Test: client (MockTransport), calibration trên CPU, vòng lặp `serve`; end-to-end với API, Postgres, MinIO thật: chạy xong, trùng cache (attack không được gọi), worker chết rồi chạy tiếp (mỗi ảnh đúng một lần), giới hạn thời gian (kết quả một phần), hủy (dừng sau batch hiện tại), checkpoint hỏng.
+#### Thay đổi (sửa theo review)
+- Worker: lỗi khi tải hoặc dựng lại checkpoint chỉ làm run `failed`; vòng lặp `run` không thoát khi một job lỗi.
+- Backend (`phase03-backend-fp`): chạy tiếp với fingerprint khác → run `failed` (commit trước khi trả `409`) thay vì kẹt ở `running`; test service, HTTP, end-to-end với worker thật.
+#### Quyết định (người dùng chốt hoặc ghi theo review; đã ghi vào `requirements.md` Phase 3, Luồng xử lý của worker, Calibration)
+- `calibrate --experiment <id>`, không lease (người dùng chốt).
+- Worker xét chỉ thị ở đầu batch và ngay sau `progress`; run `failed`/`cancelled` xóa ứng viên; batch mặc định 8; cache `~/.cache/advertest-worker`; thời gian calibration không tính vào giới hạn; vòng lặp không thoát khi một job lỗi; fingerprint đổi khi chạy tiếp thì run `failed`.
+#### Review
+- Review (do chính agent viết nhánh, không độc lập): 3 điểm phải sửa, đã sửa kèm test; các test mới fail trên code cũ. Trong lúc viết test hủy cũng phát hiện và sửa: chỉ thị `cancel` trả về từ `progress` của batch cuối bị bỏ qua.
+- `make check` pass (559 test Python, 153 test nghiệm thu, 36 Vitest); `make test-db` 81 test pass.
+#### Tồn đọng
+- Nhánh giảm batch khi hết VRAM chưa có test (không có GPU): manual check trên máy GPU.
+- Test end-to-end dùng YOLOv8n ngẫu nhiên (không có failure case); fixture thật để cho test nghiệm thu Group 6. Metric sau khi chạy tiếp trùng lần chạy liền mạch đã kiểm ở unit test Group 1, chưa kiểm qua worker.
+- Group 5: service `worker` trong compose, `.env.example` (`MINIO_PUBLIC_ENDPOINT`), tài liệu chạy worker.
 
 ### Phase 3 — Group 3 (backend) — 2026-09-29
 #### Thêm
