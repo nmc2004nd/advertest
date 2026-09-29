@@ -1557,7 +1557,7 @@ export interface components {
             missing_profiles: string[];
             /**
              * Exceeds Limit
-             * @description Tổng ước lượng lớn hơn giới hạn thời gian
+             * @description Tổng ước lượng của các run ước lượng được (cận dưới khi thiếu profile) lớn hơn giới hạn thời gian
              */
             exceeds_limit: boolean;
             queue: components["schemas"]["QueueEstimate"];

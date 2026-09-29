@@ -103,7 +103,7 @@ Worker được coi là `online` nếu có heartbeat trong 60 giây gần nhất
 ### Ước lượng
 - `est_seconds` mỗi run = `images × sec_per_image × 1.2`, với `sec_per_image` lấy từ cost profile của (target, model, attack).
 - Thiếu profile → giá trị null, liệt kê trong `missing_profiles`; vẫn tạo được (worker tự calibration).
-- `exceeds_limit = true` khi tổng ước lượng lớn hơn giới hạn thời gian.
+- `exceeds_limit = true` khi tổng ước lượng lớn hơn giới hạn thời gian. Khi thiếu profile, tổng này là tổng các run ước lượng được (cận dưới): phần đã biết vượt giới hạn thì vẫn cảnh báo (review Group 0).
 - `queue.ahead_seconds` = tổng ước lượng còn lại của các experiment đứng trước trong hàng đợi của target (bỏ qua phần không ước lượng được).
 
 ### Hiển thị ảnh và quyền riêng tư (tạm thời đến Phase 10)

@@ -1344,7 +1344,10 @@ class EstimateResponse(_Model):
     missing_profiles: list[UUID] = Field(
         description="attack_spec_id thiếu cost profile, không trùng"
     )
-    exceeds_limit: bool = Field(description="Tổng ước lượng lớn hơn giới hạn thời gian")
+    exceeds_limit: bool = Field(
+        description="Tổng ước lượng của các run ước lượng được (cận dưới khi thiếu profile) lớn"
+        " hơn giới hạn thời gian"
+    )
     queue: QueueEstimate
 
     @model_validator(mode="after")
@@ -1356,8 +1359,6 @@ class EstimateResponse(_Model):
             raise ValueError("missing_profiles không được trùng")
         if set(self.missing_profiles) != {r.attack_spec_id for r in unknown}:
             raise ValueError("missing_profiles phải đúng bằng các attack của run thiếu ước lượng")
-        if self.total_seconds is None and self.exceeds_limit:
-            raise ValueError("exceeds_limit chỉ true khi có total_seconds")
         return self
 
 

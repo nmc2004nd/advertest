@@ -132,6 +132,12 @@ def test_missing_profiles_lists_exactly_the_unestimated_attacks() -> None:
         EstimateResponse.model_validate(data)
 
 
+def test_exceeds_limit_may_hold_while_some_profile_is_missing() -> None:
+    # Review Group 0, phát hiện #1: phần ước lượng được đã vượt giới hạn thì vẫn cảnh báo.
+    data = {**mock("estimate_response", "missing_profile"), "exceeds_limit": True}
+    assert EstimateResponse.model_validate(data).exceeds_limit
+
+
 def test_profile_and_estimate_are_null_together() -> None:
     data = mock("estimate_response", "full")
     data["runs"][0]["est_seconds"] = None

@@ -28,7 +28,7 @@
 
 7. Hàm kiểm tra cấu hình dùng chung cho ước lượng và tạo, trả lỗi có đường dẫn trường.
 8. Mở rộng hàm ước lượng Phase 3: theo run, `missing_profiles`, `exceeds_limit`, vị trí và thời gian chờ trong hàng đợi.
-9. `POST /experiments/estimate`, `POST /experiments` (giới hạn 3 experiment đang chờ; ghi `audit_log`).
+9. `POST /experiments/estimate`, `POST /experiments` (giới hạn 3 experiment đang chờ; ghi `audit_log`; `cloned_from` phải là experiment tồn tại, sai → `422` có đường dẫn trường, review Group 0).
 10. `GET /experiments` (lọc, phân trang), `GET /experiments/{id}`, `GET /experiments/{id}/runs`, `GET /runs/{id}/manifest`.
 11. `POST /experiments/{id}/cancel` (chỉ chủ sở hữu; tái sử dụng logic hủy Phase 3), `GET /experiments/{id}/clone` (trả `ExperimentClone`).
 12. `GET /runs/{id}/failure-cases`, `GET /failure-cases/{id}`: cấp URL tạm thời 10 phút `/artifacts/{token}` (route cần phiên `experiment.read`) (token HMAC gắn một khóa, API stream từ MinIO); áp dụng `display_mode` theo cờ `anonymized` của dataset và `DEV_ALLOW_UNBLURRED`.

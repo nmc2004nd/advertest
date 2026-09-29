@@ -28,8 +28,11 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 - Khi route khung được cài đặt thật: cập nhật `IMPLEMENTED_GROUPS` (Phase 0), `test_multiple_roles_get_the_union` (Phase 4) và `test_union_of_roles` (backend), vốn đòi `POST /experiments` trả `501`.
 #### Số liệu
 - `make check`: 808 test Python, 218 test nghiệm thu không cần DB, 103 Vitest. `make test-db`: 264 test.
+#### Review (phase-review, 2026-09-29)
+- Không có phát hiện chặn. Phát hiện #1 (người dùng yêu cầu sửa trước merge): contract cấm `exceeds_limit = true` khi thiếu profile, nên phần ước lượng được đã vượt giới hạn cũng không cảnh báo → bỏ ràng buộc, `exceeds_limit` tính trên cận dưới; ghi vào `requirements.md` mục Ước lượng và `validation.md`. Phát hiện #6: `cloned_from` phải tồn tại (ghi vào `plan.md` task 9).
+- Ghi nhận: khóa MinIO trong `FailureCaseView.artifacts` vẫn trả khi ảnh bị ẩn (không cho quyền đọc; xem lại ở Phase 11).
 #### Lưu ý
-- Group 0 do agent làm thay người duyệt theo ủy quyền của người dùng; chưa review độc lập.
+- Group 0, review và phần sửa sau review do cùng một agent làm thay người duyệt theo ủy quyền của người dùng; không độc lập.
 
 ### Kickoff Phase 5 — 2026-09-29
 - Chốt 8 câu hỏi (xem Quyết định ở Group 0), bổ sung độ phủ vào `validation.md` (đọc tài nguyên, `online`/`queue_length`, lọc và phân trang, `finished_at` khi hủy, xin lại URL, `queue_limit_reached` trên giao diện, `/home`, tab Chi phí) và task 3a (worker và `DEV_ALLOW_UNBLURRED` trong `scripts/e2e.sh`).

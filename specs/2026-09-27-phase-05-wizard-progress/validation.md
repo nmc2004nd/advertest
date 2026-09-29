@@ -23,7 +23,7 @@
 ### Ước lượng — `test_estimate.py`
 - [ ] Có đủ cost profile: `est_seconds` từng run và `total_seconds` đúng công thức.
 - [ ] Thiếu profile cho một attack: run đó có `est_seconds = null`, attack nằm trong `missing_profiles`, `total_seconds = null`; vẫn tạo được experiment.
-- [ ] Tổng ước lượng lớn hơn giới hạn → `exceeds_limit = true`.
+- [ ] Tổng ước lượng lớn hơn giới hạn → `exceeds_limit = true`; thiếu profile nhưng phần ước lượng được đã vượt giới hạn → vẫn `true`.
 - [ ] Hai experiment đang chờ trước → `queue.position = 3`, `ahead_seconds` bằng tổng ước lượng còn lại của chúng.
 - [ ] Model không hỗ trợ gradient + attack cần gradient → run có `skip_reason = incompatible`, `est_seconds = 0`.
 
