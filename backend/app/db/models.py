@@ -39,6 +39,7 @@ from advertest_contracts.enums import (
     ComputeKind,
     ExperimentStatus,
     LimitKind,
+    ProtocolStatus,
     ReviewDecision,
     Role,
     RunStatus,
@@ -56,11 +57,6 @@ NAMING = {
 Money = Numeric(18, 6)
 Sha256 = String(64)
 Currency = String(3)
-
-
-class ProtocolStatus(enum.StrEnum):
-    ACTIVE = "active"
-    RETIRED = "retired"
 
 
 class LedgerKind(enum.StrEnum):
@@ -172,6 +168,7 @@ class CostProfile(Base):
     peak_vram_mb: Mapped[int]
     batch_size: Mapped[int]
     measured_at: Mapped[datetime]
+    environment: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
 
 class Dataset(Base):
@@ -215,6 +212,7 @@ class Slice(Base):
     seed: Mapped[int]
     image_ids: Mapped[list[str]] = mapped_column(ARRAY(Text))
     image_ids_sha256: Mapped[str] = mapped_column(Sha256)
+    slice_sha256: Mapped[str | None] = mapped_column(Sha256)
 
 
 class AttackSpecRow(Base):
@@ -233,7 +231,11 @@ class AttackSpecRow(Base):
 
 class Protocol(Base):
     __tablename__ = "protocols"
-    __table_args__ = (UniqueConstraint("name", "version"),)
+    __table_args__ = (
+        UniqueConstraint("name", "version"),
+        # Phase 3: protocol phát triển (dev-open) không có người tạo.
+        CheckConstraint("created_by IS NOT NULL OR status = 'dev'", name="creator_unless_dev"),
+    )
 
     id: Mapped[UUID] = _uuid_pk()
     name: Mapped[str] = mapped_column(Text)
@@ -243,7 +245,7 @@ class Protocol(Base):
     status: Mapped[ProtocolStatus] = mapped_column(
         pg_enum(ProtocolStatus, "protocol_status"), server_default=ProtocolStatus.ACTIVE.value
     )
-    created_by: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    created_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"))
 
 
 class Experiment(Base):
@@ -268,6 +270,11 @@ class Experiment(Base):
     submitted_at: Mapped[datetime | None]
     lease_expires_at: Mapped[datetime | None]
     checkpoint: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    lease_id: Mapped[UUID | None]
+    # Tổng thời gian xử lý các batch (giây), so với limit_value khi limit_kind = time.
+    processing_seconds_used: Mapped[Decimal] = mapped_column(Money, server_default=text("0"))
+    inference_params: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    failure_cases_per_run: Mapped[int | None]
 
 
 class Run(Base):
@@ -288,7 +295,8 @@ class Run(Base):
     level: Mapped[float]
     params: Mapped[dict[str, Any]] = mapped_column(JSONB)
     seed: Mapped[int]
-    fingerprint: Mapped[str] = mapped_column(Sha256)
+    # Do worker tính và gửi ở `start` (null trước đó).
+    fingerprint: Mapped[str | None] = mapped_column(Sha256, index=True)
     status: Mapped[RunStatus] = mapped_column(
         pg_enum(RunStatus, "run_status"), server_default=RunStatus.QUEUED.value
     )
@@ -302,6 +310,9 @@ class Run(Base):
     archived: Mapped[bool] = mapped_column(server_default=text("false"))
     started_at: Mapped[datetime | None]
     finished_at: Mapped[datetime | None]
+    cached_from_run_id: Mapped[UUID | None] = mapped_column(ForeignKey("runs.id"))
+    checkpoint_key: Mapped[str | None] = mapped_column(Text)
+    checkpoint_batch_index: Mapped[int | None]
 
 
 class SearchResultRow(Base):
@@ -314,15 +325,21 @@ class SearchResultRow(Base):
 
 
 class FailureCase(Base):
+    """Một `FailureCaseRecord` (contract); `rank` là vị trí trong `RunResult.failure_case_ids`."""
+
     __tablename__ = "failure_cases"
+    __table_args__ = (UniqueConstraint("run_id", "rank"),)
 
     id: Mapped[UUID] = _uuid_pk()
     run_id: Mapped[UUID] = mapped_column(ForeignKey("runs.id"))
     image_id: Mapped[str] = mapped_column(Text)
     severity_score: Mapped[float]
-    artifact_uri: Mapped[str] = mapped_column(Text)
-    thumbnail_uri: Mapped[str] = mapped_column(Text)
-    details: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    fingerprint: Mapped[str] = mapped_column(Sha256)
+    rank: Mapped[int]
+    lost_objects: Mapped[int]
+    new_false_positives: Mapped[int]
+    detections: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    artifacts: Mapped[dict[str, Any]] = mapped_column(JSONB)
 
 
 class CaseVerdict(Base):

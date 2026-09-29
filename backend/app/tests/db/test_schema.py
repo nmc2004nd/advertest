@@ -37,6 +37,7 @@ PG_ENUMS = {
     "attack_access": enums.AttackAccess,
     "review_decision": enums.ReviewDecision,
     "case_severity": enums.CaseSeverity,
+    "protocol_status": enums.ProtocolStatus,
 }
 
 SHA = "a" * 64
