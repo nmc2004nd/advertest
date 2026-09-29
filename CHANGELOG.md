@@ -6,7 +6,16 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 4 — Xác thực và phân quyền
 
-**Trạng thái:** đang làm. Group 0–7 đã merge. Còn manual check trên điện thoại thật, CI `e2e` trên GitHub, rồi `phase-close`.
+**Trạng thái:** ✅ hoàn thành 2026-09-29. Group 0–7 đã merge.
+
+### Phase 4 — Tổng kết (phase-close) — 2026-09-29
+- **Giao được:** yêu cầu truy cập → admin duyệt/từ chối → đăng nhập bằng phiên phía server (cookie httpOnly 12 giờ, sha256 token, CSRF double-submit, giới hạn 5 lần sai/15 phút theo email và IP qua `TRUSTED_PROXIES`); đổi và đặt lại mật khẩu (link một lần do admin tạo); ma trận quyền trong contract (21 permission, sinh sang TypeScript), `require_permission` cho mọi route cần phiên và kiểm tra lúc khởi động; quản trị người dùng (luật admin cuối cùng, tự vô hiệu hóa, chuyển trạng thái), audit log đủ thao tác tài khoản và trang xem cho admin; frontend mobile-first (sidebar / cột icon / thanh tab), trang giới thiệu, đăng nhập, yêu cầu truy cập, chờ duyệt, đặt lại mật khẩu, tài khoản, `/home` theo role, quản lý người dùng, audit log.
+- **Contract:** `Permission`, `ROLE_PERMISSIONS`, 7 `ErrorCode` mới, 13 schema (`AccessRequest`, `Me`, `UserAdminView`, `AuditLogEntry`, `Page`...), OpenAPI `/auth/*`, `/admin/users/*`, `/audit-log` với `x-permission`; `AuditLogEntry.action` chỉ đòi chuỗi không rỗng (review Group 3). Người dùng chấp nhận (làm thay người duyệt theo ủy quyền).
+- **Số liệu cuối:** `make check` (709 test Python, 217 test nghiệm thu không cần DB, 103 Vitest), `make test-db` (251 test, gồm 70 test nghiệm thu Phase 4 cần DB), `make test-e2e` (39 test = 13 kịch bản × 3 viewport, khoảng 38 giây).
+- **`validation.md`:** Automated Tests đủ; Manual Checks 6/6 (điện thoại Android và iPhone thật, đọc lại nội dung: người dùng xác nhận); Definition of Done 5/5.
+- **CI:** xanh trên GitHub, gồm job `e2e` (người dùng xác nhận, 2026-09-29).
+- **Chuyển tiếp (không chặn):** `/docs`, `/openapi.json` công khai; compose tin cả mạng Docker trong `TRUSTED_PROXIES` (chỉ hợp cho dev); lỗi `500` chưa có `ErrorCode`, OpenAPI khai `422` là `HTTPValidationError`; ô chọn actor trên trang audit tối đa 100 người dùng; 9 permission chưa có route chỉ được kiểm tra ở mức ma trận.
+- **Lưu ý:** Group 0, 7, việc review, merge và phase-close do agent làm thay người duyệt theo ủy quyền của người dùng; review và test nghiệm thu do chính agent đã viết code thực hiện nên không độc lập.
 
 ### Phase 4 — Group 7 (người duyệt, người dùng giao) — 2026-09-29
 #### Thêm

@@ -26,7 +26,7 @@
 | 1 ✅ | CLI đo mAP trên slice KITTI | ml-core | 0 | — |
 | 2 ✅ | FGSM/PGD trên CLI, có manifest | ml-core, attack | 1 | 4 |
 | 3 ✅ | Job chạy qua API trên máy local | backend, attack | 2 | 4 |
-| 4 | Yêu cầu truy cập, duyệt, RBAC | backend, frontend | 0 | 2, 3 |
+| 4 ✅ | Yêu cầu truy cập, duyệt, RBAC | backend, frontend | 0 | 2, 3 |
 | 5 | Wizard tạo experiment, theo dõi tiến độ | frontend, backend | 3, 4 | 6 |
 | 6 | Đủ catalog, quét lưới | attack | 3 | 5 |
 | 7 | Tự tìm ngưỡng | attack, frontend | 5, 6 | 8 |
@@ -106,17 +106,17 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 
 **Demo:** gửi job qua API, xem tiến độ; tắt worker giữa chừng, bật lại thì job chạy tiếp.
 
-## Phase 4 — Xác thực và phân quyền
+## Phase 4 — Xác thực và phân quyền ✅ Hoàn thành (2026-09-29)
 
 **Mục tiêu:** ba role hoạt động đúng quyền.
 
-- [ ] Yêu cầu truy cập, đăng nhập, đăng xuất (argon2, phiên phía server trong cookie httpOnly).
-- [ ] Admin duyệt/từ chối tài khoản, gán role.
-- [ ] `require_permission` (ma trận quyền trong contract) cho mọi endpoint.
-- [ ] Audit log cho các sự kiện tài khoản; thu hồi quyền `UPDATE/DELETE` trên `audit_log`.
-- [ ] Frontend: trang giới thiệu tối giản, yêu cầu truy cập, đăng nhập, chờ duyệt, quản lý người dùng.
-- [ ] Khung điều hướng theo role, mobile-first.
-- [ ] (Từ Phase 0) Email chuyển về chữ thường; mọi lỗi (kể cả `422`) dùng `ErrorResponse`; mô tả cookie theo phiên phía server.
+- [x] Yêu cầu truy cập, đăng nhập, đăng xuất (argon2, phiên phía server trong cookie httpOnly).
+- [x] Admin duyệt/từ chối tài khoản, gán role.
+- [x] `require_permission` (ma trận quyền trong contract) cho mọi endpoint.
+- [x] Audit log cho các sự kiện tài khoản; thu hồi quyền `UPDATE/DELETE` trên `audit_log`.
+- [x] Frontend: trang giới thiệu tối giản, yêu cầu truy cập, đăng nhập, chờ duyệt, quản lý người dùng.
+- [x] Khung điều hướng theo role, mobile-first.
+- [x] (Từ Phase 0) Email chuyển về chữ thường; mọi lỗi (kể cả `422`) dùng `ErrorResponse`; mô tả cookie theo phiên phía server.
 
 **Demo:** tài khoản mới ở trạng thái chờ; admin duyệt và gán role; mỗi role chỉ thấy đúng trang của mình.
 

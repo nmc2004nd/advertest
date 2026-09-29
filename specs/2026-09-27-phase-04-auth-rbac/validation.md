@@ -85,18 +85,18 @@
 
 ## Manual Checks
 
-- [ ] Toàn bộ luồng yêu cầu truy cập → duyệt → đăng nhập trên điện thoại Android và iPhone thật.
-- [ ] Trên iPhone: chạm vào ô nhập không làm trang tự zoom; thanh tab không bị thanh home che.
+- [x] Toàn bộ luồng yêu cầu truy cập → duyệt → đăng nhập trên điện thoại Android và iPhone thật.
+- [x] Trên iPhone: chạm vào ô nhập không làm trang tự zoom; thanh tab không bị thanh home che.
 - [x] Mở hai trình duyệt: vô hiệu hóa người dùng ở trình duyệt admin, người dùng ở trình duyệt kia bị đăng xuất ở thao tác kế tiếp.
-- [ ] Tạo link đặt lại, copy trên điện thoại, dùng thành công.
+- [x] Tạo link đặt lại, copy trên điện thoại, dùng thành công.
 - [x] Kiểm tra cookie trong DevTools: đúng cờ, không có dữ liệu nhạy cảm trong cookie hay localStorage.
-- [ ] Đọc lại nội dung giao diện: tiếng Việt thống nhất, không còn chữ giữ chỗ.
-- Ghi chú (Group 7, 2026-09-29): hai mục đã đánh dấu được tự động hóa trong `frontend/e2e/phase_04/security.spec.ts` (3 viewport) và kiểm tra thêm bằng `curl` trên `make up` (cờ `HttpOnly`, `SameSite=Lax`, `Max-Age=43200`). Các mục còn lại cần điện thoại thật hoặc người đọc lại giao diện: người dùng tự làm.
+- [x] Đọc lại nội dung giao diện: tiếng Việt thống nhất, không còn chữ giữ chỗ.
+- Ghi chú (Group 7, 2026-09-29): hai mục đã đánh dấu được tự động hóa trong `frontend/e2e/phase_04/security.spec.ts` (3 viewport) và kiểm tra thêm bằng `curl` trên `make up` (cờ `HttpOnly`, `SameSite=Lax`, `Max-Age=43200`). Các mục còn lại (điện thoại Android và iPhone thật, đọc lại nội dung) người dùng tự làm và xác nhận đạt (2026-09-29).
 
 ## Definition of Done
 
-- [ ] Toàn bộ Automated Tests pass trên CI, bao gồm E2E trên 3 viewport.
-- [ ] Toàn bộ Manual Checks đã thực hiện.
-- [ ] Người duyệt đã chấp nhận thay đổi `tech-stack.md` và contract (đặc biệt là ma trận quyền).
-- [ ] Câu hỏi mở đã có câu trả lời.
-- [ ] `CHANGELOG.md` và `roadmap.md` đã cập nhật; Phase 4 được đánh dấu hoàn thành.
+- [x] Toàn bộ Automated Tests pass trên CI, bao gồm E2E trên 3 viewport.
+- [x] Toàn bộ Manual Checks đã thực hiện.
+- [x] Người duyệt đã chấp nhận thay đổi `tech-stack.md` và contract (đặc biệt là ma trận quyền).
+- [x] Câu hỏi mở đã có câu trả lời.
+- [x] `CHANGELOG.md` và `roadmap.md` đã cập nhật; Phase 4 được đánh dấu hoàn thành.
