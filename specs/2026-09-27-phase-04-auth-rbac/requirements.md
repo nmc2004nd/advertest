@@ -60,7 +60,7 @@ Phase này chỉ phụ thuộc Phase 0 và chạy song song được với Phase
 
 Người dùng có nhiều role có hợp các permission. Các luật phụ thuộc đối tượng (chỉ hủy experiment của mình, không review experiment của mình) được kiểm tra ở tầng service, không nằm trong ma trận.
 
-**Enum `ErrorCode`**: `unauthenticated`, `forbidden`, `invalid_credentials`, `account_pending`, `account_rejected`, `account_disabled`, `rate_limited`, `csrf_failed`, `validation_error`, `not_found`, `conflict`, `not_implemented`.
+**Enum `ErrorCode`**: đã có từ Phase 3: `not_implemented`, `unauthenticated`, `forbidden`, `not_found`, `conflict`, `invalid_request` (422 nghiệp vụ); Phase 4 thêm `invalid_credentials`, `account_pending`, `account_rejected`, `account_disabled`, `rate_limited`, `csrf_failed`, `validation_error` (422 do body không đúng schema, thay body mặc định `{"detail": ...}` của FastAPI).
 
 **Schema mới:**
 

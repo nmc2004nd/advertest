@@ -146,6 +146,8 @@ Mọi spec corruption và occlusion có `requires_gradients = false`, `access = 
 - `mission.md` nguyên tắc 4 (tái lập), 5 (chi phí), 9 (riêng tư); mục 5 (phạm vi: thời tiết, che khuất, patch).
 - `tech-stack.md` mục 3 (attack, quy ước), 3.2 (patch train một lần).
 - Phase 2: adapter ART, mask, metric, failure case. Phase 3: executor, checkpoint, cost profile, ước lượng. Phase 5: wizard, tab Kết quả, `CaseViewer`, quy tắc `display_mode`.
+- Phase 3 (ảnh hưởng thiết kế): ảnh failure case được tạo ở worker lúc ảnh vào top-K (`StoreCandidates`, `ml_core/runner/candidates.py`), nên làm mờ phải chạy ở đó trước khi upload; `RunExecutor.process_batch` hiện truyền `targets` không có `image_id` vào `Perturbation.apply` (cần sửa cùng thay đổi interface); thời gian train patch phải được worker báo qua `progress` (`processing_seconds_delta`) mới được tính vào giới hạn; thời gian calibration hiện không tính.
+- Đo ở Phase 3: PGD trên KITTI thật phụ thuộc nhẹ vào batch size (≤ 0.0006 mAP, ≤ 0.006 ASR giữa batch 2 và batch 8), trái với giả định "không phụ thuộc batch size" của Phase 2; cần kiểm lại khi thêm seed theo ảnh.
 
 ## Open Questions
 

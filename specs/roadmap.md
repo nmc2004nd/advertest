@@ -188,6 +188,7 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 - [ ] Theo dõi uptime và thời gian chạy không; cảnh báo.
 - [ ] Worker từ xa qua Tailscale.
 - [ ] Trang admin: compute targets, ngân sách và quota.
+- [ ] (Từ Phase 3) User MinIO riêng cho api thay cho root (máy thuê làm lộ phạm vi của khóa rõ hơn); profile `gpu` và calibration trên GPU nếu chưa làm.
 
 **Demo:** thuê máy vài giờ, chạy experiment có trần ngân sách thấp, xác nhận dừng đúng và quyết toán đúng.
 
@@ -201,6 +202,7 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 - [ ] Tạo slice theo bộ lọc.
 - [ ] Làm mờ mặt và biển số ở tầng hiển thị (với dataset chưa ẩn danh).
 - [ ] (Tùy chọn) Pseudo-label cho dữ liệu không có nhãn, gắn nhãn consistency metric.
+- [ ] (Từ Phase 3) `DEFAULT_STORE_DIR` chỉ đúng khi cài editable; `LocalStore` ghi file quyền 0600 (`import-local` phải chạy bằng uid của máy).
 
 **Demo:** upload một dataset YOLO, map class, chạy experiment trên đó.
 
