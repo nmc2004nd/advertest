@@ -6,7 +6,19 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 3 — Worker và máy local
 
-**Trạng thái:** đang làm. Group 0–5 đã merge.
+**Trạng thái:** đang làm. Group 0–5 đã merge; đã sửa checkpoint quá nặng.
+
+### Phase 3 — sửa checkpoint quá nặng (worker) — 2026-09-29
+#### Thay đổi
+- `advertest_worker/job.py`: xóa checkpoint k-1 sau khi `progress` của checkpoint k thành công (khi chạy tiếp, xóa checkpoint trong bundle sau batch kế tiếp); giữ checkpoint cuối cùng của run (xóa trước `complete` thì worker chết đúng lúc đó sẽ không chạy tiếp được). Xóa lỗi chỉ ghi cảnh báo; mất lease (`409`) khi xóa thì dừng experiment ngay.
+- Test end-to-end: chạy tiếp sau khi worker chết còn đúng checkpoint cuối mỗi run (fail trên code cũ); xóa lỗi không làm run `failed`; mất lease khi xóa thì không xử lý thêm, không gửi `complete` (fail trên code cũ).
+#### Quyết định (ghi theo review; đã ghi vào `requirements.md` Phase 3, Checkpoint và chạy tiếp; `validation.md` thêm manual check dung lượng checkpoint)
+- Mỗi run chỉ giữ checkpoint mới nhất mà API đang trỏ tới; có thể thừa một file nếu worker chết giữa `progress` và lệnh xóa.
+#### Review
+- Review (do chính agent viết nhánh, không độc lập): 1 điểm phải sửa (nuốt `LeaseLost` khi xóa checkpoint), đã sửa kèm test.
+- `make check` pass (562 test Python, 153 test nghiệm thu, 36 Vitest); `make test-db` 86 test pass.
+#### Tồn đọng
+- Chưa đo lại dung lượng trên KITTI (ước tính còn khoảng 4.7 MB mỗi run thay vì 691 MB): manual check Group 6.
 
 ### Phase 3 — Group 5 (backend) — 2026-09-29
 #### Thêm

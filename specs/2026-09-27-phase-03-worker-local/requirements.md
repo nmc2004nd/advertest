@@ -130,6 +130,7 @@ Cuối phase: gửi experiment, theo dõi tiến độ; tắt worker giữa ch�
 
 ### Checkpoint và chạy tiếp
 - Checkpoint sau batch k chứa đủ trạng thái để xử lý từ batch k+1.
+- Mỗi run chỉ giữ checkpoint mới nhất mà API đang trỏ tới: worker xóa checkpoint k-1 sau khi `progress` của checkpoint k thành công (khi chạy tiếp, checkpoint k-1 là checkpoint trong bundle); checkpoint cuối cùng của run được giữ lại. Xóa lỗi chỉ ghi cảnh báo, trừ mất lease (`409`) thì dừng experiment ngay. Worker chết giữa `progress` và lệnh xóa có thể để thừa một checkpoint.
 - Lease hết hạn (worker chết, máy treo) → experiment được lease lại; bundle chứa checkpoint mới nhất; worker tiếp tục từ batch kế tiếp.
 - Mỗi ảnh được tính vào metric **đúng một lần**, kể cả khi bị gián đoạn nhiều lần.
 
