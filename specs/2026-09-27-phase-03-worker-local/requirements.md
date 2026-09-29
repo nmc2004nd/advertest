@@ -60,6 +60,8 @@ Cuối phase: gửi experiment, theo dõi tiến độ; tắt worker giữa ch�
 | `datasets` | `<dataset_sha>/manifest.json`, `<dataset_sha>/images/<image_sha256>.png`, `slices/<slice_sha>.json`, `mappings/<mapping_sha>.json` |
 | `artifacts` | `runs/<run_id>/manifest.json`, `runs/<run_id>/result.json`, `runs/<run_id>/checkpoints/<batch_index>.json`, `runs/<run_id>/candidates/<image_id>/...`, `runs/<run_id>/cases/<case_id>/...` |
 
+- `RunResult.manifest_uri` có dạng `s3://artifacts/runs/<run_id>/manifest.json`; khóa artifact trong `FailureCaseRecord.artifacts` là khóa trần trong bucket `artifacts`. Cả hai phải nằm trong `runs/<run_id>/`, không có đoạn `.`/`..`, và tồn tại khi API nhận `complete`.
+
 ## Behaviour
 
 ### Executor dùng chung
@@ -94,6 +96,8 @@ Cuối phase: gửi experiment, theo dõi tiến độ; tắt worker giữa ch�
 - `lease_id` không phải lease hiện tại của experiment (lease đã hết hạn và được cấp cho worker khác) → `409` ở heartbeat, start, progress, artifact-url, complete; worker nhận `409` thì dừng experiment đó.
 - Run bị `skipped` (`incompatible`) hoặc `failed` khi dựng attack: worker vẫn gọi `start` rồi gửi `complete` với trạng thái tương ứng.
 - Mọi thay đổi trạng thái do API thực hiện; worker không có thông tin đăng nhập DB hay MinIO.
+- `lease` dùng `FOR UPDATE SKIP LOCKED`: hai worker gọi cùng lúc không nhận cùng một experiment. Heartbeat của compute target (`last_heartbeat_at`) chỉ được ghi khi lấy được khóa dòng ngay; worker khác đang giữ khóa thì bỏ qua. Các lệnh của worker khóa experiment trước rồi mới khóa run (cùng thứ tự với hủy).
+- Thứ tự run trong experiment lưu ở `runs.ordinal` (theo thứ tự attack và level trong cấu hình); `WorkerJobBundle.runs` theo thứ tự này. `runs.fingerprint` là null tới khi worker gọi `start`.
 
 ### Luồng xử lý của worker
 - Worker là package `advertest_worker`, lệnh `advertest-worker run|calibrate`; client HTTP dùng `httpx`.
@@ -131,6 +135,8 @@ Cuối phase: gửi experiment, theo dõi tiến độ; tắt worker giữa ch�
 | Hủy | `cancelled` | `cancelled` | `cancelled` |
 
 - Experiment chuyển `queued → running` khi được lease lần đầu.
+- Hủy khi worker còn giữ lease: run chưa chạy `cancelled` ngay; run đang chạy chờ worker báo `cancelled` qua `complete` (worker nhận `WorkerDirective.cancel`). Lease đã hết hạn (lúc hủy, hoặc worker chết sau đó): run đang chạy `cancelled` ngay khi hủy, hoặc ở lần `lease` kế tiếp của target.
+- `RunResult.gpu_seconds` của run lấy theo giá trị worker gửi ở `complete`; giới hạn thời gian của experiment tính theo tổng `processing_seconds_delta` mà API cộng dồn.
 
 ### Giới hạn thời gian
 - Thời gian tính = tổng thời gian xử lý các batch (không tính thời gian chờ trong hàng đợi hay thời gian worker bị gián đoạn). Thời gian của một batch gồm attack và predict; không gồm mã hóa, upload ảnh ứng viên và checkpoint.
@@ -141,6 +147,7 @@ Cuối phase: gửi experiment, theo dõi tiến độ; tắt worker giữa ch�
 ### Calibration và ước lượng
 - `advertest-worker calibrate` (hoặc tự động trước job): chạy trên n = min(20, số ảnh của slice) ảnh đầu; tăng dần batch size (1, 2, 4, ...) tối đa min(n, 32); dừng khi hết VRAM (lùi một bậc) hoặc, trên CPU, khi `sec_per_image` không giảm so với bậc trước (giữ bậc trước); đo `sec_per_image` và `peak_vram_mb` ở batch size được chọn; gửi `CostProfile`.
 - Worker dùng batch size trong cost profile khi chạy.
+- Cost profile giữ lịch sử (mỗi lần gửi thêm một dòng, kèm `environment`); ước lượng và bundle dùng profile mới nhất theo `measured_at` của (target, model, attack).
 - Hàm ước lượng ở backend: `thời_gian ≈ Σ_run (số ảnh × sec_per_image) × 1.2`. `advertest-admin submit` in ước lượng này; thiếu cost profile thì báo "chưa có ước lượng".
 
 ### CLI quản trị (`advertest-admin`, chạy trong container `api`)
@@ -148,10 +155,10 @@ Cuối phase: gửi experiment, theo dõi tiến độ; tắt worker giữa ch�
 - `submit --config <yaml> --target <name> [--time-limit s] --as <email>`: tạo experiment `queued` gắn protocol `dev-open`, lập danh sách run. `<yaml>` theo `LocalRunConfig` của Phase 2 (id là `content_id` nên trùng giữa `LocalStore` và DB sau `import-local`); `device`, `batch_size` bị bỏ qua (worker dùng cost profile).
 - `experiment list`, `experiment show <id> [--watch]`: trạng thái experiment, từng run, tiến độ, thời gian đã dùng.
 - `experiment cancel <id> --as <email>`.
-- Mỗi lệnh ghi thao tác vào `audit_log` với actor là người dùng trong `--as` (phải là admin `active`).
+- Mỗi lệnh ghi thao tác vào `audit_log` với actor là người dùng trong `--as` (phải là admin `active`). Kiểm tra admin do CLI thực hiện (`audit.require_admin`) trước khi gọi service; `import-local` ghi audit `registry.import_local`.
 
 ### Protocol phát triển
-- Migration seed một protocol `dev-open` có `status = dev`, không ràng buộc attack.
+- Migration seed một protocol `dev-open` có `status = dev`, không ràng buộc attack: id cố định `2edcdef5-0d3a-5d5f-98ac-b02637fa6718` (`content_id(sha256_of({"protocol": "dev-open"}))`), body `{}`, không có người tạo. `protocols.created_by` cho phép null chỉ với `status = dev` (CHECK); protocol thật (Phase 8) vẫn bắt buộc có người tạo.
 - Experiment gắn protocol `status = dev` không bao giờ được gửi duyệt (luật này được kiểm tra ở Phase 8; phase này chỉ tạo trạng thái).
 
 ## Decisions
