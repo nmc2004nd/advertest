@@ -44,17 +44,31 @@ SAMPLE_CALLS = [
     ("get", "/budget"),
     ("get", "/audit-log"),
     ("get", "/verify/" + RUN_ID),
-    ("post", "/internal/worker/lease"),
-    ("post", "/internal/worker/heartbeat"),
-    ("post", "/internal/worker/runs/" + RUN_ID + "/artifact-url"),
-    ("get", "/internal/worker/experiments/" + RUN_ID + "/bundle"),
+    # Endpoint worker còn là khung (Phase 7).
+    ("post", "/internal/worker/experiments/" + RUN_ID + "/search-result"),
 ]
-# Endpoint có body bắt buộc (Phase 3): gửi body hợp lệ lấy từ contracts/mocks.
+# Endpoint có body bắt buộc: gửi body hợp lệ lấy từ contracts/mocks.
 MOCKS = Path(__file__).resolve().parents[4] / "contracts" / "mocks"
 BODIES = {
     "/internal/worker/heartbeat": "heartbeat_request/default.json",
     "/internal/worker/runs/" + RUN_ID + "/artifact-url": "artifact_url_request/put_candidate.json",
+    "/internal/worker/runs/" + RUN_ID + "/start": "run_start_request/gpu_local.json",
+    "/internal/worker/runs/" + RUN_ID + "/progress": "progress_report/after_batch_0.json",
+    "/internal/worker/runs/" + RUN_ID + "/complete": "run_completion/completed_one_case.json",
+    "/internal/worker/cost-profiles": "cost_profile/gpu_local_pgd.json",
+    "/internal/worker/experiments/" + RUN_ID + "/search-result": "search_result/found.json",
 }
+# Endpoint worker đã cài đặt (Phase 3): thiếu token → 401, không cần DB.
+IMPLEMENTED_WORKER_CALLS = [
+    ("post", "/internal/worker/lease"),
+    ("get", "/internal/worker/experiments/" + RUN_ID + "/bundle"),
+    ("post", "/internal/worker/heartbeat"),
+    ("post", "/internal/worker/runs/" + RUN_ID + "/start"),
+    ("post", "/internal/worker/runs/" + RUN_ID + "/progress"),
+    ("post", "/internal/worker/runs/" + RUN_ID + "/artifact-url"),
+    ("post", "/internal/worker/runs/" + RUN_ID + "/complete"),
+    ("post", "/internal/worker/cost-profiles"),
+]
 
 
 @pytest.fixture(scope="module")
@@ -114,3 +128,13 @@ def test_openapi_declares_501_with_error_response(openapi: dict[str, Any]) -> No
         for method, op in ops.items():
             schema = op["responses"]["501"]["content"]["application/json"]["schema"]
             assert schema == {"$ref": "#/components/schemas/ErrorResponse"}, (method, path)
+
+
+@pytest.mark.parametrize(("method", "path"), IMPLEMENTED_WORKER_CALLS)
+def test_worker_endpoints_require_token(method: str, path: str) -> None:
+    body = json.loads((MOCKS / BODIES[path]).read_text()) if path in BODIES else None
+    client = TestClient(create_app())
+    for headers in ({}, {"Authorization": "Bearer "}):
+        response = client.request(method, path, json=body, headers=headers)
+        assert response.status_code == 401
+        assert ErrorResponse.model_validate(response.json()).error.code == "unauthenticated"

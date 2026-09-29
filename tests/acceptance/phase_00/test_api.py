@@ -88,8 +88,14 @@ def test_sample_endpoint_returns_501_with_uniform_error(
     assert body.error.code == "not_implemented"
 
 
-def test_worker_internal_endpoint_returns_501() -> None:
-    response = TestClient(create_app()).post("/internal/worker/lease")
+def test_worker_internal_endpoint_returns_501(repo: Path) -> None:
+    # Phase 3 cài đặt các endpoint worker khác; search-result vẫn là khung tới Phase 7.
+    body = json.loads(
+        next((repo / "contracts" / "mocks" / "search_result").glob("*.json")).read_text()
+    )
+    response = TestClient(create_app()).post(
+        f"/internal/worker/experiments/{SAMPLE_ID}/search-result", json=body
+    )
     assert response.status_code == 501
     assert ErrorResponse.model_validate(response.json()).error.code == "not_implemented"
 
