@@ -8,10 +8,6 @@ export const CSRF_HEADER = 'X-CSRF-Token'
 
 type Method = 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 
-function mocksEnabled(): boolean {
-  return import.meta.env.VITE_USE_MOCKS === 'true'
-}
-
 function apiUrl(path: string): string {
   return `${import.meta.env.VITE_API_BASE_URL ?? ''}${path}`
 }
@@ -35,7 +31,8 @@ async function parse<T>(response: Response): Promise<T> {
 
 /** GET tới backend; ở chế độ mock trả dữ liệu trong contracts/mocks, không gọi mạng. */
 export async function apiGet<T>(path: string): Promise<T> {
-  if (mocksEnabled()) {
+  // Viết thẳng biểu thức (không qua hàm): bản build thay bằng hằng số và bỏ nhánh mock.
+  if (import.meta.env.VITE_USE_MOCKS === 'true') {
     const { mockGet } = await import('./mocks')
     return mockGet(path) as T
   }
@@ -48,7 +45,8 @@ export async function apiGet<T>(path: string): Promise<T> {
 
 /** Request thay đổi dữ liệu: gửi cookie và tự thêm `X-CSRF-Token` lấy từ cookie `csrf_token`. */
 export async function apiSend<T>(method: Method, path: string, body?: unknown): Promise<T> {
-  if (mocksEnabled()) {
+  // Viết thẳng biểu thức (không qua hàm): bản build thay bằng hằng số và bỏ nhánh mock.
+  if (import.meta.env.VITE_USE_MOCKS === 'true') {
     const { mockSend } = await import('./mocks')
     return mockSend(method, path)
   }
