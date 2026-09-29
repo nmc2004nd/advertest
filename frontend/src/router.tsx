@@ -1,8 +1,12 @@
 import { createBrowserRouter, type RouteObject } from 'react-router'
 
 import App from './App'
+import { ForbiddenPage } from './pages/ForbiddenPage'
 
-const routes: RouteObject[] = [{ path: '/', element: <App /> }]
+const routes: RouteObject[] = [
+  { path: '/', element: <App /> },
+  { path: '/forbidden', element: <ForbiddenPage /> },
+]
 
 // Chỉ có khi chạy dev: trong bản build production, nhánh này bị loại bỏ cùng module của trang.
 if (import.meta.env.DEV) {
