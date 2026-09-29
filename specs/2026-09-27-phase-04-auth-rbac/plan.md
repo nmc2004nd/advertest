@@ -41,7 +41,7 @@
 
 ## Group 4 — Frontend: nền tảng `[agent: frontend]`
 
-19. API client: gửi cookie, tự thêm `X-CSRF-Token`, xử lý `401` và `403` toàn cục, ánh xạ `ErrorCode` sang thông điệp tiếng Việt.
+19. API client: gửi cookie, tự thêm `X-CSRF-Token`, xử lý `401` và `403` toàn cục, ánh xạ `ErrorCode` sang thông điệp tiếng Việt. Proxy `/api` của Vite đặt `xfwd: true` (từ review Group 1: giới hạn đăng nhập sai theo IP cần IP gốc).
 20. Hook `useMe()` và hàm `can(permission)` dùng ma trận quyền sinh từ contract.
 21. Route guard theo permission; trang `/forbidden`.
 22. Cấu hình điều hướng tập trung (đường dẫn, nhãn, icon, permission, cờ trang đã có).
