@@ -293,4 +293,4 @@ Biến thể torch chọn bằng extra của uv, cùng một `uv.lock`:
 - `cpu` (index `download.pytorch.org/whl/cpu`): máy phát triển và CI. `make` dùng mặc định (`TORCH=cpu`).
 - `cuda` (index `download.pytorch.org/whl/cu126`): image Docker cho `api` và `worker`. CUDA 12.6 được chọn vì tương thích với nhiều phiên bản driver nhất trong các bản torch 2.14 phát hành (cu126, cu130, cu132).
 
-Frontend: Vite 8, React 19, TypeScript 6 (strict), Tailwind CSS 4, shadcn/ui (style `radix-nova`, icon Lucide), TanStack Query 5, React Router 8, ESLint 10, Prettier 3. Phiên bản chính xác nằm trong `frontend/pnpm-lock.yaml`.
+Frontend: Vite 8, React 19, TypeScript 6 (strict), Tailwind CSS 4, shadcn/ui (style `radix-nova`, icon Lucide), TanStack Query 5, React Router 8, ESLint 10, Prettier 3, `@playwright/test` 1.63.0 (pin chính xác vì phiên bản trình duyệt đi theo; E2E chạy bằng `make test-e2e` hoặc job CI `e2e`). Phiên bản chính xác nằm trong `frontend/pnpm-lock.yaml`.
