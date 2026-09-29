@@ -1,4 +1,5 @@
-# Image cho service api. TORCH=cpu (Phase 0, CI) hoặc cuda (image dùng chung với worker từ Phase 3).
+# Image dùng chung cho service api và worker (tech-stack.md mục 6). TORCH=cpu (api, CI, worker-cpu)
+# hoặc cuda (worker có GPU). Worker ghi đè entrypoint bằng `advertest-worker run`, cache ở /app/cache.
 # Build context là gốc repo: docker build -f docker/api/Dockerfile .
 FROM python:3.11-slim
 
@@ -24,7 +25,8 @@ COPY backend ./backend
 RUN uv sync --frozen --no-dev --extra "$TORCH"
 
 COPY docker/api/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN useradd --system --uid 10001 --home-dir /app advertest
+RUN useradd --system --uid 10001 --home-dir /app advertest \
+    && mkdir -p /app/cache && chown advertest /app/cache
 USER advertest
 
 # Image không có .git: commit được truyền lúc build để /health báo đúng.
