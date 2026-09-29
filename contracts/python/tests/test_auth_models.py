@@ -79,8 +79,10 @@ def test_user_admin_view_mocks_cover_every_status() -> None:
     assert statuses == set(UserStatus)
 
 
-def test_audit_log_entry_actor_may_be_null_and_action_is_dotted() -> None:
+def test_audit_log_entry_actor_may_be_null_and_action_is_not_empty() -> None:
     body = _mock("audit_log_entry", "system")
     assert AuditLogEntry.model_validate(body).actor is None
+    # Dòng cũ lệch quy ước entity.verb vẫn đọc được (audit log không sửa được).
+    assert AuditLogEntry.model_validate(body | {"action": "x"}).action == "x"
     with pytest.raises(ValidationError):
-        AuditLogEntry.model_validate(body | {"action": "approved"})
+        AuditLogEntry.model_validate(body | {"action": ""})

@@ -63,6 +63,8 @@ def _call(client: TestClient, permission: Permission) -> tuple[int, str]:
     method, path, body = REPRESENTATIVES[permission]
     headers = {CSRF_HEADER: client.cookies.get(CSRF_COOKIE) or ""}
     response = client.request(method, path, json=body, headers=headers)
+    if response.status_code < 400:
+        return response.status_code, ""
     return response.status_code, ErrorResponse.model_validate(response.json()).error.code
 
 

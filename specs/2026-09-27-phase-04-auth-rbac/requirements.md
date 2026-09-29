@@ -109,7 +109,7 @@ Người dùng có nhiều role có hợp các permission. Các luật phụ thu
 | `POST /admin/users/{id}/reset-link` | `user.manage` | Tạo link đặt lại mật khẩu `{APP_BASE_URL}/reset-password/{token}`, hết hạn sau 24 giờ |
 | `GET /audit-log` | `audit.read` | Lọc theo actor, action, entity, khoảng thời gian; phân trang |
 
-Chi tiết phản hồi (chốt ở review Group 0): `POST /auth/login` thành công trả `Me`; `request-access` trả `202` không có body; `logout`, `password`, `password-reset` trả `204`; các endpoint `/admin/users/{id}/*` trả `UserAdminView` sau thay đổi, `reset-link` trả `PasswordResetLink`. Phân trang theo cursor: `limit` mặc định 50, tối đa 100; `next_cursor = null` khi hết. `/audit-log` lọc bằng `actor_id`, `action`, `entity_type`, `entity_id`, `since` (gồm mốc), `until` (không gồm mốc).
+Chi tiết phản hồi (chốt ở review Group 0): `POST /auth/login` thành công trả `Me`; `request-access` trả `202` không có body; `logout`, `password`, `password-reset` trả `204`; các endpoint `/admin/users/{id}/*` trả `UserAdminView` sau thay đổi, `reset-link` trả `PasswordResetLink`. Phân trang theo cursor: `limit` mặc định 50, tối đa 100; `next_cursor = null` khi hết. `/audit-log` lọc bằng `actor_id`, `action`, `entity_type`, `entity_id`, `since` (gồm mốc), `until` (không gồm mốc). Chốt ở review Group 3: danh sách sắp theo `(created_at, id)` giảm dần; cursor là chuỗi mờ, cursor sai → `422 invalid_request`; `since`/`until` không có múi giờ → `422 invalid_request`. Audit `user.reset_link_created` có `before` bằng `after` (trạng thái không đổi). `APP_BASE_URL` mặc định `http://localhost:5173`. `AuditLogEntry.action` chỉ đòi chuỗi không rỗng để dòng cũ lệch quy ước vẫn đọc được; code ghi audit theo quy ước `entity.verb` (có test).
 
 ### Phiên và bảo mật
 - Cookie phiên: `httpOnly`, `SameSite=Lax`, `Secure` khi `COOKIE_SECURE=true`, hết hạn tuyệt đối sau 12 giờ; không có "ghi nhớ đăng nhập".
@@ -134,6 +134,8 @@ Chi tiết phản hồi (chốt ở review Group 0): `POST /auth/login` thành c
 - Admin không vô hiệu hóa được chính mình.
 - Không thể bỏ role admin hoặc vô hiệu hóa admin `active` cuối cùng.
 - Chuyển trạng thái không hợp lệ (approve/reject user không `pending`, disable user không `active`, enable user không `disabled`) → `409 conflict`.
+- Đổi role và tạo link đặt lại chỉ cho user `active` hoặc `disabled`; trạng thái khác → `409 conflict` (chốt ở Group 3).
+- Tạo link đặt lại mới vô hiệu mọi link cũ chưa dùng của user đó (chốt ở Group 3).
 - Mỗi thao tác quản trị ghi `audit_log` với `before` và `after` (trạng thái, role): `user.approved`, `user.rejected`, `user.roles_changed`, `user.disabled`, `user.enabled`, `user.reset_link_created`. Người dùng tự đổi mật khẩu ghi `user.password_changed`; dùng link đặt lại ghi `user.password_reset` (không ghi mật khẩu hay token; `before`/`after` là `null`).
 - Yêu cầu truy cập ghi `user.access_requested`. Actor của `user.access_requested`, `user.password_changed`, `user.password_reset` là chính người dùng đó.
 - Đăng nhập thành công/thất bại và đăng xuất ghi vào `auth_events`, không ghi vào `audit_log`.

@@ -2914,8 +2914,9 @@
           },
           "action": {
             "type": "string",
-            "pattern": "^[a-z_]+(\\.[a-z_]+)+$",
+            "minLength": 1,
             "title": "Action",
+            "description": "Theo quy ước `entity.verb` (ví dụ user.approved)",
             "examples": [
               "user.approved"
             ]

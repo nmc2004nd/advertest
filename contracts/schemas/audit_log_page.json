@@ -47,10 +47,11 @@
           "description": "null với hành động của hệ thống"
         },
         "action": {
+          "description": "Theo quy ước `entity.verb` (ví dụ user.approved)",
           "examples": [
             "user.approved"
           ],
-          "pattern": "^[a-z_]+(\\.[a-z_]+)+$",
+          "minLength": 1,
           "title": "Action",
           "type": "string"
         },

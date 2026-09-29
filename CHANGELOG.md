@@ -6,7 +6,20 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 4 — Xác thực và phân quyền
 
-**Trạng thái:** đang làm. Group 0, 1, 2 đã merge.
+**Trạng thái:** đang làm. Group 0–3 (backend) đã merge.
+
+### Phase 4 — Group 3 (backend) — 2026-09-29
+#### Thêm
+- `backend/app/admin/users.py`: duyệt, từ chối, đổi role, vô hiệu hóa (thu hồi mọi phiên), kích hoạt, tạo link đặt lại (24 giờ, sha256, vô hiệu link cũ); khóa dòng và advisory lock cho luật admin active cuối cùng; audit `before`/`after` = `{status, roles}` trong cùng transaction.
+- `backend/app/audit/query.py`, `backend/app/api/pagination.py`: `/audit-log` lọc, `actor` dạng object; phân trang keyset theo `(created_at, id)`.
+- Endpoint `/admin/users/*`, `/audit-log` (OpenAPI không đổi); `APP_BASE_URL` trong compose và `.env.example`.
+- Test: `tests/db/test_admin_api.py` (19): duyệt/từ chối, `409` các loại, admin cuối cùng (service, trong transaction rollback), link đặt lại, hiệu lực tức thời, `403`, phân trang, audit không chứa bí mật, `/audit-log` không lọc đọc được dòng lệch quy ước.
+#### Contract (người duyệt, người dùng chốt ở review)
+- `AuditLogEntry.action`: bỏ mẫu `entity.verb`, chỉ đòi chuỗi không rỗng. Lý do: audit log chỉ thêm, dòng lệch quy ước (test Phase 0 chèn `'x'`) làm cả trang `/audit-log` trả `500`. Quy ước `entity.verb` giữ cho code ghi, có test.
+#### Quyết định (người dùng chốt, đã ghi vào `requirements.md`, `validation.md` Phase 4)
+- Đổi role và tạo link chỉ cho user `active`/`disabled`; link mới vô hiệu link cũ; `reset_link_created` có `before` = `after`; thứ tự `(created_at, id)` giảm dần, cursor mờ, cursor sai hoặc thời gian thiếu múi giờ → `422`; `APP_BASE_URL` mặc định.
+#### Review
+- Review do chính agent viết nhánh (không độc lập). Phát hiện nên sửa (#3, `/audit-log` trả `500` với dòng lệch mẫu) đã xử lý trước khi merge bằng thay đổi contract ở trên và test backend.
 
 ### Phase 4 — Group 2 (backend) — 2026-09-29
 #### Thêm

@@ -53,6 +53,8 @@
 - [ ] Chuyển trạng thái không hợp lệ (approve user `active`, enable user `active`, disable user `disabled`) → `409 conflict`.
 - [ ] `GET /admin/users?status=pending` chỉ trả user `pending`; phân trang không trùng, không sót.
 - [ ] Link đặt lại bắt đầu bằng `APP_BASE_URL` + `/reset-password/`.
+- [ ] Đổi role hoặc tạo link đặt lại cho user `pending`/`rejected` → `409 conflict`.
+- [ ] Tạo link đặt lại mới → link cũ chưa dùng không dùng được nữa.
 
 ### Audit — `test_audit_phase04.py`
 - [ ] Mỗi thao tác `user.approved`, `user.rejected`, `user.roles_changed`, `user.disabled`, `user.enabled`, `user.reset_link_created`, `user.password_changed`, `user.password_reset`, `user.access_requested` tạo đúng một dòng `audit_log` với actor, entity, `before`, `after` đúng; actor của `access_requested`, `password_changed`, `password_reset` là chính người dùng đó.
@@ -61,6 +63,7 @@
 - [ ] Đăng nhập, đăng nhập sai, đăng xuất ghi vào `auth_events`, không ghi vào `audit_log`.
 - [ ] `/audit-log` lọc đúng theo actor, action, khoảng thời gian; phân trang không trùng, không sót.
 - [ ] Người không có `audit.read` gọi `/audit-log` → `403`.
+- [ ] `/audit-log` không lọc vẫn trả `200` khi DB có dòng audit lệch quy ước `entity.verb`.
 
 ### Frontend — unit (Vitest)
 - [ ] `can(permission)` trả đúng theo ma trận cho mọi tổ hợp role trong mock `Me`.

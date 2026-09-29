@@ -39,6 +39,7 @@ from advertest_contracts.models import (
 )
 from advertest_contracts.permissions import AUTHENTICATED
 from advertest_contracts.permissions import Permission as P
+from backend.app.admin import users as admin_users
 from backend.app.api.deps import SessionFactory, get_clock, get_sessionmaker, transaction
 from backend.app.api.errors import (
     AUTH_REQUIRED_RESPONSES,
@@ -47,6 +48,7 @@ from backend.app.api.errors import (
     not_implemented,
 )
 from backend.app.api.security import user_session
+from backend.app.audit.query import AuditFilter, list_entries
 from backend.app.auth import service as auth_service
 from backend.app.auth import sessions
 from backend.app.auth.deps import CurrentUser
@@ -180,34 +182,54 @@ def change_password(body: PasswordChange, user: CurrentUser, factory: Sessions, 
 
 @router.get("/admin/users", tags=["admin-users"], **guard(P.USER_MANAGE))
 def list_users(
-    status: UserStatus | None = None, cursor: Cursor = None, limit: Limit = 50
+    factory: Sessions,
+    status: UserStatus | None = None,
+    cursor: Cursor = None,
+    limit: Limit = 50,
 ) -> UserAdminPage:
-    not_implemented()
+    with transaction(factory) as session:
+        return admin_users.list_users(session, status=status, cursor=cursor, limit=limit)
 
 
 @router.post("/admin/users/{user_id}/approve", tags=["admin-users"], **guard(P.USER_MANAGE))
-def approve_user(user_id: UUID, body: ApproveRequest) -> UserAdminView:
-    not_implemented()
+def approve_user(
+    user_id: UUID, body: ApproveRequest, user: CurrentUser, factory: Sessions, clock: Now
+) -> UserAdminView:
+    with transaction(factory) as session:
+        actor = admin_users.get_actor(session, user.user_id)
+        return admin_users.approve(session, actor, user_id, list(body.roles), now=clock())
 
 
 @router.post("/admin/users/{user_id}/reject", tags=["admin-users"], **guard(P.USER_MANAGE))
-def reject_user(user_id: UUID, body: RejectRequest) -> UserAdminView:
-    not_implemented()
+def reject_user(
+    user_id: UUID, body: RejectRequest, user: CurrentUser, factory: Sessions
+) -> UserAdminView:
+    with transaction(factory) as session:
+        actor = admin_users.get_actor(session, user.user_id)
+        return admin_users.reject(session, actor, user_id, body.reason)
 
 
 @router.put("/admin/users/{user_id}/roles", tags=["admin-users"], **guard(P.USER_MANAGE))
-def update_user_roles(user_id: UUID, body: RolesUpdate) -> UserAdminView:
-    not_implemented()
+def update_user_roles(
+    user_id: UUID, body: RolesUpdate, user: CurrentUser, factory: Sessions
+) -> UserAdminView:
+    with transaction(factory) as session:
+        actor = admin_users.get_actor(session, user.user_id)
+        return admin_users.update_roles(session, actor, user_id, list(body.roles))
 
 
 @router.post("/admin/users/{user_id}/disable", tags=["admin-users"], **guard(P.USER_MANAGE))
-def disable_user(user_id: UUID) -> UserAdminView:
-    not_implemented()
+def disable_user(user_id: UUID, user: CurrentUser, factory: Sessions, clock: Now) -> UserAdminView:
+    with transaction(factory) as session:
+        actor = admin_users.get_actor(session, user.user_id)
+        return admin_users.disable(session, actor, user_id, now=clock())
 
 
 @router.post("/admin/users/{user_id}/enable", tags=["admin-users"], **guard(P.USER_MANAGE))
-def enable_user(user_id: UUID) -> UserAdminView:
-    not_implemented()
+def enable_user(user_id: UUID, user: CurrentUser, factory: Sessions) -> UserAdminView:
+    with transaction(factory) as session:
+        actor = admin_users.get_actor(session, user.user_id)
+        return admin_users.enable(session, actor, user_id)
 
 
 @router.post(
@@ -215,8 +237,12 @@ def enable_user(user_id: UUID) -> UserAdminView:
     tags=["admin-users"],
     **guard(P.USER_MANAGE),
 )
-def create_reset_link(user_id: UUID) -> PasswordResetLink:
-    not_implemented()
+def create_reset_link(
+    user_id: UUID, user: CurrentUser, factory: Sessions, clock: Now
+) -> PasswordResetLink:
+    with transaction(factory) as session:
+        actor = admin_users.get_actor(session, user.user_id)
+        return admin_users.create_reset_link(session, actor, user_id, now=clock())
 
 
 @router.get("/models", tags=["models"], **guard(P.MODEL_READ))
@@ -281,6 +307,7 @@ def get_budget() -> None:
 
 @router.get("/audit-log", tags=["audit-log"], **guard(P.AUDIT_READ))
 def list_audit_log(
+    factory: Sessions,
     actor_id: UUID | None = None,
     action: str | None = None,
     entity_type: str | None = None,
@@ -290,7 +317,9 @@ def list_audit_log(
     cursor: Cursor = None,
     limit: Limit = 50,
 ) -> AuditLogPage:
-    not_implemented()
+    filters = AuditFilter(actor_id, action, entity_type, entity_id, since, until)
+    with transaction(factory) as session:
+        return list_entries(session, filters, cursor=cursor, limit=limit)
 
 
 # Trang xác minh report công khai, không cần đăng nhập.

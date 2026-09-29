@@ -39,14 +39,6 @@ RUN_ID = "00000000-0000-5000-8000-000000000001"
 # Endpoint xác thực công khai (requirements.md Phase 4, mục Bảo vệ endpoint).
 PUBLIC_AUTH_PATHS = {"/auth/request-access", "/auth/login", "/auth/password-reset"}
 SAMPLE_CALLS = [
-    # Phase 4: khung cho tới Group 2-3 (/auth/* đã cài đặt ở Group 1, test trong tests/db).
-    ("get", "/admin/users"),
-    ("post", "/admin/users/" + RUN_ID + "/approve"),
-    ("post", "/admin/users/" + RUN_ID + "/reject"),
-    ("put", "/admin/users/" + RUN_ID + "/roles"),
-    ("post", "/admin/users/" + RUN_ID + "/disable"),
-    ("post", "/admin/users/" + RUN_ID + "/enable"),
-    ("post", "/admin/users/" + RUN_ID + "/reset-link"),
     ("get", "/models"),
     ("get", "/datasets"),
     ("get", "/slices"),
@@ -57,7 +49,6 @@ SAMPLE_CALLS = [
     ("get", "/reports/" + RUN_ID),
     ("get", "/compute-targets"),
     ("get", "/budget"),
-    ("get", "/audit-log"),
     ("get", "/verify/" + RUN_ID),
     # Endpoint worker còn là khung (Phase 7).
     ("post", "/internal/worker/experiments/" + RUN_ID + "/search-result"),
@@ -65,9 +56,6 @@ SAMPLE_CALLS = [
 # Endpoint có body bắt buộc: gửi body hợp lệ lấy từ contracts/mocks.
 MOCKS = Path(__file__).resolve().parents[4] / "contracts" / "mocks"
 BODIES = {
-    "/admin/users/" + RUN_ID + "/approve": "approve_request/engineer.json",
-    "/admin/users/" + RUN_ID + "/reject": "reject_request/default.json",
-    "/admin/users/" + RUN_ID + "/roles": "roles_update/engineer_reviewer.json",
     "/internal/worker/heartbeat": "heartbeat_request/default.json",
     "/internal/worker/runs/" + RUN_ID + "/artifact-url": "artifact_url_request/put_candidate.json",
     "/internal/worker/runs/" + RUN_ID + "/start": "run_start_request/gpu_local.json",
