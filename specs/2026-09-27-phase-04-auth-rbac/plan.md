@@ -60,7 +60,7 @@
 
 ## Group 6 — Frontend: trang admin `[agent: frontend]`
 
-31. Trang người dùng: tab chờ duyệt / tất cả; bảng trên desktop, thẻ trên điện thoại; hành động duyệt, từ chối, đổi role, vô hiệu hóa, kích hoạt, tạo link đặt lại (hiện link + nút copy).
+31. Trang người dùng: tab chờ duyệt / tất cả; bảng trên desktop, thẻ trên điện thoại; hành động duyệt, từ chối, đổi role, vô hiệu hóa, kích hoạt, tạo link đặt lại (hiện link + nút copy). Sau khi duyệt/từ chối, làm mới `PENDING_USERS_QUERY_KEY` (số chờ duyệt trên `/home`, từ review Group 5).
 32. Trang audit log: bộ lọc, danh sách phân trang; bảng trên desktop, thẻ trên điện thoại; hash và ID dài rút gọn ở giữa kèm nút copy.
 33. Cấu hình Playwright với 3 viewport (390×844, 820×1180, 1440×900).
 
