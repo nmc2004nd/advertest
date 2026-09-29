@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Annotated, Any
 
 from fastapi import Depends, FastAPI, status
-from fastapi.routing import APIRoute
+from fastapi.routing import APIRoute, RouteContext, iter_route_contexts
 
 from advertest_contracts.enums import ErrorCode
 from advertest_contracts.permissions import AUTHENTICATED, Permission, PermissionRequirement
@@ -60,7 +60,7 @@ def guard(requirement: PermissionRequirement) -> dict[str, Any]:
     }
 
 
-def _declared(route: APIRoute) -> list[str]:
+def _declared(route: RouteContext) -> list[str]:
     return [
         str(dep.call.requirement)
         for dep in route.dependant.dependencies
@@ -70,19 +70,23 @@ def _declared(route: APIRoute) -> list[str]:
 
 def route_permission_errors(app: FastAPI) -> list[str]:
     errors = []
-    for route in app.routes:
-        if not isinstance(route, APIRoute):
+    # FastAPI giữ router con dưới dạng tham chiếu (không chép route vào app.routes):
+    # `iter_route_contexts` trả route thật với đường dẫn đầy đủ và dependency của cả router, như
+    # khi sinh OpenAPI.
+    for route in iter_route_contexts(app.routes):
+        if not isinstance(route.original_route, APIRoute):
             continue
-        if route.path in PUBLIC_PATHS or route.path.startswith(WORKER_PREFIX):
+        path = route.path or ""
+        if path in PUBLIC_PATHS or path.startswith(WORKER_PREFIX):
             continue
         declared = _declared(route)
         extra = (route.openapi_extra or {}).get(X_PERMISSION)
         methods = ",".join(sorted(route.methods or ()))
         if len(declared) != 1:
-            errors.append(f"{methods} {route.path}: cần đúng một require_permission")
+            errors.append(f"{methods} {path}: cần đúng một require_permission")
         elif extra != declared[0]:
             errors.append(
-                f"{methods} {route.path}: x-permission {extra!r} khác dependency {declared[0]!r}"
+                f"{methods} {path}: x-permission {extra!r} khác dependency {declared[0]!r}"
             )
     return errors
 
