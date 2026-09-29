@@ -41,6 +41,7 @@ from backend.app.tests.db.conftest import _url, make_user
 from backend.app.tests.db.local_store_factory import LocalData, build_local_store
 from ml_core.runner import executor as executor_module
 from ml_core.runner.config import LocalRunConfig
+from ml_core.store import PresignedStore
 
 pytestmark = pytest.mark.db
 
@@ -268,6 +269,7 @@ def test_resume_after_worker_dies(
     _, runs = _state(app_engine, setup.experiment_id)
     assert runs[0].status == RunStatus.RUNNING and runs[0].images_done == 1
     assert runs[0].checkpoint_key == f"runs/{runs[0].id}/checkpoints/0.json"
+    assert buckets.artifacts.list(f"runs/{runs[0].id}/checkpoints/") == [runs[0].checkpoint_key]
 
     clock.advance(30)
     assert setup.client.lease() is None  # lease cũ còn hạn
@@ -284,6 +286,12 @@ def test_resume_after_worker_dies(
     expected = {(r.id, i) for r in runs for i in world.local.slice.image_ids}
     assert set(processed) == expected and set(processed.values()) == {1}
     assert buckets.artifacts.list(f"runs/{runs[0].id}/candidates/") == []
+    # Checkpoint cũ (kể cả checkpoint trong bundle khi chạy tiếp) bị xóa; mỗi run còn đúng
+    # checkpoint cuối cùng.
+    for run in runs:
+        assert buckets.artifacts.list(f"runs/{run.id}/checkpoints/") == [
+            f"runs/{run.id}/checkpoints/1.json"
+        ]
 
 
 def test_time_limit_gives_partial_result(
@@ -357,3 +365,24 @@ def test_corrupt_checkpoint_fails_only_that_run(
     assert [r.status for r in runs] == [RunStatus.FAILED, RunStatus.COMPLETED]
     assert runs[0].status_reason is not None and "Error" in runs[0].status_reason["message"]
     assert experiment.status == ExperimentStatus.COMPLETED
+
+
+def test_failed_checkpoint_delete_does_not_fail_run(
+    app_engine: Engine, world: World, api: TestClient, clock: FakeClock, buckets: Buckets,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:  # fmt: skip
+    setup = _submit(app_engine, world, api, clock, seed=707)
+    _profile(setup, world, sec_per_image=0.01, batch_size=1)
+    original = PresignedStore.delete
+
+    def flaky_delete(self: PresignedStore, key: str) -> None:
+        if "/checkpoints/" in key:
+            raise httpx.ConnectError("MinIO tạm tắt")
+        original(self, key)
+
+    monkeypatch.setattr(PresignedStore, "delete", flaky_delete)
+    _lease_and_run(_runner(setup, tmp_path, clock), setup)
+    experiment, runs = _state(app_engine, setup.experiment_id)
+    assert experiment.status == ExperimentStatus.COMPLETED
+    assert [r.status for r in runs] == [RunStatus.COMPLETED, RunStatus.COMPLETED]
+    assert len(buckets.artifacts.list(f"runs/{runs[0].id}/checkpoints/")) == 2  # không xóa được

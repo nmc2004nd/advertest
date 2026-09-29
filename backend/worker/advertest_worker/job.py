@@ -356,6 +356,8 @@ class JobRunner:
             return
         profile = job.profiles.get(spec.id)
         batch_size = profile.batch_size if profile else DEFAULT_BATCH_SIZE
+        # Checkpoint mà API đang trỏ tới (từ bundle khi chạy tiếp); bị xóa khi có checkpoint mới.
+        previous_key = run.checkpoint.key if run.checkpoint is not None else None
         try:
             while executor.remaining_ids():
                 directive = job.box.current()
@@ -397,6 +399,8 @@ class JobRunner:
                 )
                 job.box.update(directive)
                 job.remaining_seconds = directive.remaining_seconds
+                self._drop_checkpoint(store, previous_key, key)
+                previous_key = key
                 batch_index += 1
                 logger.info(
                     "[%s %g] %d/%d ảnh",
@@ -420,6 +424,18 @@ class JobRunner:
             raise
         except Exception as exc:  # một run lỗi không dừng các run khác
             finish.failed(exc, executor)
+
+    @staticmethod
+    def _drop_checkpoint(store: PresignedStore, previous: str | None, current: str) -> None:
+        """Xóa checkpoint cũ sau khi API đã nhận checkpoint mới (`progress` thành công): API
+        không còn trỏ tới nó. Checkpoint cuối cùng của run được giữ lại (xóa trước `complete`
+        thì worker chết đúng lúc đó sẽ không chạy tiếp được). Lỗi khi xóa chỉ ghi cảnh báo."""
+        if previous is None or previous == current:
+            return
+        try:
+            store.delete(previous)
+        except Exception:
+            logger.warning("Không xóa được checkpoint cũ %s", previous, exc_info=True)
 
     def _executor(
         self,
