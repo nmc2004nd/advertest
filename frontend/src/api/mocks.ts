@@ -2,7 +2,21 @@
  * Dữ liệu mock đọc từ contracts/mocks (đã được validate theo schema trong CI).
  * Chỉ được nạp khi VITE_USE_MOCKS=true.
  */
-import type { HealthResponse, Me, RunResultOutput as RunResult } from '@/contracts/api'
+import type {
+  ClassMappingSummary,
+  DatasetVersionSummary,
+  ExperimentClone,
+  ExperimentDetail,
+  ExperimentPage,
+  FailureCaseView,
+  HealthResponse,
+  Manifest,
+  Me,
+  ModelSummary,
+  RunResultOutput as RunResult,
+  RunView,
+  SliceSummary,
+} from '@/contracts/api'
 
 const files = import.meta.glob<unknown>('../../../contracts/mocks/**/*.json', {
   eager: true,
@@ -18,18 +32,86 @@ export function listMocks<T>(schema: string): T[] {
     .map(([, data]) => data as T)
 }
 
+/** Danh sách mock có trường `field` bằng `value` (bỏ qua khi `value` rỗng). */
+function where<T>(schema: string, field: keyof T, value: string | null): T[] {
+  const all = listMocks<T>(schema)
+  return value ? all.filter((item) => String(item[field]) === value) : all
+}
+
+function first<T>(items: T[], path: string): T {
+  if (items.length === 0) throw new Error(`Không có mock cho GET ${path}`)
+  return items[0]
+}
+
+/** Dữ liệu mock cho các GET của Phase 5 (wizard, experiment, run, failure case). */
+function mockPhase5(pathname: string, query: URLSearchParams): unknown {
+  const id = '([0-9a-f-]{36})'
+  const match = (pattern: string) => new RegExp(`^${pattern}$`).exec(pathname)
+  const simple: Record<string, string> = {
+    '/models': 'model_summary',
+    '/datasets': 'dataset_summary',
+    '/attack-specs': 'attack_spec',
+    '/protocols': 'protocol_summary',
+    '/compute-targets': 'compute_target_public',
+  }
+  if (pathname in simple) return listMocks(simple[pathname])
+  if (pathname === '/slices') {
+    return where<SliceSummary>('slice_summary', 'dataset_version_id', query.get('dataset_version'))
+  }
+  if (pathname === '/class-mappings') {
+    const byVersion = where<ClassMappingSummary>(
+      'class_mapping_summary',
+      'dataset_version_id',
+      query.get('dataset_version'),
+    )
+    const model = query.get('model')
+    return model ? byVersion.filter((m) => m.model_version_id === model) : byVersion
+  }
+  if (pathname === '/experiments')
+    return first(listMocks<ExperimentPage>('experiment_page'), pathname)
+  let m = match(`/models/${id}`)
+  if (m) return first(where<ModelSummary>('model_summary', 'id', m[1]), pathname)
+  m = match(`/dataset-versions/${id}`)
+  if (m) return first(where<DatasetVersionSummary>('dataset_version_summary', 'id', m[1]), pathname)
+  m = match(`/experiments/${id}`)
+  if (m) return first(where<ExperimentDetail>('experiment_detail', 'id', m[1]), pathname)
+  m = match(`/experiments/${id}/runs`)
+  if (m) return where<RunView>('run_view', 'experiment_id', m[1])
+  m = match(`/experiments/${id}/clone`)
+  if (m) {
+    const clones = listMocks<ExperimentClone>('experiment_clone')
+    return clones.find((c) => c.config.cloned_from === m?.[1]) ?? first(clones, pathname)
+  }
+  m = match(`/runs/${id}`)
+  if (m) {
+    const view = where<RunView>('run_view', 'run_id', m[1])
+    return view[0] ?? first(where<RunResult>('run_result', 'run_id', m[1]), pathname)
+  }
+  m = match(`/runs/${id}/manifest`)
+  if (m) return first(listMocks<Manifest>('manifest'), pathname)
+  m = match(`/runs/${id}/failure-cases`)
+  if (m) {
+    // Một view mỗi case (mock có nhiều display_mode cho cùng case): ưu tiên bản chỉ có thumbnail.
+    const views = where<FailureCaseView>('failure_case_view', 'run_id', m[1])
+    const byId = new Map<string, FailureCaseView>()
+    for (const view of views) {
+      if (!byId.has(view.id) || view.urls.clean === null) byId.set(view.id, view)
+    }
+    return [...byId.values()].sort((a, b) => b.severity_score - a.severity_score)
+  }
+  m = match(`/failure-cases/${id}`)
+  if (m) return first(where<FailureCaseView>('failure_case_view', 'id', m[1]), pathname)
+  throw new Error(`Không có mock cho GET ${pathname}`)
+}
+
 export function mockGet(path: string): unknown {
   if (path === '/health') {
     const ok = listMocks<HealthResponse>('health_response').find((h) => h.status === 'ok')
     if (ok) return ok
   }
   if (path === '/auth/me') return mockMe()
-  const run = /^\/runs\/([0-9a-f-]{36})$/.exec(path)
-  if (run) {
-    const found = listMocks<RunResult>('run_result').find((r) => r.run_id === run[1])
-    if (found) return found
-  }
-  throw new Error(`Không có mock cho GET ${path}`)
+  const url = new URL(path, 'http://mock.invalid')
+  return mockPhase5(url.pathname, url.searchParams)
 }
 
 /** Người dùng của chế độ mock: mock `me/<VITE_MOCK_ME>.json`, mặc định `admin`. */
