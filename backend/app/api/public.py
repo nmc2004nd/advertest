@@ -17,6 +17,7 @@ from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, Response, Security, status
+from sqlalchemy.orm import Session
 
 from advertest_contracts.enums import ErrorCode, ExperimentStatus, UserStatus
 from advertest_contracts.models import (
@@ -54,7 +55,14 @@ from advertest_contracts.models import (
 from advertest_contracts.permissions import AUTHENTICATED
 from advertest_contracts.permissions import Permission as P
 from backend.app.admin import users as admin_users
-from backend.app.api.deps import SessionFactory, get_clock, get_sessionmaker, transaction
+from backend.app.api.deps import (
+    ArtifactReader,
+    SessionFactory,
+    get_artifact_reader,
+    get_clock,
+    get_sessionmaker,
+    transaction,
+)
 from backend.app.api.errors import (
     AUTH_REQUIRED_RESPONSES,
     NOT_IMPLEMENTED_RESPONSE,
@@ -66,10 +74,19 @@ from backend.app.api.security import user_session
 from backend.app.audit.query import AuditFilter, list_entries
 from backend.app.auth import service as auth_service
 from backend.app.auth import sessions
-from backend.app.auth.deps import CurrentUser
+from backend.app.auth.deps import CurrentUser, Principal
 from backend.app.auth.permissions import guard
-from backend.app.services import catalog
+from backend.app.db import models as m
+from backend.app.services import (
+    artifacts,
+    catalog,
+    estimate,
+    experiment_config,
+    experiment_views,
+    experiments,
+)
 from backend.app.services.clock import Clock
+from ml_core.store import KeyNotFoundError
 
 Sessions = Annotated[SessionFactory, Depends(get_sessionmaker)]
 Now = Annotated[Clock, Depends(get_clock)]
@@ -343,6 +360,15 @@ def list_compute_targets(factory: Sessions, clock: Now) -> list[ComputeTargetPub
 
 # ---------------------------------------------------------------- Phase 5: experiment
 
+Artifacts = Annotated[ArtifactReader, Depends(get_artifact_reader)]
+
+
+def _actor(session: Session, user: Principal) -> m.User:
+    actor = session.get(m.User, user.user_id)
+    assert actor is not None  # current_user vừa đọc user này
+    return actor
+
+
 CONFLICT_RESPONSE: dict[int | str, dict[str, Any]] = {
     status.HTTP_409_CONFLICT: {"model": ErrorResponse, "description": "Sai trạng thái"}
 }
@@ -350,13 +376,25 @@ CONFLICT_RESPONSE: dict[int | str, dict[str, Any]] = {
 
 @router.get("/experiments", tags=["experiments"], **guard(P.EXPERIMENT_READ))
 def list_experiments(
+    user: CurrentUser,
+    factory: Sessions,
     owner: Literal["me", "all"] = "all",
     status: ExperimentStatus | None = None,
     model: UUID | None = None,
     cursor: Cursor = None,
     limit: Limit = 50,
 ) -> ExperimentPage:
-    not_implemented()
+    """Mới nhất trước; `owner=me` chỉ experiment của mình."""
+    with transaction(factory) as session:
+        return experiment_views.list_experiments(
+            session,
+            viewer_id=user.user_id,
+            owner=owner,
+            status=status,
+            model_version_id=model,
+            cursor=cursor,
+            limit=limit,
+        )
 
 
 @router.post(
@@ -368,14 +406,22 @@ def list_experiments(
     },
     **guard(P.EXPERIMENT_CREATE),
 )
-def create_experiment(body: ExperimentCreate) -> ExperimentDetail:
-    not_implemented()
+def create_experiment(
+    body: ExperimentCreate, user: CurrentUser, factory: Sessions, clock: Now
+) -> ExperimentDetail:
+    """Kiểm tra cấu hình (422 có đường dẫn trường), tối đa 3 experiment đang chờ mỗi người
+    (409 `queue_limit_reached`); tạo experiment `queued` và danh sách run."""
+    with transaction(factory) as session:
+        actor = _actor(session, user)
+        experiment = experiments.create_from_body(session, actor=actor, body=body, clock=clock)
+        return experiment_views.detail(session, experiment.id)
 
 
 @router.post("/experiments/estimate", tags=["experiments"], **guard(P.EXPERIMENT_CREATE))
-def estimate_experiment(body: ExperimentCreate) -> EstimateResponse:
+def estimate_experiment(body: ExperimentCreate, factory: Sessions) -> EstimateResponse:
     """Kiểm tra cấu hình như khi tạo; không tạo gì."""
-    not_implemented()
+    with transaction(factory) as session:
+        return estimate.estimate_config(session, experiment_config.check(session, body))
 
 
 @router.get(
@@ -384,8 +430,9 @@ def estimate_experiment(body: ExperimentCreate) -> EstimateResponse:
     responses=NOT_FOUND_RESPONSE,
     **guard(P.EXPERIMENT_READ),
 )
-def get_experiment(experiment_id: UUID) -> ExperimentDetail:
-    not_implemented()
+def get_experiment(experiment_id: UUID, factory: Sessions) -> ExperimentDetail:
+    with transaction(factory) as session:
+        return experiment_views.detail(session, experiment_id)
 
 
 @router.get(
@@ -394,8 +441,9 @@ def get_experiment(experiment_id: UUID) -> ExperimentDetail:
     responses=NOT_FOUND_RESPONSE,
     **guard(P.EXPERIMENT_READ),
 )
-def list_experiment_runs(experiment_id: UUID) -> list[RunView]:
-    not_implemented()
+def list_experiment_runs(experiment_id: UUID, factory: Sessions) -> list[RunView]:
+    with transaction(factory) as session:
+        return experiment_views.list_runs(session, experiment_id)
 
 
 @router.post(
@@ -404,9 +452,16 @@ def list_experiment_runs(experiment_id: UUID) -> list[RunView]:
     responses=NOT_FOUND_RESPONSE | CONFLICT_RESPONSE,
     **guard(P.EXPERIMENT_CANCEL_OWN),
 )
-def cancel_experiment(experiment_id: UUID) -> ExperimentDetail:
-    """Chỉ chủ sở hữu (kiểm tra ở service); trạng thái `queued` hoặc `running`."""
-    not_implemented()
+def cancel_experiment(
+    experiment_id: UUID, user: CurrentUser, factory: Sessions, clock: Now
+) -> ExperimentDetail:
+    """Chỉ chủ sở hữu (403 với người khác); trạng thái `queued` hoặc `running` (409 nếu khác)."""
+    with transaction(factory) as session:
+        actor = _actor(session, user)
+        experiments.cancel(
+            session, actor=actor, experiment_id=experiment_id, owner_only=True, clock=clock
+        )
+        return experiment_views.detail(session, experiment_id)
 
 
 @router.get(
@@ -415,15 +470,17 @@ def cancel_experiment(experiment_id: UUID) -> ExperimentDetail:
     responses=NOT_FOUND_RESPONSE,
     **guard(P.EXPERIMENT_CREATE),
 )
-def clone_experiment(experiment_id: UUID) -> ExperimentClone:
-    not_implemented()
+def clone_experiment(experiment_id: UUID, factory: Sessions) -> ExperimentClone:
+    with transaction(factory) as session:
+        return experiment_views.clone(session, experiment_id)
 
 
 @router.get(
     "/runs/{run_id}", tags=["runs"], responses=NOT_FOUND_RESPONSE, **guard(P.EXPERIMENT_READ)
 )
-def get_run(run_id: UUID) -> RunView:
-    not_implemented()
+def get_run(run_id: UUID, factory: Sessions) -> RunView:
+    with transaction(factory) as session:
+        return experiment_views.get_run(session, run_id)
 
 
 @router.get(
@@ -432,8 +489,9 @@ def get_run(run_id: UUID) -> RunView:
     responses=NOT_FOUND_RESPONSE,
     **guard(P.EXPERIMENT_READ),
 )
-def get_run_manifest(run_id: UUID) -> Manifest:
-    not_implemented()
+def get_run_manifest(run_id: UUID, factory: Sessions, read: Artifacts) -> Manifest:
+    with transaction(factory) as session:
+        return experiment_views.manifest(session, read, run_id)
 
 
 @router.get(
@@ -442,9 +500,10 @@ def get_run_manifest(run_id: UUID) -> Manifest:
     responses=NOT_FOUND_RESPONSE,
     **guard(P.EXPERIMENT_READ),
 )
-def list_run_failure_cases(run_id: UUID) -> list[FailureCaseView]:
+def list_run_failure_cases(run_id: UUID, factory: Sessions, clock: Now) -> list[FailureCaseView]:
     """Sắp theo `severity_score` giảm dần; chỉ có URL thumbnail."""
-    not_implemented()
+    with transaction(factory) as session:
+        return artifacts.list_cases(session, run_id, clock())
 
 
 @router.get(
@@ -453,8 +512,9 @@ def list_run_failure_cases(run_id: UUID) -> list[FailureCaseView]:
     responses=NOT_FOUND_RESPONSE,
     **guard(P.EXPERIMENT_READ),
 )
-def get_failure_case(case_id: UUID) -> FailureCaseView:
-    not_implemented()
+def get_failure_case(case_id: UUID, factory: Sessions, clock: Now) -> FailureCaseView:
+    with transaction(factory) as session:
+        return artifacts.get_case(session, case_id, clock())
 
 
 @router.get(
@@ -473,10 +533,24 @@ def get_failure_case(case_id: UUID) -> FailureCaseView:
     },
     **guard(P.EXPERIMENT_READ),
 )
-def get_artifact(token: str) -> Response:
-    """Stream ảnh từ MinIO. Cần cả phiên có `experiment.read` lẫn token do API cấp trong
-    `FailureCaseView.urls`."""
-    not_implemented()
+def get_artifact(token: str, read: Artifacts, clock: Now) -> Response:
+    """Ảnh từ MinIO. Cần cả phiên có `experiment.read` lẫn token do API cấp trong
+    `FailureCaseView.urls`; token sai, bị sửa hoặc hết hạn → 404 (không phân biệt)."""
+    key = artifacts.verify(token, clock())
+    if key is None:
+        raise ApiError(status.HTTP_404_NOT_FOUND, ErrorCode.NOT_FOUND, "Không tìm thấy ảnh")
+    try:
+        data = read(key)
+    except KeyNotFoundError as exc:
+        raise ApiError(
+            status.HTTP_404_NOT_FOUND, ErrorCode.NOT_FOUND, "Không tìm thấy ảnh"
+        ) from exc
+    # Ảnh riêng tư, URL hết hạn sau 10 phút: trình duyệt cache riêng, không qua cache dùng chung.
+    return Response(
+        content=data,
+        media_type=artifacts.media_type(key),
+        headers={"Cache-Control": "private, max-age=600"},
+    )
 
 
 @router.get("/reviews", tags=["reviews"], **guard(P.REVIEW_DECIDE))

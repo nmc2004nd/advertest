@@ -42,21 +42,10 @@ PUBLIC_AUTH_PATHS = {"/auth/request-access", "/auth/login", "/auth/password-rese
 # Phase 5 Group 1 cài đặt API đọc tài nguyên (/models, /datasets, /dataset-versions, /slices,
 # /class-mappings, /attack-specs, GET /protocols, /compute-targets): test với DB ở
 # tests/db/test_catalog_api.py.
+# Phase 5 Group 2 cài đặt experiment, run, failure case, ảnh: test với DB ở
+# tests/db/test_experiment_api.py, test_failure_case_api.py.
 SAMPLE_CALLS = [
     ("post", "/protocols"),
-    ("get", "/failure-cases/" + RUN_ID),
-    ("get", "/runs/" + RUN_ID),
-    # Phase 5 Group 0: khung cho experiment, run, failure case, ảnh.
-    ("get", "/experiments"),
-    ("post", "/experiments"),
-    ("post", "/experiments/estimate"),
-    ("get", "/experiments/" + RUN_ID),
-    ("get", "/experiments/" + RUN_ID + "/runs"),
-    ("post", "/experiments/" + RUN_ID + "/cancel"),
-    ("get", "/experiments/" + RUN_ID + "/clone"),
-    ("get", "/runs/" + RUN_ID + "/manifest"),
-    ("get", "/runs/" + RUN_ID + "/failure-cases"),
-    ("get", "/artifacts/token-mau"),
     ("get", "/reviews"),
     ("get", "/reports/" + RUN_ID),
     ("get", "/budget"),
@@ -68,8 +57,6 @@ SAMPLE_CALLS = [
 MOCKS = Path(__file__).resolve().parents[4] / "contracts" / "mocks"
 BODIES = {
     "/protocols": "protocol_body/default.json",
-    "/experiments": "experiment_create/fgsm_pgd.json",
-    "/experiments/estimate": "experiment_create/fgsm_pgd.json",
     "/internal/worker/heartbeat": "heartbeat_request/default.json",
     "/internal/worker/runs/" + RUN_ID + "/artifact-url": "artifact_url_request/put_candidate.json",
     "/internal/worker/runs/" + RUN_ID + "/start": "run_start_request/gpu_local.json",

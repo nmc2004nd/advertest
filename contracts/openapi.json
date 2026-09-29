@@ -1828,6 +1828,7 @@
           "experiments"
         ],
         "summary": "List Experiments",
+        "description": "Mới nhất trước; `owner=me` chỉ experiment của mình.",
         "operationId": "list_experiments_experiments_get",
         "security": [
           {
@@ -1972,6 +1973,7 @@
           "experiments"
         ],
         "summary": "Create Experiment",
+        "description": "Kiểm tra cấu hình (422 có đường dẫn trường), tối đa 3 experiment đang chờ mỗi người\n(409 `queue_limit_reached`); tạo experiment `queued` và danh sách run.",
         "operationId": "create_experiment_experiments_post",
         "security": [
           {
@@ -2319,7 +2321,7 @@
           "experiments"
         ],
         "summary": "Cancel Experiment",
-        "description": "Chỉ chủ sở hữu (kiểm tra ở service); trạng thái `queued` hoặc `running`.",
+        "description": "Chỉ chủ sở hữu (403 với người khác); trạng thái `queued` hoặc `running` (409 nếu khác).",
         "operationId": "cancel_experiment_experiments__experiment_id__cancel_post",
         "security": [
           {
@@ -2869,7 +2871,7 @@
           "artifacts"
         ],
         "summary": "Get Artifact",
-        "description": "Stream ảnh từ MinIO. Cần cả phiên có `experiment.read` lẫn token do API cấp trong\n`FailureCaseView.urls`.",
+        "description": "Ảnh từ MinIO. Cần cả phiên có `experiment.read` lẫn token do API cấp trong\n`FailureCaseView.urls`; token sai, bị sửa hoặc hết hạn → 404 (không phân biệt).",
         "operationId": "get_artifact_artifacts__token__get",
         "security": [
           {

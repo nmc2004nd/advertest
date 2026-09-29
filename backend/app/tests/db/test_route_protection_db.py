@@ -86,7 +86,9 @@ def test_union_of_roles(env: Env) -> None:
     _, email = _user(env.engine, roles=(Role.ENGINEER, Role.REVIEWER))
     client = env.client()
     _login(client, email)
-    assert _call(client, Permission.EXPERIMENT_CREATE)[0] == 501
+    # POST /experiments đã cài đặt (Phase 5 Group 2): body mẫu trỏ tới tài nguyên không có → 422
+    # tại route, tức đã qua kiểm tra quyền.
+    assert _call(client, Permission.EXPERIMENT_CREATE) == (422, "invalid_request")
     assert _call(client, Permission.REVIEW_DECIDE)[0] == 501
     assert _call(client, Permission.AUDIT_READ) == (403, "forbidden")
 
@@ -95,7 +97,7 @@ def test_removing_a_role_takes_effect_on_the_next_request(env: Env) -> None:
     user_id, email = _user(env.engine, roles=(Role.ENGINEER, Role.REVIEWER))
     client = env.client()
     _login(client, email)
-    assert _call(client, Permission.EXPERIMENT_CREATE)[0] == 501
+    assert _call(client, Permission.EXPERIMENT_CREATE) == (422, "invalid_request")
     with Session(env.engine) as session, session.begin():
         session.execute(
             delete(m.UserRole).where(

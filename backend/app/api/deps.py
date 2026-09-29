@@ -6,7 +6,7 @@ dependency có `yield`, để commit luôn xảy ra trước khi trả response.
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import cache
@@ -43,6 +43,15 @@ class Storage:
 @cache
 def get_storage() -> Storage:
     return Storage(buckets=Buckets.from_client(make_s3_client()), presigner=Presigner.from_env())
+
+
+ArtifactReader = Callable[[str], bytes]
+
+
+def get_artifact_reader() -> ArtifactReader:
+    """Đọc một đối tượng trong bucket artifacts. Kết nối MinIO chỉ mở khi thật sự đọc: route kiểm
+    tra token hay run trước (token sai → 404, không cần MinIO)."""
+    return lambda key: get_storage().buckets.artifacts.get(key)
 
 
 def get_clock() -> Clock:

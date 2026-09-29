@@ -12,7 +12,15 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from advertest_contracts.enums import ErrorCode
 from advertest_contracts.models import ErrorBody, ErrorResponse, FieldError
-from backend.app.services.errors import Conflict, Forbidden, Invalid, NotFound, ServiceError
+from backend.app.services.errors import (
+    Conflict,
+    Forbidden,
+    Invalid,
+    InvalidConfig,
+    NotFound,
+    QueueLimitReached,
+    ServiceError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +100,22 @@ HTTP_STATUS_CODES: dict[int, ErrorCode] = {
 }
 
 
+def _loc(error: Any) -> str:
+    return ".".join(str(part) for part in error.get("loc", ()) if part != "body")
+
+
+def validation_fields(exc: RequestValidationError) -> list[FieldError] | None:
+    """Đường dẫn từng trường sai (Phase 5: giao diện hiển thị lỗi tại đúng trường)."""
+    fields = [
+        FieldError(
+            path=_loc(error) or "body",
+            message=str(error.get("msg", "không hợp lệ")).removeprefix("Value error, "),
+        )
+        for error in exc.errors()
+    ]
+    return fields or None
+
+
 def validation_message(exc: RequestValidationError) -> str:
     """Thông điệp từ lỗi đầu tiên: đường dẫn trường và mô tả. Không lặp lại giá trị gửi lên
     (có thể là mật khẩu)."""
@@ -99,7 +123,7 @@ def validation_message(exc: RequestValidationError) -> str:
     if not errors:
         return "Dữ liệu gửi lên không hợp lệ"
     first = errors[0]
-    loc = ".".join(str(part) for part in first.get("loc", ()) if part != "body")
+    loc = _loc(first)
     message = str(first.get("msg", "không hợp lệ")).removeprefix("Value error, ")
     more = f" (và {len(errors) - 1} lỗi khác)" if len(errors) > 1 else ""
     return f"{loc}: {message}{more}" if loc else f"{message}{more}"
@@ -113,6 +137,7 @@ def install_error_handlers(app: FastAPI) -> None:
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             ErrorCode.VALIDATION_ERROR,
             validation_message(exc),
+            validation_fields(exc),
         )
 
     @app.exception_handler(StarletteHTTPException)
@@ -129,6 +154,12 @@ def install_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(ServiceError)
     async def _service_error(_: Request, exc: ServiceError) -> JSONResponse:
+        if isinstance(exc, InvalidConfig):
+            return error_response(
+                status.HTTP_422_UNPROCESSABLE_CONTENT, exc.code, str(exc), exc.fields
+            )
+        if isinstance(exc, QueueLimitReached):
+            return error_response(status.HTTP_409_CONFLICT, ErrorCode.QUEUE_LIMIT_REACHED, str(exc))
         status_code, code = next(
             mapping for cls, mapping in SERVICE_ERRORS.items() if isinstance(exc, cls)
         )
