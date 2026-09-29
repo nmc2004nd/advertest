@@ -23,7 +23,7 @@ from advertest_contracts.models import (
     StatusReason,
 )
 from backend.app.db import models as m
-from backend.app.services import audit, experiment_config
+from backend.app.services import audit, experiment_config, notifications
 from backend.app.services.clock import Clock, utcnow
 from backend.app.services.errors import Conflict, Forbidden, Invalid, NotFound, QueueLimitReached
 from ml_core.models.wrapper import DEFAULT_INFERENCE_PARAMS
@@ -293,6 +293,7 @@ def cancel(
     if not lease_alive:
         finish_cancelled(session, experiment, now)
     session.flush()
+    notifications.enqueue_experiment_finished(session, experiment)
     audit.record(
         session,
         actor=actor,

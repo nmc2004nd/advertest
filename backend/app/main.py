@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -11,16 +12,31 @@ from fastapi import FastAPI
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from backend.app.api import health, public, worker
+from backend.app.api.deps import get_sessionmaker
 from backend.app.api.errors import install_error_handlers
 from backend.app.auth.csrf import CsrfMiddleware
 from backend.app.auth.permissions import check_route_permissions
+from backend.app.services import notifications
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Kiểm tra lại lúc khởi động: bắt cả route được thêm sau create_app().
     check_route_permissions(app)
-    yield
+    # Phase 5: gửi email từ outbox khi đã cấu hình SMTP; chưa cấu hình thì email nằm chờ.
+    smtp = notifications.SmtpConfig.from_env()
+    if smtp is None:
+        yield
+        return
+    stop = asyncio.Event()
+    task = asyncio.create_task(
+        notifications.delivery_loop(get_sessionmaker(), notifications.smtp_sender(smtp), stop)
+    )
+    try:
+        yield
+    finally:
+        stop.set()
+        await task
 
 
 def create_app() -> FastAPI:

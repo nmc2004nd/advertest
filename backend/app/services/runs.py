@@ -33,7 +33,7 @@ from advertest_contracts.models import (
 from backend.app import storage
 from backend.app.db import models as m
 from backend.app.presign import Presigner
-from backend.app.services import leasing
+from backend.app.services import leasing, notifications
 from backend.app.services.clock import Clock, utcnow
 from backend.app.services.errors import Conflict, Forbidden, Invalid, NotFound
 from backend.app.services.experiments import TERMINAL_RUN, reason, runs_of
@@ -324,6 +324,7 @@ def _after_run(session: Session, experiment: m.Experiment, run: m.Run, clock: Cl
         if experiment.status == ExperimentStatus.RUNNING:
             experiment.status = ExperimentStatus.COMPLETED
             experiment.finished_at = now
+            notifications.enqueue_experiment_finished(session, experiment)
         experiment.lease_id = None
         experiment.lease_expires_at = None
     session.flush()
