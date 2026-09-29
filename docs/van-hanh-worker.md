@@ -9,10 +9,12 @@ Cách chạy mặc định trên máy phát triển là **chạy trực tiếp**
 ```bash
 cp .env.example .env          # thay mọi giá trị change-me; đặt ADVERTEST_DATA_DIR (đường dẫn tuyệt đối tới data/)
 GIT_COMMIT=$(git rev-parse HEAD) make up
-docker compose -f docker/compose.yaml --env-file .env exec api python -m backend.admin_cli.seed
+set -a; . ./.env; set +a
+docker compose -f docker/compose.yaml --env-file .env exec \
+  -e ADVERTEST_ADMIN_EMAIL -e ADVERTEST_ADMIN_PASSWORD api python -m backend.admin_cli.seed
 ```
 
-`seed` nạp attack catalog, compute target `local-dev` (chưa có token) và tài khoản admin trong `ADVERTEST_ADMIN_EMAIL`.
+`seed` nạp attack catalog, compute target `local-dev` (chưa có token) và tài khoản admin trong `ADVERTEST_ADMIN_EMAIL`. Mật khẩu admin chỉ được truyền vào lệnh seed, không nằm trong môi trường thường trực của `api`.
 
 Các lệnh quản trị bên dưới chạy trong container `api`; viết tắt:
 
@@ -38,12 +40,15 @@ Token chỉ hiện **một lần**; DB chỉ lưu sha256. Đặt token vào `WOR
 ## 3. Đăng ký dữ liệu và gửi experiment
 
 ```bash
-admin import-local --store "$ADVERTEST_DATA_DIR/store" --as admin@example.com
-admin submit --config configs/examples/pgd_sweep.yaml --target local-dev --as admin@example.com
+# import-local đọc file của LocalStore (quyền 0600, thuộc user của máy): chạy bằng uid của máy.
+docker compose -f docker/compose.yaml --env-file .env exec -u "$(id -u):$(id -g)" api \
+  advertest-admin import-local --store "$ADVERTEST_DATA_DIR/store" --as admin@example.com
+cp configs/examples/pgd_sweep.yaml "$ADVERTEST_DATA_DIR/"
+admin submit --config "$ADVERTEST_DATA_DIR/pgd_sweep.yaml" --target local-dev --as admin@example.com
 ```
 
 - `import-local` đăng ký model, dataset, slice, mapping (id giữ nguyên như trong `LocalStore`) và chỉ upload ảnh thuộc slice.
-- File cấu hình phải có trong container `api`. Chép vào thư mục đã mount (`$ADVERTEST_DATA_DIR`) hoặc dùng `docker compose cp`.
+- File cấu hình phải có trong container `api`, nên chép vào thư mục đã mount (`$ADVERTEST_DATA_DIR`).
 - `submit` in id experiment, số run và ước lượng thời gian. Chưa có cost profile thì in "chưa có ước lượng"; lần chạy đầu worker sẽ tự calibration.
 
 ## 4. Chạy worker
@@ -97,6 +102,7 @@ Kịch bản kiểm tra (Manual Checks trong `validation.md`):
 |---|---|
 | Worker báo 401 | Token sai hoặc đã bị xoay: `rotate-token` rồi cập nhật `WORKER_TOKEN`. |
 | Tải ảnh hoặc upload báo 403 `SignatureDoesNotMatch` | Worker gọi MinIO qua host khác với `MINIO_PUBLIC_ENDPOINT`. Giữ mặc định `http://127.0.0.1:9000`. |
+| `import-local` báo `Permission denied` | File của `LocalStore` có quyền 0600: chạy lệnh với `exec -u "$(id -u):$(id -g)"`. |
 | `import-local` không tìm thấy ảnh | `ADVERTEST_DATA_DIR` chưa đặt, hoặc không trùng đường dẫn tuyệt đối lúc import vào `LocalStore`. |
 | Worker trong Docker báo `GIT_COMMIT không phải commit hash` | Build không qua `docker/worker/up.sh`: image giữ `GIT_COMMIT=unknown`. |
 | Hết VRAM | Worker tự giảm batch size một bậc và gửi cost profile mới; lỗi vẫn còn ở batch 1 thì run `failed`. |
