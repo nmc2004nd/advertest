@@ -18,7 +18,9 @@ from sqlalchemy import (
     DateTime,
     Double,
     Enum,
+    FetchedValue,
     ForeignKey,
+    Index,
     Integer,
     MetaData,
     Numeric,
@@ -170,6 +172,7 @@ class ComputeTarget(Base):
             "billing_mode = 'none' OR (price_per_hour IS NOT NULL AND currency IS NOT NULL)",
             name="hourly_needs_price",
         ),
+        CheckConstraint("default_time_limit_s <= max_time_limit_s", name="default_within_max"),
     )
 
     id: Mapped[UUID] = _uuid_pk()
@@ -183,6 +186,8 @@ class ComputeTarget(Base):
     token_hash: Mapped[str | None] = mapped_column(Text)
     # tech-stack.md mục 4.2: trần thời gian mặc định 2 giờ cho máy local.
     default_time_limit_s: Mapped[int] = mapped_column(Integer, server_default=text("7200"))
+    # Phase 5: trần người dùng được chọn trong wizard (mặc định 8 giờ).
+    max_time_limit_s: Mapped[int] = mapped_column(Integer, server_default=text("28800"))
     last_heartbeat_at: Mapped[datetime | None]
 
 
@@ -301,8 +306,12 @@ class Protocol(Base):
 
 class Experiment(Base):
     __tablename__ = "experiments"
+    # Phân trang keyset theo (created_at, id) (Phase 5).
+    __table_args__ = (Index("ix_experiments_created_at_id", "created_at", "id"),)
 
     id: Mapped[UUID] = _uuid_pk()
+    # Bỏ trống thì trigger `experiments_default_name` đặt `<model> · <slice> · <ngày UTC>`.
+    name: Mapped[str] = mapped_column(Text, server_default=FetchedValue())
     created_by: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
     protocol_id: Mapped[UUID] = mapped_column(ForeignKey("protocols.id"))
     model_version_id: Mapped[UUID] = mapped_column(ForeignKey("model_versions.id"))
@@ -326,6 +335,10 @@ class Experiment(Base):
     processing_seconds_used: Mapped[Decimal] = mapped_column(Money, server_default=text("0"))
     inference_params: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     failure_cases_per_run: Mapped[int | None]
+    # Phase 5.
+    created_at: Mapped[datetime] = _created_at()
+    cloned_from: Mapped[UUID | None] = mapped_column(ForeignKey("experiments.id"))
+    finished_at: Mapped[datetime | None]
 
 
 class Run(Base):
@@ -477,3 +490,31 @@ class AuditLog(Base):
     before: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     after: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = _created_at()
+
+
+class EmailStatus(enum.StrEnum):
+    PENDING = "pending"
+    SENT = "sent"
+    FAILED = "failed"
+
+
+class EmailOutbox(Base):
+    """Email chờ gửi (Phase 5): thêm trong cùng transaction với việc đổi trạng thái experiment,
+    tác vụ nền gửi và đánh dấu bằng UPDATE, không xóa."""
+
+    __tablename__ = "email_outbox"
+    __table_args__ = (Index("ix_email_outbox_status_next_attempt_at", "status", "next_attempt_at"),)
+
+    id: Mapped[UUID] = _uuid_pk()
+    to: Mapped[str] = mapped_column(Text)
+    subject: Mapped[str] = mapped_column(Text)
+    body_html: Mapped[str] = mapped_column(Text)
+    body_text: Mapped[str] = mapped_column(Text)
+    status: Mapped[EmailStatus] = mapped_column(
+        pg_enum(EmailStatus, "email_status"), server_default=EmailStatus.PENDING.value
+    )
+    attempts: Mapped[int] = mapped_column(server_default=text("0"))
+    last_error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = _created_at()
+    next_attempt_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    sent_at: Mapped[datetime | None]
