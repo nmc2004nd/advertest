@@ -80,7 +80,7 @@ def lookup(session: Session, token: str, *, now: datetime) -> tuple[m.UserSessio
     ).one_or_none()
     if found is None:
         return None
-    row, user = found.tuple()
+    row, user = found
     if user.status != UserStatus.ACTIVE:
         return None
     if now - row.last_seen_at >= LAST_SEEN_RESOLUTION:
