@@ -191,7 +191,7 @@ Mọi trạng thái bất thường (`failed`, `skipped`, `stopped_limit`, `canc
 - Trạng thái luôn hiển thị bằng màu + icon + chữ, dùng một component badge chung.
   Nhãn tiếng Việt, icon và tông màu định nghĩa một nơi duy nhất: `frontend/src/components/status/status-config.ts`. Bảng cấu hình khai kiểu `Record<Enum, …>` theo enum của contract, nên thiếu giá trị thì `tsc` báo lỗi; test so với mảng giá trị enum sinh từ contract.
 - Type cho response của API lấy từ `frontend/src/contracts/api.ts` (sinh từ `contracts/openapi.json`); mảng giá trị enum lấy từ `frontend/src/contracts/schemas.ts`. Cả hai là file sinh ra, không sửa tay.
-- Biến môi trường: `VITE_USE_MOCKS=true` đọc dữ liệu từ `contracts/mocks/` thay cho API; `VITE_API_BASE_URL` (mặc định rỗng, tức gọi cùng origin).
+- Biến môi trường: `VITE_USE_MOCKS=true` đọc dữ liệu từ `contracts/mocks/` thay cho API (chỉ đọc; request ghi báo lỗi); `VITE_MOCK_ME` chọn người dùng của chế độ mock (`contracts/mocks/me/<tên>.json`, mặc định `admin`); `VITE_API_BASE_URL` (mặc định rỗng, tức gọi cùng origin). Kiểm tra chế độ mock viết thẳng `import.meta.env.VITE_USE_MOCKS === 'true'` tại chỗ gọi để bản build loại bỏ nhánh mock.
 - Trang chỉ dành cho dev (ví dụ `/dev/contracts`) chỉ đăng ký khi `import.meta.env.DEV`; `pnpm --dir frontend verify:build` kiểm tra bản build production không chứa chúng.
 - Hành động không đảo ngược (gửi duyệt, approve) có hộp xác nhận kèm tóm tắt.
 - Bản xem trước chưa duyệt có watermark "BẢN NHÁP – CHƯA DUYỆT".
@@ -293,4 +293,4 @@ Biến thể torch chọn bằng extra của uv, cùng một `uv.lock`:
 - `cpu` (index `download.pytorch.org/whl/cpu`): máy phát triển và CI. `make` dùng mặc định (`TORCH=cpu`).
 - `cuda` (index `download.pytorch.org/whl/cu126`): image Docker cho `api` và `worker`. CUDA 12.6 được chọn vì tương thích với nhiều phiên bản driver nhất trong các bản torch 2.14 phát hành (cu126, cu130, cu132).
 
-Frontend: Vite 8, React 19, TypeScript 6 (strict), Tailwind CSS 4, shadcn/ui (style `radix-nova`, icon Lucide), TanStack Query 5, React Router 8, ESLint 10, Prettier 3, `@playwright/test` 1.63.0 (pin chính xác vì phiên bản trình duyệt đi theo; E2E chạy bằng `make test-e2e` hoặc job CI `e2e`). Phiên bản chính xác nằm trong `frontend/pnpm-lock.yaml`.
+Frontend: Vite 8, React 19, TypeScript 6 (strict), Tailwind CSS 4, shadcn/ui (style `radix-nova`, icon Lucide), TanStack Query 5, React Router 8, ESLint 10, Prettier 3, `react-hook-form` 7.89.0 và `zod` 4.6.5 (Phase 4; resolver zod tự viết trong `src/components/form/`), `@playwright/test` 1.63.0 (pin chính xác vì phiên bản trình duyệt đi theo; E2E chạy bằng `make test-e2e` hoặc job CI `e2e`). Phiên bản chính xác nằm trong `frontend/pnpm-lock.yaml`.

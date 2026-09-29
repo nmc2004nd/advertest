@@ -6,7 +6,20 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 4 — Xác thực và phân quyền
 
-**Trạng thái:** đang làm. Group 0–3 (backend) đã merge.
+**Trạng thái:** đang làm. Group 0–4 đã merge.
+
+### Phase 4 — Group 4 (frontend) — 2026-09-29
+#### Thêm
+- API client: `apiSend` gửi cookie và `X-CSRF-Token` (từ cookie `csrf_token`); `401 unauthenticated` → `/login?next=...`, `403 forbidden` → `/forbidden` qua `QueryCache`/`MutationCache`; `ERROR_MESSAGES` tiếng Việt cho mọi `ErrorCode`; proxy Vite `xfwd: true`.
+- `useMe()`, `can()`, `<RequirePermission>`, trang `/forbidden`; cấu hình điều hướng `src/nav/config.ts` (quyền, cờ `implemented`; mọi mục còn `false`).
+- `AppShell`: sidebar ≥ 1280px, cột icon 768–1279px, thanh tab < 768px (3 mục + "Thêm"), `safe-area-inset`, `viewport-fit=cover`; `Dialog` đáp ứng (bottom sheet trên điện thoại), `ConfirmDialog`, `Button` (≥ 44px), `TextField`, `useZodForm` (resolver tự viết).
+- Dependency: `react-hook-form` 7.89.0, `zod` 4.6.5. Vitest 36 → 70.
+#### Sửa trong lúc làm
+- Bản build production chứa chunk mock khi kiểm tra chế độ mock qua hàm gọi từ hai chỗ: viết thẳng biểu thức `import.meta.env` tại chỗ gọi.
+#### Quyết định (người dùng chốt, đã ghi vào `requirements.md`, `tech-stack.md`)
+- Thanh tab 3 mục + "Thêm"; chỉ `401 unauthenticated`/`403 forbidden` chuyển trang toàn cục; `next` chỉ đường dẫn nội bộ; `VITE_MOCK_ME`; resolver zod tự viết.
+#### Review
+- Review do chính agent viết nhánh (không độc lập): không có phát hiện chặn. Chuyển cho Group 5 (`plan.md` task 30a): trạng thái lỗi khi `/auth/me` lỗi khác `401`.
 
 ### Phase 4 — Group 3 (backend) — 2026-09-29
 #### Thêm

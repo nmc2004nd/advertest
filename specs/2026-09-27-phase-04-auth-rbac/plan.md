@@ -56,6 +56,7 @@
 28. Trang đặt lại mật khẩu.
 29. Trang tài khoản: thông tin, role, đổi mật khẩu, đăng xuất.
 30. Trang `/home` với các khối theo role.
+30a. (Từ review Group 4) `RequirePermission`/`AppShell` hiển thị trạng thái lỗi kèm nút thử lại khi `/auth/me` lỗi khác `401` (hiện là màn hình trắng).
 
 ## Group 6 — Frontend: trang admin `[agent: frontend]`
 
