@@ -4,14 +4,15 @@ xác thực, quản trị người dùng và audit log của Phase 4 (khung, tr�
 Model request/response chỉ dùng schema đã có trong `advertest_contracts`; schema còn lại
 do phase tương ứng thêm vào contract (Phase 5-8).
 
-Mọi route cần phiên khai `x-permission` trong OpenAPI (requirements.md Phase 4, mục Bảo vệ
-endpoint): một `Permission` trong ma trận, hoặc `authenticated` với route chỉ cần đăng nhập.
+Mọi route cần phiên khai quyền bằng `**guard(p)` (requirements.md Phase 4, mục Bảo vệ endpoint):
+dependency kiểm tra phiên và permission chạy trước thân hàm (nên trước cả `501`), và `x-permission`
+trong OpenAPI là một `Permission` của ma trận hoặc `authenticated` (chỉ cần đăng nhập).
 """
 
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated, Any
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, Response, Security, status
@@ -36,7 +37,7 @@ from advertest_contracts.models import (
     UserAdminPage,
     UserAdminView,
 )
-from advertest_contracts.permissions import AUTHENTICATED, PermissionRequirement
+from advertest_contracts.permissions import AUTHENTICATED
 from advertest_contracts.permissions import Permission as P
 from backend.app.api.deps import SessionFactory, get_clock, get_sessionmaker, transaction
 from backend.app.api.errors import (
@@ -49,6 +50,7 @@ from backend.app.api.security import user_session
 from backend.app.auth import service as auth_service
 from backend.app.auth import sessions
 from backend.app.auth.deps import CurrentUser
+from backend.app.auth.permissions import guard
 from backend.app.services.clock import Clock
 
 Sessions = Annotated[SessionFactory, Depends(get_sessionmaker)]
@@ -72,11 +74,6 @@ def auth_error(failure: auth_service.AuthFailure) -> ApiError:
 def client_ip(request: Request) -> str | None:
     """IP đã qua ProxyHeadersMiddleware (X-Forwarded-For chỉ khi đến từ TRUSTED_PROXIES)."""
     return request.client.host if request.client else None
-
-
-def permission(required: PermissionRequirement) -> dict[str, Any]:
-    """`openapi_extra` khai báo permission của route (extension `x-permission`)."""
-    return {"x-permission": str(required)}
 
 
 # Endpoint công khai của xác thực: không cần phiên.
@@ -145,7 +142,7 @@ Limit = Annotated[int, Query(ge=1, le=100)]
     "/auth/logout",
     tags=["auth"],
     status_code=status.HTTP_204_NO_CONTENT,
-    openapi_extra=permission(AUTHENTICATED),
+    **guard(AUTHENTICATED),
 )
 def logout(
     user: CurrentUser, request: Request, response: Response, factory: Sessions, clock: Now
@@ -161,7 +158,7 @@ def logout(
     sessions.clear_cookies(response)
 
 
-@router.get("/auth/me", tags=["auth"], openapi_extra=permission(AUTHENTICATED))
+@router.get("/auth/me", tags=["auth"], **guard(AUTHENTICATED))
 def get_me(user: CurrentUser) -> Me:
     return user.to_me()
 
@@ -170,7 +167,7 @@ def get_me(user: CurrentUser) -> Me:
     "/auth/password",
     tags=["auth"],
     status_code=status.HTTP_204_NO_CONTENT,
-    openapi_extra=permission(AUTHENTICATED),
+    **guard(AUTHENTICATED),
 )
 def change_password(body: PasswordChange, user: CurrentUser, factory: Sessions, clock: Now) -> None:
     with transaction(factory) as session:
@@ -181,44 +178,34 @@ def change_password(body: PasswordChange, user: CurrentUser, factory: Sessions, 
             raise auth_error(failure)
 
 
-@router.get("/admin/users", tags=["admin-users"], openapi_extra=permission(P.USER_MANAGE))
+@router.get("/admin/users", tags=["admin-users"], **guard(P.USER_MANAGE))
 def list_users(
     status: UserStatus | None = None, cursor: Cursor = None, limit: Limit = 50
 ) -> UserAdminPage:
     not_implemented()
 
 
-@router.post(
-    "/admin/users/{user_id}/approve", tags=["admin-users"], openapi_extra=permission(P.USER_MANAGE)
-)
+@router.post("/admin/users/{user_id}/approve", tags=["admin-users"], **guard(P.USER_MANAGE))
 def approve_user(user_id: UUID, body: ApproveRequest) -> UserAdminView:
     not_implemented()
 
 
-@router.post(
-    "/admin/users/{user_id}/reject", tags=["admin-users"], openapi_extra=permission(P.USER_MANAGE)
-)
+@router.post("/admin/users/{user_id}/reject", tags=["admin-users"], **guard(P.USER_MANAGE))
 def reject_user(user_id: UUID, body: RejectRequest) -> UserAdminView:
     not_implemented()
 
 
-@router.put(
-    "/admin/users/{user_id}/roles", tags=["admin-users"], openapi_extra=permission(P.USER_MANAGE)
-)
+@router.put("/admin/users/{user_id}/roles", tags=["admin-users"], **guard(P.USER_MANAGE))
 def update_user_roles(user_id: UUID, body: RolesUpdate) -> UserAdminView:
     not_implemented()
 
 
-@router.post(
-    "/admin/users/{user_id}/disable", tags=["admin-users"], openapi_extra=permission(P.USER_MANAGE)
-)
+@router.post("/admin/users/{user_id}/disable", tags=["admin-users"], **guard(P.USER_MANAGE))
 def disable_user(user_id: UUID) -> UserAdminView:
     not_implemented()
 
 
-@router.post(
-    "/admin/users/{user_id}/enable", tags=["admin-users"], openapi_extra=permission(P.USER_MANAGE)
-)
+@router.post("/admin/users/{user_id}/enable", tags=["admin-users"], **guard(P.USER_MANAGE))
 def enable_user(user_id: UUID) -> UserAdminView:
     not_implemented()
 
@@ -226,77 +213,73 @@ def enable_user(user_id: UUID) -> UserAdminView:
 @router.post(
     "/admin/users/{user_id}/reset-link",
     tags=["admin-users"],
-    openapi_extra=permission(P.USER_MANAGE),
+    **guard(P.USER_MANAGE),
 )
 def create_reset_link(user_id: UUID) -> PasswordResetLink:
     not_implemented()
 
 
-@router.get("/models", tags=["models"], openapi_extra=permission(P.MODEL_READ))
+@router.get("/models", tags=["models"], **guard(P.MODEL_READ))
 def list_models() -> None:
     not_implemented()
 
 
-@router.get("/datasets", tags=["datasets"], openapi_extra=permission(P.DATASET_READ))
+@router.get("/datasets", tags=["datasets"], **guard(P.DATASET_READ))
 def list_datasets() -> None:
     not_implemented()
 
 
-@router.get("/slices", tags=["slices"], openapi_extra=permission(P.DATASET_READ))
+@router.get("/slices", tags=["slices"], **guard(P.DATASET_READ))
 def list_slices() -> None:
     not_implemented()
 
 
-@router.get("/attack-specs", tags=["attack-specs"], openapi_extra=permission(P.ATTACK_CATALOG_READ))
+@router.get("/attack-specs", tags=["attack-specs"], **guard(P.ATTACK_CATALOG_READ))
 def list_attack_specs() -> list[AttackSpec]:
     not_implemented()
 
 
-@router.post("/protocols", tags=["protocols"], openapi_extra=permission(P.PROTOCOL_MANAGE))
+@router.post("/protocols", tags=["protocols"], **guard(P.PROTOCOL_MANAGE))
 def create_protocol(body: ProtocolBody) -> None:
     not_implemented()
 
 
-@router.post("/experiments", tags=["experiments"], openapi_extra=permission(P.EXPERIMENT_CREATE))
+@router.post("/experiments", tags=["experiments"], **guard(P.EXPERIMENT_CREATE))
 def create_experiment(config: ExperimentConfig) -> None:
     not_implemented()
 
 
-@router.get("/runs/{run_id}", tags=["runs"], openapi_extra=permission(P.EXPERIMENT_READ))
+@router.get("/runs/{run_id}", tags=["runs"], **guard(P.EXPERIMENT_READ))
 def get_run(run_id: UUID) -> RunResult:
     not_implemented()
 
 
-@router.get(
-    "/failure-cases/{case_id}", tags=["failure-cases"], openapi_extra=permission(P.EXPERIMENT_READ)
-)
+@router.get("/failure-cases/{case_id}", tags=["failure-cases"], **guard(P.EXPERIMENT_READ))
 def get_failure_case(case_id: UUID) -> None:
     not_implemented()
 
 
-@router.get("/reviews", tags=["reviews"], openapi_extra=permission(P.REVIEW_DECIDE))
+@router.get("/reviews", tags=["reviews"], **guard(P.REVIEW_DECIDE))
 def list_reviews() -> None:
     not_implemented()
 
 
-@router.get("/reports/{report_id}", tags=["reports"], openapi_extra=permission(P.REPORT_READ))
+@router.get("/reports/{report_id}", tags=["reports"], **guard(P.REPORT_READ))
 def get_report(report_id: UUID) -> None:
     not_implemented()
 
 
-@router.get(
-    "/compute-targets", tags=["compute-targets"], openapi_extra=permission(P.COMPUTE_TARGET_READ)
-)
+@router.get("/compute-targets", tags=["compute-targets"], **guard(P.COMPUTE_TARGET_READ))
 def list_compute_targets() -> None:
     not_implemented()
 
 
-@router.get("/budget", tags=["budget"], openapi_extra=permission(P.BUDGET_MANAGE))
+@router.get("/budget", tags=["budget"], **guard(P.BUDGET_MANAGE))
 def get_budget() -> None:
     not_implemented()
 
 
-@router.get("/audit-log", tags=["audit-log"], openapi_extra=permission(P.AUDIT_READ))
+@router.get("/audit-log", tags=["audit-log"], **guard(P.AUDIT_READ))
 def list_audit_log(
     actor_id: UUID | None = None,
     action: str | None = None,

@@ -127,6 +127,7 @@ Chi tiết phản hồi (chốt ở review Group 0): `POST /auth/login` thành c
 - Mọi endpoint khác (trừ `/internal/worker`) yêu cầu phiên hợp lệ và khai báo permission bằng dependency `require_permission(...)`. Thiếu phiên → `401`; thiếu permission → `403`. Kiểm tra này chạy **trước** khi endpoint trả `501`.
 - Endpoint chỉ cần đăng nhập (`/auth/logout`, `/auth/me`, `/auth/password`) khai `x-permission: authenticated` (mọi user `active`), không thêm permission vào ma trận.
 - Placeholder `GET /users` của Phase 0 bị bỏ; quản lý người dùng nằm ở `/admin/users`.
+- Chi tiết cài đặt (chốt ở review Group 2): route khai quyền bằng `**guard(p)`, một nguồn cho cả dependency `require_permission` và `x-permission`; kiểm tra lúc tạo app và lúc khởi động đòi mỗi route không công khai (trừ `/internal/worker`) có đúng một `require_permission` khớp `x-permission`. Thứ tự kiểm tra: `401` (phiên) → `403` (permission) → `422` (tham số, body) → route. Thiếu cookie phiên trả `401` mà không mở DB.
 
 ### Luật quản trị
 - Duyệt phải gán ít nhất một role.

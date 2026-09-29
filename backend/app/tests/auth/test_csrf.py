@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import uuid
+
 import httpx
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
+from advertest_contracts.enums import Role, UserStatus
 from advertest_contracts.models import ErrorResponse
 from backend.app.api.deps import get_sessionmaker
 from backend.app.api.security import SESSION_COOKIE
+from backend.app.auth.deps import Principal, current_user
 from backend.app.auth.sessions import CSRF_COOKIE, CSRF_HEADER
 from backend.app.main import create_app
 
@@ -21,6 +25,15 @@ def client() -> TestClient:
     app = create_app()
     # Request qua được middleware nhưng bị từ chối trước khi dùng DB (body sai, thiếu phiên).
     app.dependency_overrides[get_sessionmaker] = lambda: sessionmaker()
+    # Cookie phiên trong test là giả: qua được middleware thì coi như đã đăng nhập, đủ 3 role.
+    app.dependency_overrides[current_user] = lambda: Principal(
+        user_id=uuid.uuid4(),
+        session_id=uuid.uuid4(),
+        email="u@x.test",
+        full_name="U",
+        status=UserStatus.ACTIVE,
+        roles=frozenset(Role),
+    )
     return TestClient(app)
 
 

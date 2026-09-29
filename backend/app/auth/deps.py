@@ -56,14 +56,20 @@ def unauthenticated() -> ApiError:
     )
 
 
-def current_user(
-    request: Request,
-    factory: Annotated[SessionFactory, Depends(get_sessionmaker)],
-    clock: Annotated[Clock, Depends(get_clock)],
-) -> Principal:
+def session_token(request: Request) -> str:
+    """Token trong cookie phiên; thiếu → 401 mà không cần tới DB."""
     token = request.cookies.get(SESSION_COOKIE)
     if not token:
         raise unauthenticated()
+    return token
+
+
+def current_user(
+    # Khai trước factory: FastAPI giải dependency theo thứ tự, thiếu cookie thì dừng ở đây.
+    token: Annotated[str, Depends(session_token)],
+    factory: Annotated[SessionFactory, Depends(get_sessionmaker)],
+    clock: Annotated[Clock, Depends(get_clock)],
+) -> Principal:
     with transaction(factory) as session:
         found = sessions.lookup(session, token, now=clock())
         if found is None:

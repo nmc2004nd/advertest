@@ -3,14 +3,20 @@
 from __future__ import annotations
 
 import json
+import re
+import uuid
 from pathlib import Path
 from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import sessionmaker
 
+from advertest_contracts.enums import Role, UserStatus
 from advertest_contracts.models import ErrorResponse
 from advertest_contracts.permissions import AUTHENTICATED, Permission
+from backend.app.api.deps import get_sessionmaker
+from backend.app.auth.deps import Principal, current_user
 from backend.app.main import create_app
 
 PUBLIC_GROUPS = [
@@ -125,10 +131,30 @@ def test_security_schemes(openapi: dict[str, Any]) -> None:
                 assert names == {"userSession"}, path
 
 
+def _client(*, as_user: Principal | None = None) -> TestClient:
+    """App không cần DB: thiếu phiên bị từ chối trước khi mở DB; `as_user` thay current_user."""
+    app = create_app()
+    app.dependency_overrides[get_sessionmaker] = lambda: sessionmaker()
+    if as_user is not None:
+        app.dependency_overrides[current_user] = lambda: as_user
+    return TestClient(app)
+
+
+ALL_ROLES = Principal(
+    user_id=uuid.uuid4(),
+    session_id=uuid.uuid4(),
+    email="all@x.test",
+    full_name="Đủ role",
+    status=UserStatus.ACTIVE,
+    roles=frozenset(Role),
+)
+
+
 @pytest.mark.parametrize(("method", "path"), SAMPLE_CALLS)
 def test_unimplemented_endpoints_return_501_error_body(method: str, path: str) -> None:
     body = json.loads((MOCKS / BODIES[path]).read_text()) if path in BODIES else None
-    response = TestClient(create_app()).request(method, path, json=body)
+    # Phase 4: route cần phiên kiểm tra quyền trước 501; người dùng giả có đủ 3 role.
+    response = _client(as_user=ALL_ROLES).request(method, path, json=body)
     assert response.status_code == 501
     body = ErrorResponse.model_validate(response.json())
     assert body.error.code == "not_implemented"
@@ -164,3 +190,36 @@ def test_every_session_route_declares_a_valid_permission(openapi: dict[str, Any]
                 assert {"401", "403"} <= set(op["responses"]), (method, path)
             else:
                 assert "x-permission" not in op, (method, path)
+
+
+def _session_routes(openapi: dict[str, Any]) -> list[tuple[str, str]]:
+    return [
+        (method, re.sub(r"\{[^}]+\}", RUN_ID, path))
+        for path, ops in openapi["paths"].items()
+        for method, op in ops.items()
+        if {name for req in op.get("security", []) for name in req} == {"userSession"}
+    ]
+
+
+def test_every_session_route_rejects_missing_session_before_501(openapi: dict[str, Any]) -> None:
+    routes = _session_routes(openapi)
+    assert len(routes) >= 20
+    client = _client()
+    for method, path in routes:
+        response = client.request(method, path)
+        assert response.status_code == 401, (method, path)
+        assert ErrorResponse.model_validate(response.json()).error.code == "unauthenticated"
+
+
+def test_missing_permission_is_403_before_501() -> None:
+    engineer = Principal(
+        user_id=uuid.uuid4(),
+        session_id=uuid.uuid4(),
+        email="e@x.test",
+        full_name="Engineer",
+        status=UserStatus.ACTIVE,
+        roles=frozenset({Role.ENGINEER}),
+    )
+    response = _client(as_user=engineer).get("/audit-log")
+    assert response.status_code == 403
+    assert ErrorResponse.model_validate(response.json()).error.code == "forbidden"
