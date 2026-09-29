@@ -100,7 +100,11 @@ def start_run(
     """Chạy run, hoặc bỏ qua khi đã có run `completed` cùng fingerprint."""
     with transaction(sessions) as session:
         target = authenticate_worker(session, credentials)
-        return runs.start(session, target, run_id, body, clock)
+        try:
+            return runs.start(session, target, run_id, body, clock)
+        except runs.RunInvalidated as exc:
+            invalidated = exc  # commit trạng thái failed rồi mới trả 409
+    raise invalidated
 
 
 @router.post("/runs/{run_id}/progress")

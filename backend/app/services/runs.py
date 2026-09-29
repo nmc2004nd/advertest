@@ -39,6 +39,12 @@ from backend.app.services.errors import Conflict, Forbidden, Invalid, NotFound
 from backend.app.services.experiments import TERMINAL_RUN, reason, runs_of
 from ml_core.store import validate_key
 
+
+class RunInvalidated(Conflict):
+    """Run đã được chuyển sang `failed` trong transaction này; người gọi phải commit trước khi
+    trả lỗi 409 (khác các `Conflict` khác, vốn không đổi dữ liệu)."""
+
+
 ExistsFn = Callable[[str], bool]  # khóa trong bucket artifacts đã có chưa
 ARTIFACTS_URI = f"s3://{storage.BUCKET_ARTIFACTS}/"
 
@@ -111,7 +117,19 @@ def start(
     leasing.extend(experiment, target, clock)
     if run.status == RunStatus.RUNNING:
         if run.fingerprint != request.fingerprint:
-            raise Conflict("Run đang chạy với fingerprint khác (môi trường worker đã đổi)")
+            # Chạy tiếp với môi trường khác (code, thư viện, image đổi): checkpoint không dùng
+            # được cho fingerprint mới. Run này failed (không kẹt ở running), run khác chạy tiếp.
+            run.status = RunStatus.FAILED
+            run.status_reason = reason(
+                "error", "Môi trường worker đổi giữa chừng; gửi lại experiment để chạy lại"
+            )
+            run.finished_at = clock()
+            session.flush()
+            _after_run(session, experiment, run, clock)
+            raise RunInvalidated(
+                "Run đang chạy với fingerprint khác (môi trường worker đã đổi); run đã chuyển"
+                " sang failed"
+            )
         session.flush()
         return RunStartResponse(action="run")
     if run.status != RunStatus.QUEUED:
