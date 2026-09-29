@@ -38,10 +38,10 @@ Cuối phase: engineer tạo experiment trên web, theo dõi tiến độ trên 
 | `RunView` | `RunResult` + `attack_spec` (tên, đơn vị tham số chính) |
 | `FailureCaseView` | `FailureCaseRecord` + URL tạm thời cho từng artifact, `urls_expire_at`, `display_mode` (`normal` / `hidden_unanonymized` / `dev_unblurred`) |
 | `ComputeTargetPublic` | `id`, `name`, `kind`, `gpu_model`, `online`, `queue_length`, `default_time_limit_s`, `max_time_limit_s` |
-| `ModelSummary`, `DatasetSummary`, `SliceSummary`, `ClassMappingSummary`, `ProtocolSummary` | Trường cần cho wizard (tên, hash, số ảnh, class, trạng thái) |
+| `ModelSummary`, `DatasetSummary`, `SliceSummary`, `ClassMappingSummary`, `ProtocolSummary` | Trường cần cho wizard (tên, hash, số ảnh, class, trạng thái). `ModelSummary` có `framework`, không có kiến trúc (DB không lưu; Group 0) |
 | `ExperimentClone` | `config` (`ExperimentCreate`), `warnings` (mỗi mục: `attack_spec_id`, `from_version`, `to_version`, `message`) |
 | `ErrorBody` (bổ sung) | `fields`: danh sách `{path, message}` cho lỗi `422` |
-| URL ảnh | URL tạm thời dạng `/api/artifacts/{token}`: token ký HMAC, gắn đúng một khóa MinIO, hết hạn 10 phút |
+| URL ảnh | URL tạm thời `/artifacts/{token}`, tương đối với gốc API (frontend thêm `VITE_API_BASE_URL`, tức `/api/artifacts/...`): token ký HMAC, gắn đúng một khóa MinIO, hết hạn 10 phút |
 | `ErrorCode` (bổ sung) | `not_supported_yet`, `queue_limit_reached` |
 
 ### Thay đổi DB
@@ -49,7 +49,7 @@ Cuối phase: engineer tạo experiment trên web, theo dõi tiến độ trên 
 | Bảng | Thay đổi |
 |---|---|
 | `compute_targets` | Thêm `max_time_limit_s` (mặc định 28800 = 8 giờ; admin sửa qua `advertest-admin`) |
-| `experiments` | Thêm `name` (NOT NULL; migration điền tên cho experiment cũ theo quy tắc ở Behaviour), `cloned_from`, `finished_at` |
+| `experiments` | Thêm `name` (NOT NULL; migration điền tên cho experiment cũ theo quy tắc ở Behaviour), `cloned_from`, `finished_at`, `created_at` (NOT NULL, mặc định `now()`, điền `submitted_at` cho experiment cũ; dùng cho `ExperimentSummary.created_at` và phân trang keyset, Group 0) |
 | `email_outbox` | Bảng mới: `id`, `to`, `subject`, `body_html`, `body_text`, `status` (`pending` / `sent` / `failed`), `attempts`, `last_error`, `created_at`, `sent_at` |
 
 ### Dùng lại từ Phase 3 (replan)
@@ -86,7 +86,7 @@ Worker được coi là `online` nếu có heartbeat trong 60 giây gần nhất
 | `GET /failure-cases/{id}` | `experiment.read` | `FailureCaseView` đầy đủ URL |
 | `POST /experiments/{id}/cancel` | `experiment.cancel_own` | Chỉ chủ sở hữu; trạng thái `queued` hoặc `running`; ghi `audit_log` |
 | `GET /experiments/{id}/clone` | `experiment.create` | Trả `ExperimentClone`: `ExperimentCreate` điền sẵn từ experiment cũ (spec đã cũ được cập nhật lên version hiện hành) và `warnings` cho từng spec đã cập nhật |
-| `GET /artifacts/{token}` | Công khai (token là quyền truy cập) | Stream ảnh từ MinIO; token sai, bị sửa hoặc hết hạn → `404` |
+| `GET /artifacts/{token}` | `experiment.read` | Cần cả phiên lẫn token (Group 0: hai lớp bảo vệ; `<img>` cùng origin tự gửi cookie). Stream ảnh từ MinIO; token sai, bị sửa hoặc hết hạn → `404` |
 
 ### Kiểm tra khi tạo và ước lượng (lỗi `422` có đường dẫn trường)
 - `name` bỏ trống → server đặt `<tên model> · <tên slice> · <YYYY-MM-DD UTC>`.
@@ -107,7 +107,7 @@ Worker được coi là `online` nếu có heartbeat trong 60 giây gần nhất
 - `queue.ahead_seconds` = tổng ước lượng còn lại của các experiment đứng trước trong hàng đợi của target (bỏ qua phần không ước lượng được).
 
 ### Hiển thị ảnh và quyền riêng tư (tạm thời đến Phase 10)
-- Ảnh được phục vụ qua API cùng origin: sau khi kiểm tra `experiment.read`, API cấp URL `/api/artifacts/{token}` (token ký HMAC, gắn đúng một khóa, hết hạn 10 phút); API đọc MinIO bằng thông tin đăng nhập của mình và stream ảnh. MinIO không mở ra LAN; `MINIO_PUBLIC_ENDPOINT` chỉ dành cho worker (presigned URL của Phase 3 ký cho `127.0.0.1:9000`, điện thoại qua LAN không tải được).
+- Ảnh được phục vụ qua API cùng origin: sau khi kiểm tra `experiment.read`, API cấp URL `/artifacts/{token}` (qua proxy là `/api/artifacts/{token}`) (token ký HMAC, gắn đúng một khóa, hết hạn 10 phút); API đọc MinIO bằng thông tin đăng nhập của mình và stream ảnh. MinIO không mở ra LAN; `MINIO_PUBLIC_ENDPOINT` chỉ dành cho worker (presigned URL của Phase 3 ký cho `127.0.0.1:9000`, điện thoại qua LAN không tải được).
 - Dataset có `anonymized = false`:
   - mặc định: `display_mode = hidden_unanonymized`, không cấp URL ảnh; giao diện hiển thị khung giữ chỗ "Ảnh bị ẩn: dataset chưa được làm mờ" và vẫn vẽ box trên nền trống;
   - khi server bật `DEV_ALLOW_UNBLURRED=true`: `display_mode = dev_unblurred`, cấp URL và giao diện hiển thị dải cảnh báo "Chưa làm mờ – chỉ dùng cho phát triển".
@@ -124,7 +124,7 @@ Worker được coi là `online` nếu có heartbeat trong 60 giây gần nhất
 | Bước | Nội dung |
 |---|---|
 | 1. Protocol | Danh sách protocol; `dev-open` có nhãn "Dev – không gửi duyệt được" |
-| 2. Model | Thẻ model: tên, kiến trúc, số class, nhãn "Không hỗ trợ gradient" nếu có |
+| 2. Model | Thẻ model: tên, framework, số class, nhãn "Không hỗ trợ gradient" nếu có |
 | 3. Dataset và slice | Chọn dataset version, slice (số ảnh, seed); class mapping tự chọn nếu chỉ có một, báo lỗi rõ ràng nếu không có |
 | 4. Attack | Catalog nhóm theo loại; chọn attack → chỉnh các level bằng chip, có preset (ví dụ eps 2, 4, 8, 16); chế độ "Tự tìm ngưỡng" hiển thị "Sắp có" |
 | 5. Máy chạy và giới hạn | Thẻ compute target: tên, GPU, trạng thái online, số job đang chờ, thời gian ước lượng, nhãn "Miễn phí – máy local"; ô giới hạn thời gian (mặc định theo target) |

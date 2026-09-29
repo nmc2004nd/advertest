@@ -42,7 +42,7 @@
 - [ ] Dataset `anonymized = false`, không bật cờ dev: `display_mode = hidden_unanonymized`, **không** có URL ảnh sạch, ảnh sau tấn công hay thumbnail; vẫn có dữ liệu box.
 - [ ] Dataset `anonymized = false`, `DEV_ALLOW_UNBLURRED=true`: `display_mode = dev_unblurred`, có URL.
 - [ ] URL tạm thời chỉ đọc được đúng đối tượng được cấp.
-- [ ] URL ảnh có dạng `/api/artifacts/{token}`; token hết hạn hoặc bị sửa → `404`; token của khóa A không đọc được khóa B.
+- [ ] URL ảnh có dạng `/artifacts/{token}`; token hết hạn hoặc bị sửa → `404`; token của khóa A không đọc được khóa B; không có phiên → `401`.
 
 ### Đọc tài nguyên — `test_catalog_read.py`
 - [ ] `GET /attack-specs` chỉ trả spec đang hoạt động; `GET /protocols` không trả `retired`; `GET /class-mappings` lọc đúng theo dataset version và model.

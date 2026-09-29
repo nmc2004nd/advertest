@@ -19,7 +19,9 @@
 
 ## Group 1 — Backend: đọc tài nguyên `[agent: backend]`
 
-5. Migration: `compute_targets.max_time_limit_s` (mặc định 28800); `experiments.name` (NOT NULL, điền tên cho experiment cũ), `cloned_from`, `finished_at`; bảng `email_outbox`.
+5. Migration: `compute_targets.max_time_limit_s` (mặc định 28800); `experiments.created_at` (điền `submitted_at`); `experiments.name` (NOT NULL, điền tên cho experiment cũ), `cloned_from`, `finished_at`; bảng `email_outbox`.
+5a. (Từ Group 0) Router API nội bộ của worker (`backend/app/api/worker.py`) thêm `VALIDATION_ERROR_RESPONSE` để OpenAPI khai `422` là `ErrorResponse` (Group 0 chỉ đổi router người dùng).
+5b. (Từ Group 0) Khi route khung được cài đặt thật, người duyệt cập nhật test đang giả định `501`: `tests/acceptance/phase_00/test_api.py` (`IMPLEMENTED_GROUPS`), `tests/acceptance/phase_04/test_route_protection.py::test_multiple_roles_get_the_union`, `backend/app/tests/db/test_route_protection_db.py::test_union_of_roles` (đại diện `experiment.create` là `POST /experiments`); agent backend cập nhật `SAMPLE_CALLS` trong `backend/app/tests/api/test_skeleton.py`.
 6. Endpoint đọc model, dataset, dataset version, slice, class mapping, attack spec, protocol, compute target (tính `online` và `queue_length`).
 
 ## Group 2 — Backend: experiment `[agent: backend]`
@@ -29,7 +31,7 @@
 9. `POST /experiments/estimate`, `POST /experiments` (giới hạn 3 experiment đang chờ; ghi `audit_log`).
 10. `GET /experiments` (lọc, phân trang), `GET /experiments/{id}`, `GET /experiments/{id}/runs`, `GET /runs/{id}/manifest`.
 11. `POST /experiments/{id}/cancel` (chỉ chủ sở hữu; tái sử dụng logic hủy Phase 3), `GET /experiments/{id}/clone` (trả `ExperimentClone`).
-12. `GET /runs/{id}/failure-cases`, `GET /failure-cases/{id}`: cấp URL tạm thời 10 phút qua `/api/artifacts/{token}` (token HMAC gắn một khóa, API stream từ MinIO); áp dụng `display_mode` theo cờ `anonymized` của dataset và `DEV_ALLOW_UNBLURRED`.
+12. `GET /runs/{id}/failure-cases`, `GET /failure-cases/{id}`: cấp URL tạm thời 10 phút `/artifacts/{token}` (route cần phiên `experiment.read`) (token HMAC gắn một khóa, API stream từ MinIO); áp dụng `display_mode` theo cờ `anonymized` của dataset và `DEV_ALLOW_UNBLURRED`.
 13. Đặt `finished_at` khi experiment vào trạng thái cuối.
 
 ## Group 3 — Backend: email `[agent: backend]`
