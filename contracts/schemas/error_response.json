@@ -25,7 +25,8 @@
         "unauthenticated",
         "forbidden",
         "not_found",
-        "conflict"
+        "conflict",
+        "invalid_request"
       ],
       "title": "ErrorCode",
       "type": "string"

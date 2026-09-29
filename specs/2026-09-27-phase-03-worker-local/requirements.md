@@ -49,7 +49,7 @@ Cuối phase: gửi experiment, theo dõi tiến độ; tắt worker giữa ch�
 
 2. **`RunResult`** thêm `cached_from_run_id` (nullable, chỉ có khi `skipped` với code `cached`) và `metrics.partial` (bool, mặc định `false`; `true` khi và chỉ khi `stopped_limit`).
 3. **`FailureCaseRecord.artifacts`** thêm `clean_thumb` và `adversarial_thumb` (nullable: CLI không tạo; API bắt buộc có khi nhận qua `complete`). **`FailureCaseRecord.id`** đổi thành `compute_failure_case_id(fingerprint, run_id, image_id)`.
-4. **Enum mới `ProtocolStatus`**: `active`, `retired`, `dev`. **`ErrorCode`** thêm `unauthenticated` (401), `forbidden` (403), `not_found` (404), `conflict` (409).
+4. **Enum mới `ProtocolStatus`**: `active`, `retired`, `dev`. **`ErrorCode`** thêm `unauthenticated` (401), `forbidden` (403), `not_found` (404), `conflict` (409), `invalid_request` (422: dữ liệu đúng schema nhưng sai nghiệp vụ, ví dụ artifact chưa có trong MinIO).
 5. **OpenAPI**: nhóm `/internal/worker` gồm các endpoint trong mục Behaviour; giữ endpoint khung `experiments/{id}/search-result` cho Phase 7.
 
 ### Bố cục lưu trữ trong MinIO
