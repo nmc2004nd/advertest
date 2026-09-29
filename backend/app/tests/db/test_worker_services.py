@@ -399,10 +399,9 @@ def test_full_run_flow_completes_experiment(
     request = _start_request(lease_id)
     assert runs.start(db, target, first.id, request, clock).action == "run"
     assert first.status == RunStatus.RUNNING and first.fingerprint == request.fingerprint
-    # Chạy tiếp sau gián đoạn: cùng fingerprint → tiếp tục; khác → xung đột.
+    # Chạy tiếp sau gián đoạn với cùng fingerprint → tiếp tục
+    # (khác fingerprint: test_resume_with_changed_fingerprint_fails_run).
     assert runs.start(db, target, first.id, request, clock).action == "run"
-    with pytest.raises(Conflict):
-        runs.start(db, target, first.id, _start_request(lease_id), clock)
 
     report = ProgressReport(
         lease_id=lease_id,
@@ -723,3 +722,23 @@ def test_complete_rejects_dot_segments_in_artifact_keys(
     with pytest.raises(Invalid, match="không hợp lệ"):
         runs.complete(db, target, run.id, bad, buckets.artifacts.exists, clock)
     assert _status(run) == RunStatus.RUNNING
+
+
+def test_resume_with_changed_fingerprint_fails_run(
+    db: Session, admin: m.User, world: World, clock: FakeClock, buckets: Buckets
+) -> None:
+    """Chạy tiếp với môi trường khác (fingerprint khác): run đó failed, không kẹt ở running;
+    các run còn lại chạy tiếp và experiment hoàn tất."""
+    target, experiment, planned = _leased(db, admin, world, clock)
+    lease_id = experiment.lease_id
+    assert lease_id is not None
+    first = planned[0]
+    runs.start(db, target, first.id, _start_request(lease_id), clock)
+    with pytest.raises(runs.RunInvalidated):
+        runs.start(db, target, first.id, _start_request(lease_id), clock)
+    assert _status(first) == RunStatus.FAILED
+    assert first.status_reason is not None and "đổi giữa chừng" in first.status_reason["message"]
+    assert _experiment_status(experiment) == ExperimentStatus.RUNNING
+    for run in planned[1:]:
+        _run_to_completion(db, target, experiment, run, buckets, clock)
+    assert _experiment_status(experiment) == ExperimentStatus.COMPLETED

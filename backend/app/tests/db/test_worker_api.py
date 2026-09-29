@@ -288,3 +288,19 @@ def test_expired_presigned_url_is_rejected(buckets: Buckets) -> None:
     assert httpx.get(signed.url).status_code == 200
     time.sleep(2)
     assert httpx.get(signed.url).status_code == 403
+
+
+def test_changed_fingerprint_on_resume_commits_failed_then_409(
+    client: TestClient, app_engine: Engine, world: World, clock: FakeClock
+) -> None:
+    token, _, experiment_id = _setup(app_engine, world, clock)
+    lease = _lease(client, token)
+    run = _runs(app_engine, experiment_id)[0]
+    path = f"/internal/worker/runs/{run.id}/start"
+    first = _start_request(lease.lease_id).model_dump(mode="json")
+    assert client.post(path, json=first, headers=_auth(token)).status_code == 200
+    other = _start_request(lease.lease_id).model_dump(mode="json")
+    response = client.post(path, json=other, headers=_auth(token))
+    assert response.status_code == 409 and _error(response) == "conflict"
+    # Trạng thái failed đã được commit dù API trả 409.
+    assert _runs(app_engine, experiment_id)[0].status == RunStatus.FAILED
