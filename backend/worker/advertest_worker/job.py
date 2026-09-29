@@ -429,11 +429,14 @@ class JobRunner:
     def _drop_checkpoint(store: PresignedStore, previous: str | None, current: str) -> None:
         """Xóa checkpoint cũ sau khi API đã nhận checkpoint mới (`progress` thành công): API
         không còn trỏ tới nó. Checkpoint cuối cùng của run được giữ lại (xóa trước `complete`
-        thì worker chết đúng lúc đó sẽ không chạy tiếp được). Lỗi khi xóa chỉ ghi cảnh báo."""
+        thì worker chết đúng lúc đó sẽ không chạy tiếp được). Lỗi khi xóa chỉ ghi cảnh báo, trừ
+        mất lease."""
         if previous is None or previous == current:
             return
         try:
             store.delete(previous)
+        except LeaseLost:
+            raise  # mất lease: dừng experiment ngay, không xử lý thêm batch
         except Exception:
             logger.warning("Không xóa được checkpoint cũ %s", previous, exc_info=True)
 

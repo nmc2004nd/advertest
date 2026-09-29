@@ -27,7 +27,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from advertest_contracts.enums import ExperimentStatus, RunStatus
 from advertest_contracts.models import CostProfile
 from advertest_worker.cache import JobCache
-from advertest_worker.client import WorkerClient
+from advertest_worker.client import LeaseLost, WorkerClient
 from advertest_worker.job import JobRunner
 from attacks.registry import get_spec, load_catalog
 from backend.admin_cli.seed import load_attack_specs
@@ -386,3 +386,30 @@ def test_failed_checkpoint_delete_does_not_fail_run(
     assert experiment.status == ExperimentStatus.COMPLETED
     assert [r.status for r in runs] == [RunStatus.COMPLETED, RunStatus.COMPLETED]
     assert len(buckets.artifacts.list(f"runs/{runs[0].id}/checkpoints/")) == 2  # không xóa được
+
+
+def test_lease_lost_while_deleting_checkpoint_stops_immediately(
+    app_engine: Engine, world: World, api: TestClient, clock: FakeClock, tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:  # fmt: skip
+    setup = _submit(app_engine, world, api, clock, seed=808)
+    _profile(setup, world, sec_per_image=0.01, batch_size=1)
+    original = WorkerClient.artifact_url
+
+    def lease_lost_on_delete(
+        self: WorkerClient, run_id: UUID, lease_id: UUID, key: str, method: Any
+    ) -> str:
+        if method == "DELETE" and "/checkpoints/" in key:
+            raise LeaseLost(409, "conflict", "lease đã chuyển cho worker khác")
+        return original(self, run_id, lease_id, key, method)
+
+    monkeypatch.setattr(WorkerClient, "artifact_url", lease_lost_on_delete)
+    batches: list[Sequence[str]] = []
+    runner = _runner(setup, tmp_path, clock, on_batch=lambda _r, ids: batches.append(ids))
+    _lease_and_run(runner, setup)
+    _, runs = _state(app_engine, setup.experiment_id)
+    # Batch 2 xong và progress thành công, rồi xóa checkpoint 0 gặp 409: worker dừng ngay (trước
+    # hook của batch 2), không gửi complete, không chạy run sau.
+    assert len(batches) == 1
+    assert runs[0].images_done == 2
+    assert [r.status for r in runs] == [RunStatus.RUNNING, RunStatus.QUEUED]
