@@ -69,5 +69,6 @@ def test_unknown_route_and_method_use_error_response(client: TestClient) -> None
 
 
 def test_bad_query_parameter_is_validation_error(client: TestClient) -> None:
-    response = client.get("/runs/khong-phai-uuid")
+    # Route công khai: route cần phiên trả 401 trước khi xét tham số.
+    response = client.get("/verify/khong-phai-uuid")
     assert _error(response)[:2] == (422, "validation_error")
