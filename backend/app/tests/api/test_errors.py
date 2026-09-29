@@ -23,8 +23,10 @@ def client() -> TestClient:
 
 def _error(response: httpx.Response) -> tuple[int, str, str]:
     body = ErrorResponse.model_validate(response.json())
-    # Phase 5: lỗi 422 do sai schema kèm `fields` (đường dẫn từng trường sai).
-    assert response.json()["error"].keys() <= {"code", "message", "fields"}
+    # Phase 5: chỉ lỗi 422 được kèm `fields` (đường dẫn từng trường sai); lỗi khác đúng hai khóa.
+    allowed = {"code", "message", "fields"} if response.status_code == 422 else {"code", "message"}
+    assert response.json()["error"].keys() <= allowed
+    assert {"code", "message"} <= response.json()["error"].keys()
     return response.status_code, body.error.code, body.error.message
 
 
