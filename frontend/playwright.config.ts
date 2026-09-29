@@ -39,6 +39,8 @@ export default defineConfig({
     command: `pnpm build && exec ./node_modules/.bin/vite preview --host 127.0.0.1 --port ${PORT} --strictPort`,
     url: `http://127.0.0.1:${PORT}`,
     reuseExistingServer: !process.env.CI,
+    // Bản build gọi API qua proxy /api như compose và bản triển khai (tech-stack.md mục 6).
+    env: { VITE_API_BASE_URL: '/api' },
     timeout: 120_000,
   },
 })
