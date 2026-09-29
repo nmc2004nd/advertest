@@ -80,6 +80,31 @@ def test_compute_target_commands_and_audit(app_engine: Engine, env: dict[str, st
     assert rented.exit_code == 1
 
 
+def test_compute_target_set_limits(app_engine: Engine, env: dict[str, str]) -> None:
+    """Phase 5: admin đổi giới hạn thời gian qua `compute-target set-limits`."""
+    admin, engineer = _users(app_engine)
+    name = f"t-{uuid.uuid4().hex[:8]}"
+    created = _invoke(env, "compute-target", "create", "--name", name, "--max-time-limit",
+                      "14400", "--as", admin)  # fmt: skip
+    assert created.exit_code == 0, created.output
+    changed = _invoke(env, "compute-target", "set-limits", name, "--default", "3600", "--max",
+                      "36000", "--as", admin)  # fmt: skip
+    assert changed.exit_code == 0, changed.output
+    with Session(app_engine) as session:
+        target = session.scalars(select(m.ComputeTarget).where(m.ComputeTarget.name == name)).one()
+        assert (target.default_time_limit_s, target.max_time_limit_s) == (3600, 36000)
+    assert "tối đa 36000s" in _invoke(env, "compute-target", "list").output
+    assert _actions(app_engine, admin)[-1] == "compute_target.update_limits"
+
+    too_big = _invoke(env, "compute-target", "set-limits", name, "--default", "40000", "--as",
+                      admin)  # fmt: skip
+    assert too_big.exit_code == 1
+    nothing = _invoke(env, "compute-target", "set-limits", name, "--as", admin)
+    assert nothing.exit_code == 1
+    denied = _invoke(env, "compute-target", "set-limits", name, "--max", "100", "--as", engineer)
+    assert denied.exit_code == 1 and "admin" in denied.output
+
+
 def test_import_local_requires_admin(
     app_engine: Engine, env: dict[str, str], buckets: Buckets, tmp_path: Path
 ) -> None:

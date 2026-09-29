@@ -108,7 +108,7 @@ def upgraded(alembic_config: Config, owner_engine: Engine) -> Iterator[dict[str,
     with owner_engine.begin() as conn:
         chain = _insert_chain(conn, tag)
         completed = _insert_experiment(conn, chain, "completed")
-        spec = conn.execute(
+        spec: uuid.UUID = conn.execute(
             text(
                 "INSERT INTO attack_specs (name, version, kind, access, spec, spec_sha256)"
                 " VALUES (:n, 1, 'attack', 'white_box', '{}'::jsonb, :s) RETURNING id"
