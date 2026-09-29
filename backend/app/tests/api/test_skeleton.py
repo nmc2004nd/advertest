@@ -33,13 +33,7 @@ RUN_ID = "00000000-0000-5000-8000-000000000001"
 # Endpoint xác thực công khai (requirements.md Phase 4, mục Bảo vệ endpoint).
 PUBLIC_AUTH_PATHS = {"/auth/request-access", "/auth/login", "/auth/password-reset"}
 SAMPLE_CALLS = [
-    # Phase 4: khung cho tới Group 1-3 (Group 2 thêm kiểm tra phiên trước 501).
-    ("post", "/auth/request-access"),
-    ("post", "/auth/login"),
-    ("post", "/auth/password-reset"),
-    ("post", "/auth/logout"),
-    ("get", "/auth/me"),
-    ("post", "/auth/password"),
+    # Phase 4: khung cho tới Group 2-3 (/auth/* đã cài đặt ở Group 1, test trong tests/db).
     ("get", "/admin/users"),
     ("post", "/admin/users/" + RUN_ID + "/approve"),
     ("post", "/admin/users/" + RUN_ID + "/reject"),
@@ -65,10 +59,6 @@ SAMPLE_CALLS = [
 # Endpoint có body bắt buộc: gửi body hợp lệ lấy từ contracts/mocks.
 MOCKS = Path(__file__).resolve().parents[4] / "contracts" / "mocks"
 BODIES = {
-    "/auth/request-access": "access_request/default.json",
-    "/auth/login": "login_request/default.json",
-    "/auth/password-reset": "password_reset_consume/default.json",
-    "/auth/password": "password_change/default.json",
     "/admin/users/" + RUN_ID + "/approve": "approve_request/engineer.json",
     "/admin/users/" + RUN_ID + "/reject": "reject_request/default.json",
     "/admin/users/" + RUN_ID + "/roles": "roles_update/engineer_reviewer.json",

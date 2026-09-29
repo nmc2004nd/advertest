@@ -12,7 +12,6 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import Depends, Request, status
-from sqlalchemy import select
 
 from advertest_contracts.enums import ErrorCode, Role, UserStatus
 from advertest_contracts.models import Me
@@ -21,7 +20,7 @@ from backend.app.api.deps import SessionFactory, get_clock, get_sessionmaker, tr
 from backend.app.api.errors import ApiError
 from backend.app.api.security import SESSION_COOKIE
 from backend.app.auth import sessions
-from backend.app.db import models as m
+from backend.app.auth.service import load_roles
 from backend.app.services.clock import Clock
 
 
@@ -70,9 +69,7 @@ def current_user(
         if found is None:
             raise unauthenticated()
         row, user = found
-        roles = frozenset(
-            session.scalars(select(m.UserRole.role).where(m.UserRole.user_id == user.id))
-        )
+        roles = load_roles(session, user.id)
         return Principal(
             user_id=user.id,
             session_id=row.id,

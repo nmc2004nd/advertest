@@ -14,9 +14,9 @@ from datetime import datetime
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import APIRouter, Query, Security, status
+from fastapi import APIRouter, Depends, Query, Request, Response, Security, status
 
-from advertest_contracts.enums import UserStatus
+from advertest_contracts.enums import ErrorCode, UserStatus
 from advertest_contracts.models import (
     AccessRequest,
     ApproveRequest,
@@ -38,12 +38,40 @@ from advertest_contracts.models import (
 )
 from advertest_contracts.permissions import AUTHENTICATED, PermissionRequirement
 from advertest_contracts.permissions import Permission as P
+from backend.app.api.deps import SessionFactory, get_clock, get_sessionmaker, transaction
 from backend.app.api.errors import (
     AUTH_REQUIRED_RESPONSES,
     NOT_IMPLEMENTED_RESPONSE,
+    ApiError,
     not_implemented,
 )
 from backend.app.api.security import user_session
+from backend.app.auth import service as auth_service
+from backend.app.auth import sessions
+from backend.app.auth.deps import CurrentUser
+from backend.app.services.clock import Clock
+
+Sessions = Annotated[SessionFactory, Depends(get_sessionmaker)]
+Now = Annotated[Clock, Depends(get_clock)]
+
+AUTH_FAILURE_STATUS = {
+    ErrorCode.INVALID_CREDENTIALS: status.HTTP_401_UNAUTHORIZED,
+    ErrorCode.ACCOUNT_PENDING: status.HTTP_403_FORBIDDEN,
+    ErrorCode.ACCOUNT_REJECTED: status.HTTP_403_FORBIDDEN,
+    ErrorCode.ACCOUNT_DISABLED: status.HTTP_403_FORBIDDEN,
+    ErrorCode.RATE_LIMITED: status.HTTP_429_TOO_MANY_REQUESTS,
+    ErrorCode.INVALID_REQUEST: status.HTTP_422_UNPROCESSABLE_CONTENT,
+    ErrorCode.VALIDATION_ERROR: status.HTTP_422_UNPROCESSABLE_CONTENT,
+}
+
+
+def auth_error(failure: auth_service.AuthFailure) -> ApiError:
+    return ApiError(AUTH_FAILURE_STATUS[failure.code], failure.code, failure.message)
+
+
+def client_ip(request: Request) -> str | None:
+    """IP đã qua ProxyHeadersMiddleware (X-Forwarded-For chỉ khi đến từ TRUSTED_PROXIES)."""
+    return request.client.host if request.client else None
 
 
 def permission(required: PermissionRequirement) -> dict[str, Any]:
@@ -56,8 +84,11 @@ auth_public_router = APIRouter(prefix="/auth", tags=["auth"], responses=NOT_IMPL
 
 
 @auth_public_router.post("/request-access", status_code=status.HTTP_202_ACCEPTED)
-def request_access(body: AccessRequest) -> None:
-    not_implemented()
+def request_access(body: AccessRequest, factory: Sessions) -> Response:
+    with transaction(factory) as session:
+        auth_service.request_access(session, body)
+    # 202 không có body (requirements.md Phase 4), không phải JSON `null`.
+    return Response(status_code=status.HTTP_202_ACCEPTED)
 
 
 @auth_public_router.post(
@@ -74,13 +105,31 @@ def request_access(body: AccessRequest) -> None:
         status.HTTP_429_TOO_MANY_REQUESTS: {"model": ErrorResponse, "description": "rate_limited"},
     },
 )
-def login(body: LoginRequest) -> Me:
-    not_implemented()
+def login(
+    body: LoginRequest, request: Request, response: Response, factory: Sessions, clock: Now
+) -> Me:
+    now = clock()
+    with transaction(factory) as session:
+        outcome = auth_service.login(
+            session,
+            body,
+            ip=client_ip(request),
+            user_agent=request.headers.get("user-agent"),
+            now=now,
+        )
+    # Lỗi ném sau khi commit: sự kiện login_failed phải được ghi lại.
+    if isinstance(outcome, auth_service.AuthFailure):
+        raise auth_error(outcome)
+    sessions.set_cookies(response, outcome.issued, now=now)
+    return outcome.me
 
 
 @auth_public_router.post("/password-reset", status_code=status.HTTP_204_NO_CONTENT)
-def consume_password_reset(body: PasswordResetConsume) -> None:
-    not_implemented()
+def consume_password_reset(body: PasswordResetConsume, factory: Sessions, clock: Now) -> None:
+    with transaction(factory) as session:
+        failure = auth_service.consume_password_reset(session, body, now=clock())
+        if failure is not None:
+            raise auth_error(failure)
 
 
 router = APIRouter(
@@ -98,13 +147,23 @@ Limit = Annotated[int, Query(ge=1, le=100)]
     status_code=status.HTTP_204_NO_CONTENT,
     openapi_extra=permission(AUTHENTICATED),
 )
-def logout() -> None:
-    not_implemented()
+def logout(
+    user: CurrentUser, request: Request, response: Response, factory: Sessions, clock: Now
+) -> None:
+    with transaction(factory) as session:
+        auth_service.logout(
+            session,
+            session_id=user.session_id,
+            email=user.email,
+            ip=client_ip(request),
+            now=clock(),
+        )
+    sessions.clear_cookies(response)
 
 
 @router.get("/auth/me", tags=["auth"], openapi_extra=permission(AUTHENTICATED))
-def get_me() -> Me:
-    not_implemented()
+def get_me(user: CurrentUser) -> Me:
+    return user.to_me()
 
 
 @router.post(
@@ -113,8 +172,13 @@ def get_me() -> Me:
     status_code=status.HTTP_204_NO_CONTENT,
     openapi_extra=permission(AUTHENTICATED),
 )
-def change_password(body: PasswordChange) -> None:
-    not_implemented()
+def change_password(body: PasswordChange, user: CurrentUser, factory: Sessions, clock: Now) -> None:
+    with transaction(factory) as session:
+        failure = auth_service.change_password(
+            session, user_id=user.user_id, session_id=user.session_id, body=body, now=clock()
+        )
+        if failure is not None:
+            raise auth_error(failure)
 
 
 @router.get("/admin/users", tags=["admin-users"], openapi_extra=permission(P.USER_MANAGE))

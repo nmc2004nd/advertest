@@ -5,8 +5,10 @@ from __future__ import annotations
 import httpx
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import sessionmaker
 
 from advertest_contracts.models import ErrorResponse
+from backend.app.api.deps import get_sessionmaker
 from backend.app.api.security import SESSION_COOKIE
 from backend.app.auth.sessions import CSRF_COOKIE, CSRF_HEADER
 from backend.app.main import create_app
@@ -16,7 +18,10 @@ MUTATING = [("post", "/auth/logout"), ("post", "/auth/password"), ("post", "/exp
 
 @pytest.fixture
 def client() -> TestClient:
-    return TestClient(create_app())
+    app = create_app()
+    # Request qua được middleware nhưng bị từ chối trước khi dùng DB (body sai, thiếu phiên).
+    app.dependency_overrides[get_sessionmaker] = lambda: sessionmaker()
+    return TestClient(app)
 
 
 def _is_csrf_failure(response: httpx.Response) -> bool:
