@@ -125,6 +125,13 @@ Worker được coi là `online` nếu có heartbeat trong 60 giây gần nhất
 - Tác vụ nền trong API gửi email từ outbox, thử lại tối đa 5 lần với backoff; lỗi cuối cùng ghi vào `last_error`.
 - Môi trường phát triển dùng Mailpit trong Docker Compose.
 - Email không chứa ảnh hay dữ liệu dataset.
+- Chi tiết cài đặt (Group 3):
+  - Tiêu đề `[AdverTest] Experiment "<tên>" đã hoàn thành` / `… đã bị hủy`; link `{APP_BASE_URL}/experiments/{id}`; bản HTML và văn bản thuần, tên experiment escape trong HTML.
+  - Câu tóm tắt: `x/y hoàn thành`, rồi các trạng thái khác 0 theo thứ tự lỗi, dừng do giới hạn, bỏ qua, đã hủy, đang chạy, chưa chạy.
+  - Email báo hủy được thêm ngay khi experiment chuyển `cancelled` (lúc bấm hủy), có thể còn run "đang chạy".
+  - Gửi: vòng nền trong API mỗi 10 giây, chỉ chạy khi có `SMTP_HOST` (không có thì email nằm chờ `pending`); biến `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_STARTTLS`. Backoff trước lần thử 2–5: 30, 60, 120, 240 giây (`next_attempt_at`); lỗi lần 5 → `failed`.
+  - Nhiều tiến trình API không gửi trùng (`FOR UPDATE SKIP LOCKED`). Gửi trong transaction đánh dấu: SMTP gửi xong mà commit lỗi thì email được gửi lại (có thể trùng, không mất).
+  - Mailpit `axllent/mailpit:v1.27` pin theo digest; SMTP chỉ trong mạng Docker, giao diện ở `127.0.0.1:8025`.
 
 ### Frontend: wizard (`/experiments/new`)
 

@@ -6,7 +6,23 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 5 — Wizard tạo experiment và theo dõi tiến độ
 
-**Trạng thái:** đang làm. Group 0, 1, 2 đã merge.
+**Trạng thái:** đang làm. Group 0–3 đã merge.
+
+### Phase 5 — Group 3 (backend) — 2026-09-30
+#### Thêm
+- `backend/app/services/notifications.py`: mẫu email tiếng Việt (HTML và văn bản, escape tên), thêm vào `email_outbox` trong cùng transaction khi experiment chuyển `completed` (`runs._after_run`) hoặc `cancelled` (`experiments.cancel`, cả API và CLI); `deliver_due` (SKIP LOCKED, backoff 30/60/120/240 giây, `failed` sau 5 lần, `last_error`); gửi bằng `smtplib` (không thêm dependency); vòng nền 10 giây trong `lifespan` khi có `SMTP_HOST`.
+- Mailpit trong `docker/compose.yaml` (pin digest, giao diện `127.0.0.1:8025`); biến `SMTP_*` cho API và `.env.example`.
+- Test: `tests/test_notifications.py` (nội dung, câu tóm tắt, escape, SMTP giả), `tests/db/test_email_outbox.py` (completed/cancelled/rollback, backoff, `failed`, trạng thái experiment không đổi).
+#### Kiểm tra
+- Gửi thật qua container Mailpit tạm: nhận đúng tiêu đề và nội dung tiếng Việt.
+#### Quyết định (đã ghi vào `requirements.md` Phase 5, mục Email)
+- Câu tóm tắt, tiêu đề, link; email hủy gửi ngay lúc hủy; không có `SMTP_HOST` thì chờ; backoff; gửi có thể trùng khi commit lỗi (không mất); Mailpit `v1.27`.
+#### Review
+- Không có phát hiện chặn. Ghi nhận: vòng nền không có test tự động (manual check với `make up`); API chạy ngoài Docker cần bỏ trống `SMTP_HOST`.
+#### Số liệu
+- `make check`: 804 test Python, 209 test nghiệm thu không cần DB, 103 Vitest. `make test-db`: 317 test.
+#### Lưu ý
+- Code, review và ghi spec do cùng một agent làm (không độc lập).
 
 ### Phase 5 — Group 2 (backend) — 2026-09-30
 #### Thêm

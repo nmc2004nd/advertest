@@ -54,6 +54,18 @@ services:
         condition: service_healthy
     restart: "no"
 
+  mailpit:
+    # Phase 5: SMTP giả cho môi trường phát triển. API gửi qua mailpit:1025 trong mạng Docker;
+    # hộp thư xem ở http://127.0.0.1:${MAILPIT_UI_PORT:-8025} (chỉ gắn localhost).
+    image: axllent/mailpit:v1.27@sha256:e22dce5b36f93c77082e204a3942fb6b283b7896e057458400a4c88344c3df68
+    ports:
+      - "127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   api:
     build:
       context: ..
@@ -80,6 +92,13 @@ services:
       # chưa làm mờ kèm cảnh báo chỉ khi DEV_ALLOW_UNBLURRED=true (không bật ở demo, bảo vệ).
       ARTIFACT_TOKEN_SECRET: ${ARTIFACT_TOKEN_SECRET}
       DEV_ALLOW_UNBLURRED: ${DEV_ALLOW_UNBLURRED:-false}
+      # Phase 5: email khi experiment kết thúc (outbox). Mặc định gửi vào Mailpit.
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_FROM: ${SMTP_FROM:-AdverTest <no-reply@advertest.local>}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-false}
     volumes:
       # `advertest-admin import-local` đọc ảnh theo đường dẫn tuyệt đối ghi lúc import vào
       # LocalStore: mount thư mục dữ liệu vào đúng đường dẫn đó, chỉ đọc.
