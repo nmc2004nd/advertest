@@ -15,7 +15,8 @@ from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.orm import Session
 
 from advertest_contracts.enums import Role, UserStatus
-from advertest_contracts.models import PasswordResetLink, UserAdminView
+from advertest_contracts.models import PasswordResetLink, UserAdminPage, UserAdminView
+from backend.app.api import pagination
 from backend.app.auth import sessions
 from backend.app.auth.service import load_roles
 from backend.app.db import models as m
@@ -220,3 +221,26 @@ def create_reset_link(
 
 def get_actor(session: Session, actor_id: UUID) -> m.User:
     return session.get_one(m.User, actor_id)
+
+
+def list_users(
+    session: Session, *, status: UserStatus | None, cursor: str | None, limit: int
+) -> UserAdminPage:
+    query = select(m.User)
+    if status is not None:
+        query = query.where(m.User.status == status)
+    rows = list(
+        session.scalars(
+            pagination.apply(query, m.User.created_at, m.User.id, pagination.decode(cursor), limit)
+        )
+    )
+    page, more = rows[:limit], len(rows) > limit
+    roles: dict[UUID, set[Role]] = {user.id: set() for user in page}
+    for user_id, role in session.execute(
+        select(m.UserRole.user_id, m.UserRole.role).where(m.UserRole.user_id.in_(roles))
+    ):
+        roles[user_id].add(role)
+    return UserAdminPage(
+        items=[view(user, frozenset(roles[user.id])) for user in page],
+        next_cursor=pagination.encode(page[-1].created_at, page[-1].id) if more else None,
+    )
