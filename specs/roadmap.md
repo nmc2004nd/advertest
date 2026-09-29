@@ -25,7 +25,7 @@
 | 0 ✅ | Contract và khung dự án | Người duyệt (chính) | — | — |
 | 1 ✅ | CLI đo mAP trên slice KITTI | ml-core | 0 | — |
 | 2 ✅ | FGSM/PGD trên CLI, có manifest | ml-core, attack | 1 | 4 |
-| 3 | Job chạy qua API trên máy local | backend, attack | 2 | 4 |
+| 3 ✅ | Job chạy qua API trên máy local | backend, attack | 2 | 4 |
 | 4 | Yêu cầu truy cập, duyệt, RBAC | backend, frontend | 0 | 2, 3 |
 | 5 | Wizard tạo experiment, theo dõi tiến độ | frontend, backend | 3, 4 | 6 |
 | 6 | Đủ catalog, quét lưới | attack | 3 | 5 |
@@ -85,22 +85,24 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 
 **Demo:** mAP trước và sau PGD ở vài mức eps; chạy lại cho kết quả khớp trong sai số.
 
-## Phase 3 — Worker và máy local
+## Phase 3 — Worker và máy local ✅ Hoàn thành (2026-09-29), còn tồn đọng
 
 **Mục tiêu:** chạy job qua API thay vì CLI, trên máy local.
 
-- [ ] Bảng `compute_targets`, token cho worker.
-- [ ] API nội bộ: lấy job, báo tiến độ, heartbeat, xin presigned URL.
-- [ ] Worker gọi lại logic CLI của phase 2.
-- [ ] Upload artifact lên MinIO, sinh thumbnail cho failure case.
-- [ ] Đầy đủ trạng thái run, có lý do cho trạng thái bất thường.
-- [ ] Cache theo fingerprint (`skipped` với lý do `cached`).
-- [ ] Trần thời gian cho máy local, dừng với `stopped_limit`.
-- [ ] Lưu tiến độ theo batch, chạy tiếp sau gián đoạn.
-- [ ] Calibration cost profile cho máy local.
+> Tồn đọng (người dùng cho phép đóng phase): manual check profile `gpu` và số calibration trên GPU (máy phát triển không có GPU). Chưa làm (chuyển tiếp, xem mục "Từ Phase 3" ở các phase sau): user MinIO riêng cho API (Phase 0); `DEFAULT_STORE_DIR` chỉ đúng khi cài editable (Phase 1). CI xanh sau khi push `main` (người dùng xác nhận, 2026-09-29).
+
+- [x] Bảng `compute_targets`, token cho worker.
+- [x] API nội bộ: lấy job, báo tiến độ, heartbeat, xin presigned URL.
+- [x] Worker gọi lại logic CLI của phase 2.
+- [x] Upload artifact lên MinIO, sinh thumbnail cho failure case.
+- [x] Đầy đủ trạng thái run, có lý do cho trạng thái bất thường.
+- [x] Cache theo fingerprint (`skipped` với lý do `cached`).
+- [x] Trần thời gian cho máy local, dừng với `stopped_limit`.
+- [x] Lưu tiến độ theo batch, chạy tiếp sau gián đoạn.
+- [x] Calibration cost profile cho máy local.
 - [ ] (Từ Phase 0) User MinIO riêng cho api và worker thay cho root; image CUDA dùng chung (`TORCH=cuda`); chặn ghi kết quả ở API (chỉ worker); `lease` trả `204` hoặc `WorkerJobBundle`.
 - [ ] (Từ Phase 1) `MinioStore` thay đường dẫn tuyệt đối trong `datasets/<sha>/sources/` bằng ảnh lưu theo sha256; `DEFAULT_STORE_DIR` chỉ đúng khi cài editable; `import-local` đọc bố cục `LocalStore` (`index/`, `models/<sha>/weights.pt`, `cache/predictions/` có trường `device`); chỉ admin được đăng ký model (weights nạp bằng pickle).
-- [ ] (Từ Phase 2) `RunExecutor` giữ hành vi Phase 2 (mask áp lại sau `generate`, lọc/ghép prediction, top-K chép riêng ảnh), checkpoint không chứa ảnh; image đặt `GIT_COMMIT`, `DOCKER_IMAGE_DIGEST`; xử lý `FailureCaseRecord.id` trùng khi hai run cùng fingerprint chạy đồng thời.
+- [x] (Từ Phase 2) `RunExecutor` giữ hành vi Phase 2 (mask áp lại sau `generate`, lọc/ghép prediction, top-K chép riêng ảnh), checkpoint không chứa ảnh; image đặt `GIT_COMMIT`, `DOCKER_IMAGE_DIGEST`; xử lý `FailureCaseRecord.id` trùng khi hai run cùng fingerprint chạy đồng thời.
 
 **Demo:** gửi job qua API, xem tiến độ; tắt worker giữa chừng, bật lại thì job chạy tiếp.
 
