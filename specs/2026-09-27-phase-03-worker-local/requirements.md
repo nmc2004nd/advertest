@@ -103,7 +103,9 @@ Cuối phase: gửi experiment, theo dõi tiến độ; tắt worker giữa ch�
 - Thứ tự run trong experiment lưu ở `runs.ordinal` (theo thứ tự attack và level trong cấu hình); `WorkerJobBundle.runs` theo thứ tự này. `runs.fingerprint` là null tới khi worker gọi `start`.
 
 ### Luồng xử lý của worker
-- Worker là package `advertest_worker`, lệnh `advertest-worker run|calibrate`; client HTTP dùng `httpx`.
+- Worker là package `advertest_worker`, lệnh `advertest-worker run|calibrate`; client HTTP dùng `httpx` (thử lại với backoff khi mất kết nối hoặc lỗi 5xx; không thử lại lỗi 4xx; `409` nghĩa là bỏ experiment đang chạy).
+- `advertest-worker run [--once]`: lặp lease; lỗi của một job (hoặc API tạm không gọi được) chỉ ghi log, worker chờ rồi tiếp tục, không thoát. `advertest-worker calibrate --experiment <id>`: đo lại cost profile cho mọi attack của một experiment đang `running` thuộc target và gửi lên API; không lease, không chạy run.
+- Cache trên máy worker: `CACHE_DIR` (mặc định `~/.cache/advertest-worker`), gồm `images/<sha256>` và `store/` (`LocalStore` của `ml_core`: weights, card, manifest, slice, mapping, cache prediction ảnh sạch dùng lại giữa các job). Mọi file tải về được kiểm tra sha256.
 - Cách chạy mặc định trên máy phát triển: chạy trực tiếp (`uv run advertest-worker run`). Compose có profile `cpu` (CI, test manifest trong Docker) và profile `gpu` (nvidia runtime, kiểm khi có máy GPU).
 - Fingerprint: image Docker của worker đặt biến `GIT_COMMIT` và `DOCKER_IMAGE_DIGEST` (Phase 2); chạy ngoài Docker thì lấy như CLI (`git rev-parse`, `git_dirty` bỏ qua `.ai-log/`).
 
@@ -111,8 +113,10 @@ Cuối phase: gửi experiment, theo dõi tiến độ; tắt worker giữa ch�
 2. Nhận bundle; tải model và ảnh của slice về cache local theo sha256 (chỉ tải ảnh chưa có).
 3. Nếu chưa có cost profile cho (target, model, attack), chạy calibration trước.
 4. Với từng run theo thứ tự: tính fingerprint → `start` → nếu `skip_cached` thì chuyển sang run kế → nếu `run` thì xử lý từng batch, sau mỗi batch lưu checkpoint lên MinIO và gọi `progress`.
-5. Làm theo `WorkerDirective`: `cancel` hoặc `stop_limit` thì dừng ngay sau batch hiện tại.
+5. Làm theo `WorkerDirective`: `cancel` hoặc `stop_limit` thì dừng ngay sau batch hiện tại. Worker xét chỉ thị ở đầu mỗi batch (chỉ thị mới nhất từ heartbeat) và ngay sau `progress`; `cancel` luôn thắng, `stop_limit` chỉ dừng khi còn ảnh chưa xử lý.
 6. Heartbeat chạy ở luồng riêng mỗi 15 giây.
+- Run `failed` hoặc `cancelled`: worker xóa ứng viên đã upload (chúng không phải kết quả). Lỗi khi dựng attack, tải hoặc dựng lại checkpoint chỉ làm run đó `failed`; các run khác chạy tiếp.
+- Chạy tiếp mà fingerprint khác lần `start` trước (code, thư viện, image đổi): API chuyển run đó sang `failed` ("Môi trường worker đổi giữa chừng; gửi lại experiment để chạy lại"), commit rồi trả `409`; worker bỏ job, lần lease sau chạy tiếp các run còn lại.
 7. Hoàn tất run: chọn failure case cuối từ ứng viên, tạo thumbnail, upload, gọi `complete`, xóa ứng viên không được chọn. Chép và xóa ứng viên dùng presigned `GET`, `PUT`, `DELETE` từ `artifact-url`.
 
 ### Failure case trong chế độ batch
@@ -149,7 +153,7 @@ Cuối phase: gửi experiment, theo dõi tiến độ; tắt worker giữa ch�
 
 ### Calibration và ước lượng
 - `advertest-worker calibrate` (hoặc tự động trước job): chạy trên n = min(20, số ảnh của slice) ảnh đầu; tăng dần batch size (1, 2, 4, ...) tối đa min(n, 32); dừng khi hết VRAM (lùi một bậc) hoặc, trên CPU, khi `sec_per_image` không giảm so với bậc trước (giữ bậc trước); đo `sec_per_image` và `peak_vram_mb` ở batch size được chọn; gửi `CostProfile`.
-- Worker dùng batch size trong cost profile khi chạy.
+- Worker dùng batch size trong cost profile khi chạy; không có profile (calibration thất bại) thì dùng 8. Thời gian calibration, tính prediction ảnh sạch và hoàn tất run không tính vào giới hạn thời gian.
 - Cost profile giữ lịch sử (mỗi lần gửi thêm một dòng, kèm `environment`); ước lượng và bundle dùng profile mới nhất theo `measured_at` của (target, model, attack).
 - Hàm ước lượng ở backend: `thời_gian ≈ Σ_run (số ảnh × sec_per_image) × 1.2`. `advertest-admin submit` in ước lượng này; thiếu cost profile thì báo "chưa có ước lượng".
 
