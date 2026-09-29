@@ -6,7 +6,33 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 3 — Worker và máy local
 
-**Trạng thái:** đang làm. Group 0–4 đã merge.
+**Trạng thái:** đang làm. Group 0–5 đã merge.
+
+### Phase 3 — Group 5 (backend) — 2026-09-29
+#### Thêm
+- CLI `advertest-admin` (`backend/admin_cli/cli.py`, entry point trong `pyproject.toml`, người dùng cho phép): `compute-target create|rotate-token|list`, `import-local --store --as`, `submit --config --target [--time-limit] --as` (in ước lượng hoặc "chưa có ước lượng"), `experiment list|show [--watch]|cancel --as`. Lệnh ghi dữ liệu kiểm `--as` là admin `active`.
+- `docker/compose.yaml`: service `worker-cpu` (profile `cpu`) và `worker` (profile `gpu`, nvidia), host network, env chỉ gồm `API_URL`, `WORKER_TOKEN`, `CACHE_DIR`, `DEVICE`, `DOCKER_IMAGE_DIGEST`; MinIO mở `127.0.0.1:9000`; `api` có `MINIO_PUBLIC_ENDPOINT` và mount `ADVERTEST_DATA_DIR` chỉ đọc.
+- `docker/worker/up.sh cpu|gpu`: build từ working tree sạch, `GIT_COMMIT` là commit hiện tại, `DOCKER_IMAGE_DIGEST` là image ID thật.
+- `.env.example` (`MINIO_PORT`, `MINIO_PUBLIC_ENDPOINT`, `ADVERTEST_DATA_DIR`, `API_URL`, `WORKER_TOKEN`, `WORKER_DEVICE`); `docs/van-hanh-worker.md`.
+- Test: `test_admin_cli.py` (CliRunner, Postgres và MinIO thật: token chỉ in một lần, `--as` không phải admin bị từ chối, audit, submit/show/list/cancel, `--watch`), `test_compose.py` (env worker không có thông tin đăng nhập, profile, cổng).
+#### Sửa (phát hiện khi chạy thật trên Docker)
+- Image thiếu thư viện cho opencv: `api` (từ Group 2, qua `ml_core.models.wrapper`) và worker không import được ultralytics, tức `make up` hỏng trên `main` trước nhánh này. Dockerfile cài `libgl1`, `libglib2.0-0`, `libxcb1`; `MPLCONFIGDIR`, `YOLO_CONFIG_DIR` ở `/tmp`.
+- Image thiếu `contracts/seeds/`: seed không chạy được trong container. `.dockerignore` thêm thư mục này.
+#### Số liệu đo được (chạy thật trên Docker, KITTI slice 300 ảnh seed 42, YOLOv8n, CPU, worker trong container)
+- FGSM eps 4/255: mAP@0.5 sạch 0.5332 → 0.1765, ASR 0.438: trùng tuyệt đối số của Phase 2 (CLI). 71.6 giây xử lý; calibration chọn batch 1, 0.244 s/ảnh. 20 failure case kèm thumbnail, `candidates/` rỗng; manifest có `docker_image_digest` thật, `git_dirty = false`.
+- Checkpoint: 300 file, checkpoint cuối 4.7 MB, tổng 691 MB cho một run (mỗi batch ghi checkpoint đầy đủ, không xóa checkpoint cũ).
+#### Quyết định (người dùng chốt hoặc ghi theo review; đã ghi vào `requirements.md` Phase 3, Luồng xử lý của worker, CLI quản trị; `validation.md` Manual Checks)
+- `DOCKER_IMAGE_DIGEST` là image ID thật truyền lúc chạy; worker compose dùng host network, MinIO mở `127.0.0.1:9000`; entry point `advertest-admin` (người dùng chốt).
+- `import-local` bắt buộc `--as`, chạy bằng uid của máy; `ADVERTEST_DATA_DIR` mount vào `api`; `local-dev` cấp token bằng `rotate-token`; seed truyền biến admin khi chạy.
+#### Review
+- Review (do chính agent viết nhánh, không độc lập): không có điểm chặn; ghi nhận: checkpoint quá nặng (worker), compose chạy thẳng không qua `up.sh` làm worker lỗi fingerprint, quyền 0600 của `LocalStore`, CLI chỉ bắt `ServiceError`.
+- `make check` pass (562 test Python, 153 test nghiệm thu, 36 Vitest); `make test-db` 84 test pass.
+#### Tồn đọng
+- **Checkpoint quá nặng** (Group 4, nên làm trước Group 6): worker xóa checkpoint k-1 sau khi `progress` của checkpoint k thành công.
+- Worker nên kiểm `GIT_COMMIT` lúc khởi động (image build không qua `up.sh`).
+- `LocalStore` ghi file quyền 0600 (ml-core): cân nhắc 0644 để `import-local` không cần `exec -u`.
+- Profile `gpu` chưa chạy thử; manual check `pgd_sweep.yaml` và `kill -9` trên `make up`.
+- Image thử nghiệm còn trên máy: `advertest-worker:cpu`, `advertest-g5smoke-api` (container và volume đã dọn).
 
 ### Phase 3 — Group 4 (worker) — 2026-09-29
 #### Thêm

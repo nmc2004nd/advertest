@@ -69,7 +69,7 @@
 
 ## Manual Checks
 
-- [ ] Tạo compute target `local-dev` cho laptop; khởi động worker bằng cách mặc định (chạy trực tiếp: `uv run advertest-worker run`).
+- [ ] Cấp token cho compute target `local-dev` (`compute-target rotate-token local-dev`, target do seed tạo) hoặc tạo target mới cho laptop; khởi động worker bằng cách mặc định (chạy trực tiếp: `uv run --extra cuda advertest-worker run`), theo `docs/van-hanh-worker.md`.
 - [ ] Chạy worker bằng profile `gpu` của compose trên máy có GPU (được phép để tồn đọng khi chưa có máy GPU).
 - [ ] `import-local` dữ liệu Phase 1–2; kiểm tra trong MinIO console chỉ có ảnh thuộc slice.
 - [ ] Gửi `pgd_sweep.yaml` trên slice KITTI 300 ảnh; theo dõi bằng `experiment show --watch`: tiến độ tăng đều, trạng thái đúng.
