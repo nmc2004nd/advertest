@@ -1,11 +1,11 @@
 import { createBrowserRouter, type RouteObject } from 'react-router'
 
-import App from './App'
 import { AppShell } from './layout/AppShell'
 import { ForbiddenPage } from './pages/ForbiddenPage'
+import { LandingPage } from './pages/LandingPage'
 
 const routes: RouteObject[] = [
-  { path: '/', element: <App /> },
+  { path: '/', element: <LandingPage /> },
   { path: '/forbidden', element: <ForbiddenPage /> },
   // Trang cần đăng nhập nằm trong khung ứng dụng (Group 5, 6 thêm trang con).
   { element: <AppShell />, children: [] },
