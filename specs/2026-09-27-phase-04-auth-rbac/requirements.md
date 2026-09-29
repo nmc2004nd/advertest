@@ -145,7 +145,7 @@ Chi tiết phản hồi (chốt ở review Group 0): `POST /auth/login` thành c
 **Điều hướng:**
 - Cấu hình điều hướng tập trung: mỗi mục có đường dẫn, nhãn, icon, permission yêu cầu, và cờ trang đã có hay chưa. Chỉ hiện mục người dùng có quyền **và** trang đã có.
 - Desktop (≥ 1280px): sidebar; tablet (768–1279px): cột icon; điện thoại (< 768px): thanh tab dưới đáy, tối đa 4 ô: không quá 4 mục thì hiện hết, dư thì 3 mục đầu và ô "Thêm" (bottom sheet) chứa phần còn lại (chốt ở Group 4).
-- `/home` hiển thị các khối "việc của tôi" theo từng role người dùng có. Trong phase này: khối admin hiển thị số tài khoản chờ duyệt; khối engineer và reviewer hiển thị "Sắp có".
+- `/home` hiển thị các khối "việc của tôi" theo từng role người dùng có. Trong phase này: khối admin hiển thị số tài khoản chờ duyệt (đếm trên một trang tối đa 100, còn nữa thì hiển thị "100+"); khối engineer và reviewer hiển thị "Sắp có".
 
 **Trang:**
 
@@ -153,8 +153,8 @@ Chi tiết phản hồi (chốt ở review Group 0): `POST /auth/login` thành c
 |---|---|---|
 | Giới thiệu | `/` | Mô tả ngắn, ba role, nút "Yêu cầu truy cập" và "Đăng nhập" |
 | Đăng nhập | `/login` | Email, mật khẩu; chuyển về trang định vào trước đó sau khi đăng nhập |
-| Yêu cầu truy cập | `/request-access` | Form `AccessRequest`; sau khi gửi chuyển đến màn hình xác nhận |
-| Chờ duyệt | `/pending` | Hiển thị theo mã lỗi đăng nhập: đang chờ, bị từ chối, bị vô hiệu hóa |
+| Yêu cầu truy cập | `/request-access` | Form `AccessRequest`; sau khi gửi chuyển đến màn hình xác nhận `/request-access/sent` (nội dung như nhau dù email đã tồn tại hay chưa) |
+| Chờ duyệt | `/pending?code=` | Hiển thị theo mã lỗi đăng nhập (`account_pending` / `account_rejected` / `account_disabled`); mã lạ hoặc thiếu → đang chờ |
 | Đặt lại mật khẩu | `/reset-password/:token` | Mật khẩu mới, xác nhận |
 | Tài khoản | `/account` | Thông tin, role, đổi mật khẩu, đăng xuất |
 | Người dùng | `/admin/users` | Tab "Chờ duyệt" / "Tất cả"; duyệt (chọn role, mặc định chọn sẵn role được yêu cầu), từ chối (bắt buộc lý do), đổi role, vô hiệu hóa/kích hoạt, tạo link đặt lại (hiện link kèm nút copy) |

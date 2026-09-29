@@ -217,7 +217,7 @@ Mọi trạng thái bất thường (`failed`, `skipped`, `stopped_limit`, `canc
 | Type check | mypy (Python), `tsc --noEmit` (TS) | CI |
 | Unit test | pytest, Vitest | CI |
 | Test nghiệm thu | pytest trong `tests/acceptance/` | CI |
-| E2E giao diện | Playwright, 3 viewport | CI hoặc local |
+| E2E giao diện | Playwright, 3 viewport (bản build gọi API qua `/api`: `VITE_API_BASE_URL=/api`) | CI hoặc local (`make test-e2e`) |
 | Smoke test GPU | Script chạy tay | Máy có GPU |
 
 Quy ước:

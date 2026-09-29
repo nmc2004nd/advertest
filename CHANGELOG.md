@@ -6,7 +6,21 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 4 — Xác thực và phân quyền
 
-**Trạng thái:** đang làm. Group 0–4 đã merge.
+**Trạng thái:** đang làm. Group 0–5 đã merge.
+
+### Phase 4 — Group 5 (frontend) — 2026-09-29
+#### Thêm
+- Trang `/` (giới thiệu, ba role), `/login` (quay lại `next`; `account_*` → `/pending?code=`), `/request-access` và `/request-access/sent`, `/pending`, `/reset-password/:token`, `/account` (thông tin, đổi mật khẩu với lỗi `422` dưới ô mật khẩu hiện tại, đăng xuất), `/home` (khối theo role, số chờ duyệt cho admin).
+- `RequirePermission` hiện lỗi và nút "Thử lại" khi `/auth/me` lỗi khác `401` (task 30a); điều hướng bật "Trang chủ", "Tài khoản".
+- Schema zod (`src/auth/schemas.ts`) cùng luật với contract; `SelectField`, `TextareaField`, `FormAlert`, `LoadError`; `src/test-utils.tsx`. Vitest 70 → 91.
+#### Sửa trong lúc làm
+- Bản build của E2E không đặt `VITE_API_BASE_URL=/api` nên gọi API không qua proxy (kịch bản khói chỉ gọi `/api/health` nên không lộ): đặt trong `playwright.config.ts`.
+#### Kiểm tra
+- Chạy thử luồng thật (spec tạm, không commit) trên 3 viewport với backend thật: yêu cầu truy cập → chờ duyệt → admin duyệt (qua API) → `/account` chuyển về `/login?next=` rồi quay lại → đổi mật khẩu (sai rồi đúng) → đăng xuất; không cuộn ngang.
+#### Quyết định (người dùng chốt, đã ghi vào `requirements.md`, `tech-stack.md`, `plan.md`)
+- `/pending?code=`; `/request-access/sent`; khối admin đếm tối đa 100 ("100+"); bản build E2E dùng `/api`; Group 6 làm mới số chờ duyệt sau khi duyệt/từ chối.
+#### Review
+- Review do chính agent viết nhánh (không độc lập): không có phát hiện chặn.
 
 ### Phase 4 — Group 4 (frontend) — 2026-09-29
 #### Thêm
