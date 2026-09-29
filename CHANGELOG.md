@@ -8,6 +8,13 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 **Trạng thái:** ✅ hoàn thành 2026-09-29. Group 0–7 đã merge.
 
+### Replan sau Phase 4 — 2026-09-29
+- Phase 5 `requirements.md`: bảng endpoint dùng action `experiment.submit` (trước ghi `experiment.created`, mâu thuẫn với chính spec); mục Context ghi các quy ước của Phase 4 (`**guard(p)`, thứ tự 401/403/422, phân trang keyset và `Page[T]`, `validation_error`/`invalid_request`, `ERROR_MESSAGES`, action `entity.verb`). `validation.md`: `experiment.submit`.
+- Phase 5 `plan.md`: task 1a (OpenAPI khai `422` là `ErrorResponse`, cân nhắc `ErrorCode` cho `500`), 2a (endpoint khung qua `**guard(p)`, cập nhật số permission có route trong test backend), 37 (cập nhật test điều hướng của Phase 4 khi bật `/experiments`).
+- Phase 6 `plan.md` task 35: mục `/admin/attacks` trong `NAV_ITEMS` (admin 5 mục → điện thoại 3 mục + "Thêm"), dùng lại mẫu bảng/thẻ của Phase 4.
+- `roadmap.md` Phase 11: "(Từ Phase 4)" `/docs` công khai, `TRUSTED_PROXIES` của compose chỉ hợp cho dev, ô chọn actor tối đa 100.
+- Rủi ro: thời gian job CI `e2e` tăng theo số kịch bản (chạy tuần tự); kịch bản E2E đăng nhập sai nhiều lần sẽ khóa đăng nhập của cả bộ (cùng IP).
+
 ### Phase 4 — Tổng kết (phase-close) — 2026-09-29
 - **Giao được:** yêu cầu truy cập → admin duyệt/từ chối → đăng nhập bằng phiên phía server (cookie httpOnly 12 giờ, sha256 token, CSRF double-submit, giới hạn 5 lần sai/15 phút theo email và IP qua `TRUSTED_PROXIES`); đổi và đặt lại mật khẩu (link một lần do admin tạo); ma trận quyền trong contract (21 permission, sinh sang TypeScript), `require_permission` cho mọi route cần phiên và kiểm tra lúc khởi động; quản trị người dùng (luật admin cuối cùng, tự vô hiệu hóa, chuyển trạng thái), audit log đủ thao tác tài khoản và trang xem cho admin; frontend mobile-first (sidebar / cột icon / thanh tab), trang giới thiệu, đăng nhập, yêu cầu truy cập, chờ duyệt, đặt lại mật khẩu, tài khoản, `/home` theo role, quản lý người dùng, audit log.
 - **Contract:** `Permission`, `ROLE_PERMISSIONS`, 7 `ErrorCode` mới, 13 schema (`AccessRequest`, `Me`, `UserAdminView`, `AuditLogEntry`, `Page`...), OpenAPI `/auth/*`, `/admin/users/*`, `/audit-log` với `x-permission`; `AuditLogEntry.action` chỉ đòi chuỗi không rỗng (review Group 3). Người dùng chấp nhận (làm thay người duyệt theo ủy quyền).

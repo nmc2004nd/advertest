@@ -216,6 +216,7 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 - [ ] So sánh nhiều experiment.
 - [ ] Rà soát bảo mật: quyền endpoint, token worker, cấu hình Tailscale.
 - [ ] Tài liệu cài đặt và vận hành.
+- [ ] (Từ Phase 4) `/docs`, `/redoc`, `/openapi.json` đang công khai; compose tin cả mạng Docker trong `TRUSTED_PROXIES` (chỉ hợp cho dev; bản triển khai đặt IP reverse proxy); ô chọn người thực hiện trên trang audit tối đa 100 người dùng.
 - [ ] (Từ Phase 0) Pin image nền và GitHub Action theo digest/SHA; tài liệu cài đặt nhắc đổi mật khẩu `change-me-*` và việc `make check` cần mạng ở lần đầu.
 
 **Demo:** trọn luồng từ yêu cầu truy cập đến report đã xác minh, trên desktop và điện thoại.
