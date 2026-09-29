@@ -6,7 +6,27 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 3 — Worker và máy local
 
-**Trạng thái:** đang làm. Group 0–5 đã merge; đã sửa checkpoint quá nặng.
+**Trạng thái:** đang làm. Group 0–5 đã merge; đã sửa checkpoint quá nặng; Group 6 (test nghiệm thu, manual check) xong trên nhánh `phase03-reviewer-g6`.
+
+### Phase 3 — Group 6 (người duyệt, người dùng cho phép) — 2026-09-29
+#### Thêm
+- Test nghiệm thu `tests/acceptance/phase_03/` (41 test, mọi mục Automated Tests của `validation.md`): `test_architecture.py` (AST import, env compose, OpenAPI và router), `test_worker_auth.py`, `test_leasing.py`, `test_artifacts.py`, `test_execution.py` (golden Phase 2 ±0.01), `test_resume.py` (so lần chạy liền mạch ±0.005/±0.01, gián đoạn một và hai lần), `test_limits.py`, `test_calibration.py` (CLI `advertest-worker calibrate` qua uvicorn thật), `test_audit.py`. Chạy với worker thật, YOLOv8n và 5 ảnh fixture thật, Postgres và MinIO thật; cả bộ khoảng 1.5 phút trên CPU.
+- Lần chạy liền mạch và lần bị gián đoạn dùng GIT_COMMIT khác nhau (fingerprint khác, không trúng cache); yêu cầu `start` trong test có fingerprint riêng mỗi lần.
+- Manifest trong Docker kiểm bằng test mô phỏng env (`GIT_COMMIT`, `DOCKER_IMAGE_DIGEST`) cộng manual check trong container (người dùng chốt).
+#### Manual check (máy phát triển, CPU 16 luồng, không GPU; `make up` với project và cổng riêng, đã dọn)
+- `import-local`: 300/7481 ảnh KITTI lên MinIO (đếm object; chỉ ảnh thuộc slice).
+- `pgd_sweep.yaml` trên slice KITTI 300 ảnh, worker trong Docker (`docker/worker/up.sh cpu`), 28 phút xử lý: 6 run `completed`, mỗi run 20 failure case đủ file (PNG 640x640, thumbnail WebP 320x320), `candidates/` rỗng, manifest có `docker_image_digest` thật và `git_dirty = false`.
+- `kill -9` worker khi run PGD L∞ eps 2 ở 132/300 ảnh; khởi động lại; worker nhận lại experiment sau 59 giây (lease hết hạn) và chạy tiếp từ checkpoint batch 65.
+- Metric so với Phase 2 (CLI, batch 8): FGSM eps 4/8 trùng tuyệt đối (0.1765, 0.1631); PGD L∞ eps 2 (run bị gián đoạn) mAP@0.5 0.0129 vs 0.0123, ASR 0.761 vs 0.767; eps 4 0.0018 vs 0.0017, ASR 0.897 vs 0.903; eps 8, 16 trùng mAP, ASR lệch ≤ 0.006: trong sai số ±0.01. Lệch có cả ở run PGD không bị gián đoạn, nhiều khả năng do batch size (2 vs 8) chứ không do chạy tiếp.
+- Gửi lại cùng cấu hình: 6 run `skipped` (`cached`), xong trong khoảng 20 giây.
+- Giới hạn 60 giây: dừng ở 59.9 giây xử lý; run hiện tại `stopped_limit` (42/300 ảnh, `partial = true`), 5 run chưa chạy `stopped_limit` với 0 ảnh.
+- Worker chạy trực tiếp (`uv run --extra cpu advertest-worker run --once`): FGSM eps 4 trên 300 ảnh, 48.5 giây, `completed`.
+- Calibration trên CPU: PGD L∞ batch 2, 1.229 s/ảnh (batch 1: 1.319, batch 4: 1.321); FGSM batch 2, 0.158 s/ảnh.
+- Checkpoint sau `pgd_sweep`: mỗi run 1 file (4.1–5.0 MB), tổng 27 MB cho 6 run (trước khi sửa: 691 MB cho một run).
+#### Tồn đọng
+- Manual check profile `gpu` (không có GPU); số calibration trên GPU.
+- PGD phụ thuộc nhẹ vào batch size trên KITTI thật (≤ 0.0006 mAP, ≤ 0.006 ASR): nằm trong sai số, nên ghi vào spec về tái lập.
+- Definition of Done: CI xanh sau khi push, đánh dấu `roadmap.md` (skill `phase-close`).
 
 ### Phase 3 — sửa checkpoint quá nặng (worker) — 2026-09-29
 #### Thay đổi
