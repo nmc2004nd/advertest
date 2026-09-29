@@ -5,7 +5,7 @@
  * Query tự tạm dừng polling khi tab bị ẩn (`refetchIntervalInBackground` mặc định là false).
  */
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 
 import { apiGet } from '@/api/client'
 import { POLL_INTERVAL_MS } from '@/api/queries'
@@ -148,6 +148,19 @@ export function useFailureCase(id: string) {
   })
   useRefreshBeforeExpiry(failureCaseKey(id), query.data?.urls_expire_at)
   return query
+}
+
+/**
+ * Ảnh tải lỗi (thường do URL vừa hết hạn): xin lại case, mỗi bộ URL chỉ thử một lần để không
+ * lặp vô hạn khi ảnh thật sự không có (task 22). `urlsKey` thường là `urls_expire_at`.
+ */
+export function useRetryOnImageError(refetch: () => unknown, urlsKey: string | null | undefined) {
+  const tried = useRef<string | null | undefined>(undefined)
+  return useCallback(() => {
+    if (!urlsKey || tried.current === urlsKey) return
+    tried.current = urlsKey
+    void refetch()
+  }, [refetch, urlsKey])
 }
 
 /** URL ảnh của API (`/artifacts/...`) thành URL trình duyệt tải được (qua `/api` khi có). */
