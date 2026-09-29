@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Generic, Literal, TypeVar
 from uuid import UUID
 
 from pydantic import (
@@ -29,15 +29,18 @@ from advertest_contracts.enums import (
     CaseSeverity,
     ErrorCode,
     LimitKind,
+    Role,
     RunMode,
     RunStatus,
     SearchStatus,
     SkipReason,
     StopReason,
     ThresholdKind,
+    UserStatus,
 )
 from advertest_contracts.hashing import sha256_of
 from advertest_contracts.ids import content_id
+from advertest_contracts.permissions import Permission, permissions_for
 
 Sha256Hex = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
 GitCommit = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{40}$")]
@@ -1089,3 +1092,142 @@ class ProtocolBody(_Model):
     review_severity_threshold: CaseSeverity = Field(
         description="Case từ mức này trở lên bắt buộc có verdict"
     )
+
+
+# ---------------------------------------------------------------- Xác thực và quản trị (Phase 4)
+
+# Email luôn ở dạng chữ thường (so sánh không phân biệt hoa thường). Chỉ kiểm tra hình dạng tối
+# thiểu; việc admin duyệt tài khoản đóng vai trò xác minh.
+Email = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True, to_lower=True, max_length=254, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
+    ),
+]
+# Mật khẩu mới: tối thiểu 10 ký tự; giới hạn trên để băm argon2 không bị lạm dụng.
+NewPassword = Annotated[str, StringConstraints(min_length=10, max_length=256)]
+Password = Annotated[str, StringConstraints(min_length=1, max_length=256)]
+Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
+Reason = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)]
+
+
+def _unique_roles(roles: list[Role]) -> list[Role]:
+    if len(set(roles)) != len(roles):
+        raise ValueError("roles không được trùng")
+    return roles
+
+
+# Ít nhất một role, không trùng.
+RoleList = Annotated[list[Role], Field(min_length=1), AfterValidator(_unique_roles)]
+
+
+class AccessRequest(_Model):
+    full_name: Name
+    email: Email
+    organization: Name | None = None
+    requested_role: Role
+    reason: Reason
+    password: NewPassword
+
+    @model_validator(mode="after")
+    def _password_differs_from_email(self) -> AccessRequest:
+        if self.password.strip().lower() == self.email:
+            raise ValueError("Mật khẩu không được trùng email")
+        return self
+
+
+class LoginRequest(_Model):
+    email: Email
+    password: Password
+
+
+class Me(_Model):
+    id: UUID
+    full_name: str
+    email: Email
+    roles: list[Role]
+    permissions: list[Permission] = Field(description="Hợp các permission của mọi role")
+    status: UserStatus
+
+    @model_validator(mode="after")
+    def _permissions_match_roles(self) -> Me:
+        if set(self.permissions) != permissions_for(self.roles):
+            raise ValueError("permissions phải bằng hợp ROLE_PERMISSIONS của roles")
+        return self
+
+
+class UserAdminView(_Model):
+    id: UUID
+    full_name: str
+    email: Email
+    organization: str | None
+    status: UserStatus
+    roles: list[Role]
+    requested_role: Role | None
+    request_reason: str | None
+    reject_reason: str | None = Field(description="Chỉ có khi status = rejected")
+    created_at: UtcDatetime
+    approved_at: UtcDatetime | None
+    approved_by: UUID | None
+
+
+class ApproveRequest(_Model):
+    roles: RoleList
+
+
+class RejectRequest(_Model):
+    reason: Reason
+
+
+class RolesUpdate(_Model):
+    roles: RoleList = Field(description="Ít nhất 1 role; muốn chặn truy cập thì vô hiệu hóa")
+
+
+class PasswordChange(_Model):
+    current_password: Password
+    new_password: NewPassword
+
+
+class PasswordResetLink(_Model):
+    url: str = Field(pattern=r"^https?://\S+/reset-password/\S+$")
+    expires_at: UtcDatetime
+
+
+class PasswordResetConsume(_Model):
+    token: Password
+    new_password: NewPassword
+
+
+class AuditActor(_Model):
+    id: UUID
+    full_name: str
+    email: Email
+
+
+class AuditLogEntry(_Model):
+    id: UUID
+    actor: AuditActor | None = Field(description="null với hành động của hệ thống")
+    action: str = Field(pattern=r"^[a-z_]+(\.[a-z_]+)+$", examples=["user.approved"])
+    entity_type: str = Field(min_length=1)
+    entity_id: UUID | None
+    before: dict[str, JsonValue] | None
+    after: dict[str, JsonValue] | None
+    created_at: UtcDatetime
+
+
+ItemT = TypeVar("ItemT", bound=BaseModel)
+
+
+class Page(_Model, Generic[ItemT]):
+    """Một trang kết quả; `next_cursor = null` khi đã hết."""
+
+    items: list[ItemT]
+    next_cursor: str | None
+
+
+class UserAdminPage(Page[UserAdminView]):
+    pass
+
+
+class AuditLogPage(Page[AuditLogEntry]):
+    pass

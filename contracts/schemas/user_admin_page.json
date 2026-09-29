@@ -1,0 +1,169 @@
+{
+  "$defs": {
+    "Role": {
+      "enum": [
+        "engineer",
+        "reviewer",
+        "admin"
+      ],
+      "title": "Role",
+      "type": "string"
+    },
+    "UserAdminView": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "full_name": {
+          "title": "Full Name",
+          "type": "string"
+        },
+        "email": {
+          "maxLength": 254,
+          "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+          "title": "Email",
+          "type": "string"
+        },
+        "organization": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Organization"
+        },
+        "status": {
+          "$ref": "#/$defs/UserStatus"
+        },
+        "roles": {
+          "items": {
+            "$ref": "#/$defs/Role"
+          },
+          "title": "Roles",
+          "type": "array"
+        },
+        "requested_role": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Role"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Request Reason"
+        },
+        "reject_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Chỉ có khi status = rejected",
+          "title": "Reject Reason"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "approved_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Approved At"
+        },
+        "approved_by": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Approved By"
+        }
+      },
+      "required": [
+        "id",
+        "full_name",
+        "email",
+        "organization",
+        "status",
+        "roles",
+        "requested_role",
+        "request_reason",
+        "reject_reason",
+        "created_at",
+        "approved_at",
+        "approved_by"
+      ],
+      "title": "UserAdminView",
+      "type": "object"
+    },
+    "UserStatus": {
+      "enum": [
+        "pending",
+        "active",
+        "rejected",
+        "disabled"
+      ],
+      "title": "UserStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/$defs/UserAdminView"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "next_cursor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Next Cursor"
+    }
+  },
+  "required": [
+    "items",
+    "next_cursor"
+  ],
+  "title": "UserAdminPage",
+  "type": "object"
+}

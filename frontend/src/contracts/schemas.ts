@@ -7,6 +7,28 @@ export type paths = Record<string, never>;
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AccessRequest */
+        AccessRequest: {
+            /** Full Name */
+            full_name: string;
+            /** Email */
+            email: string;
+            /**
+             * Organization
+             * @default null
+             */
+            organization: string | null;
+            requested_role: components["schemas"]["Role"];
+            /** Reason */
+            reason: string;
+            /** Password */
+            password: string;
+        };
+        /** ApproveRequest */
+        ApproveRequest: {
+            /** Roles */
+            roles: components["schemas"]["Role"][];
+        };
         /** ArtifactUrlRequest */
         ArtifactUrlRequest: {
             /**
@@ -122,6 +144,57 @@ export interface components {
              * @description Hash của mọi trường trừ id và chính nó
              */
             spec_sha256: string;
+        };
+        /** AuditActor */
+        AuditActor: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Full Name */
+            full_name: string;
+            /** Email */
+            email: string;
+        };
+        /** AuditLogEntry */
+        AuditLogEntry: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** @description null với hành động của hệ thống */
+            actor: components["schemas"]["AuditActor"] | null;
+            /**
+             * Action
+             * @example user.approved
+             */
+            action: string;
+            /** Entity Type */
+            entity_type: string;
+            /** Entity Id */
+            entity_id: string | null;
+            /** Before */
+            before: {
+                [key: string]: components["schemas"]["JsonValue"];
+            } | null;
+            /** After */
+            after: {
+                [key: string]: components["schemas"]["JsonValue"];
+            } | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** AuditLogPage */
+        AuditLogPage: {
+            /** Items */
+            items: components["schemas"]["AuditLogEntry"][];
+            /** Next Cursor */
+            next_cursor: string | null;
         };
         /**
          * BillingMode
@@ -538,7 +611,7 @@ export interface components {
          * ErrorCode
          * @enum {string}
          */
-        ErrorCode: "not_implemented" | "unauthenticated" | "forbidden" | "not_found" | "conflict" | "invalid_request";
+        ErrorCode: "not_implemented" | "unauthenticated" | "forbidden" | "not_found" | "conflict" | "invalid_request" | "invalid_credentials" | "account_pending" | "account_rejected" | "account_disabled" | "rate_limited" | "csrf_failed" | "validation_error";
         /**
          * ErrorResponse
          * @description Body lỗi thống nhất của mọi endpoint: {"error": {"code", "message"}}.
@@ -839,6 +912,13 @@ export interface components {
          * @enum {string}
          */
         LimitKind: "budget" | "time";
+        /** LoginRequest */
+        LoginRequest: {
+            /** Email */
+            email: string;
+            /** Password */
+            password: string;
+        };
         /** Manifest */
         Manifest: {
             /**
@@ -924,6 +1004,26 @@ export interface components {
             /** Map50 95 */
             map50_95: number;
         };
+        /** Me */
+        Me: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Full Name */
+            full_name: string;
+            /** Email */
+            email: string;
+            /** Roles */
+            roles: components["schemas"]["Role"][];
+            /**
+             * Permissions
+             * @description Hợp các permission của mọi role
+             */
+            permissions: components["schemas"]["Permission"][];
+            status: components["schemas"]["UserStatus"];
+        };
         /**
          * ModelCard
          * @description Model đã đăng ký. id = content_id(weights_sha256).
@@ -977,6 +1077,35 @@ export interface components {
              */
             class_filter: string[] | null;
         };
+        /** PasswordChange */
+        PasswordChange: {
+            /** Current Password */
+            current_password: string;
+            /** New Password */
+            new_password: string;
+        };
+        /** PasswordResetConsume */
+        PasswordResetConsume: {
+            /** Token */
+            token: string;
+            /** New Password */
+            new_password: string;
+        };
+        /** PasswordResetLink */
+        PasswordResetLink: {
+            /** Url */
+            url: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+        };
+        /**
+         * Permission
+         * @enum {string}
+         */
+        Permission: "experiment.read" | "experiment.create" | "experiment.cancel_own" | "experiment.submit_review" | "dataset.read" | "dataset.upload" | "slice.create" | "model.read" | "model.manage" | "attack_catalog.read" | "attack_catalog.manage" | "protocol.read" | "protocol.manage" | "review.decide" | "report.export" | "report.read" | "user.manage" | "compute_target.read" | "compute_target.manage" | "budget.manage" | "audit.read";
         /** PrimaryParam */
         PrimaryParam: {
             /** Name */
@@ -1050,6 +1179,11 @@ export interface components {
          * @enum {string}
          */
         ProtocolStatus: "active" | "retired" | "dev";
+        /** RejectRequest */
+        RejectRequest: {
+            /** Reason */
+            reason: string;
+        };
         /** RequiredAttack */
         RequiredAttack: {
             /**
@@ -1081,6 +1215,14 @@ export interface components {
          * @enum {string}
          */
         Role: "engineer" | "reviewer" | "admin";
+        /** RolesUpdate */
+        RolesUpdate: {
+            /**
+             * Roles
+             * @description Ít nhất 1 role; muốn chặn truy cập thì vô hiệu hóa
+             */
+            roles: components["schemas"]["Role"][];
+        };
         /**
          * RunCompletion
          * @description Body của `POST /runs/{id}/complete`.
@@ -1405,6 +1547,47 @@ export interface components {
              */
             run_id: string;
         };
+        /** UserAdminPage */
+        UserAdminPage: {
+            /** Items */
+            items: components["schemas"]["UserAdminView"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** UserAdminView */
+        UserAdminView: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Full Name */
+            full_name: string;
+            /** Email */
+            email: string;
+            /** Organization */
+            organization: string | null;
+            status: components["schemas"]["UserStatus"];
+            /** Roles */
+            roles: components["schemas"]["Role"][];
+            requested_role: components["schemas"]["Role"] | null;
+            /** Request Reason */
+            request_reason: string | null;
+            /**
+             * Reject Reason
+             * @description Chỉ có khi status = rejected
+             */
+            reject_reason: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Approved At */
+            approved_at: string | null;
+            /** Approved By */
+            approved_by: string | null;
+        };
         /**
          * UserStatus
          * @enum {string}
@@ -1490,6 +1673,11 @@ export interface components {
              */
             lease_expires_at: string;
         };
+        /**
+         * Permission
+         * @enum {string}
+         */
+        _P: "experiment.read" | "experiment.create" | "experiment.cancel_own" | "experiment.submit_review" | "dataset.read" | "dataset.upload" | "slice.create" | "model.read" | "model.manage" | "attack_catalog.read" | "attack_catalog.manage" | "protocol.read" | "protocol.manage" | "review.decide" | "report.export" | "report.read" | "user.manage" | "compute_target.read" | "compute_target.manage" | "budget.manage" | "audit.read";
     };
     responses: never;
     parameters: never;
@@ -1497,12 +1685,17 @@ export interface components {
     headers: never;
     pathItems: never;
 }
+export type AccessRequest = components['schemas']['AccessRequest'];
+export type ApproveRequest = components['schemas']['ApproveRequest'];
 export type ArtifactUrlRequest = components['schemas']['ArtifactUrlRequest'];
 export type ArtifactUrlResponse = components['schemas']['ArtifactUrlResponse'];
 export type AttackAccess = components['schemas']['AttackAccess'];
 export type AttackConfig = components['schemas']['AttackConfig'];
 export type AttackKind = components['schemas']['AttackKind'];
 export type AttackSpec = components['schemas']['AttackSpec'];
+export type AuditActor = components['schemas']['AuditActor'];
+export type AuditLogEntry = components['schemas']['AuditLogEntry'];
+export type AuditLogPage = components['schemas']['AuditLogPage'];
 export type BillingMode = components['schemas']['BillingMode'];
 export type BundleCheckpoint = components['schemas']['BundleCheckpoint'];
 export type BundleDownloads = components['schemas']['BundleDownloads'];
@@ -1548,21 +1741,29 @@ export type JsonValue = components['schemas']['JsonValue'];
 export type LibVersions = components['schemas']['LibVersions'];
 export type Limit = components['schemas']['Limit'];
 export type LimitKind = components['schemas']['LimitKind'];
+export type LoginRequest = components['schemas']['LoginRequest'];
 export type Manifest = components['schemas']['Manifest'];
 export type ManifestAnnotation = components['schemas']['ManifestAnnotation'];
 export type ManifestImage = components['schemas']['ManifestImage'];
 export type ManifestSource = components['schemas']['ManifestSource'];
 export type MapPair = components['schemas']['MapPair'];
+export type Me = components['schemas']['Me'];
 export type ModelCard = components['schemas']['ModelCard'];
 export type PassCriterion = components['schemas']['PassCriterion'];
+export type PasswordChange = components['schemas']['PasswordChange'];
+export type PasswordResetConsume = components['schemas']['PasswordResetConsume'];
+export type PasswordResetLink = components['schemas']['PasswordResetLink'];
+export type Permission = components['schemas']['Permission'];
 export type PrimaryParam = components['schemas']['PrimaryParam'];
 export type Progress = components['schemas']['Progress'];
 export type ProgressReport = components['schemas']['ProgressReport'];
 export type ProtocolBody = components['schemas']['ProtocolBody'];
 export type ProtocolStatus = components['schemas']['ProtocolStatus'];
+export type RejectRequest = components['schemas']['RejectRequest'];
 export type RequiredAttack = components['schemas']['RequiredAttack'];
 export type ReviewDecision = components['schemas']['ReviewDecision'];
 export type Role = components['schemas']['Role'];
+export type RolesUpdate = components['schemas']['RolesUpdate'];
 export type RunCompletion = components['schemas']['RunCompletion'];
 export type RunMetrics = components['schemas']['RunMetrics'];
 export type RunMode = components['schemas']['RunMode'];
@@ -1581,10 +1782,13 @@ export type StopReason = components['schemas']['StopReason'];
 export type ThresholdKind = components['schemas']['ThresholdKind'];
 export type Timing = components['schemas']['Timing'];
 export type TrajectoryPoint = components['schemas']['TrajectoryPoint'];
+export type UserAdminPage = components['schemas']['UserAdminPage'];
+export type UserAdminView = components['schemas']['UserAdminView'];
 export type UserStatus = components['schemas']['UserStatus'];
 export type WorkerDirective = components['schemas']['WorkerDirective'];
 export type WorkerJobBundle = components['schemas']['WorkerJobBundle'];
 export type WorkerLease = components['schemas']['WorkerLease'];
+export type P = components['schemas']['_P'];
 export type $defs = Record<string, never>;
 type FlattenedDeepRequired<T> = {
     [K in keyof T]-?: FlattenedDeepRequired<T[K] extends unknown[] | undefined | null ? Extract<T[K], unknown[]>[number] : T[K]>;
@@ -1601,12 +1805,13 @@ export const attackKindValues: ReadonlyArray<FlattenedDeepRequired<components>["
 export const billingModeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["BillingMode"]> = ["none", "hourly"];
 export const caseSeverityValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["CaseSeverity"]> = ["critical", "major", "minor", "acceptable"];
 export const computeKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ComputeKind"]> = ["local", "rented"];
-export const errorCodeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ErrorCode"]> = ["not_implemented", "unauthenticated", "forbidden", "not_found", "conflict", "invalid_request"];
+export const errorCodeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ErrorCode"]> = ["not_implemented", "unauthenticated", "forbidden", "not_found", "conflict", "invalid_request", "invalid_credentials", "account_pending", "account_rejected", "account_disabled", "rate_limited", "csrf_failed", "validation_error"];
 export const experimentStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ExperimentStatus"]> = ["draft", "queued", "running", "completed", "submitted_for_review", "in_review", "approved", "changes_requested", "rejected", "cancelled"];
 export const healthResponseStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["HealthResponse"]["status"]> = ["ok", "degraded"];
 export const limitKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["LimitKind"]> = ["budget", "time"];
 export const manifestSourceFormatValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ManifestSource"]["format"]> = ["kitti", "yolo", "coco"];
 export const modelCardFrameworkValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ModelCard"]["framework"]> = ["ultralytics", "torchvision"];
+export const permissionValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["Permission"]> = ["experiment.read", "experiment.create", "experiment.cancel_own", "experiment.submit_review", "dataset.read", "dataset.upload", "slice.create", "model.read", "model.manage", "attack_catalog.read", "attack_catalog.manage", "protocol.read", "protocol.manage", "review.decide", "report.export", "report.read", "user.manage", "compute_target.read", "compute_target.manage", "budget.manage", "audit.read"];
 export const primaryParamTypeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["PrimaryParam"]["type"]> = ["continuous", "discrete"];
 export const protocolStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ProtocolStatus"]> = ["active", "retired", "dev"];
 export const reviewDecisionValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ReviewDecision"]> = ["approve", "changes_requested", "reject"];
@@ -1622,4 +1827,5 @@ export const thresholdKindValues: ReadonlyArray<FlattenedDeepRequired<components
 export const trajectoryPointScopeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["TrajectoryPoint"]["scope"]> = ["subset", "full"];
 export const userStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["UserStatus"]> = ["pending", "active", "rejected", "disabled"];
 export const workerDirectiveActionValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["WorkerDirective"]["action"]> = ["continue", "cancel", "stop_limit"];
+export const _PValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["_P"]> = ["experiment.read", "experiment.create", "experiment.cancel_own", "experiment.submit_review", "dataset.read", "dataset.upload", "slice.create", "model.read", "model.manage", "attack_catalog.read", "attack_catalog.manage", "protocol.read", "protocol.manage", "review.decide", "report.export", "report.read", "user.manage", "compute_target.read", "compute_target.manage", "budget.manage", "audit.read"];
 export type operations = Record<string, never>;

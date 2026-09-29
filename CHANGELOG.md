@@ -4,6 +4,33 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ---
 
+## Phase 4 — Xác thực và phân quyền
+
+**Trạng thái:** đang làm. Group 0 xong trên nhánh `phase04-reviewer-g0`, chờ merge.
+
+### Phase 4 — Group 0 (người duyệt, người dùng giao) — 2026-09-29
+#### Contract
+- `advertest_contracts.permissions`: enum `Permission` (21 giá trị), `ROLE_PERMISSIONS` (đúng từng ô bảng trong `requirements.md`), `permissions_for(roles)` (hợp), `AUTHENTICATED`; sinh `frontend/src/contracts/permissions.ts`.
+- `ErrorCode` thêm `invalid_credentials`, `account_pending`, `account_rejected`, `account_disabled`, `rate_limited`, `csrf_failed`, `validation_error`.
+- Schema mới: `AccessRequest`, `LoginRequest`, `Me` (`permissions` phải bằng hợp của `roles`), `UserAdminView`, `ApproveRequest`, `RejectRequest`, `RolesUpdate` (cả hai: ít nhất 1 role, không trùng), `PasswordChange`, `PasswordResetLink`, `PasswordResetConsume`, `AuditActor`, `AuditLogEntry`, `Page[T]` (`UserAdminPage`, `AuditLogPage`); kiểu `Email` (tự chuyển chữ thường), `NewPassword` (10–256 ký tự). Mock: `Me` cho từng role và engineer+reviewer, `UserAdminView` đủ 4 trạng thái, `AuditLogEntry` có actor `null`. 39 JSON Schema.
+- OpenAPI: `/auth/request-access|login|password-reset` công khai (không cookie); `/auth/logout|me|password`, `/admin/users/*` (7 endpoint), `/audit-log` (lọc, cursor) là khung `501`. Mọi route cần phiên khai `x-permission` và `401`/`403` `ErrorResponse`. Bỏ `GET /users` (Phase 0).
+#### Thêm
+- `@playwright/test` 1.63.0, `frontend/playwright.config.ts` (3 viewport, `vite preview` có proxy `/api`), `frontend/e2e/smoke.spec.ts`; `scripts/e2e.sh` (migration, seed admin, uvicorn, Playwright); `make test-e2e`; job CI `e2e`.
+#### Thay đổi
+- `tech-stack.md` mục 4, 4.1, 5, 11 (phiên phía server, `require_permission`/`x-permission`, `react-hook-form`/`zod`, Playwright); `roadmap.md` Phase 4.
+- Test nghiệm thu Phase 0 (`test_api.py`, `test_contracts.py`): nhóm `/admin` thay `/users`; endpoint công khai của `/auth`; kiểm tra `501` chỉ cho nhóm còn là khung và tạm chấp nhận `401 unauthenticated` khi không có phiên (Group 7 siết lại, `plan.md` task 34).
+- Ngoài thư mục người duyệt (người dùng cho phép): `backend/app/api/public.py`, `errors.py`, `security.py` (mô tả cookie), `main.py`; `backend/app/tests/api/test_skeleton.py` (danh sách route, thêm kiểm tra `x-permission`); `scripts/gen_contracts.py`; `Makefile`; `.github/workflows/ci.yml`; `frontend/` (Playwright, tsconfig, ignore).
+#### Quyết định (người dùng chốt, đã ghi vào spec Phase 4)
+- Kickoff: sửa test Phase 0; IP qua `TRUSTED_PROXIES`; sai mật khẩu hiện tại → `422 invalid_request`; action `user.password_reset`, actor là chính người dùng, `AuditLogEntry.actor` dạng object; phiên 12 giờ không ghi nhớ; bổ sung độ phủ (email chữ thường, `409` cho chuyển trạng thái sai, `APP_BASE_URL`, test hợp quyền...).
+- Group 0: `x-permission: authenticated` cho route chỉ cần đăng nhập; `RolesUpdate` ít nhất 1 role; test Phase 0 chuyển tiếp `401|501`.
+- Người duyệt (agent) tự chọn: ánh xạ `x-permission` của endpoint khung (`/reviews` → `review.decide`, `/budget` → `budget.manage`, `/slices` → `dataset.read`, `/failure-cases` → `experiment.read`); `Email` tự kiểm tra hình dạng thay vì `EmailStr` (tránh dependency `email-validator`).
+#### Review
+- Review do chính agent viết nhánh (không độc lập): không có phát hiện chặn; ghi vào `requirements.md` chi tiết phản hồi của endpoint (login trả `Me`, `202`/`204`, `limit` 50/100, `since`/`until`), sửa câu task 1a trong `plan.md`. Còn theo dõi: job CI `e2e` chưa chạy trên GitHub; Group 7 siết lại test Phase 0.
+#### Số liệu
+- `make test-e2e`: 6 test (2 kịch bản × 3 viewport) pass trong 3.7 giây.
+
+---
+
 ## Phase 3 — Worker và máy local
 
 **Trạng thái:** ✅ hoàn thành 2026-09-29, **còn tồn đọng** (người dùng cho phép đóng phase). Group 0–6 đã merge.

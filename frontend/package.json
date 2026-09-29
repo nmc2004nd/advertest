@@ -11,6 +11,7 @@
     "format": "prettier --write .",
     "preview": "vite preview",
     "test": "vitest run",
+    "e2e": "playwright test",
     "verify:build": "pnpm build && node scripts/verify-build.mjs"
   },
   "dependencies": {
@@ -28,6 +29,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "1.63.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",

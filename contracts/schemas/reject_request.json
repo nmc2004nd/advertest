@@ -1,0 +1,16 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "reason": {
+      "maxLength": 2000,
+      "minLength": 1,
+      "title": "Reason",
+      "type": "string"
+    }
+  },
+  "required": [
+    "reason"
+  ],
+  "title": "RejectRequest",
+  "type": "object"
+}

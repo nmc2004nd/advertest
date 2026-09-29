@@ -110,9 +110,9 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 
 **Mục tiêu:** ba role hoạt động đúng quyền.
 
-- [ ] Yêu cầu truy cập, đăng nhập, đăng xuất (argon2, JWT cookie httpOnly).
+- [ ] Yêu cầu truy cập, đăng nhập, đăng xuất (argon2, phiên phía server trong cookie httpOnly).
 - [ ] Admin duyệt/từ chối tài khoản, gán role.
-- [ ] `require_role` cho mọi endpoint.
+- [ ] `require_permission` (ma trận quyền trong contract) cho mọi endpoint.
 - [ ] Audit log cho các sự kiện tài khoản; thu hồi quyền `UPDATE/DELETE` trên `audit_log`.
 - [ ] Frontend: trang giới thiệu tối giản, yêu cầu truy cập, đăng nhập, chờ duyệt, quản lý người dùng.
 - [ ] Khung điều hướng theo role, mobile-first.

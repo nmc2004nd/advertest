@@ -22,10 +22,10 @@ define require_file
 	@if [ ! -e "$(1)" ]; then echo ">> Chưa có $(1) ($(2))"; exit 1; fi
 endef
 
-.PHONY: help up down migrate contracts contracts-check fixtures lint typecheck test test-db test-acceptance check
+.PHONY: help up down migrate contracts contracts-check fixtures lint typecheck test test-db test-acceptance test-e2e check
 
 help:
-	@echo "up | down | migrate | contracts | contracts-check | fixtures | lint | typecheck | test | test-db | test-acceptance | check"
+	@echo "up | down | migrate | contracts | contracts-check | fixtures | lint | typecheck | test | test-db | test-acceptance | test-e2e | check"
 
 up:
 	$(call require_file,$(COMPOSE_FILE),Phase 0 Group 7)
@@ -72,6 +72,11 @@ test:
 
 test-db:
 	docker/postgres/test-db.sh $(UV_RUN) pytest -m db backend tests/acceptance
+
+# E2E Playwright 3 viewport với backend thật trên Postgres tạm (cần `pnpm --dir frontend exec
+# playwright install chromium` ở lần đầu).
+test-e2e:
+	docker/postgres/test-db.sh scripts/e2e.sh
 
 # Test nghiệm thu cần Postgres/MinIO (marker `db`) chạy trong `make test-db`.
 test-acceptance: fixtures

@@ -34,6 +34,13 @@ NOT_IMPLEMENTED_RESPONSE: dict[int | str, dict[str, Any]] = {
 }
 
 
+# Khai báo trong OpenAPI cho mọi route cần phiên người dùng (Phase 4).
+AUTH_REQUIRED_RESPONSES: dict[int | str, dict[str, Any]] = {
+    status.HTTP_401_UNAUTHORIZED: {"model": ErrorResponse, "description": "Thiếu phiên hợp lệ"},
+    status.HTTP_403_FORBIDDEN: {"model": ErrorResponse, "description": "Thiếu permission"},
+}
+
+
 # Lỗi nghiệp vụ của service (backend/app/services/errors.py) → HTTP.
 SERVICE_ERRORS: dict[type[ServiceError], tuple[int, ErrorCode]] = {
     NotFound: (status.HTTP_404_NOT_FOUND, ErrorCode.NOT_FOUND),

@@ -102,13 +102,20 @@ class ReviewDecision(StrEnum):
 
 class ErrorCode(StrEnum):
     # Phase 3 thêm các mã cho API nội bộ của worker (401, 403, 404, 409, 422).
-    # Phase 4 thêm: invalid_credentials, account_pending, ...
+    # Phase 4 thêm các mã của xác thực và phân quyền.
     NOT_IMPLEMENTED = "not_implemented"
     UNAUTHENTICATED = "unauthenticated"
     FORBIDDEN = "forbidden"
     NOT_FOUND = "not_found"
     CONFLICT = "conflict"
     INVALID_REQUEST = "invalid_request"  # 422: dữ liệu hợp lệ về cú pháp nhưng sai nghiệp vụ
+    INVALID_CREDENTIALS = "invalid_credentials"  # 401: sai email hoặc mật khẩu
+    ACCOUNT_PENDING = "account_pending"  # 403: đúng mật khẩu, tài khoản chờ duyệt
+    ACCOUNT_REJECTED = "account_rejected"
+    ACCOUNT_DISABLED = "account_disabled"
+    RATE_LIMITED = "rate_limited"  # 429
+    CSRF_FAILED = "csrf_failed"  # 403
+    VALIDATION_ERROR = "validation_error"  # 422: body không đúng schema
 
 
 class ProtocolStatus(StrEnum):

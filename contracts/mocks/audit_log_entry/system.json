@@ -1,0 +1,14 @@
+{
+  "id": "6a1f0000-0000-4000-8000-000000000003",
+  "actor": null,
+  "action": "experiment.run_completed",
+  "entity_type": "experiment",
+  "entity_id": "37440a93-11db-57a1-a2dd-3de419d3001f",
+  "before": {
+    "status": "running"
+  },
+  "after": {
+    "status": "completed"
+  },
+  "created_at": "2026-09-28T05:42:10Z"
+}

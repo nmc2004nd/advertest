@@ -39,7 +39,7 @@ EXPECTED = {
     "ThresholdKind": {"relative_drop", "absolute_drop", "attack_success_rate"},
     "ReviewDecision": {"approve", "changes_requested", "reject"},
     "CaseSeverity": {"critical", "major", "minor", "acceptable"},
-    # Đề xuất contract 001; Phase 3 thêm mã cho API worker; Phase 4 bổ sung các mã còn lại.
+    # Đề xuất contract 001; Phase 3 thêm mã cho API worker; Phase 4 thêm mã xác thực, phân quyền.
     "ErrorCode": {
         "not_implemented",
         "unauthenticated",
@@ -47,6 +47,13 @@ EXPECTED = {
         "not_found",
         "conflict",
         "invalid_request",
+        "invalid_credentials",
+        "account_pending",
+        "account_rejected",
+        "account_disabled",
+        "rate_limited",
+        "csrf_failed",
+        "validation_error",
     },
     # Phase 3: protocol phát triển dev-open.
     "ProtocolStatus": {"active", "retired", "dev"},

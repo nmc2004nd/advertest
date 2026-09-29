@@ -1,0 +1,65 @@
+{
+  "items": [
+    {
+      "id": "0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e05",
+      "full_name": "Trần Thị Bích",
+      "email": "bich.tran@example.com",
+      "organization": "VinAI",
+      "status": "pending",
+      "roles": [],
+      "requested_role": "engineer",
+      "request_reason": "Kiểm thử model phát hiện người đi bộ cho dự án xe tự hành.",
+      "reject_reason": null,
+      "created_at": "2026-09-28T02:15:00Z",
+      "approved_at": null,
+      "approved_by": null
+    },
+    {
+      "id": "0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e02",
+      "full_name": "Nguyễn Văn An",
+      "email": "an.nguyen@example.com",
+      "organization": "VinAI",
+      "status": "active",
+      "roles": [
+        "engineer"
+      ],
+      "requested_role": "engineer",
+      "request_reason": "Chạy experiment robustness cho YOLO.",
+      "reject_reason": null,
+      "created_at": "2026-09-28T02:15:00Z",
+      "approved_at": "2026-09-28T03:00:00Z",
+      "approved_by": "0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e01"
+    },
+    {
+      "id": "0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e06",
+      "full_name": "Lê Minh Châu",
+      "email": "chau.le@example.com",
+      "organization": null,
+      "status": "rejected",
+      "roles": [],
+      "requested_role": "admin",
+      "request_reason": "Muốn quản trị hệ thống.",
+      "reject_reason": "Không thuộc nhóm vận hành.",
+      "created_at": "2026-09-28T02:15:00Z",
+      "approved_at": null,
+      "approved_by": null
+    },
+    {
+      "id": "0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e07",
+      "full_name": "Phạm Quốc Dũng",
+      "email": "dung.pham@example.com",
+      "organization": "VinAI",
+      "status": "disabled",
+      "roles": [
+        "reviewer"
+      ],
+      "requested_role": "reviewer",
+      "request_reason": "Review kết quả an toàn.",
+      "reject_reason": null,
+      "created_at": "2026-09-28T02:15:00Z",
+      "approved_at": "2026-09-28T03:00:00Z",
+      "approved_by": "0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e01"
+    }
+  ],
+  "next_cursor": "eyJjcmVhdGVkX2F0IjoiMjAyNi0wOS0yOFQwMjoxNTowMFoifQ"
+}

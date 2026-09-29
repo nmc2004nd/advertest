@@ -1,0 +1,29 @@
+{
+  "$defs": {
+    "Role": {
+      "enum": [
+        "engineer",
+        "reviewer",
+        "admin"
+      ],
+      "title": "Role",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "roles": {
+      "items": {
+        "$ref": "#/$defs/Role"
+      },
+      "minItems": 1,
+      "title": "Roles",
+      "type": "array"
+    }
+  },
+  "required": [
+    "roles"
+  ],
+  "title": "ApproveRequest",
+  "type": "object"
+}

@@ -1,0 +1,20 @@
+{
+  "id": "0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e03",
+  "full_name": "Đỗ Thu Hà",
+  "email": "ha.do@example.com",
+  "roles": [
+    "reviewer"
+  ],
+  "permissions": [
+    "attack_catalog.read",
+    "dataset.read",
+    "experiment.read",
+    "model.read",
+    "protocol.manage",
+    "protocol.read",
+    "report.export",
+    "report.read",
+    "review.decide"
+  ],
+  "status": "active"
+}

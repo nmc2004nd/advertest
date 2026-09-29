@@ -5,6 +5,7 @@
   frontend/src/contracts/schemas.ts, qua openapi-typescript.
 - OpenAPI của backend (FastAPI) → contracts/openapi.json, rồi TypeScript type của API →
   frontend/src/contracts/api.ts.
+- Ma trận quyền `ROLE_PERMISSIONS` → frontend/src/contracts/permissions.ts.
 
 Chạy bằng `make contracts`. Chạy lại khi contract không đổi không được tạo ra thay đổi nào.
 """
@@ -22,7 +23,7 @@ from typing import Any
 from pydantic import TypeAdapter
 from pydantic.json_schema import models_json_schema
 
-from advertest_contracts import enums
+from advertest_contracts import enums, permissions
 from advertest_contracts.registry import SCHEMAS
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,6 +32,7 @@ SCHEMA_DIR = ROOT / "contracts" / "schemas"
 TS_OUT = ROOT / "frontend" / "src" / "contracts" / "schemas.ts"
 OPENAPI_OUT = ROOT / "contracts" / "openapi.json"
 API_TS_OUT = ROOT / "frontend" / "src" / "contracts" / "api.ts"
+PERMISSIONS_TS_OUT = ROOT / "frontend" / "src" / "contracts" / "permissions.ts"
 
 
 def _dump(data: Any) -> str:
@@ -54,9 +56,10 @@ def build_openapi_components() -> dict[str, Any]:
     )
     schemas: dict[str, Any] = dict(defs.get("$defs", {}))
     # Mọi enum dùng chung, kể cả enum chưa có model nào tham chiếu (ví dụ ExperimentStatus).
-    for name, enum_cls in inspect.getmembers(enums, inspect.isclass):
-        if issubclass(enum_cls, Enum) and enum_cls.__module__ == enums.__name__:
-            schemas[name] = TypeAdapter(enum_cls).json_schema()
+    for module in (enums, permissions):
+        for name, enum_cls in inspect.getmembers(module, inspect.isclass):
+            if issubclass(enum_cls, Enum) and enum_cls.__module__ == module.__name__:
+                schemas[name] = TypeAdapter(enum_cls).json_schema()
     return {
         "openapi": "3.1.0",
         "info": {"title": "AdverTest contracts", "version": "1"},
@@ -94,6 +97,23 @@ def write_typescript() -> None:
         _openapi_typescript(spec_path, TS_OUT, "--enum-values")
 
 
+def write_permissions_ts() -> None:
+    lines = [
+        "// Sinh bởi scripts/gen_contracts.py từ advertest_contracts.permissions. Không sửa tay.",
+        'import type { Permission, Role } from "./schemas";',
+        "",
+        "/** Giá trị `x-permission` của endpoint chỉ cần đăng nhập. */",
+        f"export const AUTHENTICATED = {json.dumps(permissions.AUTHENTICATED)} as const;",
+        "",
+        "export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {",
+    ]
+    for role, perms in permissions.ROLE_PERMISSIONS.items():
+        values = ", ".join(json.dumps(p.value) for p in sorted(perms))
+        lines.append(f"  {json.dumps(role.value)}: [{values}],")
+    lines.append("};")
+    PERMISSIONS_TS_OUT.write_text("\n".join(lines) + "\n")
+
+
 def write_backend_openapi() -> None:
     # Import muộn: app FastAPI chỉ cần khi xuất OpenAPI, không cần khi sinh schema contract.
     from backend.app.main import create_app
@@ -105,6 +125,7 @@ def write_backend_openapi() -> None:
 def main() -> None:
     write_json_schemas()
     write_typescript()
+    write_permissions_ts()
     write_backend_openapi()
     print(
         f"Đã sinh {len(SCHEMAS)} JSON Schema, {TS_OUT.relative_to(ROOT)},"
