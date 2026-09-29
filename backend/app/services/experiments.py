@@ -9,7 +9,7 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from advertest_contracts.enums import ExperimentStatus, LimitKind, RunStatus
@@ -17,20 +17,22 @@ from advertest_contracts.hashing import sha256_of
 from advertest_contracts.models import (
     AttackSpec,
     ExperimentConfig,
+    ExperimentCreate,
     InferenceParams,
     Limit,
     StatusReason,
 )
 from backend.app.db import models as m
-from backend.app.services import audit
+from backend.app.services import audit, experiment_config
 from backend.app.services.clock import Clock, utcnow
-from backend.app.services.errors import Conflict, Invalid, NotFound
+from backend.app.services.errors import Conflict, Forbidden, Invalid, NotFound, QueueLimitReached
 from ml_core.models.wrapper import DEFAULT_INFERENCE_PARAMS
-from ml_core.runner.config import LocalRunConfig
+from ml_core.runner.config import DEFAULT_FAILURE_CASES, LocalRunConfig
 
 # Seed trong migration 0002 (`content_id(sha256_of({"protocol": "dev-open"}))`).
 DEV_OPEN_PROTOCOL_ID = UUID("2edcdef5-0d3a-5d5f-98ac-b02637fa6718")
 ACTIVE = (ExperimentStatus.QUEUED, ExperimentStatus.RUNNING)
+MAX_QUEUED_PER_USER = 3  # requirements.md Phase 5, Decisions
 TERMINAL_RUN = (
     RunStatus.COMPLETED,
     RunStatus.FAILED,
@@ -91,27 +93,59 @@ def submit(
         attacks=config.attacks,
         limit=Limit(kind=LimitKind.TIME, value=Decimal(limit_s)),
     )
-    experiment = m.Experiment(
-        created_by=actor.id,
-        protocol_id=DEV_OPEN_PROTOCOL_ID,
-        model_version_id=model.id,
-        slice_id=slice_row.id,
-        class_mapping_id=mapping.id,
-        compute_target_id=target.id,
-        config=experiment_config.model_dump(mode="json"),
-        config_sha256=sha256_of(experiment_config),
-        status=ExperimentStatus.QUEUED,
-        limit_kind=LimitKind.TIME,
-        limit_value=Decimal(limit_s),
-        submitted_at=clock(),
-        inference_params=params.model_dump(mode="json"),
+    return create_experiment(
+        session,
+        actor=actor,
+        config=experiment_config,
+        slice_row=slice_row,
+        specs=specs,
+        params=params,
         failure_cases_per_run=config.failure_cases_per_run,
+        clock=clock,
+    )
+
+
+def create_experiment(
+    session: Session,
+    *,
+    actor: m.User,
+    config: ExperimentConfig,
+    slice_row: m.Slice,
+    specs: list[AttackSpec],
+    name: str | None = None,
+    cloned_from: UUID | None = None,
+    params: InferenceParams = DEFAULT_INFERENCE_PARAMS,
+    failure_cases_per_run: int = DEFAULT_FAILURE_CASES,
+    clock: Clock = utcnow,
+) -> m.Experiment:
+    """Tạo experiment `queued` và lập danh sách run (mỗi cặp attack, level là một run, theo thứ
+    tự trong cấu hình); dùng chung cho CLI `submit` (Phase 3) và `POST /experiments` (Phase 5).
+    `name = None`: trigger DB đặt `<model> · <slice> · <ngày UTC>`."""
+    now = clock()
+    experiment = m.Experiment(
+        name=name,
+        created_by=actor.id,
+        protocol_id=config.protocol_id,
+        model_version_id=config.model_version_id,
+        slice_id=config.slice_id,
+        class_mapping_id=config.class_mapping_id,
+        compute_target_id=config.compute_target_id,
+        config=config.model_dump(mode="json"),
+        config_sha256=sha256_of(config),
+        status=ExperimentStatus.QUEUED,
+        limit_kind=config.limit.kind,
+        limit_value=config.limit.value,
+        created_at=now,
+        submitted_at=now,
+        cloned_from=cloned_from,
+        inference_params=params.model_dump(mode="json"),
+        failure_cases_per_run=failure_cases_per_run,
     )
     session.add(experiment)
     session.flush()
     ordinal = 0
     for attack, spec in zip(config.attacks, specs, strict=True):
-        assert attack.grid is not None  # LocalRunConfig chỉ nhận mode = grid
+        assert attack.grid is not None  # chỉ mode = grid (Phase 5)
         for level in attack.grid.levels:
             session.add(
                 m.Run(
@@ -134,13 +168,45 @@ def submit(
         entity_type="experiment",
         entity_id=experiment.id,
         after={
-            "compute_target": target.name,
+            "compute_target_id": str(config.compute_target_id),
             "config_sha256": experiment.config_sha256,
             "runs": ordinal,
-            "time_limit_s": limit_s,
+            "time_limit_s": str(config.limit.value),
+            "cloned_from": str(cloned_from) if cloned_from else None,
         },
     )
     return experiment
+
+
+def create_from_body(
+    session: Session, *, actor: m.User, body: ExperimentCreate, clock: Clock = utcnow
+) -> m.Experiment:
+    """`POST /experiments`: kiểm tra cấu hình (422 có đường dẫn trường), rồi giới hạn số
+    experiment đang chờ của người dùng (409 `queue_limit_reached`)."""
+    checked = experiment_config.check(session, body)
+    # Khóa dòng user: hai request đồng thời của cùng người không cùng lọt qua giới hạn.
+    session.execute(select(m.User.id).where(m.User.id == actor.id).with_for_update())
+    queued = session.scalar(
+        select(func.count())
+        .select_from(m.Experiment)
+        .where(m.Experiment.created_by == actor.id, m.Experiment.status == ExperimentStatus.QUEUED)
+    )
+    if (queued or 0) >= MAX_QUEUED_PER_USER:
+        raise QueueLimitReached(
+            f"Bạn đã có {MAX_QUEUED_PER_USER} experiment đang chờ; hãy chờ một experiment"
+            " chạy rồi tạo tiếp"
+        )
+    config = ExperimentConfig.model_validate(body.model_dump(exclude={"name", "cloned_from"}))
+    return create_experiment(
+        session,
+        actor=actor,
+        config=config,
+        slice_row=checked.slice,
+        specs=checked.specs,
+        name=body.name,
+        cloned_from=body.cloned_from,
+        clock=clock,
+    )
 
 
 def runs_of(session: Session, experiment_id: UUID) -> list[m.Run]:
@@ -198,19 +264,28 @@ def sweep_cancelled(session: Session, target_id: UUID | None, now: datetime) -> 
 
 
 def cancel(
-    session: Session, *, actor: m.User, experiment_id: UUID, clock: Clock = utcnow
+    session: Session,
+    *,
+    actor: m.User,
+    experiment_id: UUID,
+    owner_only: bool = False,
+    clock: Clock = utcnow,
 ) -> m.Experiment:
     """Experiment `cancelled`; run chưa chạy `cancelled` ngay. Run đang chạy thành `cancelled`
     khi worker báo lại (worker nhận `WorkerDirective.cancel`), hoặc ngay nếu lease đã hết hạn
-    (không còn worker nào giữ)."""
+    (không còn worker nào giữ). `owner_only` (API, `experiment.cancel_own`): chỉ chủ sở hữu hủy
+    được; CLI quản trị không có luật này."""
     experiment = session.get(m.Experiment, experiment_id, with_for_update=True)
     if experiment is None:
         raise NotFound(f"Không có experiment {experiment_id}")
+    if owner_only and experiment.created_by != actor.id:
+        raise Forbidden("Chỉ người tạo experiment mới hủy được")
     if experiment.status not in ACTIVE:
         raise Conflict(f"Experiment đang ở trạng thái {experiment.status}, không hủy được")
     now = clock()
     before = str(experiment.status)
     experiment.status = ExperimentStatus.CANCELLED
+    experiment.finished_at = now
     lease_alive = experiment.lease_expires_at is not None and experiment.lease_expires_at > now
     for run in runs_of(session, experiment.id):
         if run.status == RunStatus.QUEUED:

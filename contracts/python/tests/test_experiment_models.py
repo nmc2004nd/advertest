@@ -21,6 +21,7 @@ from advertest_contracts.models import (
     ExperimentDetail,
     ExperimentSummary,
     FailureCaseView,
+    RunResult,
     RunView,
 )
 
@@ -226,3 +227,32 @@ def test_error_fields_are_omitted_when_absent() -> None:
     detailed = ErrorResponse.model_validate(mock("error_response", "invalid_fields"))
     assert detailed.error.fields is not None
     assert [f.path for f in detailed.error.fields] == ["attacks.0.grid.levels", "limit.value"]
+
+
+# ---------------------------------------------------------------- RunView.fingerprint (đề xuất 001)
+
+
+@pytest.mark.parametrize("name", ["running_pgd_4_queued", "completed_pgd_l2_1_not_started"])
+def test_run_not_started_may_have_no_fingerprint(name: str) -> None:
+    assert RunView.model_validate(mock("run_view", name)).fingerprint is None
+
+
+@pytest.mark.parametrize(
+    ("name", "change"),
+    [
+        ("completed_fgsm_2", {}),  # completed
+        ("running_fgsm_4", {}),  # running
+        ("cancelled_pgd_4", {}),  # cancelled nhưng đã xử lý 30 ảnh
+        ("running_pgd_4_queued", {"progress": {"images_done": 1, "images_total": 300}}),
+    ],
+)
+def test_started_run_requires_fingerprint(name: str, change: dict[str, Any]) -> None:
+    data = {**mock("run_view", name), **change, "fingerprint": None}
+    with pytest.raises(ValidationError, match="fingerprint"):
+        RunView.model_validate(data)
+
+
+def test_run_result_of_worker_still_requires_fingerprint() -> None:
+    data = json.loads((MOCKS / "run_result" / "queued.json").read_text())
+    with pytest.raises(ValidationError, match="fingerprint"):
+        RunResult.model_validate({**data, "fingerprint": None})

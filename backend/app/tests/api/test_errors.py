@@ -23,7 +23,10 @@ def client() -> TestClient:
 
 def _error(response: httpx.Response) -> tuple[int, str, str]:
     body = ErrorResponse.model_validate(response.json())
-    assert response.json()["error"].keys() == {"code", "message"}
+    # Phase 5: chỉ lỗi 422 được kèm `fields` (đường dẫn từng trường sai); lỗi khác đúng hai khóa.
+    allowed = {"code", "message", "fields"} if response.status_code == 422 else {"code", "message"}
+    assert response.json()["error"].keys() <= allowed
+    assert {"code", "message"} <= response.json()["error"].keys()
     return response.status_code, body.error.code, body.error.message
 
 
@@ -42,7 +45,10 @@ def test_body_schema_error_is_validation_error_without_echoing_input(client: Tes
     status, code, message = _error(response)
     assert (status, code) == (422, "validation_error")
     assert "password" in message
-    assert secret[:5] not in message
+    # Không lặp lại giá trị gửi lên ở bất kỳ đâu trong body (kể cả `fields`, Phase 5).
+    assert secret[:5] not in response.text
+    fields = ErrorResponse.model_validate(response.json()).error.fields
+    assert fields is not None and [f.path for f in fields] == ["password"]
 
 
 def test_password_equal_to_email_is_validation_error(client: TestClient) -> None:

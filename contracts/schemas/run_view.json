@@ -278,6 +278,7 @@
     }
   },
   "additionalProperties": false,
+  "description": "Run hiển thị cho người dùng. `fingerprint` null khi và chỉ khi run chưa bắt đầu: worker\ntính fingerprint ở `start` (đề xuất contract 001, Phase 5).",
   "properties": {
     "schema_version": {
       "const": 1,
@@ -293,11 +294,6 @@
     "experiment_id": {
       "format": "uuid",
       "title": "Experiment Id",
-      "type": "string"
-    },
-    "fingerprint": {
-      "pattern": "^[0-9a-f]{64}$",
-      "title": "Fingerprint",
       "type": "string"
     },
     "attack_spec_id": {
@@ -388,6 +384,19 @@
       "description": "Run gốc khi status = skipped với code = cached (Phase 3)",
       "title": "Cached From Run Id"
     },
+    "fingerprint": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "null khi run chưa bắt đầu (queued, hoặc bị hủy/dừng trước khi chạy)",
+      "title": "Fingerprint"
+    },
     "attack_spec": {
       "$ref": "#/$defs/RunAttackSpec"
     }
@@ -395,13 +404,13 @@
   "required": [
     "run_id",
     "experiment_id",
-    "fingerprint",
     "attack_spec_id",
     "level",
     "status",
     "progress",
     "gpu_seconds",
     "failure_case_ids",
+    "fingerprint",
     "attack_spec"
   ],
   "title": "RunView",

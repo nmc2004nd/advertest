@@ -323,6 +323,7 @@ def _after_run(session: Session, experiment: m.Experiment, run: m.Run, clock: Cl
     if all(r.status in TERMINAL_RUN for r in runs):
         if experiment.status == ExperimentStatus.RUNNING:
             experiment.status = ExperimentStatus.COMPLETED
+            experiment.finished_at = now
         experiment.lease_id = None
         experiment.lease_expires_at = None
     session.flush()

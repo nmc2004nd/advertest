@@ -6,7 +6,32 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 5 — Wizard tạo experiment và theo dõi tiến độ
 
-**Trạng thái:** đang làm. Group 0, 1 đã merge.
+**Trạng thái:** đang làm. Group 0, 1, 2 đã merge.
+
+### Phase 5 — Group 2 (backend) — 2026-09-30
+#### Thêm
+- `services/experiment_config.py`: kiểm tra cấu hình dùng chung cho ước lượng và tạo, gom mọi lỗi với đường dẫn trường (`InvalidConfig` → `422 invalid_request` hoặc `not_supported_yet`); lỗi sai schema cũng trả `fields`.
+- Ước lượng theo run (`skip_reason = incompatible`, `missing_profiles`, `exceeds_limit` theo cận dưới, `queue.position`, `ahead_seconds`); `POST /experiments/estimate`.
+- `POST /experiments` (dùng chung `create_experiment` với CLI `submit`; giới hạn 3 experiment `queued` có khóa dòng user → `409 queue_limit_reached`); `GET /experiments` (lọc `owner`, `status`, `model`, keyset), `GET /experiments/{id}`, `/runs`, `GET /runs/{id}`, `/runs/{id}/manifest`, `POST /experiments/{id}/cancel` (chỉ chủ sở hữu), `GET /experiments/{id}/clone`.
+- `services/artifacts.py`: URL ảnh `/artifacts/<token>` (HMAC, 10 phút, chỉ khóa `runs/`), `display_mode` theo `anonymized` và `DEV_ALLOW_UNBLURRED`; `GET /runs/{id}/failure-cases` (thumbnail), `GET /failure-cases/{id}`, `GET /artifacts/{token}` (cần phiên).
+- `finished_at` khi `completed` và khi hủy; migration `0005` điền lại `finished_at` còn thiếu.
+- `ARTIFACT_TOKEN_SECRET`, `DEV_ALLOW_UNBLURRED` trong compose và `.env.example`.
+- Test: `test_experiment_api.py` (29 test, Postgres và MinIO thật).
+#### Contract (đề xuất 001, người dùng duyệt)
+- `RunView.fingerprint` null khi và chỉ khi run chưa bắt đầu; `RunResult` của worker giữ nguyên (lớp cơ sở chung `_RunCommon`). Mock `run_view` cập nhật, thêm test contract.
+#### Thay đổi
+- Test nghiệm thu Phase 0 (`IMPLEMENTED_GROUPS` thêm `/experiments`, `/runs`, `/failure-cases`) và Phase 4 (`POST /experiments` đại diện `experiment.create` nay trả `422 invalid_request`): commit `phase05(reviewer)`, người dùng cho phép. Test backend `test_errors.py`: chỉ lỗi `422` có `fields`, không lặp lại giá trị gửi lên ở bất kỳ đâu trong body (review #1).
+#### Quyết định (đã ghi vào `requirements.md` Phase 5)
+- Người dùng chốt: đề xuất 001; khóa token từ biến môi trường; sửa test nghiệm thu trong nhánh.
+- Agent chọn, người duyệt chấp nhận ở review: `fields` cho lỗi sai schema; từ chối attack spec trùng; hàng đợi chỉ `queued`, thứ tự `submitted_at`, `id`; ước lượng không kiểm giới hạn 3; `GET /runs/{id}`; chi tiết URL ảnh (khóa `runs/`, đọc trọn, `Cache-Control`, thumbnail dự phòng); nhân bản giữ spec cũ khi không có version mới.
+#### Phát hiện khi làm
+- Route ảnh và manifest mở MinIO trước khi kiểm tra token/run (token sai → `500` khi thiếu cấu hình MinIO): nay chỉ đọc MinIO sau khi hợp lệ.
+#### Số liệu
+- `make check`: 796 test Python, 209 test nghiệm thu không cần DB, 103 Vitest. `make test-db`: 312 test.
+#### Chuyển cho Group 7
+- Test API hủy experiment đang `running` (validation "worker dừng").
+#### Lưu ý
+- Code, review, sửa sau review và ghi spec do cùng một agent làm (không độc lập).
 
 ### Phase 5 — Group 1 (backend) — 2026-09-29
 #### Thêm

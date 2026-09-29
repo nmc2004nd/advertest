@@ -2,7 +2,7 @@
   "schema_version": 1,
   "run_id": "abe13f16-0638-5e6c-a643-a41a0a0f538f",
   "experiment_id": "b871c7f4-3bba-5db5-a1ab-76fdcf7a684d",
-  "fingerprint": "5fc36bbb281a910232900b4d4f3c4a070ba94f34133d070668eb06790a83b694",
+  "fingerprint": null,
   "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
   "level": 4,
   "status": "queued",

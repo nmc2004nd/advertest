@@ -83,11 +83,12 @@ Worker được coi là `online` nếu có heartbeat trong 60 giây gần nhất
 | `GET /experiments?owner=me\|all&status=&model=` | `experiment.read` | Phân trang theo cursor |
 | `GET /experiments/{id}` | `experiment.read` | `ExperimentDetail` |
 | `GET /experiments/{id}/runs` | `experiment.read` | Danh sách `RunView` |
+| `GET /runs/{id}` | `experiment.read` | `RunView` (hook `useRun` của frontend; Group 2) |
 | `GET /runs/{id}/manifest` | `experiment.read` | Nội dung `Manifest` |
 | `GET /runs/{id}/failure-cases` | `experiment.read` | Danh sách `FailureCaseView` (chỉ thumbnail URL) |
 | `GET /failure-cases/{id}` | `experiment.read` | `FailureCaseView` đầy đủ URL |
 | `POST /experiments/{id}/cancel` | `experiment.cancel_own` | Chỉ chủ sở hữu; trạng thái `queued` hoặc `running`; ghi `audit_log` |
-| `GET /experiments/{id}/clone` | `experiment.create` | Trả `ExperimentClone`: `ExperimentCreate` điền sẵn từ experiment cũ (spec đã cũ được cập nhật lên version hiện hành) và `warnings` cho từng spec đã cập nhật |
+| `GET /experiments/{id}/clone` | `experiment.create` | Trả `ExperimentClone`: `ExperimentCreate` điền sẵn từ experiment cũ (spec đã cũ được cập nhật lên version hiện hành) và `warnings` cho từng spec đã cập nhật (`name` trống, `cloned_from` là experiment gốc). Spec đã ngừng mà không có version mới đang hoạt động thì giữ nguyên: tạo sẽ báo lỗi tại đúng attack (Group 2) |
 | `GET /artifacts/{token}` | `experiment.read` | Cần cả phiên lẫn token (Group 0: hai lớp bảo vệ; `<img>` cùng origin tự gửi cookie). Stream ảnh từ MinIO; token sai, bị sửa hoặc hết hạn → `404` |
 
 ### Kiểm tra khi tạo và ước lượng (lỗi `422` có đường dẫn trường)
@@ -99,7 +100,9 @@ Worker được coi là `online` nếu có heartbeat trong 60 giây gần nhất
 - Protocol có trạng thái `active` hoặc `dev`.
 - Compute target tồn tại; phase này chỉ chấp nhận `kind = local`. Target offline vẫn tạo được (experiment chờ trong hàng đợi).
 - `limit.kind = time` với máy local; `0 < limit.value ≤ max_time_limit_s`.
-- Mỗi người dùng tối đa 3 experiment đang `queued` → vượt thì `409 queue_limit_reached`.
+- Một attack spec chỉ xuất hiện một lần trong `attacks` (gộp level lại); trùng → `422` tại `attacks.i.attack_spec_id` (tránh hai run cùng fingerprint; Group 2).
+- Mỗi người dùng tối đa 3 experiment đang `queued` → vượt thì `409 queue_limit_reached`. Chỉ kiểm tra khi tạo, không kiểm tra khi ước lượng; khóa dòng user để hai request đồng thời không cùng lọt (Group 2).
+- Lỗi `422` gom mọi trường sai trong `error.fields`; lỗi `422 validation_error` (body sai schema) cũng có `fields` từ lỗi Pydantic, không lặp lại giá trị gửi lên. Chỉ lỗi `422` có `fields` (Group 2).
 - Model không hỗ trợ gradient mà chọn attack cần gradient → cho phép tạo nhưng ước lượng đánh dấu run đó sẽ `skipped` (`incompatible`).
 
 ### Ước lượng
@@ -107,6 +110,7 @@ Worker được coi là `online` nếu có heartbeat trong 60 giây gần nhất
 - Thiếu profile → giá trị null, liệt kê trong `missing_profiles`; vẫn tạo được (worker tự calibration).
 - `exceeds_limit = true` khi tổng ước lượng lớn hơn giới hạn thời gian. Khi thiếu profile, tổng này là tổng các run ước lượng được (cận dưới): phần đã biết vượt giới hạn thì vẫn cảnh báo (review Group 0).
 - `queue.ahead_seconds` = tổng ước lượng còn lại của các experiment đứng trước trong hàng đợi của target (bỏ qua phần không ước lượng được).
+- Hàng đợi chỉ gồm experiment `queued` (không tính experiment đang chạy), theo thứ tự worker lấy job: `submitted_at`, rồi `id`. `queue.position` và `ExperimentDetail.queue_position` dùng cùng thứ tự (Group 2).
 
 ### Hiển thị ảnh và quyền riêng tư (tạm thời đến Phase 10)
 - Ảnh được phục vụ qua API cùng origin: sau khi kiểm tra `experiment.read`, API cấp URL `/artifacts/{token}` (qua proxy là `/api/artifacts/{token}`) (token ký HMAC, gắn đúng một khóa, hết hạn 10 phút); API đọc MinIO bằng thông tin đăng nhập của mình và stream ảnh. MinIO không mở ra LAN; `MINIO_PUBLIC_ENDPOINT` chỉ dành cho worker (presigned URL của Phase 3 ký cho `127.0.0.1:9000`, điện thoại qua LAN không tải được).
@@ -114,6 +118,7 @@ Worker được coi là `online` nếu có heartbeat trong 60 giây gần nhất
   - mặc định: `display_mode = hidden_unanonymized`, không cấp URL ảnh; giao diện hiển thị khung giữ chỗ "Ảnh bị ẩn: dataset chưa được làm mờ" và vẫn vẽ box trên nền trống;
   - khi server bật `DEV_ALLOW_UNBLURRED=true`: `display_mode = dev_unblurred`, cấp URL và giao diện hiển thị dải cảnh báo "Chưa làm mờ – chỉ dùng cho phát triển".
 - Không bật `DEV_ALLOW_UNBLURRED` ở môi trường demo hoặc bảo vệ.
+- Chi tiết cài đặt (Group 2): token chỉ ký cho khóa dưới `runs/`; khóa ký lấy từ `ARTIFACT_TOKEN_SECRET` (thiếu thì mỗi tiến trình tự sinh khóa ngẫu nhiên, ghi cảnh báo log); ảnh đọc trọn một lần rồi trả (ảnh failure case nhỏ), header `Cache-Control: private, max-age=600`; token sai, bị sửa hoặc hết hạn đều `404`. Danh sách failure case chỉ có URL thumbnail; case cũ thiếu thumbnail dùng ảnh gốc. MinIO chỉ được đọc sau khi token hoặc run hợp lệ.
 
 ### Email
 - Khi experiment chuyển sang `completed` hoặc `cancelled`: thêm một email vào `email_outbox` gửi cho chủ sở hữu, gồm tên experiment, trạng thái tổng hợp (ví dụ "18/20 hoàn thành, 1 lỗi, 1 dừng do giới hạn"), link tới trang chi tiết.

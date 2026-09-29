@@ -412,10 +412,17 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Experiments */
+        /**
+         * List Experiments
+         * @description Mới nhất trước; `owner=me` chỉ experiment của mình.
+         */
         get: operations["list_experiments_experiments_get"];
         put?: never;
-        /** Create Experiment */
+        /**
+         * Create Experiment
+         * @description Kiểm tra cấu hình (422 có đường dẫn trường), tối đa 3 experiment đang chờ mỗi người
+         *     (409 `queue_limit_reached`); tạo experiment `queued` và danh sách run.
+         */
         post: operations["create_experiment_experiments_post"];
         delete?: never;
         options?: never;
@@ -488,7 +495,7 @@ export interface paths {
         put?: never;
         /**
          * Cancel Experiment
-         * @description Chỉ chủ sở hữu (kiểm tra ở service); trạng thái `queued` hoặc `running`.
+         * @description Chỉ chủ sở hữu (403 với người khác); trạng thái `queued` hoặc `running` (409 nếu khác).
          */
         post: operations["cancel_experiment_experiments__experiment_id__cancel_post"];
         delete?: never;
@@ -594,8 +601,8 @@ export interface paths {
         };
         /**
          * Get Artifact
-         * @description Stream ảnh từ MinIO. Cần cả phiên có `experiment.read` lẫn token do API cấp trong
-         *     `FailureCaseView.urls`.
+         * @description Ảnh từ MinIO. Cần cả phiên có `experiment.read` lẫn token do API cấp trong
+         *     `FailureCaseView.urls`; token sai, bị sửa hoặc hết hạn → 404 (không phân biệt).
          */
         get: operations["get_artifact_artifacts__token__get"];
         put?: never;
@@ -2522,8 +2529,6 @@ export interface components {
              * Format: uuid
              */
             experiment_id: string;
-            /** Fingerprint */
-            fingerprint: string;
             /**
              * Attack Spec Id
              * Format: uuid
@@ -2548,6 +2553,8 @@ export interface components {
              * @description Run gốc khi status = skipped với code = cached (Phase 3)
              */
             cached_from_run_id?: string | null;
+            /** Fingerprint */
+            fingerprint: string;
         };
         /** RunResult */
         "RunResult-Output": {
@@ -2567,8 +2574,6 @@ export interface components {
              * Format: uuid
              */
             experiment_id: string;
-            /** Fingerprint */
-            fingerprint: string;
             /**
              * Attack Spec Id
              * Format: uuid
@@ -2593,6 +2598,8 @@ export interface components {
              * @description Run gốc khi status = skipped với code = cached (Phase 3)
              */
             cached_from_run_id?: string | null;
+            /** Fingerprint */
+            fingerprint: string;
         };
         /** RunStartRequest */
         RunStartRequest: {
@@ -2626,7 +2633,11 @@ export interface components {
          * @enum {string}
          */
         RunStatus: "queued" | "running" | "completed" | "failed" | "skipped" | "stopped_limit" | "cancelled";
-        /** RunView */
+        /**
+         * RunView
+         * @description Run hiển thị cho người dùng. `fingerprint` null khi và chỉ khi run chưa bắt đầu: worker
+         *     tính fingerprint ở `start` (đề xuất contract 001, Phase 5).
+         */
         RunView: {
             /**
              * Schema Version
@@ -2644,8 +2655,6 @@ export interface components {
              * Format: uuid
              */
             experiment_id: string;
-            /** Fingerprint */
-            fingerprint: string;
             /**
              * Attack Spec Id
              * Format: uuid
@@ -2670,6 +2679,11 @@ export interface components {
              * @description Run gốc khi status = skipped với code = cached (Phase 3)
              */
             cached_from_run_id?: string | null;
+            /**
+             * Fingerprint
+             * @description null khi run chưa bắt đầu (queued, hoặc bị hủy/dừng trước khi chạy)
+             */
+            fingerprint: string | null;
             attack_spec: components["schemas"]["RunAttackSpec"];
         };
         /** SearchConfig */
