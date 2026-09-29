@@ -6,7 +6,27 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 3 — Worker và máy local
 
-**Trạng thái:** đang làm. Group 0 đã merge.
+**Trạng thái:** đang làm. Group 0, 1 đã merge.
+
+### Phase 3 — Group 1 (ml-core) — 2026-09-29
+#### Thêm
+- `ml_core/runner/executor.py`: `RunExecutor` (`process_batch`, `finalize`, `to_checkpoint`, `from_checkpoint`), `RunContext`, `build_context`, `load_clean_predictions`, `linf_eps`. Checkpoint JSON: ảnh đã xử lý, prediction sau tấn công đã lọc class đích, `ImageAttackStats`, top-K và mọi ứng viên đã upload, thời gian xử lý; không chứa ảnh; từ chối checkpoint khác fingerprint. mAP tính lại ở `finalize` theo thứ tự slice.
+- `ml_core/runner/candidates.py`: `MemoryCandidates` (CLI, bố cục Phase 2) và `StoreCandidates` (worker: PNG và thumbnail vào `runs/<run_id>/candidates/<image_id>/`, chép sang `cases/<case_id>/` khi hoàn tất).
+- `ml_core/runner/images.py`: `thumbnail_webp` (320 px, WebP), mask letterbox, PNG, ảnh nhiễu khuếch đại (chuyển từ `run.py`).
+- `ml_core/runner/cache_loader.py`: `ShaCacheLoader` đọc ảnh `<cache>/<sha256>` có kiểm tra hash.
+- `ml_core/store/`: `MinioStore` (client S3 truyền vào, bất biến theo ETag/nội dung), `PresignedStore` (`httpx`), protocol `DeletableStore`.
+- 21 unit test mới (chạy tiếp gián đoạn hai lần với batch size khác trùng tuyệt đối metric, record và nội dung ảnh; top-K; thumbnail; hai store với client S3 giả và `httpx.MockTransport`).
+#### Thay đổi
+- CLI `advertest run` dùng `RunExecutor`; bố cục store và đầu ra như Phase 2; 58 test nghiệm thu Phase 2 pass.
+#### Quyết định (người dùng chốt; đã ghi vào `requirements.md` Phase 3)
+- Run dừng do giới hạn: mọi metric, kể cả mAP sạch, tính trên ảnh đã xử lý (Decisions).
+- Loader theo sha256 cho worker đặt trong `ml_core/runner` (Executor dùng chung).
+- Ghi vào spec theo review: ứng viên chỉ bị xóa khi hoàn tất, hoàn tất chạy lại được; thời gian batch không gồm upload; `PresignedStore.put` ghi đè được; `MinioStore` nhận client truyền vào; checkpoint theo danh sách ảnh. `validation.md` thêm mục "không xin được URL cho run không `running`".
+#### Review
+- Review nhanh (do chính agent viết nhánh, không độc lập): 1 điểm phải sửa trước khi merge, đã sửa (unit test thứ tự top-K, bằng điểm, `evict`). `make check` pass (546 test Python, 153 test nghiệm thu, 36 Vitest).
+#### Tồn đọng
+- Chưa đo kích thước checkpoint trên KITTI 300 ảnh với model thật.
+- `from_checkpoint` chưa từ chối `image_id` trùng trong `done` (checkpoint do executor ghi nên không xảy ra).
 
 ### Phase 3 — Group 0 (người duyệt) — 2026-09-29
 #### Contract

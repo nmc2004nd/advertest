@@ -30,6 +30,7 @@
 ### Artifact — `test_artifacts.py`
 - [ ] Presigned PUT cho khóa ngoài `runs/<run_id>/` bị từ chối khi xin URL.
 - [ ] Presigned URL hết hạn không dùng được.
+- [ ] Không xin được presigned URL cho run không ở trạng thái `running` (đã `completed`, `failed`, ...).
 - [ ] Sau khi run hoàn tất: mọi khóa được tham chiếu trong `RunResult` và `FailureCaseRecord` tồn tại trong MinIO.
 - [ ] Không còn đối tượng nào trong `runs/<run_id>/candidates/` sau khi hoàn tất.
 - [ ] Thumbnail có chiều rộng 320 px, định dạng WebP.

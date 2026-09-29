@@ -69,6 +69,9 @@ Cuối phase: gửi experiment, theo dõi tiến độ; tắt worker giữa ch�
 - CLI `advertest run` của Phase 2 dùng lại `RunExecutor` và cho kết quả như trước.
 - CLI giữ bố cục `LocalStore` của Phase 2 (`runs/<fingerprint>/`, `reruns/`, `attempts/`); MinIO dùng `runs/<run_id>/` vì quyết định cache nằm ở DB.
 - `ArtifactStore` có thêm cài đặt `MinioStore`; worker chỉ ghi qua presigned URL.
+- Checkpoint ghi danh sách ảnh đã xử lý (không phải chỉ số batch): chạy tiếp xử lý các ảnh còn lại theo thứ tự của slice với batch size bất kỳ (cần cho việc giảm batch khi hết VRAM).
+- `MinioStore` nhận client S3 được truyền vào (backend tạo bằng boto3); `ml_core` không import client có thông tin đăng nhập. `PresignedStore` (worker) đọc, ghi, xóa qua URL từ `artifact-url`; `put` không kiểm tra nội dung cũ (ghi đè được): tính bất biến của artifact dựa vào việc API chỉ cấp URL cho run đang `running` với `lease_id` hiện tại.
+- Worker đọc ảnh theo sha256 từ cache (`ShaCacheLoader`, kiểm tra hash) thay cho thư mục gốc lúc import.
 
 ### Compute target và token
 - `advertest-admin compute-target create --name local-dev --kind local --gpu-model ... --time-limit 7200` tạo target và in token **một lần duy nhất**; DB chỉ lưu sha256 của token.
@@ -108,6 +111,8 @@ Cuối phase: gửi experiment, theo dõi tiến độ; tắt worker giữa ch�
 ### Failure case trong chế độ batch
 - Sau mỗi batch, worker giữ danh sách top-K ứng viên theo `severity_score` (quy tắc xác định như Phase 2). Ảnh của ứng viên mới được upload vào `candidates/`; danh sách ứng viên nằm trong checkpoint.
 - Khi hoàn tất: ứng viên được chọn chép sang `cases/<case_id>/`, ứng viên còn lại bị xóa (chúng chưa phải kết quả).
+- Ảnh bị đẩy khỏi top-K trong lúc chạy **không** bị xóa ngay mà đợi tới khi hoàn tất (checkpoint trước đó còn trỏ vào ảnh). Bước hoàn tất chạy lại được nếu worker chết giữa chừng (bỏ qua file đã chép).
+- CLI không có ứng viên trên store: ảnh ứng viên giữ trong RAM, PNG ghi vào `runs/<fp>/cases/<image_id>/` khi hoàn tất như Phase 2, không có thumbnail.
 - Thumbnail: rộng 320 px, định dạng WebP, cho ảnh sạch và ảnh sau tấn công.
 
 ### Checkpoint và chạy tiếp
@@ -128,7 +133,7 @@ Cuối phase: gửi experiment, theo dõi tiến độ; tắt worker giữa ch�
 - Experiment chuyển `queued → running` khi được lease lần đầu.
 
 ### Giới hạn thời gian
-- Thời gian tính = tổng thời gian xử lý các batch (không tính thời gian chờ trong hàng đợi hay thời gian worker bị gián đoạn).
+- Thời gian tính = tổng thời gian xử lý các batch (không tính thời gian chờ trong hàng đợi hay thời gian worker bị gián đoạn). Thời gian của một batch gồm attack và predict; không gồm mã hóa, upload ảnh ứng viên và checkpoint.
 - API giữ số liệu cộng dồn và trả `remaining_seconds` trong mỗi `WorkerDirective`.
 - Worker dừng khi thời gian còn lại không đủ cho batch tiếp theo theo cost profile.
 - Giá trị mặc định lấy từ `default_time_limit_s` của compute target.
@@ -162,6 +167,7 @@ Cuối phase: gửi experiment, theo dõi tiến độ; tắt worker giữa ch�
 - **Run bị cache sao chép metric từ run gốc.** *Lý do:* đường cong của experiment hiển thị đầy đủ mà không phải truy vấn chéo; `cached_from_run_id` giữ nguồn gốc.
 - **Failure case gửi kèm `complete`, không để API đọc từ MinIO.** *Lý do:* kiểm tra hợp lệ tập trung ở API; API không phải tin file do worker tự ghi.
 - **Lease có `lease_id`, request của worker gửi kèm.** *Lý do:* worker tưởng đã chết (máy treo) có thể sống lại sau khi lease được cấp cho worker khác; `409` chặn nó ghi tiến độ hay kết quả trùng.
+- **Run dừng do giới hạn: mọi metric, kể cả mAP sạch, tính trên đúng các ảnh đã xử lý.** *Lý do:* mức sụt chỉ có nghĩa khi so cùng tập ảnh; mAP sạch của cả slice so với mAP sau tấn công của một phần slice có thể cho mức sụt sai, thậm chí âm.
 - **`FailureCaseRecord.id` gồm `run_id`.** *Lý do:* cùng fingerprint có thể có nhiều run tạo case (hai worker chạy đồng thời, chạy lại sau `stopped_limit` hoặc `failed`); run bị cache dùng lại `failure_case_ids` của run gốc.
 
 ## Context
