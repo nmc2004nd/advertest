@@ -32,7 +32,7 @@
 10. `GET /experiments` (lọc, phân trang), `GET /experiments/{id}`, `GET /experiments/{id}/runs`, `GET /runs/{id}/manifest`.
 11. `POST /experiments/{id}/cancel` (chỉ chủ sở hữu; tái sử dụng logic hủy Phase 3), `GET /experiments/{id}/clone` (trả `ExperimentClone`).
 12. `GET /runs/{id}/failure-cases`, `GET /failure-cases/{id}`: cấp URL tạm thời 10 phút `/artifacts/{token}` (route cần phiên `experiment.read`) (token HMAC gắn một khóa, API stream từ MinIO); áp dụng `display_mode` theo cờ `anonymized` của dataset và `DEV_ALLOW_UNBLURRED`.
-13. Đặt `finished_at` khi experiment vào trạng thái cuối.
+13. Đặt `finished_at` khi experiment vào trạng thái cuối; điền lại `finished_at` cho experiment đã kết thúc mà còn null (kết thúc sau khi merge Group 1, trước task này), cùng quy tắc với migration 0004 (review Group 1).
 
 ## Group 3 — Backend: email `[agent: backend]`
 
@@ -67,7 +67,7 @@
 
 ## Group 7 — Test nghiệm thu và kiểm tra cuối `[người duyệt]`
 
-33. Viết test nghiệm thu `tests/acceptance/phase_05/` và kịch bản Playwright `frontend/e2e/phase_05/` theo `validation.md` (worker CPU với fixture chạy trong CI).
+33. Viết test nghiệm thu `tests/acceptance/phase_05/` và kịch bản Playwright `frontend/e2e/phase_05/` theo `validation.md` (worker CPU với fixture chạy trong CI). DB test dùng chung: spec tự tạo với nội dung không hợp lệ phải đặt `is_active = false`, nếu không `GET /attack-specs` trả `500` (review Group 1; `backend/app/tests/db/test_schema.py` và `tests/acceptance/phase_00/test_database.py` hiện chèn spec rỗng đang hoạt động).
 34. Chạy manual check trên laptop và điện thoại thật.
 35. Trả lời câu hỏi mở; cập nhật `roadmap.md` nếu quyết định đưa làm mờ lên sớm.
 36. Cập nhật `CHANGELOG.md`, `roadmap.md`; merge.
