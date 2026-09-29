@@ -13,6 +13,7 @@ import {
 import { useAdminMutation, useUserList } from '@/admin/useUsers'
 import { errorMessage } from '@/api/messages'
 import { ROLE_LABELS } from '@/auth/roles'
+import { useMe } from '@/auth/useMe'
 import { FormAlert } from '@/components/FormAlert'
 import { LoadError } from '@/components/LoadError'
 import { PageLoading } from '@/components/PageLoading'
@@ -109,7 +110,8 @@ const PRIMARY: readonly UserAction[] = ['approve', 'enable']
 const DESTRUCTIVE: readonly UserAction[] = ['reject', 'disable']
 
 function Actions({ user, onAction }: { user: UserAdminView } & Pick<ListProps, 'onAction'>) {
-  const actions = actionsFor(user)
+  const { data: me } = useMe()
+  const actions = actionsFor(user, me?.id)
   if (actions.length === 0) return <span className="text-sm text-muted-foreground">—</span>
   return (
     <div className="flex flex-wrap gap-2">

@@ -5,14 +5,17 @@ export type UserAction = 'approve' | 'reject' | 'roles' | 'disable' | 'enable' |
 /**
  * Hành động hiện theo trạng thái (requirements.md Phase 4, Luật quản trị): duyệt/từ chối chỉ với
  * `pending`; đổi role và tạo link chỉ với `active`/`disabled`; vô hiệu hóa với `active`, kích hoạt
- * với `disabled`. Backend vẫn kiểm tra lại (409).
+ * với `disabled`; admin không tự vô hiệu hóa được mình. Backend vẫn kiểm tra lại (409).
  */
-export function actionsFor(user: Pick<UserAdminView, 'status'>): UserAction[] {
+export function actionsFor(
+  user: Pick<UserAdminView, 'id' | 'status'>,
+  meId?: string,
+): UserAction[] {
   switch (user.status) {
     case 'pending':
       return ['approve', 'reject']
     case 'active':
-      return ['roles', 'reset-link', 'disable']
+      return user.id === meId ? ['roles', 'reset-link'] : ['roles', 'reset-link', 'disable']
     case 'disabled':
       return ['enable', 'roles', 'reset-link']
     case 'rejected':

@@ -22,6 +22,9 @@ describe('actionsFor', () => {
     expect(actionsFor(byStatus('active'))).toEqual(['roles', 'reset-link', 'disable'])
     expect(actionsFor(byStatus('disabled'))).toEqual(['enable', 'roles', 'reset-link'])
     expect(actionsFor(byStatus('rejected'))).toEqual([])
+    // Admin không tự vô hiệu hóa được mình (backend trả 409): ẩn nút với chính mình.
+    const active = byStatus('active')
+    expect(actionsFor(active, active.id)).toEqual(['roles', 'reset-link'])
   })
 })
 
