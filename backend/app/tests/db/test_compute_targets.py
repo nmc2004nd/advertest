@@ -90,3 +90,32 @@ def test_require_admin(db: Session) -> None:
     for email in (engineer.email, pending.email, "khong-co@x.test"):
         with pytest.raises(Forbidden):
             audit.require_admin(db, email)
+
+
+def test_limits_default_max_and_set_limits(db: Session, admin: m.User) -> None:
+    """Phase 5: trần tối đa mặc định 8 giờ; admin đổi được, luôn 0 < mặc định ≤ tối đa."""
+    name = _name()
+    target = compute_targets.create(db, actor=admin, name=name).target
+    assert (target.default_time_limit_s, target.max_time_limit_s) == (7200, 28800)
+    with pytest.raises(Invalid):
+        compute_targets.create(db, actor=admin, name=_name(), time_limit_s=9000,
+                               max_time_limit_s=3600)  # fmt: skip
+
+    compute_targets.set_limits(db, actor=admin, name=name, max_s=43200)
+    compute_targets.set_limits(db, actor=admin, name=name, default_s=3600)
+    assert (target.default_time_limit_s, target.max_time_limit_s) == (3600, 43200)
+    for default_s, max_s in ((0, None), (None, 1800), (50000, None)):
+        with pytest.raises(Invalid):
+            compute_targets.set_limits(db, actor=admin, name=name, default_s=default_s,
+                                       max_s=max_s)  # fmt: skip
+    assert (target.default_time_limit_s, target.max_time_limit_s) == (3600, 43200)
+    with pytest.raises(NotFound):
+        compute_targets.set_limits(db, actor=admin, name="khong-co", max_s=100)
+
+    rows = [r for r in _audit(db, target.id) if r.action == "compute_target.update_limits"]
+    assert len(rows) == 2
+    assert rows[0].before is not None and rows[0].after is not None
+    assert (rows[0].before["max_time_limit_s"], rows[0].after["max_time_limit_s"]) == (
+        28800,
+        43200,
+    )

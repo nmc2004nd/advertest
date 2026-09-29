@@ -68,6 +68,7 @@ from backend.app.auth import service as auth_service
 from backend.app.auth import sessions
 from backend.app.auth.deps import CurrentUser
 from backend.app.auth.permissions import guard
+from backend.app.services import catalog
 from backend.app.services.clock import Clock
 
 Sessions = Annotated[SessionFactory, Depends(get_sessionmaker)]
@@ -264,49 +265,68 @@ def create_reset_link(
 
 # ---------------------------------------------------------------- Phase 5: đọc tài nguyên
 
+NOT_FOUND_RESPONSE: dict[int | str, dict[str, Any]] = {
+    status.HTTP_404_NOT_FOUND: {"model": ErrorResponse, "description": "Không tồn tại"}
+}
+
 
 @router.get("/models", tags=["models"], **guard(P.MODEL_READ))
-def list_models() -> list[ModelSummary]:
-    not_implemented()
+def list_models(factory: Sessions) -> list[ModelSummary]:
+    with transaction(factory) as session:
+        return catalog.list_models(session)
 
 
-@router.get("/models/{model_id}", tags=["models"], **guard(P.MODEL_READ))
-def get_model(model_id: UUID) -> ModelSummary:
-    not_implemented()
+@router.get(
+    "/models/{model_id}", tags=["models"], responses=NOT_FOUND_RESPONSE, **guard(P.MODEL_READ)
+)
+def get_model(model_id: UUID, factory: Sessions) -> ModelSummary:
+    with transaction(factory) as session:
+        return catalog.get_model(session, model_id)
 
 
 @router.get("/datasets", tags=["datasets"], **guard(P.DATASET_READ))
-def list_datasets() -> list[DatasetSummary]:
-    not_implemented()
+def list_datasets(factory: Sessions) -> list[DatasetSummary]:
+    with transaction(factory) as session:
+        return catalog.list_datasets(session)
 
 
-@router.get("/dataset-versions/{dataset_version_id}", tags=["datasets"], **guard(P.DATASET_READ))
-def get_dataset_version(dataset_version_id: UUID) -> DatasetVersionSummary:
-    not_implemented()
+@router.get(
+    "/dataset-versions/{dataset_version_id}",
+    tags=["datasets"],
+    responses=NOT_FOUND_RESPONSE,
+    **guard(P.DATASET_READ),
+)
+def get_dataset_version(dataset_version_id: UUID, factory: Sessions) -> DatasetVersionSummary:
+    with transaction(factory) as session:
+        return catalog.get_dataset_version(session, dataset_version_id)
 
 
 @router.get("/slices", tags=["slices"], **guard(P.DATASET_READ))
-def list_slices(dataset_version: UUID | None = None) -> list[SliceSummary]:
-    not_implemented()
+def list_slices(factory: Sessions, dataset_version: UUID | None = None) -> list[SliceSummary]:
+    with transaction(factory) as session:
+        return catalog.list_slices(session, dataset_version)
 
 
 @router.get("/class-mappings", tags=["datasets"], **guard(P.DATASET_READ))
 def list_class_mappings(
-    dataset_version: UUID | None = None, model: UUID | None = None
+    factory: Sessions, dataset_version: UUID | None = None, model: UUID | None = None
 ) -> list[ClassMappingSummary]:
-    not_implemented()
+    with transaction(factory) as session:
+        return catalog.list_class_mappings(session, dataset_version, model)
 
 
 @router.get("/attack-specs", tags=["attack-specs"], **guard(P.ATTACK_CATALOG_READ))
-def list_attack_specs() -> list[AttackSpec]:
+def list_attack_specs(factory: Sessions) -> list[AttackSpec]:
     """Chỉ spec đang hoạt động."""
-    not_implemented()
+    with transaction(factory) as session:
+        return catalog.list_attack_specs(session)
 
 
 @router.get("/protocols", tags=["protocols"], **guard(P.PROTOCOL_READ))
-def list_protocols() -> list[ProtocolSummary]:
+def list_protocols(factory: Sessions) -> list[ProtocolSummary]:
     """Protocol trạng thái `active` và `dev`."""
-    not_implemented()
+    with transaction(factory) as session:
+        return catalog.list_protocols(session)
 
 
 @router.post("/protocols", tags=["protocols"], **guard(P.PROTOCOL_MANAGE))
@@ -315,17 +335,16 @@ def create_protocol(body: ProtocolBody) -> None:
 
 
 @router.get("/compute-targets", tags=["compute-targets"], **guard(P.COMPUTE_TARGET_READ))
-def list_compute_targets() -> list[ComputeTargetPublic]:
-    not_implemented()
+def list_compute_targets(factory: Sessions, clock: Now) -> list[ComputeTargetPublic]:
+    """`online`: heartbeat trong 60 giây gần nhất; `queue_length`: số experiment `queued`."""
+    with transaction(factory) as session:
+        return catalog.list_compute_targets(session, clock())
 
 
 # ---------------------------------------------------------------- Phase 5: experiment
 
 CONFLICT_RESPONSE: dict[int | str, dict[str, Any]] = {
     status.HTTP_409_CONFLICT: {"model": ErrorResponse, "description": "Sai trạng thái"}
-}
-NOT_FOUND_RESPONSE: dict[int | str, dict[str, Any]] = {
-    status.HTTP_404_NOT_FOUND: {"model": ErrorResponse, "description": "Không tồn tại"}
 }
 
 

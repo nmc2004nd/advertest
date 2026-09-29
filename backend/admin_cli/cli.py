@@ -66,6 +66,10 @@ def target_create(
     time_limit: Annotated[
         int, typer.Option("--time-limit", help="Giới hạn thời gian mặc định (giây)")
     ] = compute_targets.DEFAULT_TIME_LIMIT_S,
+    max_time_limit: Annotated[
+        int,
+        typer.Option("--max-time-limit", help="Giới hạn tối đa người dùng được chọn (giây)"),
+    ] = compute_targets.DEFAULT_MAX_TIME_LIMIT_S,
     kind: Annotated[str, typer.Option("--kind", help="Phase 3 chỉ nhận local")] = "local",
 ) -> None:
     """Tạo compute target và in token một lần duy nhất (DB chỉ lưu sha256)."""
@@ -80,6 +84,7 @@ def target_create(
             gpu_model=gpu_model,
             vram_gb=Decimal(str(vram_gb)) if vram_gb is not None else None,
             time_limit_s=time_limit,
+            max_time_limit_s=max_time_limit,
         )
         target_id = issued.target.id
     typer.echo(f"Đã tạo compute target {name} ({target_id}).")
@@ -98,6 +103,29 @@ def target_rotate(name: Annotated[str, typer.Argument(help="Tên target")], acto
     typer.echo(issued.token)
 
 
+@target_app.command("set-limits")
+def target_set_limits(
+    name: Annotated[str, typer.Argument(help="Tên target")],
+    actor: ActorOpt,
+    default: Annotated[
+        int | None, typer.Option("--default", help="Giới hạn mặc định của wizard (giây)")
+    ] = None,
+    maximum: Annotated[
+        int | None, typer.Option("--max", help="Giới hạn tối đa người dùng được chọn (giây)")
+    ] = None,
+) -> None:
+    """Đổi giới hạn thời gian; experiment đã tạo giữ giới hạn của nó."""
+    if default is None and maximum is None:
+        raise ServiceError("Cần ít nhất một trong --default hoặc --max")
+    with _transaction() as session:
+        admin = audit.require_admin(session, actor)
+        target = compute_targets.set_limits(
+            session, actor=admin, name=name, default_s=default, max_s=maximum
+        )
+        summary = f"mặc định {target.default_time_limit_s}s, tối đa {target.max_time_limit_s}s"
+    typer.echo(f"Đã cập nhật giới hạn của {name}: {summary}.")
+
+
 @target_app.command("list")
 def target_list() -> None:
     with _transaction() as session:
@@ -106,7 +134,8 @@ def target_list() -> None:
             heartbeat = target.last_heartbeat_at.isoformat() if target.last_heartbeat_at else "-"
             typer.echo(
                 f"{target.name}\t{target.kind}\t{target.gpu_model or '-'}\t"
-                f"{target.default_time_limit_s}s\t{token}\theartbeat {heartbeat}"
+                f"{target.default_time_limit_s}s (tối đa {target.max_time_limit_s}s)\t{token}\t"
+                f"heartbeat {heartbeat}"
             )
 
 

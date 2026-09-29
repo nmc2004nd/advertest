@@ -42,7 +42,12 @@ WORKER_ENDPOINTS = {
     "/internal/worker/cost-profiles",
 }
 # Nhóm Phase 4 cài đặt thật: không còn là khung trả 501.
-IMPLEMENTED_GROUPS = {"/health", "/auth", "/admin", "/audit-log"}
+# Phase 5 Group 1: API đọc tài nguyên (plan.md task 5b). /protocols: GET đã cài đặt, POST vẫn là
+# khung tới Phase 8 (test backend `test_skeleton.py` kiểm tra POST /protocols trả 501).
+IMPLEMENTED_GROUPS = {
+    "/health", "/auth", "/admin", "/audit-log",
+    "/models", "/datasets", "/slices", "/attack-specs", "/protocols", "/compute-targets",
+}  # fmt: skip
 # Endpoint công khai, không cần phiên (requirements.md Phase 4, mục Bảo vệ endpoint).
 PUBLIC_PATHS = ("/health", "/verify", "/auth/request-access", "/auth/login", "/auth/password-reset")
 SAMPLE_ID = "00000000-0000-5000-8000-000000000001"

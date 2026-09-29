@@ -48,9 +48,9 @@ Cuối phase: engineer tạo experiment trên web, theo dõi tiến độ trên 
 
 | Bảng | Thay đổi |
 |---|---|
-| `compute_targets` | Thêm `max_time_limit_s` (mặc định 28800 = 8 giờ; admin sửa qua `advertest-admin`) |
+| `compute_targets` | Thêm `max_time_limit_s` (mặc định 28800 = 8 giờ; CHECK `default_time_limit_s <= max_time_limit_s`; admin sửa bằng `advertest-admin compute-target create --max-time-limit` và `compute-target set-limits NAME --default S --max S`, có audit `compute_target.update_limits`) |
 | `experiments` | Thêm `name` (NOT NULL; migration điền tên cho experiment cũ theo quy tắc ở Behaviour), `cloned_from`, `finished_at`, `created_at` (NOT NULL, mặc định `now()`, điền `submitted_at` cho experiment cũ; dùng cho `ExperimentSummary.created_at` và phân trang keyset, Group 0) |
-| `email_outbox` | Bảng mới: `id`, `to`, `subject`, `body_html`, `body_text`, `status` (`pending` / `sent` / `failed`), `attempts`, `last_error`, `created_at`, `sent_at` |
+| `email_outbox` | Bảng mới: `id`, `to`, `subject`, `body_html`, `body_text`, `status` (`pending` / `sent` / `failed`), `attempts`, `last_error`, `created_at`, `next_attempt_at` (lần gửi tiếp theo, dùng cho backoff; Group 1), `sent_at`. Ứng dụng không xóa email |
 
 ### Dùng lại từ Phase 3 (replan)
 - `POST /experiments` dùng lại service `experiments.submit` của Phase 3: `inference_params` mặc định (`DEFAULT_INFERENCE_PARAMS`) và `failure_cases_per_run = 20` lưu ở bảng `experiments` (không nằm trong `ExperimentConfig`); audit dùng action đã có `experiment.submit` / `experiment.cancel` (không phải `experiment.created`).
@@ -70,7 +70,9 @@ Cuối phase: engineer tạo experiment trên web, theo dõi tiến độ trên 
 | `GET /protocols` (trạng thái `active` và `dev`) | `protocol.read` |
 | `GET /compute-targets` | `compute_target.read` |
 
-Worker được coi là `online` nếu có heartbeat trong 60 giây gần nhất.
+Worker được coi là `online` nếu có heartbeat trong 60 giây gần nhất (gồm đúng 60 giây). `queue_length` là số experiment `queued` trên target (không tính `running`).
+
+`GET /attack-specs` kiểm tra từng spec theo contract: một spec đang hoạt động bị hỏng thì trả `500` (catalog hỏng phải lộ ra ngay, không bị che; review Group 1).
 
 ### API experiment
 
@@ -89,7 +91,7 @@ Worker được coi là `online` nếu có heartbeat trong 60 giây gần nhất
 | `GET /artifacts/{token}` | `experiment.read` | Cần cả phiên lẫn token (Group 0: hai lớp bảo vệ; `<img>` cùng origin tự gửi cookie). Stream ảnh từ MinIO; token sai, bị sửa hoặc hết hạn → `404` |
 
 ### Kiểm tra khi tạo và ước lượng (lỗi `422` có đường dẫn trường)
-- `name` bỏ trống → server đặt `<tên model> · <tên slice> · <YYYY-MM-DD UTC>`.
+- `name` bỏ trống → server đặt `<tên model> · <tên slice> · <YYYY-MM-DD UTC>`. Quy tắc nằm ở trigger DB `experiments_default_name` (BEFORE INSERT), dùng chung cho API, CLI và mọi INSERT (Group 1).
 - Ít nhất một attack; spec đang hoạt động và `spec_sha256` khớp version hiện hành.
 - `mode = search` → `422 not_supported_yet`.
 - Mỗi attack: các level nằm trong dải của spec, không trùng, tối đa 12 level; tổng số run của experiment tối đa 50.

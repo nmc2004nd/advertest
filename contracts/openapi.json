@@ -1161,6 +1161,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "Không tồn tại",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         },
         "x-permission": "model.read"
@@ -1304,6 +1314,16 @@
           },
           "422": {
             "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại",
             "content": {
               "application/json": {
                 "schema": {
@@ -1736,6 +1756,7 @@
           "compute-targets"
         ],
         "summary": "List Compute Targets",
+        "description": "`online`: heartbeat trong 60 giây gần nhất; `queue_length`: số experiment `queued`.",
         "operationId": "list_compute_targets_compute_targets_get",
         "responses": {
           "200": {
@@ -3418,6 +3439,16 @@
               }
             }
           },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "204": {
             "description": "Không có experiment nào chờ"
           }
@@ -3476,11 +3507,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -3528,11 +3559,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -3602,11 +3633,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -3671,11 +3702,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -3740,11 +3771,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -3802,11 +3833,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -3847,11 +3878,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -3918,11 +3949,11 @@
             }
           },
           "422": {
-            "description": "Validation Error",
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -6478,19 +6509,6 @@
         ],
         "title": "GridConfig"
       },
-      "HTTPValidationError": {
-        "properties": {
-          "detail": {
-            "items": {
-              "$ref": "#/components/schemas/ValidationError"
-            },
-            "type": "array",
-            "title": "Detail"
-          }
-        },
-        "type": "object",
-        "title": "HTTPValidationError"
-      },
       "HealthResponse": {
         "properties": {
           "schema_version": {
@@ -8753,46 +8771,6 @@
           "disabled"
         ],
         "title": "UserStatus"
-      },
-      "ValidationError": {
-        "properties": {
-          "loc": {
-            "items": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "integer"
-                }
-              ]
-            },
-            "type": "array",
-            "title": "Location"
-          },
-          "msg": {
-            "type": "string",
-            "title": "Message"
-          },
-          "type": {
-            "type": "string",
-            "title": "Error Type"
-          },
-          "input": {
-            "title": "Input"
-          },
-          "ctx": {
-            "type": "object",
-            "title": "Context"
-          }
-        },
-        "type": "object",
-        "required": [
-          "loc",
-          "msg",
-          "type"
-        ],
-        "title": "ValidationError"
       },
       "WorkerDirective": {
         "properties": {

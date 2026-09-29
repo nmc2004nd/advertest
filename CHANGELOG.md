@@ -6,7 +6,25 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 5 — Wizard tạo experiment và theo dõi tiến độ
 
-**Trạng thái:** đang làm. Group 0 xong trên nhánh `phase05-reviewer-g0` (chưa merge).
+**Trạng thái:** đang làm. Group 0, 1 đã merge.
+
+### Phase 5 — Group 1 (backend) — 2026-09-29
+#### Thêm
+- Migration `0004`: `compute_targets.max_time_limit_s` (mặc định 28800, CHECK mặc định ≤ tối đa); `experiments.created_at` (điền `submitted_at`, index `(created_at, id)`), `name` NOT NULL (trigger `experiments_default_name` đặt `<model> · <slice> · <ngày UTC>` khi bỏ trống; experiment cũ điền cùng quy tắc), `cloned_from`, `finished_at` (experiment cũ đã kết thúc lấy thời điểm run cuối cùng xong); bảng `email_outbox` (có `next_attempt_at`; app không xóa được).
+- `advertest-admin compute-target create --max-time-limit`, `compute-target set-limits` (audit `compute_target.update_limits`), `list` in giới hạn tối đa.
+- `backend/app/services/catalog.py` và route `GET /models`, `/models/{id}`, `/datasets`, `/dataset-versions/{id}`, `/slices`, `/class-mappings`, `/attack-specs` (chỉ đang hoạt động), `/protocols` (`active`, `dev`), `/compute-targets` (`online` theo heartbeat 60 giây, `queue_length` đếm `queued`); `404` khi không có.
+- API nội bộ của worker khai `422` là `ErrorResponse` (task 5a); OpenAPI không còn `HTTPValidationError`.
+- Test: `test_migration_0004.py` (nâng từ 0003 với dữ liệu kiểu Phase 3), `test_catalog_api.py`, `set-limits` ở service và CLI.
+#### Thay đổi
+- Test nghiệm thu Phase 0 `test_api.py`: `IMPLEMENTED_GROUPS` thêm 6 nhóm (commit `phase05(reviewer)`, người dùng cho phép). Test backend: `SAMPLE_CALLS`, test CSRF cho GET dùng `/budget` (route còn là khung).
+#### Quyết định (người dùng chốt, đã ghi vào spec Phase 5)
+- `email_outbox.next_attempt_at`; người duyệt cập nhật `IMPLEMENTED_GROUPS` trong nhánh.
+- Review: `GET /attack-specs` giữ nghiêm (spec hỏng → `500`), dữ liệu test tự tạo spec rỗng phải `is_active = false` (`plan.md` task 33); Group 2 điền lại `finished_at` còn thiếu (task 13).
+- Agent tự chọn, người duyệt chấp nhận ở review: tên mặc định bằng trigger DB (để test Phase 0 chèn experiment không tên vẫn chạy); `queue_length` chỉ đếm `queued`; lệnh `set-limits`.
+#### Số liệu
+- `make check`: 801 test Python, 212 test nghiệm thu không cần DB (6 nhóm khung ít hơn), 103 Vitest. `make test-db`: 283 test.
+#### Lưu ý
+- Code, review và ghi spec do cùng một agent làm (review không độc lập).
 
 ### Phase 5 — Group 0 (người duyệt, người dùng giao) — 2026-09-29
 #### Contract
