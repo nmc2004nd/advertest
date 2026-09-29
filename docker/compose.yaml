@@ -71,7 +71,9 @@ services:
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
       # Phase 4: cookie Secure khi phục vụ qua HTTPS; proxy được tin X-Forwarded-For.
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
-      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1}
+      # Mặc định tin cả mạng Docker (172.16.0.0/12): frontend gọi API qua proxy /api từ container
+      # riêng; không tin thì mọi người dùng chung IP của container đó (Phase 4 Group 7).
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1,172.16.0.0/12}
       # Origin của frontend: link đặt lại mật khẩu do admin tạo trỏ về đây.
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:5173}
     volumes:
