@@ -28,7 +28,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: 'Trang chủ',
     icon: House,
     requirement: AUTHENTICATED,
-    implemented: false,
+    implemented: true,
   },
   {
     path: '/experiments',
@@ -63,7 +63,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: 'Tài khoản',
     icon: CircleUser,
     requirement: AUTHENTICATED,
-    implemented: false, // Phase 4 Group 5
+    implemented: true,
   },
 ]
 

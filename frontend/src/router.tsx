@@ -1,7 +1,9 @@
 import { createBrowserRouter, type RouteObject } from 'react-router'
 
 import { AppShell } from './layout/AppShell'
+import { AccountPage } from './pages/AccountPage'
 import { ForbiddenPage } from './pages/ForbiddenPage'
+import { HomePage } from './pages/HomePage'
 import { LandingPage } from './pages/LandingPage'
 import { LoginPage } from './pages/LoginPage'
 import { PendingPage } from './pages/PendingPage'
@@ -16,8 +18,14 @@ const routes: RouteObject[] = [
   { path: '/request-access/sent', element: <RequestAccessSentPage /> },
   { path: '/pending', element: <PendingPage /> },
   { path: '/reset-password/:token', element: <ResetPasswordPage /> },
-  // Trang cần đăng nhập nằm trong khung ứng dụng (Group 5, 6 thêm trang con).
-  { element: <AppShell />, children: [] },
+  // Trang cần đăng nhập nằm trong khung ứng dụng (Group 6 thêm trang admin).
+  {
+    element: <AppShell />,
+    children: [
+      { path: '/home', element: <HomePage /> },
+      { path: '/account', element: <AccountPage /> },
+    ],
+  },
 ]
 
 // Chỉ có khi chạy dev: trong bản build production, nhánh này bị loại bỏ cùng module của trang.
