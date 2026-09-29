@@ -6,7 +6,29 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 3 — Worker và máy local
 
-**Trạng thái:** đang làm. Group 0, 1, 2 đã merge.
+**Trạng thái:** đang làm. Group 0–3 đã merge.
+
+### Phase 3 — Group 3 (backend) — 2026-09-29
+#### Thêm
+- `backend/app/api/worker.py`: cài đặt 8 endpoint `/internal/worker` (`lease` 200/204, `bundle`, `heartbeat`, `start`, `progress`, `artifact-url`, `complete` 204, `cost-profiles` 204); `search-result` vẫn là khung (Phase 7). OpenAPI không đổi so với Group 0.
+- `backend/app/api/deps.py`: session factory, storage, đồng hồ là dependency (test thay được); mỗi endpoint mở transaction riêng; bearer token → compute target (thiếu token 401 trước khi mở DB).
+- `backend/app/api/errors.py`: lỗi service → HTTP (404, 403, 409, 422) với `ErrorResponse`.
+- `backend/app/services/bundle.py` (dựng `WorkerJobBundle`: card, slice, manifest từ MinIO; mapping, attack spec, cost profile từ DB; presigned GET cho weights, manifest, ảnh, checkpoint); `runs.artifact_url`.
+- `backend/app/presign.py`: presigned PUT/GET/DELETE 15 phút qua `MINIO_PUBLIC_ENDPOINT`.
+- Test HTTP với Postgres và MinIO thật (`test_worker_api.py`): token và xoay token, bundle với URL tải thật (kiểm sha256), luồng run, URL ngoài thư mục run (403), run đã kết thúc (409), artifact thiếu (422), lease cũ (409), cost profile, URL hết hạn; `test_skeleton.py`: 8 endpoint trả 401 khi thiếu token.
+#### Contract (người duyệt, người dùng cho phép)
+- `ErrorCode` thêm `invalid_request` (422); sinh lại JSON Schema, OpenAPI, TypeScript.
+#### Thay đổi
+- Test nghiệm thu Phase 0 `test_worker_internal_endpoint_returns_501` gọi endpoint khung `search-result` thay cho `lease` (người dùng cho phép). Phase 7 phải đổi lại khi cài đặt `search-result`.
+#### Quyết định (đã ghi vào `requirements.md` Phase 3, API nội bộ cho worker)
+- Bảng mã lỗi của API worker; `bundle` không đòi `lease_id`; `MINIO_PUBLIC_ENDPOINT` mặc định `MINIO_ENDPOINT`; presigned URL còn hiệu lực tới khi hết hạn kể cả sau khi run kết thúc.
+#### Review
+- Review (do chính agent viết nhánh, không độc lập): không có điểm chặn; ghi nhận: URL còn hiệu lực sau khi run kết thúc, `KeyNotFoundError` từ MinIO trong bundle thành 500, `assert` trong endpoint `lease`, presigner dùng khóa root MinIO.
+- `make check` pass (551 test Python, 153 test nghiệm thu, 36 Vitest); `make test-db` 73 test pass.
+#### Tồn đọng
+- `MINIO_PUBLIC_ENDPOINT` trong `.env.example` và compose (Group 5); manual check chữ ký qua host công khai với `make up`.
+- OpenAPI chưa khai báo 401/403/409/422 cho endpoint worker (cần thay đổi contract nếu muốn).
+- Lỗi validation của FastAPI (422 `{"detail": ...}`) chưa theo `ErrorResponse` (Phase 4).
 
 ### Phase 3 — Group 2 (backend) — 2026-09-29
 #### Thêm
