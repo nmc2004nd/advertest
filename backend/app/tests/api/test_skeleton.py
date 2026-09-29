@@ -10,10 +10,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 from advertest_contracts.models import ErrorResponse
+from advertest_contracts.permissions import AUTHENTICATED, Permission
 from backend.app.main import create_app
 
 PUBLIC_GROUPS = [
-    "/auth", "/users", "/models", "/datasets", "/slices", "/attack-specs", "/protocols",
+    "/auth", "/admin", "/models", "/datasets", "/slices", "/attack-specs", "/protocols",
     "/experiments", "/runs", "/failure-cases", "/reviews", "/reports", "/compute-targets",
     "/budget", "/audit-log", "/verify",
 ]  # fmt: skip
@@ -29,9 +30,23 @@ WORKER_ENDPOINTS = {
     ("post", "/internal/worker/cost-profiles"),
 }
 RUN_ID = "00000000-0000-5000-8000-000000000001"
+# Endpoint xác thực công khai (requirements.md Phase 4, mục Bảo vệ endpoint).
+PUBLIC_AUTH_PATHS = {"/auth/request-access", "/auth/login", "/auth/password-reset"}
 SAMPLE_CALLS = [
+    # Phase 4: khung cho tới Group 1-3 (Group 2 thêm kiểm tra phiên trước 501).
+    ("post", "/auth/request-access"),
     ("post", "/auth/login"),
-    ("get", "/users"),
+    ("post", "/auth/password-reset"),
+    ("post", "/auth/logout"),
+    ("get", "/auth/me"),
+    ("post", "/auth/password"),
+    ("get", "/admin/users"),
+    ("post", "/admin/users/" + RUN_ID + "/approve"),
+    ("post", "/admin/users/" + RUN_ID + "/reject"),
+    ("put", "/admin/users/" + RUN_ID + "/roles"),
+    ("post", "/admin/users/" + RUN_ID + "/disable"),
+    ("post", "/admin/users/" + RUN_ID + "/enable"),
+    ("post", "/admin/users/" + RUN_ID + "/reset-link"),
     ("get", "/models"),
     ("get", "/datasets"),
     ("get", "/slices"),
@@ -50,6 +65,13 @@ SAMPLE_CALLS = [
 # Endpoint có body bắt buộc: gửi body hợp lệ lấy từ contracts/mocks.
 MOCKS = Path(__file__).resolve().parents[4] / "contracts" / "mocks"
 BODIES = {
+    "/auth/request-access": "access_request/default.json",
+    "/auth/login": "login_request/default.json",
+    "/auth/password-reset": "password_reset_consume/default.json",
+    "/auth/password": "password_change/default.json",
+    "/admin/users/" + RUN_ID + "/approve": "approve_request/engineer.json",
+    "/admin/users/" + RUN_ID + "/reject": "reject_request/default.json",
+    "/admin/users/" + RUN_ID + "/roles": "roles_update/engineer_reviewer.json",
     "/internal/worker/heartbeat": "heartbeat_request/default.json",
     "/internal/worker/runs/" + RUN_ID + "/artifact-url": "artifact_url_request/put_candidate.json",
     "/internal/worker/runs/" + RUN_ID + "/start": "run_start_request/gpu_local.json",
@@ -96,7 +118,9 @@ def test_security_schemes(openapi: dict[str, Any]) -> None:
     schemes = openapi["components"]["securitySchemes"]
     assert schemes["userSession"] == {
         "type": "apiKey", "in": "cookie", "name": "advertest_session",
-        "description": "Cookie phiên của người dùng (JWT, httpOnly).",
+        "description": (
+            "Cookie phiên của người dùng (token ngẫu nhiên, httpOnly; phiên lưu phía server)."
+        ),
     }  # fmt: skip
     assert schemes["workerToken"]["type"] == "http"
     assert schemes["workerToken"]["scheme"] == "bearer"
@@ -105,7 +129,7 @@ def test_security_schemes(openapi: dict[str, Any]) -> None:
             names = {name for req in op.get("security", []) for name in req}
             if path.startswith("/internal/worker"):
                 assert names == {"workerToken"}, path
-            elif path.startswith(("/verify", "/health")):
+            elif path.startswith(("/verify", "/health")) or path in PUBLIC_AUTH_PATHS:
                 assert names == set(), path
             else:
                 assert names == {"userSession"}, path
@@ -138,3 +162,15 @@ def test_worker_endpoints_require_token(method: str, path: str) -> None:
         response = client.request(method, path, json=body, headers=headers)
         assert response.status_code == 401
         assert ErrorResponse.model_validate(response.json()).error.code == "unauthenticated"
+
+
+def test_every_session_route_declares_a_valid_permission(openapi: dict[str, Any]) -> None:
+    allowed = {p.value for p in Permission} | {AUTHENTICATED}
+    for path, ops in openapi["paths"].items():
+        for method, op in ops.items():
+            names = {name for req in op.get("security", []) for name in req}
+            if names == {"userSession"}:
+                assert op.get("x-permission") in allowed, (method, path)
+                assert {"401", "403"} <= set(op["responses"]), (method, path)
+            else:
+                assert "x-permission" not in op, (method, path)

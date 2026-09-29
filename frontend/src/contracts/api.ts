@@ -21,6 +21,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/request-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request Access */
+        post: operations["request_access_auth_request_access_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/login": {
         parameters: {
             query?: never;
@@ -38,7 +55,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/users": {
+    "/auth/password-reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Consume Password Reset */
+        post: operations["consume_password_reset_auth_password_reset_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Logout */
+        post: operations["logout_auth_logout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Me */
+        get: operations["get_me_auth_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Change Password */
+        post: operations["change_password_auth_password_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users": {
         parameters: {
             query?: never;
             header?: never;
@@ -46,9 +131,111 @@ export interface paths {
             cookie?: never;
         };
         /** List Users */
-        get: operations["list_users_users_get"];
+        get: operations["list_users_admin_users_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{user_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve User */
+        post: operations["approve_user_admin_users__user_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{user_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject User */
+        post: operations["reject_user_admin_users__user_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{user_id}/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update User Roles */
+        put: operations["update_user_roles_admin_users__user_id__roles_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{user_id}/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Disable User */
+        post: operations["disable_user_admin_users__user_id__disable_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{user_id}/enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Enable User */
+        post: operations["enable_user_admin_users__user_id__enable_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{user_id}/reset-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Reset Link */
+        post: operations["create_reset_link_admin_users__user_id__reset_link_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -474,6 +661,25 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AccessRequest */
+        AccessRequest: {
+            /** Full Name */
+            full_name: string;
+            /** Email */
+            email: string;
+            /** Organization */
+            organization?: string | null;
+            requested_role: components["schemas"]["Role"];
+            /** Reason */
+            reason: string;
+            /** Password */
+            password: string;
+        };
+        /** ApproveRequest */
+        ApproveRequest: {
+            /** Roles */
+            roles: components["schemas"]["Role"][];
+        };
         /** ArtifactUrlRequest */
         ArtifactUrlRequest: {
             /**
@@ -586,6 +792,57 @@ export interface components {
              * @description Hash của mọi trường trừ id và chính nó
              */
             spec_sha256: string;
+        };
+        /** AuditActor */
+        AuditActor: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Full Name */
+            full_name: string;
+            /** Email */
+            email: string;
+        };
+        /** AuditLogEntry */
+        AuditLogEntry: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** @description null với hành động của hệ thống */
+            actor: components["schemas"]["AuditActor"] | null;
+            /**
+             * Action
+             * @example user.approved
+             */
+            action: string;
+            /** Entity Type */
+            entity_type: string;
+            /** Entity Id */
+            entity_id: string | null;
+            /** Before */
+            before: {
+                [key: string]: components["schemas"]["JsonValue"];
+            } | null;
+            /** After */
+            after: {
+                [key: string]: components["schemas"]["JsonValue"];
+            } | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** AuditLogPage */
+        AuditLogPage: {
+            /** Items */
+            items: components["schemas"]["AuditLogEntry"][];
+            /** Next Cursor */
+            next_cursor: string | null;
         };
         /** BundleCheckpoint */
         BundleCheckpoint: {
@@ -1197,12 +1454,39 @@ export interface components {
          * @enum {string}
          */
         LimitKind: "budget" | "time";
+        /** LoginRequest */
+        LoginRequest: {
+            /** Email */
+            email: string;
+            /** Password */
+            password: string;
+        };
         /** MapPair */
         MapPair: {
             /** Map50 */
             map50: number;
             /** Map50 95 */
             map50_95: number;
+        };
+        /** Me */
+        Me: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Full Name */
+            full_name: string;
+            /** Email */
+            email: string;
+            /** Roles */
+            roles: components["schemas"]["Role"][];
+            /**
+             * Permissions
+             * @description Hợp các permission của mọi role
+             */
+            permissions: components["schemas"]["Permission"][];
+            status: components["schemas"]["UserStatus"];
         };
         /**
          * ModelCard
@@ -1254,6 +1538,35 @@ export interface components {
             /** Class Filter */
             class_filter?: string[] | null;
         };
+        /** PasswordChange */
+        PasswordChange: {
+            /** Current Password */
+            current_password: string;
+            /** New Password */
+            new_password: string;
+        };
+        /** PasswordResetConsume */
+        PasswordResetConsume: {
+            /** Token */
+            token: string;
+            /** New Password */
+            new_password: string;
+        };
+        /** PasswordResetLink */
+        PasswordResetLink: {
+            /** Url */
+            url: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+        };
+        /**
+         * Permission
+         * @enum {string}
+         */
+        Permission: "experiment.read" | "experiment.create" | "experiment.cancel_own" | "experiment.submit_review" | "dataset.read" | "dataset.upload" | "slice.create" | "model.read" | "model.manage" | "attack_catalog.read" | "attack_catalog.manage" | "protocol.read" | "protocol.manage" | "review.decide" | "report.export" | "report.read" | "user.manage" | "compute_target.read" | "compute_target.manage" | "budget.manage" | "audit.read";
         /** PrimaryParam */
         PrimaryParam: {
             /** Name */
@@ -1321,6 +1634,11 @@ export interface components {
             /** @description Case từ mức này trở lên bắt buộc có verdict */
             review_severity_threshold: components["schemas"]["CaseSeverity"];
         };
+        /** RejectRequest */
+        RejectRequest: {
+            /** Reason */
+            reason: string;
+        };
         /** RequiredAttack */
         RequiredAttack: {
             /**
@@ -1335,6 +1653,19 @@ export interface components {
             grid?: components["schemas"]["GridConfig"] | null;
             /** @description Cấu hình tìm kiếm tối thiểu */
             search?: components["schemas"]["SearchConfig"] | null;
+        };
+        /**
+         * Role
+         * @enum {string}
+         */
+        Role: "engineer" | "reviewer" | "admin";
+        /** RolesUpdate */
+        RolesUpdate: {
+            /**
+             * Roles
+             * @description Ít nhất 1 role; muốn chặn truy cập thì vô hiệu hóa
+             */
+            roles: components["schemas"]["Role"][];
         };
         /**
          * RunCompletion
@@ -1675,6 +2006,52 @@ export interface components {
              */
             run_id: string;
         };
+        /** UserAdminPage */
+        UserAdminPage: {
+            /** Items */
+            items: components["schemas"]["UserAdminView"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** UserAdminView */
+        UserAdminView: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Full Name */
+            full_name: string;
+            /** Email */
+            email: string;
+            /** Organization */
+            organization: string | null;
+            status: components["schemas"]["UserStatus"];
+            /** Roles */
+            roles: components["schemas"]["Role"][];
+            requested_role: components["schemas"]["Role"] | null;
+            /** Request Reason */
+            request_reason: string | null;
+            /**
+             * Reject Reason
+             * @description Chỉ có khi status = rejected
+             */
+            reject_reason: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Approved At */
+            approved_at: string | null;
+            /** Approved By */
+            approved_by: string | null;
+        };
+        /**
+         * UserStatus
+         * @enum {string}
+         */
+        UserStatus: "pending" | "active" | "rejected" | "disabled";
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -1775,12 +2152,17 @@ export interface components {
     headers: never;
     pathItems: never;
 }
+export type AccessRequest = components['schemas']['AccessRequest'];
+export type ApproveRequest = components['schemas']['ApproveRequest'];
 export type ArtifactUrlRequest = components['schemas']['ArtifactUrlRequest'];
 export type ArtifactUrlResponse = components['schemas']['ArtifactUrlResponse'];
 export type AttackAccess = components['schemas']['AttackAccess'];
 export type AttackConfig = components['schemas']['AttackConfig'];
 export type AttackKind = components['schemas']['AttackKind'];
 export type AttackSpec = components['schemas']['AttackSpec'];
+export type AuditActor = components['schemas']['AuditActor'];
+export type AuditLogEntry = components['schemas']['AuditLogEntry'];
+export type AuditLogPage = components['schemas']['AuditLogPage'];
 export type BundleCheckpoint = components['schemas']['BundleCheckpoint'];
 export type BundleDownloads = components['schemas']['BundleDownloads'];
 export type BundleLimit = components['schemas']['BundleLimit'];
@@ -1817,14 +2199,23 @@ export type LibVersions = components['schemas']['LibVersions'];
 export type LimitInput = components['schemas']['Limit-Input'];
 export type LimitOutput = components['schemas']['Limit-Output'];
 export type LimitKind = components['schemas']['LimitKind'];
+export type LoginRequest = components['schemas']['LoginRequest'];
 export type MapPair = components['schemas']['MapPair'];
+export type Me = components['schemas']['Me'];
 export type ModelCard = components['schemas']['ModelCard'];
 export type PassCriterion = components['schemas']['PassCriterion'];
+export type PasswordChange = components['schemas']['PasswordChange'];
+export type PasswordResetConsume = components['schemas']['PasswordResetConsume'];
+export type PasswordResetLink = components['schemas']['PasswordResetLink'];
+export type Permission = components['schemas']['Permission'];
 export type PrimaryParam = components['schemas']['PrimaryParam'];
 export type Progress = components['schemas']['Progress'];
 export type ProgressReport = components['schemas']['ProgressReport'];
 export type ProtocolBody = components['schemas']['ProtocolBody'];
+export type RejectRequest = components['schemas']['RejectRequest'];
 export type RequiredAttack = components['schemas']['RequiredAttack'];
+export type Role = components['schemas']['Role'];
+export type RolesUpdate = components['schemas']['RolesUpdate'];
 export type RunCompletion = components['schemas']['RunCompletion'];
 export type RunMetrics = components['schemas']['RunMetrics'];
 export type RunMode = components['schemas']['RunMode'];
@@ -1843,6 +2234,9 @@ export type StatusReason = components['schemas']['StatusReason'];
 export type StopReason = components['schemas']['StopReason'];
 export type ThresholdKind = components['schemas']['ThresholdKind'];
 export type TrajectoryPoint = components['schemas']['TrajectoryPoint'];
+export type UserAdminPage = components['schemas']['UserAdminPage'];
+export type UserAdminView = components['schemas']['UserAdminView'];
+export type UserStatus = components['schemas']['UserStatus'];
 export type ValidationError = components['schemas']['ValidationError'];
 export type WorkerDirective = components['schemas']['WorkerDirective'];
 export type WorkerJobBundle = components['schemas']['WorkerJobBundle'];
@@ -1869,22 +2263,35 @@ export interface operations {
             };
         };
     };
-    login_auth_login_post: {
+    request_access_auth_request_access_post: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccessRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
-            200: {
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
             /** @description Chưa cài đặt */
@@ -1898,7 +2305,161 @@ export interface operations {
             };
         };
     };
-    list_users_users_get: {
+    login_auth_login_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Me"];
+                };
+            };
+            /** @description invalid_credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description account_pending, account_rejected hoặc account_disabled */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description rate_limited */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Chưa cài đặt */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    consume_password_reset_auth_password_reset_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordResetConsume"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Chưa cài đặt */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    logout_auth_logout_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Thiếu phiên hợp lệ */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Thiếu permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Chưa cài đặt */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_me_auth_me_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -1913,7 +2474,504 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Me"];
+                };
+            };
+            /** @description Thiếu phiên hợp lệ */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Thiếu permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Chưa cài đặt */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    change_password_auth_password_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Thiếu phiên hợp lệ */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Thiếu permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Chưa cài đặt */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_users_admin_users_get: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["UserStatus"] | null;
+                /** @description next_cursor của trang trước */
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserAdminPage"];
+                };
+            };
+            /** @description Thiếu phiên hợp lệ */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Thiếu permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Chưa cài đặt */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    approve_user_admin_users__user_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApproveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserAdminView"];
+                };
+            };
+            /** @description Thiếu phiên hợp lệ */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Thiếu permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Chưa cài đặt */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    reject_user_admin_users__user_id__reject_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserAdminView"];
+                };
+            };
+            /** @description Thiếu phiên hợp lệ */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Thiếu permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Chưa cài đặt */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    update_user_roles_admin_users__user_id__roles_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RolesUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserAdminView"];
+                };
+            };
+            /** @description Thiếu phiên hợp lệ */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Thiếu permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Chưa cài đặt */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    disable_user_admin_users__user_id__disable_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserAdminView"];
+                };
+            };
+            /** @description Thiếu phiên hợp lệ */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Thiếu permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Chưa cài đặt */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    enable_user_admin_users__user_id__enable_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserAdminView"];
+                };
+            };
+            /** @description Thiếu phiên hợp lệ */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Thiếu permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Chưa cài đặt */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_reset_link_admin_users__user_id__reset_link_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PasswordResetLink"];
+                };
+            };
+            /** @description Thiếu phiên hợp lệ */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Thiếu permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
             /** @description Chưa cài đặt */
@@ -1945,6 +3003,24 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
+            /** @description Thiếu phiên hợp lệ */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Thiếu permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Chưa cài đặt */
             501: {
                 headers: {
@@ -1972,6 +3048,24 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Thiếu phiên hợp lệ */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Thiếu permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Chưa cài đặt */
@@ -2003,6 +3097,24 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
+            /** @description Thiếu phiên hợp lệ */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Thiếu permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Chưa cài đặt */
             501: {
                 headers: {
@@ -2030,6 +3142,24 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AttackSpec"][];
+                };
+            };
+            /** @description Thiếu phiên hợp lệ */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Thiếu permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Chưa cài đặt */
@@ -2063,6 +3193,24 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Thiếu phiên hợp lệ */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Thiếu permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Validation Error */
@@ -2107,6 +3255,24 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
+            /** @description Thiếu phiên hợp lệ */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Thiếu permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -2145,6 +3311,24 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RunResult-Output"];
+                };
+            };
+            /** @description Thiếu phiên hợp lệ */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Thiếu permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Validation Error */
@@ -2187,6 +3371,24 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
+            /** @description Thiếu phiên hợp lệ */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Thiếu permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -2225,6 +3427,24 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
+            /** @description Thiếu phiên hợp lệ */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Thiếu permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Chưa cài đặt */
             501: {
                 headers: {
@@ -2254,6 +3474,24 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Thiếu phiên hợp lệ */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Thiếu permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Validation Error */
@@ -2294,6 +3532,24 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
+            /** @description Thiếu phiên hợp lệ */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Thiếu permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Chưa cài đặt */
             501: {
                 headers: {
@@ -2323,6 +3579,24 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
+            /** @description Thiếu phiên hợp lệ */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Thiếu permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Chưa cài đặt */
             501: {
                 headers: {
@@ -2336,7 +3610,19 @@ export interface operations {
     };
     list_audit_log_audit_log_get: {
         parameters: {
-            query?: never;
+            query?: {
+                actor_id?: string | null;
+                action?: string | null;
+                entity_type?: string | null;
+                entity_id?: string | null;
+                /** @description Từ thời điểm (UTC, gồm) */
+                since?: string | null;
+                /** @description Tới thời điểm (UTC, không gồm) */
+                until?: string | null;
+                /** @description next_cursor của trang trước */
+                cursor?: string | null;
+                limit?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -2349,7 +3635,34 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["AuditLogPage"];
+                };
+            };
+            /** @description Thiếu phiên hợp lệ */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Thiếu permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
             /** @description Chưa cài đặt */

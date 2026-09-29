@@ -14,6 +14,7 @@ def create_app() -> FastAPI:
     app = FastAPI(title="AdverTest API", version=version("advertest"))
     install_error_handlers(app)
     app.include_router(health.router)
+    app.include_router(public.auth_public_router)
     app.include_router(public.router)
     app.include_router(public.verify_router)
     app.include_router(worker.router)

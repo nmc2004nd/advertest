@@ -16,8 +16,9 @@ from backend.app.main import create_app
 
 from .conftest import env
 
+# Phase 4: "/users" (khung Phase 0) thay bằng "/admin" (/admin/users/*).
 PUBLIC_GROUPS = [
-    "/auth", "/users", "/models", "/datasets", "/slices", "/attack-specs", "/protocols",
+    "/auth", "/admin", "/models", "/datasets", "/slices", "/attack-specs", "/protocols",
     "/experiments", "/runs", "/failure-cases", "/reviews", "/reports", "/compute-targets",
     "/budget", "/audit-log", "/verify", "/health",
 ]  # fmt: skip
@@ -33,6 +34,10 @@ WORKER_ENDPOINTS = {
     "/internal/worker/runs/{run_id}/start",
     "/internal/worker/cost-profiles",
 }
+# Nhóm Phase 4 cài đặt thật: không còn là khung trả 501.
+IMPLEMENTED_GROUPS = {"/health", "/auth", "/admin", "/audit-log"}
+# Endpoint công khai, không cần phiên (requirements.md Phase 4, mục Bảo vệ endpoint).
+PUBLIC_PATHS = ("/health", "/verify", "/auth/request-access", "/auth/login", "/auth/password-reset")
 SAMPLE_ID = "00000000-0000-5000-8000-000000000001"
 
 
@@ -77,15 +82,23 @@ def test_health_reports_version_commit_and_dependencies(monkeypatch: pytest.Monk
     assert body.status == "ok"
 
 
-@pytest.mark.parametrize("group", [g for g in PUBLIC_GROUPS if g != "/health"])
+@pytest.mark.parametrize("group", [g for g in PUBLIC_GROUPS if g not in IMPLEMENTED_GROUPS])
 def test_sample_endpoint_returns_501_with_uniform_error(
     openapi: dict[str, Any], repo: Path, group: str
 ) -> None:
     method, path, body = _sample_request(openapi, repo, group)
     response = TestClient(create_app()).request(method, path, json=body)
-    assert response.status_code == 501
-    body = ErrorResponse.model_validate(response.json())
-    assert body.error.code == "not_implemented"
+    error = ErrorResponse.model_validate(response.json()).error
+    if path.startswith(PUBLIC_PATHS):
+        assert (response.status_code, error.code) == (501, "not_implemented")
+    else:
+        # Chuyển tiếp (Phase 4 Group 0): gọi không có phiên, nên sau Phase 4 Group 2 route cần
+        # phiên trả 401 trước 501. Phase 4 Group 7 (plan.md task 34) thay bằng test `db` đăng
+        # nhập thật rồi đòi 501; test_route_protection.py của Phase 4 đòi 401 chặt.
+        assert (response.status_code, error.code) in {
+            (501, "not_implemented"),
+            (401, "unauthenticated"),
+        }
 
 
 def test_worker_internal_endpoint_returns_501(repo: Path) -> None:
@@ -115,7 +128,7 @@ def test_security_schemes(openapi: dict[str, Any]) -> None:
             used = {by_type[name] for req in op.get("security", []) for name in req}
             if path.startswith("/internal/worker"):
                 assert used == {("http", "bearer", None)}, path
-            elif path.startswith(("/verify", "/health")):
+            elif path.startswith(PUBLIC_PATHS):
                 assert used == set(), path
             else:
                 assert used == {("apiKey", None, "cookie")}, path
