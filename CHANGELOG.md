@@ -6,7 +6,21 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 4 — Xác thực và phân quyền
 
-**Trạng thái:** đang làm. Group 0–6 đã merge; còn Group 7 (nghiệm thu, manual check).
+**Trạng thái:** đang làm. Group 0–6 đã merge; Group 7 xong trên nhánh `phase04-reviewer-g7`, chờ merge. Còn manual check trên điện thoại thật.
+
+### Phase 4 — Group 7 (người duyệt, người dùng giao) — 2026-09-29
+#### Thêm
+- Test nghiệm thu `tests/acceptance/phase_04/` (134 test: 64 ô ma trận quyền không cần DB, 70 test `db`): người dùng tạo qua API thật (yêu cầu truy cập, admin duyệt), mỗi client một IP gốc qua proxy tin cậy, đồng hồ giả. Đủ mọi mục Automated Tests backend của `validation.md` (bảo vệ route, xác thực, CSRF, hiệu lực tức thời, quản trị, audit). Luật "admin active cuối cùng" kiểm tra qua HTTP bằng cách tạm vô hiệu các admin khác rồi khôi phục (người dùng chốt).
+- E2E `frontend/e2e/phase_04/` (13 kịch bản × 3 viewport = 39): yêu cầu truy cập → chờ duyệt; admin duyệt qua giao diện → điều hướng chỉ mục được phép; từ chối có lý do; engineer → `/forbidden`; hết phiên → `/login?next=` rồi quay lại; bàn phím cho form đăng nhập và yêu cầu truy cập; bố cục theo viewport (tab/cột icon/sidebar, bảng/thẻ, bottom sheet, không cuộn ngang); số chờ duyệt trên `/home`; hai trình duyệt; cờ cookie và localStorage. Hai lần chạy liên tiếp đều 39/39.
+- Playwright `workers: 1` (người dùng chốt: các kịch bản dùng chung DB).
+#### Thay đổi
+- Test nghiệm thu Phase 0 (`test_api.py`, task 34): bỏ nhánh chuyển tiếp; không phiên → đúng `401 unauthenticated`; phiên thật đủ 3 role → đúng `501` cho nhóm còn là khung.
+#### Manual check (máy phát triển, không có điện thoại thật)
+- `make up` (project `advertest-p4check`, cổng riêng, env tạm, đã dọn): 4 service healthy; uvicorn chạy `--no-proxy-headers`; seed admin trong container; đăng nhập bằng email chữ hoa → `200`, cookie `advertest_session` (`HttpOnly; Max-Age=43200; Path=/; SameSite=lax`) và `csrf_token` (không `HttpOnly`); `/auth/me` đúng; đăng nhập qua proxy `/api` của frontend `200`; đăng xuất thiếu CSRF → `403`.
+- **Phát hiện:** trong compose, với `TRUSTED_PROXIES=127.0.0.1` mặc định, đăng nhập qua proxy của frontend ghi IP của container frontend (`172.19.0.5`): mọi người dùng chung một IP, giới hạn đăng nhập sai theo IP khóa chung. Cần thêm mạng Docker vào `TRUSTED_PROXIES` cho môi trường compose (chưa sửa, chờ người dùng chốt).
+- Chưa làm (cần người dùng): điện thoại Android và iPhone thật (luồng đầy đủ, không tự zoom, thanh tab không bị thanh home che, copy link đặt lại); đọc lại toàn bộ nội dung tiếng Việt.
+#### Số liệu
+- `make check`: 709 test Python, 217 test nghiệm thu không cần DB, 103 Vitest. `make test-db`: 251 test. `make test-e2e`: 39 test trong khoảng 38 giây.
 
 ### Phase 4 — Group 6 (frontend) — 2026-09-29
 #### Thêm
