@@ -78,6 +78,7 @@
 - [ ] Gửi experiment với giới hạn thời gian 60 giây: dừng đúng, có kết quả một phần.
 - [ ] Mở vài failure case trong MinIO: có ảnh sạch, ảnh sau tấn công, ảnh nhiễu, thumbnail.
 - [ ] Ghi `sec_per_image` và batch size từ calibration của laptop vào `CHANGELOG.md`.
+- [ ] Sau `pgd_sweep.yaml`: mỗi run chỉ còn một checkpoint trong MinIO; ghi tổng dung lượng checkpoint vào `CHANGELOG.md`.
 
 ## Definition of Done
 
