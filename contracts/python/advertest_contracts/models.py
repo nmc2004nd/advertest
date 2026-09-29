@@ -1207,7 +1207,13 @@ class AuditActor(_Model):
 class AuditLogEntry(_Model):
     id: UUID
     actor: AuditActor | None = Field(description="null với hành động của hệ thống")
-    action: str = Field(pattern=r"^[a-z_]+(\.[a-z_]+)+$", examples=["user.approved"])
+    # Không ép mẫu khi đọc: audit log chỉ thêm, một dòng cũ lệch quy ước không được làm hỏng cả
+    # trang. Quy ước `entity.verb` áp cho code ghi (review Phase 4 Group 3).
+    action: str = Field(
+        min_length=1,
+        examples=["user.approved"],
+        description="Theo quy ước `entity.verb` (ví dụ user.approved)",
+    )
     entity_type: str = Field(min_length=1)
     entity_id: UUID | None
     before: dict[str, JsonValue] | None

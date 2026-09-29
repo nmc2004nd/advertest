@@ -168,6 +168,7 @@ export interface components {
             actor: components["schemas"]["AuditActor"] | null;
             /**
              * Action
+             * @description Theo quy ước `entity.verb` (ví dụ user.approved)
              * @example user.approved
              */
             action: string;
