@@ -11,6 +11,7 @@ from __future__ import annotations
 import io
 import json
 import shutil
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 from uuid import UUID
@@ -21,6 +22,8 @@ from PIL import Image
 
 from attacks.art_adapter import build_perturbation
 from ml_core.cli.evaluate import ground_truth
+from ml_core.data.loader import Batch
+from ml_core.metrics.attack import ImageAttackStats
 from ml_core.metrics.filters import Prediction
 from ml_core.runner.candidates import CANDIDATE_FILES, StoreCandidates
 from ml_core.runner.executor import (
@@ -327,3 +330,76 @@ def test_thumbnail_keeps_aspect_ratio() -> None:
 def test_local_store_is_not_deletable(tmp_path: Path) -> None:
     assert not isinstance(LocalStore(tmp_path), DeletableStore)
     assert isinstance(MemStore(), DeletableStore)
+
+
+class RecordingSink:
+    """Ghi lại lời gọi của executor tới nơi nhận ứng viên."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str]] = []
+
+    def add(self, image_id: str, clean: np.ndarray, adversarial: np.ndarray) -> None:
+        self.calls.append(("add", image_id))
+
+    def evict(self, image_id: str) -> None:
+        self.calls.append(("evict", image_id))
+
+    def promote(self, image_id: str, case_id: UUID) -> Any:
+        raise AssertionError("không dùng trong test này")
+
+    def discard(self, image_id: str) -> None:
+        self.calls.append(("discard", image_id))
+
+
+def _offer_all(
+    setup: dict[str, Any], severities: list[tuple[str, int]], limit: int
+) -> tuple[RunExecutor, RecordingSink]:
+    """Đưa lần lượt từng ảnh (độ nghiêm trọng = số object mất) vào `_offer`."""
+    sink = RecordingSink()
+    context = replace(setup["context"], failure_cases_per_run=limit)
+    executor = _executor(setup, MemStore(), context=context, candidates=sink)
+    images = np.zeros((1, 3, 8, 8), np.float32)
+    batch = Batch(
+        image_ids=["x"],
+        images=images,
+        targets=[{"boxes": np.zeros((0, 4), np.float32), "labels": np.zeros(0, np.int64)}],
+        ignore=[{"boxes": np.zeros((0, 4), np.float32), "sources": []}],
+        infos=[],
+    )
+    for image_id, lost in severities:
+        stats = ImageAttackStats(correct=lost, lost=lost, clean_fp=0, attacked_fp=0)
+        executor.stats[image_id] = stats
+        executor._offer(image_id, stats, batch, 0, images[0])
+    return executor, sink
+
+
+def test_offer_keeps_top_k_in_order_and_evicts(setup: dict[str, Any]) -> None:
+    executor, sink = _offer_all(
+        setup, [("000000", 1), ("000001", 3), ("000002", 2), ("000003", 0)], limit=2
+    )
+    assert executor.top == ["000001", "000002"]
+    assert sink.calls == [
+        ("add", "000000"),
+        ("add", "000001"),
+        ("add", "000002"),
+        ("evict", "000000"),
+    ]
+    # Độ nghiêm trọng 0 không bao giờ thành ứng viên; ảnh bị đẩy ra vẫn nằm trong `offered`
+    # để bị xóa khi hoàn tất.
+    assert executor.offered == ["000000", "000001", "000002"]
+    assert set(executor.case_inputs) == {"000001", "000002"}
+
+
+def test_offer_tie_breaks_by_image_id(setup: dict[str, Any]) -> None:
+    executor, sink = _offer_all(setup, [("000005", 2), ("000003", 2), ("000004", 2)], limit=2)
+    assert executor.top == ["000003", "000004"]
+    assert ("evict", "000005") in sink.calls
+    # Ảnh đến sau nhưng xếp sau top-K hiện tại thì không được giao cho sink.
+    executor2, sink2 = _offer_all(setup, [("000001", 2), ("000002", 2), ("000003", 2)], limit=2)
+    assert executor2.top == ["000001", "000002"]
+    assert ("add", "000003") not in sink2.calls and ("evict", "000003") not in sink2.calls
+
+
+def test_offer_with_zero_limit_adds_nothing(setup: dict[str, Any]) -> None:
+    executor, sink = _offer_all(setup, [("000001", 5)], limit=0)
+    assert executor.top == [] and sink.calls == []
