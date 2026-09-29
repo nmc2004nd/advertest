@@ -3,10 +3,15 @@ import { createBrowserRouter, type RouteObject } from 'react-router'
 import { AppShell } from './layout/AppShell'
 import { ForbiddenPage } from './pages/ForbiddenPage'
 import { LandingPage } from './pages/LandingPage'
+import { LoginPage } from './pages/LoginPage'
+import { RequestAccessPage, RequestAccessSentPage } from './pages/RequestAccessPage'
 
 const routes: RouteObject[] = [
   { path: '/', element: <LandingPage /> },
   { path: '/forbidden', element: <ForbiddenPage /> },
+  { path: '/login', element: <LoginPage /> },
+  { path: '/request-access', element: <RequestAccessPage /> },
+  { path: '/request-access/sent', element: <RequestAccessSentPage /> },
   // Trang cần đăng nhập nằm trong khung ứng dụng (Group 5, 6 thêm trang con).
   { element: <AppShell />, children: [] },
 ]

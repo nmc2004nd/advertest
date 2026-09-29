@@ -1,39 +1,37 @@
-import { useId, type ComponentProps } from 'react'
+import { useId, type ComponentProps, type ReactNode } from 'react'
 
 import { cn } from '@/lib/utils'
 
-interface TextFieldProps extends ComponentProps<'input'> {
+interface FieldShellProps {
   label: string
   /** Thông điệp lỗi hiển thị ngay dưới ô nhập. */
   error?: string
   hint?: string
+  id?: string
+  children: (control: {
+    id: string
+    'aria-invalid': true | undefined
+    'aria-describedby': string | undefined
+  }) => ReactNode
 }
 
-/**
- * Ô nhập có nhãn; font 16px (iOS không tự zoom), cao ≥ 44px; lỗi gắn với ô qua
- * `aria-describedby` và `aria-invalid` (requirements.md Phase 4, Hành vi chung).
- */
-export function TextField({ label, error, hint, id, className, ...props }: TextFieldProps) {
+/** Nhãn, gợi ý, lỗi dùng chung cho mọi loại ô nhập; lỗi gắn với ô qua `aria-describedby`. */
+function FieldShell({ label, error, hint, id, children }: FieldShellProps) {
   const autoId = useId()
   const inputId = id ?? autoId
   const hintId = `${inputId}-goi-y`
   const errorId = `${inputId}-loi`
-  const describedBy = [hint && hintId, error && errorId].filter(Boolean).join(' ') || undefined
+  const describedBy = [hint && !error && hintId, error && errorId].filter(Boolean).join(' ')
   return (
     <div className="flex flex-col gap-1.5">
       <label htmlFor={inputId} className="text-sm font-medium">
         {label}
       </label>
-      <input
-        id={inputId}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={describedBy}
-        className={cn(
-          'min-h-11 w-full rounded-lg border border-input bg-background px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-destructive/20',
-          className,
-        )}
-        {...props}
-      />
+      {children({
+        id: inputId,
+        'aria-invalid': error ? true : undefined,
+        'aria-describedby': describedBy || undefined,
+      })}
       {hint && !error && (
         <p id={hintId} className="text-sm text-muted-foreground">
           {hint}
@@ -45,5 +43,71 @@ export function TextField({ label, error, hint, id, className, ...props }: TextF
         </p>
       )}
     </div>
+  )
+}
+
+// Font 16px (iOS không tự zoom khi chạm), cao ≥ 44px (tech-stack.md mục 5.1).
+const CONTROL_CLASS =
+  'w-full rounded-lg border border-input bg-background px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-destructive/20'
+
+type ShellProps = Omit<FieldShellProps, 'children'>
+
+/** Ô nhập một dòng có nhãn (requirements.md Phase 4, Hành vi chung). */
+export function TextField({
+  label,
+  error,
+  hint,
+  id,
+  className,
+  ...props
+}: ShellProps & ComponentProps<'input'>) {
+  return (
+    <FieldShell label={label} error={error} hint={hint} id={id}>
+      {(control) => (
+        <input {...control} className={cn(CONTROL_CLASS, 'min-h-11', className)} {...props} />
+      )}
+    </FieldShell>
+  )
+}
+
+export function TextareaField({
+  label,
+  error,
+  hint,
+  id,
+  className,
+  ...props
+}: ShellProps & ComponentProps<'textarea'>) {
+  return (
+    <FieldShell label={label} error={error} hint={hint} id={id}>
+      {(control) => (
+        <textarea
+          rows={3}
+          {...control}
+          className={cn(CONTROL_CLASS, 'min-h-24 py-2', className)}
+          {...props}
+        />
+      )}
+    </FieldShell>
+  )
+}
+
+export function SelectField({
+  label,
+  error,
+  hint,
+  id,
+  className,
+  children,
+  ...props
+}: ShellProps & ComponentProps<'select'>) {
+  return (
+    <FieldShell label={label} error={error} hint={hint} id={id}>
+      {(control) => (
+        <select {...control} className={cn(CONTROL_CLASS, 'min-h-11', className)} {...props}>
+          {children}
+        </select>
+      )}
+    </FieldShell>
   )
 }
