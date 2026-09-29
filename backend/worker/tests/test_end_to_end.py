@@ -27,7 +27,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from advertest_contracts.enums import ExperimentStatus, RunStatus
 from advertest_contracts.models import CostProfile
 from advertest_worker.cache import JobCache
-from advertest_worker.client import WorkerClient
+from advertest_worker.client import LeaseLost, WorkerClient
 from advertest_worker.job import JobRunner
 from attacks.registry import get_spec, load_catalog
 from backend.admin_cli.seed import load_attack_specs
@@ -41,6 +41,7 @@ from backend.app.tests.db.conftest import _url, make_user
 from backend.app.tests.db.local_store_factory import LocalData, build_local_store
 from ml_core.runner import executor as executor_module
 from ml_core.runner.config import LocalRunConfig
+from ml_core.store import PresignedStore
 
 pytestmark = pytest.mark.db
 
@@ -268,6 +269,7 @@ def test_resume_after_worker_dies(
     _, runs = _state(app_engine, setup.experiment_id)
     assert runs[0].status == RunStatus.RUNNING and runs[0].images_done == 1
     assert runs[0].checkpoint_key == f"runs/{runs[0].id}/checkpoints/0.json"
+    assert buckets.artifacts.list(f"runs/{runs[0].id}/checkpoints/") == [runs[0].checkpoint_key]
 
     clock.advance(30)
     assert setup.client.lease() is None  # lease cũ còn hạn
@@ -284,6 +286,12 @@ def test_resume_after_worker_dies(
     expected = {(r.id, i) for r in runs for i in world.local.slice.image_ids}
     assert set(processed) == expected and set(processed.values()) == {1}
     assert buckets.artifacts.list(f"runs/{runs[0].id}/candidates/") == []
+    # Checkpoint cũ (kể cả checkpoint trong bundle khi chạy tiếp) bị xóa; mỗi run còn đúng
+    # checkpoint cuối cùng.
+    for run in runs:
+        assert buckets.artifacts.list(f"runs/{run.id}/checkpoints/") == [
+            f"runs/{run.id}/checkpoints/1.json"
+        ]
 
 
 def test_time_limit_gives_partial_result(
@@ -357,3 +365,51 @@ def test_corrupt_checkpoint_fails_only_that_run(
     assert [r.status for r in runs] == [RunStatus.FAILED, RunStatus.COMPLETED]
     assert runs[0].status_reason is not None and "Error" in runs[0].status_reason["message"]
     assert experiment.status == ExperimentStatus.COMPLETED
+
+
+def test_failed_checkpoint_delete_does_not_fail_run(
+    app_engine: Engine, world: World, api: TestClient, clock: FakeClock, buckets: Buckets,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:  # fmt: skip
+    setup = _submit(app_engine, world, api, clock, seed=707)
+    _profile(setup, world, sec_per_image=0.01, batch_size=1)
+    original = PresignedStore.delete
+
+    def flaky_delete(self: PresignedStore, key: str) -> None:
+        if "/checkpoints/" in key:
+            raise httpx.ConnectError("MinIO tạm tắt")
+        original(self, key)
+
+    monkeypatch.setattr(PresignedStore, "delete", flaky_delete)
+    _lease_and_run(_runner(setup, tmp_path, clock), setup)
+    experiment, runs = _state(app_engine, setup.experiment_id)
+    assert experiment.status == ExperimentStatus.COMPLETED
+    assert [r.status for r in runs] == [RunStatus.COMPLETED, RunStatus.COMPLETED]
+    assert len(buckets.artifacts.list(f"runs/{runs[0].id}/checkpoints/")) == 2  # không xóa được
+
+
+def test_lease_lost_while_deleting_checkpoint_stops_immediately(
+    app_engine: Engine, world: World, api: TestClient, clock: FakeClock, tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:  # fmt: skip
+    setup = _submit(app_engine, world, api, clock, seed=808)
+    _profile(setup, world, sec_per_image=0.01, batch_size=1)
+    original = WorkerClient.artifact_url
+
+    def lease_lost_on_delete(
+        self: WorkerClient, run_id: UUID, lease_id: UUID, key: str, method: Any
+    ) -> str:
+        if method == "DELETE" and "/checkpoints/" in key:
+            raise LeaseLost(409, "conflict", "lease đã chuyển cho worker khác")
+        return original(self, run_id, lease_id, key, method)
+
+    monkeypatch.setattr(WorkerClient, "artifact_url", lease_lost_on_delete)
+    batches: list[Sequence[str]] = []
+    runner = _runner(setup, tmp_path, clock, on_batch=lambda _r, ids: batches.append(ids))
+    _lease_and_run(runner, setup)
+    _, runs = _state(app_engine, setup.experiment_id)
+    # Batch 2 xong và progress thành công, rồi xóa checkpoint 0 gặp 409: worker dừng ngay (trước
+    # hook của batch 2), không gửi complete, không chạy run sau.
+    assert len(batches) == 1
+    assert runs[0].images_done == 2
+    assert [r.status for r in runs] == [RunStatus.RUNNING, RunStatus.QUEUED]
