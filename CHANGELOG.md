@@ -6,7 +6,21 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 4 — Xác thực và phân quyền
 
-**Trạng thái:** đang làm. Group 0, 1 đã merge.
+**Trạng thái:** đang làm. Group 0, 1, 2 đã merge.
+
+### Phase 4 — Group 2 (backend) — 2026-09-29
+#### Thêm
+- `backend/app/auth/permissions.py`: `require_permission(p)` theo `ROLE_PERMISSIONS` (`403 forbidden`), `guard(p)` (dependency và `x-permission` từ một nguồn), `check_route_permissions` chạy trong `create_app()` và `lifespan`.
+- Mọi route cần phiên trong `public.py` dùng `**guard(...)`: `401`/`403` trước `501`. OpenAPI không đổi.
+- `current_user` đọc cookie bằng dependency riêng `session_token`: thiếu cookie → `401` không mở DB.
+- Test: ma trận quyền (63 trường hợp), route giả thiếu hoặc lệch khai báo, `401` cho mọi route cần phiên, phiên thật theo từng role (12 permission có route), hợp role, bỏ role có hiệu lực ngay.
+#### Phát hiện khi làm
+- FastAPI 0.141 giữ router con dưới dạng `_IncludedRouter` (không chép route vào `app.routes`): kiểm tra phải duyệt bằng `fastapi.routing.iter_route_contexts` như khi sinh OpenAPI; có test bảo đảm route qua router con bị phát hiện.
+#### Quyết định (người dùng chốt, đã ghi vào `requirements.md` Phase 4)
+- `**guard(p)`; kiểm tra khởi động đòi đúng một `require_permission` khớp `x-permission`; thứ tự `401` → `403` → `422` → route; thiếu cookie không mở DB.
+#### Review
+- Review do chính agent viết nhánh (không độc lập): không có phát hiện chặn. Ghi nhận: 9 permission chưa có route chỉ được kiểm tra ở mức ma trận; `/docs`, `/openapi.json` vẫn công khai (xét ở Phase 11).
+- `make check` (717 test Python, 153 nghiệm thu, 36 Vitest) và `make test-db` (161) pass.
 
 ### Phase 4 — Group 1 (backend) — 2026-09-29
 #### Thêm
