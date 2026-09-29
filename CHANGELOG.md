@@ -6,7 +6,19 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 4 — Xác thực và phân quyền
 
-**Trạng thái:** đang làm. Group 0–5 đã merge.
+**Trạng thái:** đang làm. Group 0–6 đã merge; còn Group 7 (nghiệm thu, manual check).
+
+### Phase 4 — Group 6 (frontend) — 2026-09-29
+#### Thêm
+- `/admin/users`: tab Chờ duyệt / Tất cả, "Tải thêm"; bảng TanStack Table v9 (≥ 1280px), thẻ (< 1280px); duyệt (role được yêu cầu chọn sẵn), từ chối (bắt buộc lý do), đổi role (bỏ admin có cảnh báo), vô hiệu hóa (xác nhận), kích hoạt, link đặt lại (ô chỉ đọc + copy, dự phòng chọn sẵn khi không có clipboard); lỗi 409/422 trong dialog; làm mới danh sách, số chờ duyệt, audit, `me`.
+- `/admin/audit`: lọc người thực hiện (ô chọn hoặc nhấn tên), hành động, loại đối tượng, khoảng ngày; thay đổi dạng `status: a → b`; ID rút gọn ở giữa kèm copy; bảng/thẻ; "Tải thêm".
+- Điều hướng bật 2 trang admin; dependency `@tanstack/react-table` 9.2.4. Vitest 91 → 103.
+#### Kiểm tra
+- Luồng admin thật (spec tạm, không commit) trên 3 viewport: duyệt, từ chối, đổi role, tạo và copy link, vô hiệu hóa, lọc audit, người bị từ chối thấy `/pending?code=account_rejected`; dialog là bottom sheet ở 390px; không cuộn ngang.
+#### Quyết định (người dùng chốt, đã ghi vào `requirements.md`, `tech-stack.md`)
+- Lọc actor bằng ô chọn (tối đa 100) và nhấn tên; "Tải thêm"; ngày theo giờ máy, trọn ngày kết thúc; ẩn nút tự vô hiệu hóa; bảng từ 1280px.
+#### Review
+- Review do chính agent viết nhánh (không độc lập): không có phát hiện chặn. Ghi nhận: ô chọn actor thiếu người khi hơn 100 người dùng.
 
 ### Phase 4 — Group 5 (frontend) — 2026-09-29
 #### Thêm

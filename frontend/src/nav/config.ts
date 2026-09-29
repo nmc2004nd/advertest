@@ -49,14 +49,14 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: 'Người dùng',
     icon: Users,
     requirement: 'user.manage',
-    implemented: false, // Phase 4 Group 6
+    implemented: true,
   },
   {
     path: '/admin/audit',
     label: 'Audit log',
     icon: ScrollText,
     requirement: 'audit.read',
-    implemented: false, // Phase 4 Group 6
+    implemented: true,
   },
   {
     path: '/account',

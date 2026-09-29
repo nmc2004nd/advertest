@@ -157,8 +157,8 @@ Chi tiết phản hồi (chốt ở review Group 0): `POST /auth/login` thành c
 | Chờ duyệt | `/pending?code=` | Hiển thị theo mã lỗi đăng nhập (`account_pending` / `account_rejected` / `account_disabled`); mã lạ hoặc thiếu → đang chờ |
 | Đặt lại mật khẩu | `/reset-password/:token` | Mật khẩu mới, xác nhận |
 | Tài khoản | `/account` | Thông tin, role, đổi mật khẩu, đăng xuất |
-| Người dùng | `/admin/users` | Tab "Chờ duyệt" / "Tất cả"; duyệt (chọn role, mặc định chọn sẵn role được yêu cầu), từ chối (bắt buộc lý do), đổi role, vô hiệu hóa/kích hoạt, tạo link đặt lại (hiện link kèm nút copy) |
-| Audit log | `/admin/audit` | Bộ lọc, danh sách; bảng trên desktop, thẻ trên điện thoại |
+| Người dùng | `/admin/users` | Tab "Chờ duyệt" / "Tất cả"; duyệt (chọn role, mặc định chọn sẵn role được yêu cầu), từ chối (bắt buộc lý do), đổi role, vô hiệu hóa/kích hoạt, tạo link đặt lại (hiện link kèm nút copy). Bảng từ 1280px, thẻ dưới 1280px; phân trang bằng "Tải thêm"; không hiện nút tự vô hiệu hóa ở dòng của chính admin (chốt ở review Group 6) |
+| Audit log | `/admin/audit` | Bộ lọc, danh sách; bảng trên desktop, thẻ trên điện thoại. Chốt ở Group 6: lọc người thực hiện bằng ô chọn từ danh sách người dùng (tối đa 100, chỉ khi có `user.manage`) hoặc nhấn tên trong danh sách; lọc ngày theo giờ máy người dùng, ngày kết thúc tính trọn ngày; "Tải thêm"; bảng từ 1280px |
 | Không có quyền | `/forbidden` | Thông báo và nút về trang chủ |
 
 **Hành vi chung:**
