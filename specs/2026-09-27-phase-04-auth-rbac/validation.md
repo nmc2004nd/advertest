@@ -11,7 +11,7 @@
 
 ### Bảo vệ endpoint — `test_route_protection.py`
 - [ ] Duyệt toàn bộ route trong OpenAPI: mọi route không nằm trong danh sách công khai và không thuộc `/internal/worker` trả `401` khi không có phiên (kể cả route đang trả `501`).
-- [ ] Mọi route không công khai có khai báo `x-permission`.
+- [ ] Mọi route không công khai có khai báo `x-permission` (một `Permission` hoặc `authenticated`).
 - [ ] Ứng dụng từ chối khởi động nếu có route không công khai thiếu khai báo permission (test bằng một route giả).
 - [ ] Với từng role đơn lẻ: gọi một route đại diện cho mỗi permission; được phép ↔ ✓ trong ma trận, không được phép → `403 forbidden`.
 - [ ] Người dùng nhiều role có hợp các permission; `GET /auth/me` trả `permissions` bằng đúng hợp các ô trong ma trận.
@@ -43,7 +43,7 @@
 - [ ] Đổi mật khẩu với `current_password` sai → `422 invalid_request`; phiên hiện tại vẫn dùng được.
 
 ### Quản trị — `test_admin.py`
-- [ ] Duyệt không kèm role → `422`.
+- [ ] Duyệt không kèm role → `422`; đổi role thành danh sách rỗng → `422 validation_error`.
 - [ ] Duyệt → user `active` với đúng role; đăng nhập được.
 - [ ] Từ chối không kèm lý do → `422`; có lý do → `rejected`, lý do được lưu.
 - [ ] Admin tự vô hiệu hóa chính mình → `409 conflict`.

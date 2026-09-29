@@ -65,6 +65,6 @@
 
 ## Group 7 — Test nghiệm thu và kiểm tra cuối `[người duyệt]`
 
-34. Viết test nghiệm thu `tests/acceptance/phase_04/` (backend) và kịch bản Playwright `frontend/e2e/phase_04/` theo `validation.md`.
+34. Siết `tests/acceptance/phase_00/test_api.py` (Group 0 tạm chấp nhận `401` hoặc `501` khi không có phiên): thành test `db` đăng nhập thật rồi đòi `501` cho endpoint còn là khung. Viết test nghiệm thu `tests/acceptance/phase_04/` (backend) và kịch bản Playwright `frontend/e2e/phase_04/` theo `validation.md`.
 35. Chạy manual check trên điện thoại thật.
 36. Cập nhật `roadmap.md`, `CHANGELOG.md`; merge.

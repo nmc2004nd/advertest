@@ -120,14 +120,14 @@ Tầng sweep, metric, backend và frontend không được phụ thuộc vào vi
 | Server ASGI | uvicorn | Chạy API trong container |
 | Client S3 | boto3 | Kiểm tra MinIO ở `/health`; presigned URL ở Phase 3 |
 | Mật khẩu | argon2 (`argon2-cffi`) | |
-| Phiên đăng nhập | JWT trong cookie httpOnly | |
+| Phiên đăng nhập | Phiên phía server: cookie httpOnly chứa token ngẫu nhiên, DB lưu sha256 của token (Phase 4) | Vô hiệu hóa tài khoản, đổi role và đăng xuất phải có hiệu lực ngay; với JWT vẫn phải tra DB mỗi request |
 | Report PDF | WeasyPrint (render HTML → PDF ở server) | |
 | Email | SMTP | Thông báo run xong, chờ duyệt, ngân sách |
 | Hàng đợi | Bảng job trong Postgres, worker lấy qua API | Không dùng Celery/Redis: quy mô nhỏ, ít hạ tầng |
 
 ### 4.1. Quy ước backend
 
-- Mọi endpoint khai báo quyền bằng dependency `require_role(...)`. Luật "không tự review" kiểm tra ở tầng service.
+- Mọi endpoint không công khai (trừ `/internal/worker`) khai báo quyền bằng dependency `require_permission(...)` theo ma trận `ROLE_PERMISSIONS` trong contract, và khai `x-permission` trong OpenAPI (giá trị `authenticated` cho endpoint chỉ cần đăng nhập). Role và trạng thái user đọc từ DB mỗi request. Luật phụ thuộc đối tượng (chỉ hủy experiment của mình, "không tự review") kiểm tra ở tầng service.
 - Chỉ tài khoản hệ thống của worker được ghi metric và kết quả. API của người dùng không có endpoint ghi metric.
 - User ứng dụng trong Postgres bị thu hồi quyền `UPDATE` và `DELETE` trên bảng `audit_log`.
 - Role `advertest_owner` và `advertest_app` được tạo bằng script init của Postgres (`docker/postgres/init/`), không tạo trong migration. Mỗi migration tự `GRANT` quyền cho `advertest_app` trên bảng nó tạo; test `test_every_table_is_granted_to_app` sẽ fail nếu quên.
@@ -181,6 +181,8 @@ Mọi trạng thái bất thường (`failed`, `skipped`, `stopped_limit`, `canc
 | Routing | React Router |
 | Zoom ảnh | `react-zoom-pan-pinch` |
 | Sinh type từ contract/OpenAPI | `openapi-typescript` (devDependency) |
+| Form | `react-hook-form` + `zod` (Phase 4): validation nhất quán cho form của mọi phase |
+| E2E | `@playwright/test` (devDependency, Phase 4), 3 viewport 390×844, 820×1180, 1440×900 |
 
 ### 5.1. Quy ước frontend
 

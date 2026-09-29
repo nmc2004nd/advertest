@@ -72,7 +72,7 @@ Người dùng có nhiều role có hợp các permission. Các luật phụ thu
 | `UserAdminView` | `id`, `full_name`, `email`, `organization`, `status`, `roles`, `requested_role`, `request_reason`, `reject_reason`, `created_at`, `approved_at`, `approved_by` |
 | `ApproveRequest` | `roles` (ít nhất 1) |
 | `RejectRequest` | `reason` |
-| `RolesUpdate` | `roles` |
+| `RolesUpdate` | `roles` (ít nhất 1; muốn chặn truy cập thì vô hiệu hóa) |
 | `PasswordChange` | `current_password`, `new_password` |
 | `PasswordResetLink` | `url`, `expires_at` |
 | `PasswordResetConsume` | `token`, `new_password` |
@@ -122,6 +122,7 @@ Người dùng có nhiều role có hợp các permission. Các luật phụ thu
 ### Bảo vệ endpoint
 - Endpoint công khai: `/health`, `/auth/request-access`, `/auth/login`, `/auth/password-reset`, `/verify/{report_id}`.
 - Mọi endpoint khác (trừ `/internal/worker`) yêu cầu phiên hợp lệ và khai báo permission bằng dependency `require_permission(...)`. Thiếu phiên → `401`; thiếu permission → `403`. Kiểm tra này chạy **trước** khi endpoint trả `501`.
+- Endpoint chỉ cần đăng nhập (`/auth/logout`, `/auth/me`, `/auth/password`) khai `x-permission: authenticated` (mọi user `active`), không thêm permission vào ma trận.
 - Placeholder `GET /users` của Phase 0 bị bỏ; quản lý người dùng nằm ở `/admin/users`.
 
 ### Luật quản trị
