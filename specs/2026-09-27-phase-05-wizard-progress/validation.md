@@ -28,7 +28,7 @@
 - [ ] Model không hỗ trợ gradient + attack cần gradient → ước lượng đánh dấu run sẽ bị bỏ qua.
 
 ### Quyền và vòng đời — `test_experiment_lifecycle.py`
-- [ ] Engineer tạo experiment → `queued`, có `audit_log` `experiment.created`; worker chạy xong → `completed`, có `finished_at`.
+- [ ] Engineer tạo experiment → `queued`, có `audit_log` `experiment.submit`; worker chạy xong → `completed`, có `finished_at`.
 - [ ] Reviewer và admin gọi `POST /experiments` → `403`.
 - [ ] Mọi người dùng `active` xem được experiment của người khác.
 - [ ] Engineer hủy experiment của người khác → `403`; hủy của mình khi `running` → worker dừng, trạng thái `cancelled`, có `audit_log`.

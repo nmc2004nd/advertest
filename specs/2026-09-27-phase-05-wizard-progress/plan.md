@@ -9,7 +9,9 @@
 ## Group 0 — Contract `[người duyệt]`
 
 1. Thêm các schema trong `requirements.md` và mã lỗi mới.
+1a. (Từ Phase 4) Khi thêm `error.fields`: OpenAPI khai `422` là `ErrorResponse` (hiện vẫn là `HTTPValidationError`); cân nhắc thêm `ErrorCode` cho lỗi `500` (hiện chưa trả `ErrorResponse`).
 2. Cập nhật OpenAPI với các endpoint đọc tài nguyên và endpoint experiment, kèm `x-permission`.
+2a. (Từ Phase 4) OpenAPI sinh từ app: endpoint khung thêm vào `backend/app/api/public.py` bằng `**guard(p)`. Cập nhật con số `len(REPRESENTATIVES)` trong `backend/app/tests/db/test_route_protection_db.py` khi có permission mới có route.
 3. Viết mock: experiment ở mọi trạng thái; experiment `completed` có run đủ các trạng thái (kể cả `metrics.partial`); `EstimateResponse` đủ, thiếu profile, vượt giới hạn; `FailureCaseView` với cả 3 `display_mode`.
 4. `make contracts`; ghi `CHANGELOG.md`.
 
@@ -65,3 +67,4 @@
 34. Chạy manual check trên laptop và điện thoại thật.
 35. Trả lời câu hỏi mở; cập nhật `roadmap.md` nếu quyết định đưa làm mờ lên sớm.
 36. Cập nhật `CHANGELOG.md`, `roadmap.md`; merge.
+37. (Từ Phase 4) Kịch bản E2E `frontend/e2e/phase_04/onboarding.spec.ts` đang đòi engineer thấy đúng 2 mục điều hướng; khi bật `/experiments` cập nhật thành số mục mới (người duyệt). Test Vitest điều hướng trong `frontend/src/pages/app-pages.test.tsx` cũng cần đổi (agent frontend, Group 6).

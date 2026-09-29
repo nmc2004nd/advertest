@@ -74,7 +74,7 @@ Worker được coi là `online` nếu có heartbeat trong 60 giây gần nhất
 | Endpoint | Permission | Hành vi |
 |---|---|---|
 | `POST /experiments/estimate` | `experiment.create` | Kiểm tra cấu hình như khi tạo, trả `EstimateResponse`, không tạo gì |
-| `POST /experiments` | `experiment.create` | Tạo experiment `queued`, lập danh sách run, ghi `audit_log` (`experiment.created`) |
+| `POST /experiments` | `experiment.create` | Tạo experiment `queued`, lập danh sách run, ghi `audit_log` (`experiment.submit`) |
 | `GET /experiments?owner=me\|all&status=&model=` | `experiment.read` | Phân trang theo cursor |
 | `GET /experiments/{id}` | `experiment.read` | `ExperimentDetail` |
 | `GET /experiments/{id}/runs` | `experiment.read` | Danh sách `RunView` |
@@ -166,7 +166,11 @@ Worker được coi là `online` nếu có heartbeat trong 60 giây gần nhất
 - `mission.md` nguyên tắc 5 (chi phí biết trước), 6 (trạng thái rõ), 9 (quyền riêng tư).
 - `tech-stack.md` mục 4.2 (giới hạn), 5, 5.1 (frontend, responsive).
 - Phase 3: service experiment, ước lượng, hàng đợi, trạng thái, artifact trong MinIO.
-- Phase 4: phiên, permission, khung điều hướng, form, hộp xác nhận.
+- Phase 4: phiên, permission, khung điều hướng, form, hộp xác nhận. Cụ thể (replan sau Phase 4):
+  - Route mới khai quyền bằng `**guard(p)`; app từ chối khởi động nếu route cần phiên thiếu khai báo. Thứ tự kiểm tra: `401` → `403` → `422` → route.
+  - Phân trang dùng `backend/app/api/pagination.py` (keyset `(created_at, id)`, cursor mờ) và schema `Page[T]` có tên cụ thể (ví dụ `ExperimentPage`); giao diện dùng "Tải thêm".
+  - `422` do body sai schema là `validation_error`, `422` nghiệp vụ là `invalid_request`; mã mới (`not_supported_yet`, `queue_limit_reached`) cần thông điệp trong `ERROR_MESSAGES` của frontend (`tsc` báo nếu thiếu).
+  - Audit action theo quy ước `entity.verb`.
 
 ## Open Questions
 

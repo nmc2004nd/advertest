@@ -61,7 +61,7 @@
 32. Tab Kết quả: bảng xếp hạng, biểu đồ cột `auc_drop`, tùy chọn trục hoành chuẩn hóa; nhãn lý do `early_stop` trong bảng run.
 33. Tiến độ hai giai đoạn cho run patch.
 34. `CaseViewer`: nhãn ảnh thứ ba theo loại, dải "Đã làm mờ".
-35. Trang `/admin/attacks`; bật mục điều hướng.
+35. Trang `/admin/attacks`; thêm mục vào `NAV_ITEMS` (`frontend/src/nav/config.ts`, permission `attack_catalog.manage`, `implemented: true`). Admin khi đó có 5 mục, nên trên điện thoại hiện 3 mục + "Thêm". Dùng lại mẫu bảng/thẻ, `TruncatedId`, "Tải thêm" của Phase 4.
 
 ## Group 7 — Test nghiệm thu và kiểm tra cuối `[người duyệt]`
 
