@@ -2002,11 +2002,6 @@ export interface components {
             /** Levels */
             levels: number[];
         };
-        /** HTTPValidationError */
-        HTTPValidationError: {
-            /** Detail */
-            detail?: components["schemas"]["ValidationError"][];
-        };
         /** HealthResponse */
         HealthResponse: {
             /**
@@ -2933,19 +2928,6 @@ export interface components {
          * @enum {string}
          */
         UserStatus: "pending" | "active" | "rejected" | "disabled";
-        /** ValidationError */
-        ValidationError: {
-            /** Location */
-            loc: (string | number)[];
-            /** Message */
-            msg: string;
-            /** Error Type */
-            type: string;
-            /** Input */
-            input?: unknown;
-            /** Context */
-            ctx?: Record<string, never>;
-        };
         /** WorkerDirective */
         WorkerDirective: {
             /**
@@ -3090,7 +3072,6 @@ export type FieldError = components['schemas']['FieldError'];
 export type FingerprintInputs = components['schemas']['FingerprintInputs'];
 export type GradientCheck = components['schemas']['GradientCheck'];
 export type GridConfig = components['schemas']['GridConfig'];
-export type HttpValidationError = components['schemas']['HTTPValidationError'];
 export type HealthResponse = components['schemas']['HealthResponse'];
 export type HeartbeatRequest = components['schemas']['HeartbeatRequest'];
 export type InferenceParams = components['schemas']['InferenceParams'];
@@ -3150,7 +3131,6 @@ export type UserAdminPage = components['schemas']['UserAdminPage'];
 export type UserAdminView = components['schemas']['UserAdminView'];
 export type UserRef = components['schemas']['UserRef'];
 export type UserStatus = components['schemas']['UserStatus'];
-export type ValidationError = components['schemas']['ValidationError'];
 export type WorkerDirective = components['schemas']['WorkerDirective'];
 export type WorkerJobBundle = components['schemas']['WorkerJobBundle'];
 export type WorkerLease = components['schemas']['WorkerLease'];
@@ -5597,6 +5577,15 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Chưa cài đặt */
             501: {
                 headers: {
@@ -5628,13 +5617,13 @@ export interface operations {
                     "application/json": components["schemas"]["WorkerJobBundle"];
                 };
             };
-            /** @description Validation Error */
+            /** @description validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ) */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Chưa cài đặt */
@@ -5670,13 +5659,13 @@ export interface operations {
                     "application/json": components["schemas"]["WorkerDirective"];
                 };
             };
-            /** @description Validation Error */
+            /** @description validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ) */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Chưa cài đặt */
@@ -5714,13 +5703,13 @@ export interface operations {
                     "application/json": components["schemas"]["RunStartResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ) */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Chưa cài đặt */
@@ -5758,13 +5747,13 @@ export interface operations {
                     "application/json": components["schemas"]["WorkerDirective"];
                 };
             };
-            /** @description Validation Error */
+            /** @description validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ) */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Chưa cài đặt */
@@ -5802,13 +5791,13 @@ export interface operations {
                     "application/json": components["schemas"]["ArtifactUrlResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ) */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Chưa cài đặt */
@@ -5844,13 +5833,13 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Validation Error */
+            /** @description validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ) */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Chưa cài đặt */
@@ -5884,13 +5873,13 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Validation Error */
+            /** @description validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ) */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Chưa cài đặt */
@@ -5928,13 +5917,13 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
-            /** @description Validation Error */
+            /** @description validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ) */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Chưa cài đặt */

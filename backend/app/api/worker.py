@@ -35,7 +35,11 @@ from backend.app.api.deps import (
     get_storage,
     transaction,
 )
-from backend.app.api.errors import NOT_IMPLEMENTED_RESPONSE, not_implemented
+from backend.app.api.errors import (
+    NOT_IMPLEMENTED_RESPONSE,
+    VALIDATION_ERROR_RESPONSE,
+    not_implemented,
+)
 from backend.app.api.security import worker_token
 from backend.app.services import bundle, leasing, runs
 from backend.app.services.clock import Clock
@@ -44,7 +48,7 @@ router = APIRouter(
     prefix="/internal/worker",
     tags=["internal-worker"],
     dependencies=[Security(worker_token)],
-    responses=NOT_IMPLEMENTED_RESPONSE,
+    responses=NOT_IMPLEMENTED_RESPONSE | VALIDATION_ERROR_RESPONSE,
 )
 
 Credentials = Annotated[str, Depends(bearer_token)]

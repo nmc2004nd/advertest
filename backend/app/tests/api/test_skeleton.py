@@ -235,19 +235,18 @@ def test_missing_permission_is_403_before_501() -> None:
 
 
 def test_openapi_declares_422_as_error_response(openapi: dict[str, Any]) -> None:
-    """Route người dùng có tham số hoặc body khai 422 là ErrorResponse, không phải
-    HTTPValidationError mặc định của FastAPI (API nội bộ của worker chưa đổi)."""
+    """Mọi route có tham số hoặc body (kể cả API nội bộ của worker, Phase 5 task 5a) khai 422 là
+    ErrorResponse, không phải HTTPValidationError mặc định của FastAPI."""
     checked = 0
     for path, ops in openapi["paths"].items():
-        if path.startswith("/internal/worker"):
-            continue
         for method, op in ops.items():
             if "422" not in op["responses"]:
                 continue
             schema = op["responses"]["422"]["content"]["application/json"]["schema"]
             assert schema == {"$ref": "#/components/schemas/ErrorResponse"}, (method, path)
             checked += 1
-    assert checked >= 20
+    assert checked >= 28
+    assert "HTTPValidationError" not in openapi["components"]["schemas"]
 
 
 def test_unhandled_exception_is_internal_error_without_details() -> None:
