@@ -4,14 +4,21 @@ from __future__ import annotations
 
 import json
 import re
+import uuid
 from pathlib import Path
 from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import Engine
+from sqlalchemy.orm import Session, sessionmaker
 
+from advertest_contracts.enums import Role, UserStatus
 from advertest_contracts.models import ErrorResponse, HealthResponse
 from advertest_contracts.registry import SCHEMAS
+from backend.app.api.deps import get_sessionmaker
+from backend.app.auth.passwords import hash_password
+from backend.app.db import models as m
 from backend.app.main import create_app
 
 from .conftest import env
@@ -82,23 +89,51 @@ def test_health_reports_version_commit_and_dependencies(monkeypatch: pytest.Monk
     assert body.status == "ok"
 
 
-@pytest.mark.parametrize("group", [g for g in PUBLIC_GROUPS if g not in IMPLEMENTED_GROUPS])
-def test_sample_endpoint_returns_501_with_uniform_error(
-    openapi: dict[str, Any], repo: Path, group: str
-) -> None:
+SKELETON_GROUPS = [g for g in PUBLIC_GROUPS if g not in IMPLEMENTED_GROUPS]
+
+
+@pytest.mark.parametrize("group", SKELETON_GROUPS)
+def test_sample_endpoint_without_session(openapi: dict[str, Any], repo: Path, group: str) -> None:
+    """Không có phiên: endpoint công khai còn là khung trả 501; endpoint cần phiên trả 401 trước
+    501 (Phase 4, requirements.md mục Bảo vệ endpoint). Body lỗi luôn là ErrorResponse."""
     method, path, body = _sample_request(openapi, repo, group)
     response = TestClient(create_app()).request(method, path, json=body)
     error = ErrorResponse.model_validate(response.json()).error
     if path.startswith(PUBLIC_PATHS):
         assert (response.status_code, error.code) == (501, "not_implemented")
     else:
-        # Chuyển tiếp (Phase 4 Group 0): gọi không có phiên, nên sau Phase 4 Group 2 route cần
-        # phiên trả 401 trước 501. Phase 4 Group 7 (plan.md task 34) thay bằng test `db` đăng
-        # nhập thật rồi đòi 501; test_route_protection.py của Phase 4 đòi 401 chặt.
-        assert (response.status_code, error.code) in {
-            (501, "not_implemented"),
-            (401, "unauthenticated"),
-        }
+        assert (response.status_code, error.code) == (401, "unauthenticated")
+
+
+@pytest.mark.db
+def test_sample_endpoint_returns_501_with_session(
+    openapi: dict[str, Any], repo: Path, app_engine: Engine, owner_engine: Engine
+) -> None:
+    """Với phiên thật của người dùng đủ 3 role: mọi nhóm còn là khung trả 501 thống nhất
+    (Phase 4 Group 7 siết lại test chuyển tiếp của Group 0, plan.md task 34)."""
+    email = f"phase00-{uuid.uuid4().hex[:8]}@x.test"
+    with Session(owner_engine) as session, session.begin():
+        user = m.User(
+            email=email,
+            full_name="Đủ role",
+            password_hash=hash_password("mat-khau-phase-00"),
+            status=UserStatus.ACTIVE,
+        )
+        session.add(user)
+        session.flush()
+        session.add_all(m.UserRole(user_id=user.id, role=role) for role in Role)
+    app = create_app()
+    factory = sessionmaker(app_engine)
+    app.dependency_overrides[get_sessionmaker] = lambda: factory
+    client = TestClient(app)
+    login = client.post("/auth/login", json={"email": email, "password": "mat-khau-phase-00"})
+    assert login.status_code == 200
+    headers = {"X-CSRF-Token": client.cookies["csrf_token"]}
+    for group in SKELETON_GROUPS:
+        method, path, body = _sample_request(openapi, repo, group)
+        response = client.request(method, path, json=body, headers=headers)
+        error = ErrorResponse.model_validate(response.json()).error
+        assert (response.status_code, error.code) == (501, "not_implemented"), group
 
 
 def test_worker_internal_endpoint_returns_501(repo: Path) -> None:
