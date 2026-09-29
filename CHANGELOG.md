@@ -6,7 +6,7 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 4 — Xác thực và phân quyền
 
-**Trạng thái:** đang làm. Group 0–6 đã merge; Group 7 xong trên nhánh `phase04-reviewer-g7`, chờ merge. Còn manual check trên điện thoại thật.
+**Trạng thái:** đang làm. Group 0–7 đã merge. Còn manual check trên điện thoại thật, CI `e2e` trên GitHub, rồi `phase-close`.
 
 ### Phase 4 — Group 7 (người duyệt, người dùng giao) — 2026-09-29
 #### Thêm
@@ -21,6 +21,8 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 - Chưa làm (cần người dùng): điện thoại Android và iPhone thật (luồng đầy đủ, không tự zoom, thanh tab không bị thanh home che, copy link đặt lại); đọc lại toàn bộ nội dung tiếng Việt.
 #### Số liệu
 - `make check`: 709 test Python, 217 test nghiệm thu không cần DB, 103 Vitest. `make test-db`: 251 test. `make test-e2e`: 39 test trong khoảng 38 giây.
+#### Review
+- Review do chính agent viết nhánh (không độc lập): không có phát hiện chặn. Ghi vào spec: E2E tuần tự (`tech-stack.md` mục 7), `TRUSTED_PROXIES` của compose (`requirements.md`), cách kiểm tra luật admin cuối cùng (`validation.md`). Ghi nhận: tin cả mạng Docker chỉ hợp cho dev (xem lại ở Phase 11).
 
 ### Phase 4 — Group 6 (frontend) — 2026-09-29
 #### Thêm

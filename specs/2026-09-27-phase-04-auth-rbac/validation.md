@@ -47,7 +47,7 @@
 - [x] Duyệt → user `active` với đúng role; đăng nhập được.
 - [x] Từ chối không kèm lý do → `422`; có lý do → `rejected`, lý do được lưu.
 - [x] Admin tự vô hiệu hóa chính mình → `409 conflict`.
-- [x] Bỏ role admin hoặc vô hiệu hóa admin `active` cuối cùng → `409 conflict`.
+- [x] Bỏ role admin hoặc vô hiệu hóa admin `active` cuối cùng → `409 conflict`. (Qua HTTP: test tạm vô hiệu các admin khác của DB dùng chung rồi khôi phục; vô hiệu hóa admin cuối cùng chỉ xảy ra khi tự vô hiệu hóa.)
 - [x] Link đặt lại: dùng được một lần; lần hai → lỗi; hết hạn sau 24 giờ; sau khi dùng mọi phiên cũ bị thu hồi.
 - [x] Người không có `user.manage` gọi `/admin/users/*` → `403`.
 - [x] Chuyển trạng thái không hợp lệ (approve user `active`, enable user `active`, disable user `disabled`) → `409 conflict`.
