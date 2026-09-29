@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import json
 import random
+import threading
+import time
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -16,6 +18,7 @@ from uuid import UUID
 import pytest
 from sqlalchemy import Engine, select, text
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from advertest_contracts.enums import ExperimentStatus, RunStatus
@@ -640,3 +643,83 @@ def test_concurrent_lease_never_returns_same_experiment(
             leased_b = leasing.lease(b, b.get_one(m.ComputeTarget, target_id), clock)
             assert leased_b is not None and leased_b.id == second
         assert leased_a is not None and leased_a.id == first
+
+
+# ---------------------------------------------------------------- sửa theo review
+
+
+def test_cancelled_experiment_is_swept_when_worker_dies(
+    db: Session, admin: m.User, world: World, clock: FakeClock
+) -> None:
+    """Hủy khi worker còn giữ lease, rồi worker chết: run không kẹt ở `running`."""
+    target, experiment, planned = _leased(db, admin, world, clock)
+    assert experiment.lease_id is not None
+    runs.start(db, target, planned[0].id, _start_request(experiment.lease_id), clock)
+    experiments.cancel(db, actor=admin, experiment_id=experiment.id, clock=clock)
+    assert _status(planned[0]) == RunStatus.RUNNING
+    clock.advance(30)
+    assert leasing.lease(db, target, clock) is None
+    assert _status(planned[0]) == RunStatus.RUNNING  # lease còn hạn: chưa dọn
+    clock.advance(31)
+    assert leasing.lease(db, target, clock) is None
+    assert all(_status(r) == RunStatus.CANCELLED for r in planned)
+    assert planned[0].status_reason is not None
+    assert experiment.lease_id is None and experiment.lease_expires_at is None
+    assert _experiment_status(experiment) == ExperimentStatus.CANCELLED
+
+
+def test_worker_calls_lock_experiment_before_run(
+    app_engine: Engine, world: World, clock: FakeClock
+) -> None:
+    """`start`/`progress`/`complete` khóa experiment trước run, cùng thứ tự với `cancel`."""
+    with Session(app_engine) as setup, setup.begin():
+        actor = setup.get(m.User, world.admin_id)
+        assert actor is not None
+        target, experiment, planned = _leased(setup, actor, world, clock)
+        assert experiment.lease_id is not None
+        ids = (target.id, experiment.id, planned[0].id, experiment.lease_id)
+    target_id, experiment_id, run_id, lease_id = ids
+    errors: list[BaseException] = []
+
+    def worker() -> None:
+        try:
+            with Session(app_engine) as b, b.begin():
+                b.execute(text("SET LOCAL lock_timeout = '10s'"))
+                runs._run_for_worker(b, b.get_one(m.ComputeTarget, target_id), run_id, lease_id)
+        except BaseException as exc:
+            errors.append(exc)
+
+    with Session(app_engine) as a, a.begin():
+        a.execute(text("SELECT 1 FROM runs WHERE id = :id FOR UPDATE"), {"id": run_id})
+        thread = threading.Thread(target=worker)
+        thread.start()
+        time.sleep(1.0)  # worker đang chờ khóa run
+        # Worker đã giữ khóa experiment trong lúc chờ khóa run.
+        with Session(app_engine) as c, c.begin(), pytest.raises(OperationalError):
+            c.execute(
+                text("SELECT 1 FROM experiments WHERE id = :id FOR UPDATE NOWAIT"),
+                {"id": experiment_id},
+            )
+    thread.join(timeout=15)
+    assert not thread.is_alive() and errors == []
+
+
+def test_complete_rejects_dot_segments_in_artifact_keys(
+    db: Session, admin: m.User, world: World, clock: FakeClock, buckets: Buckets
+) -> None:
+    target, experiment, planned = _leased(db, admin, world, clock)
+    lease_id = experiment.lease_id
+    assert lease_id is not None
+    run = planned[0]
+    runs.start(db, target, run.id, _start_request(lease_id), clock)
+    completion = _completion(run, lease_id, buckets)
+    case = completion.failure_cases[0]
+    bad_artifacts = case.artifacts.model_copy(
+        update={"clean_png": f"runs/{run.id}/../other/clean.png"}
+    )
+    bad = completion.model_copy(
+        update={"failure_cases": [case.model_copy(update={"artifacts": bad_artifacts})]}
+    )
+    with pytest.raises(Invalid, match="không hợp lệ"):
+        runs.complete(db, target, run.id, bad, buckets.artifacts.exists, clock)
+    assert _status(run) == RunStatus.RUNNING

@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session, object_session
 from advertest_contracts.enums import ExperimentStatus, LimitKind
 from advertest_contracts.models import WorkerDirective
 from backend.app.db import models as m
+from backend.app.services import experiments
 from backend.app.services.clock import Clock, utcnow
 from backend.app.services.errors import Conflict, Forbidden, NotFound
 
@@ -38,8 +39,10 @@ def touch_target(session: Session, target: m.ComputeTarget, now: datetime) -> No
 
 def lease(session: Session, target: m.ComputeTarget, clock: Clock = utcnow) -> m.Experiment | None:
     """Experiment `queued` cũ nhất của target, hoặc experiment `running` có lease đã hết hạn;
-    `None` khi không có (API trả 204)."""
+    `None` khi không có (API trả 204). Trước đó dọn experiment đã hủy mà worker chết trước khi
+    báo lại (`experiments.sweep_cancelled`)."""
     now = clock()
+    experiments.sweep_cancelled(session, target.id, now)
     experiment = session.scalar(
         select(m.Experiment)
         .where(

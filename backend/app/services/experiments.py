@@ -5,6 +5,7 @@ Phase này chưa có endpoint công khai: experiment chỉ được tạo qua CL
 
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -159,6 +160,43 @@ def get(session: Session, experiment_id: UUID) -> m.Experiment:
     return experiment
 
 
+def _cancel_run(run: m.Run, now: datetime) -> None:
+    run.status = RunStatus.CANCELLED
+    run.status_reason = reason("cancelled", "Experiment bị hủy")
+    run.finished_at = now
+
+
+def finish_cancelled(session: Session, experiment: m.Experiment, now: datetime) -> None:
+    """Experiment đã hủy mà không còn worker giữ lease: run còn `running` thành `cancelled`
+    (không để run kẹt ở `running`, mission.md nguyên tắc 6) và bỏ lease."""
+    for run in runs_of(session, experiment.id):
+        if run.status in (RunStatus.QUEUED, RunStatus.RUNNING):
+            _cancel_run(run, now)
+    experiment.lease_id = None
+    experiment.lease_expires_at = None
+    session.flush()
+
+
+def sweep_cancelled(session: Session, target_id: UUID | None, now: datetime) -> int:
+    """Dọn mọi experiment `cancelled` có lease đã hết hạn (của một target, hoặc tất cả khi
+    `target_id = None`); trả số experiment đã dọn. `lease()` gọi hàm này mỗi lần worker hỏi job."""
+    query = (
+        select(m.Experiment)
+        .where(
+            m.Experiment.status == ExperimentStatus.CANCELLED,
+            m.Experiment.lease_id.is_not(None),
+            m.Experiment.lease_expires_at < now,
+        )
+        .with_for_update(skip_locked=True)
+    )
+    if target_id is not None:
+        query = query.where(m.Experiment.compute_target_id == target_id)
+    swept = list(session.scalars(query))
+    for experiment in swept:
+        finish_cancelled(session, experiment, now)
+    return len(swept)
+
+
 def cancel(
     session: Session, *, actor: m.User, experiment_id: UUID, clock: Clock = utcnow
 ) -> m.Experiment:
@@ -175,13 +213,10 @@ def cancel(
     experiment.status = ExperimentStatus.CANCELLED
     lease_alive = experiment.lease_expires_at is not None and experiment.lease_expires_at > now
     for run in runs_of(session, experiment.id):
-        if run.status == RunStatus.QUEUED or (run.status == RunStatus.RUNNING and not lease_alive):
-            run.status = RunStatus.CANCELLED
-            run.status_reason = reason("cancelled", "Experiment bị hủy")
-            run.finished_at = now
+        if run.status == RunStatus.QUEUED:
+            _cancel_run(run, now)
     if not lease_alive:
-        experiment.lease_id = None
-        experiment.lease_expires_at = None
+        finish_cancelled(session, experiment, now)
     session.flush()
     audit.record(
         session,

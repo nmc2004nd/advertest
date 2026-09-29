@@ -34,6 +34,7 @@ from backend.app.services import leasing
 from backend.app.services.clock import Clock, utcnow
 from backend.app.services.errors import Conflict, Forbidden, Invalid, NotFound
 from backend.app.services.experiments import TERMINAL_RUN, reason, runs_of
+from ml_core.store import validate_key
 
 ExistsFn = Callable[[str], bool]  # khóa trong bucket artifacts đã có chưa
 ARTIFACTS_URI = f"s3://{storage.BUCKET_ARTIFACTS}/"
@@ -42,10 +43,14 @@ ARTIFACTS_URI = f"s3://{storage.BUCKET_ARTIFACTS}/"
 def _run_for_worker(
     session: Session, target: m.ComputeTarget, run_id: UUID, lease_id: UUID
 ) -> tuple[m.Run, m.Experiment]:
-    run = session.get(m.Run, run_id, with_for_update=True)
+    # Khóa experiment trước rồi mới khóa run, cùng thứ tự với `experiments.cancel` (tránh deadlock).
+    found = session.get(m.Run, run_id)
+    if found is None:
+        raise NotFound(f"Không có run {run_id}")
+    experiment = leasing.leased_experiment(session, target, found.experiment_id, lease_id)
+    run = session.get(m.Run, run_id, with_for_update=True, populate_existing=True)
     if run is None:
         raise NotFound(f"Không có run {run_id}")
-    experiment = leasing.leased_experiment(session, target, run.experiment_id, lease_id)
     return run, experiment
 
 
@@ -179,6 +184,10 @@ def progress(
 
 def _artifact_key(uri: str, run_id: UUID) -> str:
     key = uri.removeprefix(ARTIFACTS_URI)
+    try:
+        validate_key(key)
+    except ValueError:
+        raise Invalid(f"Khóa artifact không hợp lệ: {uri}") from None
     if not key.startswith(storage.run_prefix(run_id)):
         raise Invalid(f"Artifact {uri} phải nằm trong runs/{run_id}/")
     return key
