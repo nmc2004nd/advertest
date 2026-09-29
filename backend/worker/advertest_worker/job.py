@@ -401,6 +401,14 @@ class JobRunner:
                 )
                 if self.on_batch is not None:
                     self.on_batch(run_id, batch.image_ids)
+                # Dừng ngay sau batch hiện tại (requirements.md, Luồng xử lý bước 5): hủy luôn
+                # thắng; chạm giới hạn chỉ dừng khi còn ảnh chưa xử lý.
+                if directive.action == "cancel":
+                    finish.cancelled(executor)
+                    raise _StopExperiment
+                if directive.action == "stop_limit" and executor.remaining_ids():
+                    finish.stopped(executor)
+                    raise _StopExperiment
             finish.completed(executor)
         except (LeaseLost, _StopExperiment):
             raise
