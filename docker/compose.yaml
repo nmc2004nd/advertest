@@ -76,6 +76,10 @@ services:
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1,172.16.0.0/12}
       # Origin của frontend: link đặt lại mật khẩu do admin tạo trỏ về đây.
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:5173}
+      # Phase 5: khóa ký URL ảnh failure case (chung cho mọi tiến trình API); hiện ảnh dataset
+      # chưa làm mờ kèm cảnh báo chỉ khi DEV_ALLOW_UNBLURRED=true (không bật ở demo, bảo vệ).
+      ARTIFACT_TOKEN_SECRET: ${ARTIFACT_TOKEN_SECRET}
+      DEV_ALLOW_UNBLURRED: ${DEV_ALLOW_UNBLURRED:-false}
     volumes:
       # `advertest-admin import-local` đọc ảnh theo đường dẫn tuyệt đối ghi lúc import vào
       # LocalStore: mount thư mục dữ liệu vào đúng đường dẫn đó, chỉ đọc.
