@@ -4,6 +4,7 @@ test_admin, test_audit_phase04, phần vô hiệu hóa và đổi role của tes
 from __future__ import annotations
 
 import json
+import re
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -392,3 +393,35 @@ def test_no_audit_row_contains_passwords_hashes_or_tokens(env: Env) -> None:
     for secret in (PASSWORD, NEW_PASSWORD, link.rsplit("/", 1)[1], "$argon2"):
         assert secret not in dumped
     assert not any(h in dumped for h in hashes)
+
+
+ACTION_CONVENTION = re.compile(r"^[a-z_]+(\.[a-z_]+)+$")
+
+
+def test_unfiltered_audit_log_reads_rows_outside_the_convention(env: Env) -> None:
+    """Audit log chỉ thêm: dòng cũ lệch quy ước (ví dụ do test Phase 0 chèn) vẫn phải đọc được."""
+    _, admin = _admin(env)
+    with Session(env.engine) as session, session.begin():
+        session.add(m.AuditLog(actor_id=None, action="x", entity_type="user"))
+    response = admin.get("/audit-log", params={"limit": 5})
+    assert response.status_code == 200, response.text
+    assert "x" in {item["action"] for item in response.json()["items"]}
+
+
+def test_actions_written_by_code_follow_entity_verb(env: Env) -> None:
+    _, admin = _admin(env)
+    user_id, email = _pending(env)
+    _post(admin, f"/admin/users/{user_id}/approve", {"roles": ["engineer"]})
+    admin.put(f"/admin/users/{user_id}/roles", json={"roles": ["reviewer"]}, headers=_csrf(admin))
+    _post(admin, f"/admin/users/{user_id}/reset-link")
+    _post(admin, f"/admin/users/{user_id}/disable")
+    _post(admin, f"/admin/users/{user_id}/enable")
+    client = env.client()
+    _login(client, email)
+    _post(client, "/auth/password", {"current_password": PASSWORD, "new_password": NEW_PASSWORD})
+    with Session(env.engine) as session:
+        actions = set(
+            session.scalars(select(m.AuditLog.action).where(m.AuditLog.entity_id == user_id))
+        )
+    assert len(actions) == 7
+    assert all(ACTION_CONVENTION.match(action) for action in actions), actions
