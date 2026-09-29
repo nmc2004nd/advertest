@@ -56,7 +56,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: 'Audit log',
     icon: ScrollText,
     requirement: 'audit.read',
-    implemented: false, // Phase 4 Group 6
+    implemented: true,
   },
   {
     path: '/account',

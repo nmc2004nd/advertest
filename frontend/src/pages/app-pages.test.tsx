@@ -55,6 +55,7 @@ describe('điều hướng (trang đã có đến Group 6)', () => {
     expect(visibleNav(mockMe('admin')).map((i) => i.path)).toEqual([
       '/home',
       '/admin/users',
+      '/admin/audit',
       '/account',
     ])
   })

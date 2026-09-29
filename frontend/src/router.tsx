@@ -3,6 +3,7 @@ import { createBrowserRouter, type RouteObject } from 'react-router'
 import { RequirePermission } from './auth/RequirePermission'
 import { AppShell } from './layout/AppShell'
 import { AccountPage } from './pages/AccountPage'
+import { AuditPage } from './pages/admin/AuditPage'
 import { UsersPage } from './pages/admin/UsersPage'
 import { ForbiddenPage } from './pages/ForbiddenPage'
 import { HomePage } from './pages/HomePage'
@@ -31,6 +32,14 @@ const routes: RouteObject[] = [
         element: (
           <RequirePermission requirement="user.manage">
             <UsersPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: '/admin/audit',
+        element: (
+          <RequirePermission requirement="audit.read">
+            <AuditPage />
           </RequirePermission>
         ),
       },
