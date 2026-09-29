@@ -28,8 +28,9 @@ export interface BoxSet {
   lost: number[]
 }
 
-/** Bề rộng khung (px CSS) từ đó nhãn box hiện sẵn; nhỏ hơn thì chạm vào box để hiện. */
-export const LABELS_MIN_WIDTH = 480
+/** Màn hình từ breakpoint md (768px, tech-stack.md mục 5.1) hiện sẵn nhãn box; nhỏ hơn thì
+ * chạm vào box để hiện (tính theo màn hình, không theo bề rộng khung ảnh). */
+export const LABELS_MEDIA_QUERY = '(min-width: 768px)'
 
 export function boxesOf(set: BoxSet): DrawBox[] {
   const lost = new Set(set.lost)

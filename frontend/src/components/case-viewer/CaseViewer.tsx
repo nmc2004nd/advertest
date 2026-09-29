@@ -308,7 +308,7 @@ export function CaseViewer({ caseView, onPrev, onNext, onImageError, aside }: Ca
 
   return (
     <div
-      className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]"
+      className={aside ? 'grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]' : 'grid gap-4'}
       data-display-mode={caseView.display_mode}
     >
       <div className="min-w-0 space-y-3">

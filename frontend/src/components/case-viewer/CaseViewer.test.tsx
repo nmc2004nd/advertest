@@ -80,10 +80,12 @@ describe('CaseViewer (validation.md Frontend unit)', () => {
     )
   })
 
-  it('có chỗ cho form verdict của Phase 8', () => {
+  it('có chỗ cho form verdict của Phase 8; không có form thì không chừa cột', () => {
     const html = renderToStaticMarkup(
       <CaseViewer caseView={view('normal')} aside={<form data-verdict="phase8" />} />,
     )
     expect(html).toContain('data-verdict="phase8"')
+    expect(html).toContain('lg:grid-cols-')
+    expect(render('normal')).not.toContain('lg:grid-cols-')
   })
 })

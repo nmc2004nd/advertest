@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-import { BOX_COLORS, type BoxSet, boxesOf, LABELS_MIN_WIDTH } from './boxes'
+import { BOX_COLORS, type BoxSet, boxesOf, LABELS_MEDIA_QUERY } from './boxes'
 import { canvasSize, hitTest, LETTERBOX, toCss } from './geometry'
 
 /**
@@ -11,6 +11,7 @@ export function BoxCanvas({ set, imageSize = LETTERBOX }: { set: BoxSet; imageSi
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [cssSize, setCssSize] = useState(0)
   const [selected, setSelected] = useState<number | null>(null)
+  const [labelsShown, setLabelsShown] = useState(false)
   const boxes = boxesOf(set)
 
   useEffect(() => {
@@ -18,7 +19,14 @@ export function BoxCanvas({ set, imageSize = LETTERBOX }: { set: BoxSet; imageSi
     if (!canvas) return
     const observer = new ResizeObserver(([entry]) => setCssSize(entry.contentRect.width))
     observer.observe(canvas)
-    return () => observer.disconnect()
+    const media = window.matchMedia(LABELS_MEDIA_QUERY)
+    const onMedia = () => setLabelsShown(media.matches)
+    onMedia()
+    media.addEventListener('change', onMedia)
+    return () => {
+      observer.disconnect()
+      media.removeEventListener('change', onMedia)
+    }
   }, [])
 
   useEffect(() => {
@@ -30,7 +38,6 @@ export function BoxCanvas({ set, imageSize = LETTERBOX }: { set: BoxSet; imageSi
     canvas.height = height
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0)
     ctx.clearRect(0, 0, cssSize, cssSize)
-    const showAll = cssSize >= LABELS_MIN_WIDTH
     ctx.font = '12px sans-serif'
     for (const [index, box] of boxes.entries()) {
       const [x1, y1, x2, y2] = toCss(box.bbox, cssSize, imageSize)
@@ -38,7 +45,7 @@ export function BoxCanvas({ set, imageSize = LETTERBOX }: { set: BoxSet; imageSi
       ctx.lineWidth = box.kind === 'lost' ? 3 : 2
       ctx.setLineDash(box.kind === 'ignore_regions' ? [4, 3] : [])
       ctx.strokeRect(x1, y1, x2 - x1, y2 - y1)
-      if (showAll || index === selected) {
+      if (labelsShown || index === selected) {
         const text = box.label
         const w = ctx.measureText(text).width + 6
         ctx.fillStyle = BOX_COLORS[box.kind]
