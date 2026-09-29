@@ -313,6 +313,7 @@ class Run(Base):
     cached_from_run_id: Mapped[UUID | None] = mapped_column(ForeignKey("runs.id"))
     checkpoint_key: Mapped[str | None] = mapped_column(Text)
     checkpoint_batch_index: Mapped[int | None]
+    ordinal: Mapped[int] = mapped_column(server_default=text("0"))
 
 
 class SearchResultRow(Base):

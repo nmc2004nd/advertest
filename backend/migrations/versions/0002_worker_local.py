@@ -64,6 +64,10 @@ def upgrade() -> None:
     )
     op.add_column("runs", sa.Column("checkpoint_key", sa.Text(), nullable=True))
     op.add_column("runs", sa.Column("checkpoint_batch_index", sa.Integer(), nullable=True))
+    # Thứ tự chạy trong experiment (WorkerJobBundle.runs theo thứ tự này).
+    op.add_column(
+        "runs", sa.Column("ordinal", sa.Integer(), server_default=sa.text("0"), nullable=False)
+    )
     op.create_index(op.f("ix_runs_fingerprint"), "runs", ["fingerprint"])
 
     # failure_cases theo FailureCaseRecord (contract Phase 2-3).
@@ -120,6 +124,7 @@ def downgrade() -> None:
     op.add_column("failure_cases", sa.Column("artifact_uri", sa.Text(), nullable=False))
 
     op.drop_index(op.f("ix_runs_fingerprint"), table_name="runs")
+    op.drop_column("runs", "ordinal")
     op.drop_column("runs", "checkpoint_batch_index")
     op.drop_column("runs", "checkpoint_key")
     op.drop_constraint(op.f("fk_runs_cached_from_run_id_runs"), "runs", type_="foreignkey")
