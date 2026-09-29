@@ -1,0 +1,23 @@
+{
+  "id": "0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e02",
+  "full_name": "Nguyễn Văn An",
+  "email": "an.nguyen@example.com",
+  "roles": [
+    "engineer"
+  ],
+  "permissions": [
+    "attack_catalog.read",
+    "compute_target.read",
+    "dataset.read",
+    "dataset.upload",
+    "experiment.cancel_own",
+    "experiment.create",
+    "experiment.read",
+    "experiment.submit_review",
+    "model.read",
+    "protocol.read",
+    "report.read",
+    "slice.create"
+  ],
+  "status": "active"
+}

@@ -1,0 +1,30 @@
+{
+  "$defs": {
+    "Role": {
+      "enum": [
+        "engineer",
+        "reviewer",
+        "admin"
+      ],
+      "title": "Role",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "roles": {
+      "description": "Ít nhất 1 role; muốn chặn truy cập thì vô hiệu hóa",
+      "items": {
+        "$ref": "#/$defs/Role"
+      },
+      "minItems": 1,
+      "title": "Roles",
+      "type": "array"
+    }
+  },
+  "required": [
+    "roles"
+  ],
+  "title": "RolesUpdate",
+  "type": "object"
+}

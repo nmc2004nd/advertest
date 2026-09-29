@@ -1,0 +1,96 @@
+{
+  "$defs": {
+    "Permission": {
+      "enum": [
+        "experiment.read",
+        "experiment.create",
+        "experiment.cancel_own",
+        "experiment.submit_review",
+        "dataset.read",
+        "dataset.upload",
+        "slice.create",
+        "model.read",
+        "model.manage",
+        "attack_catalog.read",
+        "attack_catalog.manage",
+        "protocol.read",
+        "protocol.manage",
+        "review.decide",
+        "report.export",
+        "report.read",
+        "user.manage",
+        "compute_target.read",
+        "compute_target.manage",
+        "budget.manage",
+        "audit.read"
+      ],
+      "title": "Permission",
+      "type": "string"
+    },
+    "Role": {
+      "enum": [
+        "engineer",
+        "reviewer",
+        "admin"
+      ],
+      "title": "Role",
+      "type": "string"
+    },
+    "UserStatus": {
+      "enum": [
+        "pending",
+        "active",
+        "rejected",
+        "disabled"
+      ],
+      "title": "UserStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "full_name": {
+      "title": "Full Name",
+      "type": "string"
+    },
+    "email": {
+      "maxLength": 254,
+      "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+      "title": "Email",
+      "type": "string"
+    },
+    "roles": {
+      "items": {
+        "$ref": "#/$defs/Role"
+      },
+      "title": "Roles",
+      "type": "array"
+    },
+    "permissions": {
+      "description": "Hợp các permission của mọi role",
+      "items": {
+        "$ref": "#/$defs/Permission"
+      },
+      "title": "Permissions",
+      "type": "array"
+    },
+    "status": {
+      "$ref": "#/$defs/UserStatus"
+    }
+  },
+  "required": [
+    "id",
+    "full_name",
+    "email",
+    "roles",
+    "permissions",
+    "status"
+  ],
+  "title": "Me",
+  "type": "object"
+}

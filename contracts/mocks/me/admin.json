@@ -1,0 +1,24 @@
+{
+  "id": "0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e01",
+  "full_name": "Quản trị viên",
+  "email": "admin@example.com",
+  "roles": [
+    "admin"
+  ],
+  "permissions": [
+    "attack_catalog.manage",
+    "attack_catalog.read",
+    "audit.read",
+    "budget.manage",
+    "compute_target.manage",
+    "compute_target.read",
+    "dataset.read",
+    "experiment.read",
+    "model.manage",
+    "model.read",
+    "protocol.read",
+    "report.read",
+    "user.manage"
+  ],
+  "status": "active"
+}

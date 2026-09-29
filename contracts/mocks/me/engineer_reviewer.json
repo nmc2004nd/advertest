@@ -1,0 +1,27 @@
+{
+  "id": "0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e04",
+  "full_name": "Hoàng Gia Khánh",
+  "email": "khanh.hoang@example.com",
+  "roles": [
+    "engineer",
+    "reviewer"
+  ],
+  "permissions": [
+    "attack_catalog.read",
+    "compute_target.read",
+    "dataset.read",
+    "dataset.upload",
+    "experiment.cancel_own",
+    "experiment.create",
+    "experiment.read",
+    "experiment.submit_review",
+    "model.read",
+    "protocol.manage",
+    "protocol.read",
+    "report.export",
+    "report.read",
+    "review.decide",
+    "slice.create"
+  ],
+  "status": "active"
+}

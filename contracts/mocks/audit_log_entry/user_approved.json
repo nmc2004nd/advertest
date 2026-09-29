@@ -1,0 +1,22 @@
+{
+  "id": "6a1f0000-0000-4000-8000-000000000001",
+  "actor": {
+    "id": "0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e01",
+    "full_name": "Quản trị viên",
+    "email": "admin@example.com"
+  },
+  "action": "user.approved",
+  "entity_type": "user",
+  "entity_id": "0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e02",
+  "before": {
+    "status": "pending",
+    "roles": []
+  },
+  "after": {
+    "status": "active",
+    "roles": [
+      "engineer"
+    ]
+  },
+  "created_at": "2026-09-28T03:00:00Z"
+}
