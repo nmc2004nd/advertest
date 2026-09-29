@@ -21,8 +21,14 @@ EXPECTED_TABLES = {
     "datasets", "dataset_versions", "class_mappings", "slices", "attack_specs", "protocols",
     "experiments", "runs", "search_results", "failure_cases", "case_verdicts", "reviews",
     "reports", "budgets", "quotas", "ledger_entries", "audit_log",
+    # Phase 4
+    "sessions", "password_reset_tokens", "auth_events",
 }  # fmt: skip
-APPEND_ONLY = ["audit_log", "case_verdicts", "reviews", "reports", "ledger_entries"]
+APPEND_ONLY = [
+    "audit_log", "case_verdicts", "reviews", "reports", "ledger_entries", "auth_events",
+]  # fmt: skip
+# Phase 4: thu hồi phiên, đánh dấu token đã dùng bằng UPDATE; không bao giờ xóa.
+NO_DELETE_AUTH = ["sessions", "password_reset_tokens"]
 
 # Enum Postgres ↔ enum contract (giá trị trong migration được ghi cứng, phải khớp contract).
 PG_ENUMS = {
@@ -38,6 +44,7 @@ PG_ENUMS = {
     "review_decision": enums.ReviewDecision,
     "case_severity": enums.CaseSeverity,
     "protocol_status": enums.ProtocolStatus,
+    "auth_event_kind": m.AuthEventKind,
 }
 
 SHA = "a" * 64
@@ -233,3 +240,9 @@ def test_independent_review_allowed(app_conn: Connection, sample: Sample) -> Non
         ),
         {"e": sample.experiment, "r": sample.reviewer},
     )
+
+
+@pytest.mark.parametrize("table", NO_DELETE_AUTH)
+def test_app_cannot_delete_sessions_or_reset_tokens(app_conn: Connection, table: str) -> None:
+    assert _denied(app_conn, f"DELETE FROM {table}")
+    assert _denied(app_conn, f"TRUNCATE {table}")
