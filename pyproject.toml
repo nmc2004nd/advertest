@@ -26,6 +26,7 @@ dependencies = [
 [project.scripts]
 advertest = "ml_core.cli:app"
 advertest-worker = "advertest_worker.cli:app"
+advertest-admin = "backend.admin_cli.cli:app"
 
 # torch và torchvision chọn theo máy: `uv sync --extra cpu` (dev, CI) hoặc `--extra cuda` (image Docker).
 [project.optional-dependencies]
