@@ -24,6 +24,8 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 - Kickoff: sửa test Phase 0; IP qua `TRUSTED_PROXIES`; sai mật khẩu hiện tại → `422 invalid_request`; action `user.password_reset`, actor là chính người dùng, `AuditLogEntry.actor` dạng object; phiên 12 giờ không ghi nhớ; bổ sung độ phủ (email chữ thường, `409` cho chuyển trạng thái sai, `APP_BASE_URL`, test hợp quyền...).
 - Group 0: `x-permission: authenticated` cho route chỉ cần đăng nhập; `RolesUpdate` ít nhất 1 role; test Phase 0 chuyển tiếp `401|501`.
 - Người duyệt (agent) tự chọn: ánh xạ `x-permission` của endpoint khung (`/reviews` → `review.decide`, `/budget` → `budget.manage`, `/slices` → `dataset.read`, `/failure-cases` → `experiment.read`); `Email` tự kiểm tra hình dạng thay vì `EmailStr` (tránh dependency `email-validator`).
+#### Review
+- Review do chính agent viết nhánh (không độc lập): không có phát hiện chặn; ghi vào `requirements.md` chi tiết phản hồi của endpoint (login trả `Me`, `202`/`204`, `limit` 50/100, `since`/`until`), sửa câu task 1a trong `plan.md`. Còn theo dõi: job CI `e2e` chưa chạy trên GitHub; Group 7 siết lại test Phase 0.
 #### Số liệu
 - `make test-e2e`: 6 test (2 kịch bản × 3 viewport) pass trong 3.7 giây.
 

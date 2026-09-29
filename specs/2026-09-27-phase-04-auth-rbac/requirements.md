@@ -109,6 +109,8 @@ Người dùng có nhiều role có hợp các permission. Các luật phụ thu
 | `POST /admin/users/{id}/reset-link` | `user.manage` | Tạo link đặt lại mật khẩu `{APP_BASE_URL}/reset-password/{token}`, hết hạn sau 24 giờ |
 | `GET /audit-log` | `audit.read` | Lọc theo actor, action, entity, khoảng thời gian; phân trang |
 
+Chi tiết phản hồi (chốt ở review Group 0): `POST /auth/login` thành công trả `Me`; `request-access` trả `202` không có body; `logout`, `password`, `password-reset` trả `204`; các endpoint `/admin/users/{id}/*` trả `UserAdminView` sau thay đổi, `reset-link` trả `PasswordResetLink`. Phân trang theo cursor: `limit` mặc định 50, tối đa 100; `next_cursor = null` khi hết. `/audit-log` lọc bằng `actor_id`, `action`, `entity_type`, `entity_id`, `since` (gồm mốc), `until` (không gồm mốc).
+
 ### Phiên và bảo mật
 - Cookie phiên: `httpOnly`, `SameSite=Lax`, `Secure` khi `COOKIE_SECURE=true`, hết hạn tuyệt đối sau 12 giờ; không có "ghi nhớ đăng nhập".
 - Mỗi request đã xác thực đọc user, trạng thái và role **từ DB**. User không còn `active` → phiên bị từ chối (`401`).

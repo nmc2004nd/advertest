@@ -9,7 +9,7 @@
 ## Group 0 — Constitution và contract `[người duyệt]`
 
 1. Cập nhật `tech-stack.md` mục 4 (phiên phía server) và mục 5 (`react-hook-form`, `zod`), ghi lý do.
-1a. Sửa `tech-stack.md` mục 4.1 (`require_role` → `require_permission`) và mục Phase 4 của `roadmap.md` (bỏ "JWT cookie", `require_role`); mô tả cookie trong `backend/app/api/security.py` do backend sửa ở Group 1.
+1a. Sửa `tech-stack.md` mục 4.1 (`require_role` → `require_permission`) và mục Phase 4 của `roadmap.md` (bỏ "JWT cookie", `require_role`); mô tả cookie trong `backend/app/api/security.py` (đã sửa luôn ở Group 0).
 2. Thêm `Permission`, `ROLE_PERMISSIONS`, `ErrorCode` vào contract; sinh sang TypeScript.
 3. Thêm các schema trong `requirements.md` và mock tương ứng (gồm mock `Me` cho từng tổ hợp role, danh sách `UserAdminView` đủ các trạng thái, `AuditLogEntry`).
 4. Cập nhật OpenAPI: endpoint `/auth/*`, `/admin/users/*`, `/audit-log`; khai báo permission của mọi endpoint hiện có (dùng extension `x-permission`).
