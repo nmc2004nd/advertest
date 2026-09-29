@@ -76,7 +76,7 @@ Người dùng có nhiều role có hợp các permission. Các luật phụ thu
 | `PasswordChange` | `current_password`, `new_password` |
 | `PasswordResetLink` | `url`, `expires_at` |
 | `PasswordResetConsume` | `token`, `new_password` |
-| `AuditLogEntry` | `id`, `actor`, `action`, `entity_type`, `entity_id`, `before`, `after`, `created_at` |
+| `AuditLogEntry` | `id`, `actor` (`{id, full_name, email}`, hoặc `null` với hành động của hệ thống), `action`, `entity_type`, `entity_id`, `before`, `after`, `created_at` |
 | `Page[T]` | `items`, `next_cursor` |
 
 ### Thay đổi DB
@@ -94,11 +94,11 @@ Người dùng có nhiều role có hợp các permission. Các luật phụ thu
 
 | Endpoint | Quyền | Hành vi |
 |---|---|---|
-| `POST /auth/request-access` | Công khai | Tạo user `pending`. Email đã tồn tại → vẫn trả `202` cùng nội dung, không tạo thêm |
+| `POST /auth/request-access` | Công khai | Tạo user `pending`. Email được chuyển về chữ thường trước khi lưu và so sánh (cả khi đăng nhập). Email đã tồn tại (không phân biệt hoa thường) → vẫn trả `202` cùng nội dung, không tạo thêm |
 | `POST /auth/login` | Công khai | Thành công → tạo phiên, đặt cookie. Sai → `401 invalid_credentials` (cùng thông điệp cho email không tồn tại). Đúng mật khẩu nhưng tài khoản chưa `active` → `403` với `account_pending` / `account_rejected` / `account_disabled`, không tạo phiên |
 | `POST /auth/logout` | Đã đăng nhập | Thu hồi phiên hiện tại, xóa cookie |
 | `GET /auth/me` | Đã đăng nhập | Trả `Me` |
-| `POST /auth/password` | Đã đăng nhập | Đổi mật khẩu; thu hồi mọi phiên khác của người dùng |
+| `POST /auth/password` | Đã đăng nhập | Đổi mật khẩu; thu hồi mọi phiên khác của người dùng. Sai `current_password` → `422 invalid_request` (không dùng `401` để frontend không chuyển về `/login`) |
 | `POST /auth/password-reset` | Công khai | Dùng token một lần; đặt mật khẩu mới; thu hồi mọi phiên |
 | `GET /admin/users?status=` | `user.manage` | Danh sách phân trang |
 | `POST /admin/users/{id}/approve` | `user.manage` | `pending` → `active`, gán role |
@@ -106,27 +106,31 @@ Người dùng có nhiều role có hợp các permission. Các luật phụ thu
 | `PUT /admin/users/{id}/roles` | `user.manage` | Đổi role; có hiệu lực ngay từ request tiếp theo |
 | `POST /admin/users/{id}/disable` | `user.manage` | `active` → `disabled`; thu hồi mọi phiên |
 | `POST /admin/users/{id}/enable` | `user.manage` | `disabled` → `active` |
-| `POST /admin/users/{id}/reset-link` | `user.manage` | Tạo link đặt lại mật khẩu, hết hạn sau 24 giờ |
+| `POST /admin/users/{id}/reset-link` | `user.manage` | Tạo link đặt lại mật khẩu `{APP_BASE_URL}/reset-password/{token}`, hết hạn sau 24 giờ |
 | `GET /audit-log` | `audit.read` | Lọc theo actor, action, entity, khoảng thời gian; phân trang |
 
 ### Phiên và bảo mật
-- Cookie phiên: `httpOnly`, `SameSite=Lax`, `Secure` khi `COOKIE_SECURE=true`, hết hạn tuyệt đối sau 12 giờ.
+- Cookie phiên: `httpOnly`, `SameSite=Lax`, `Secure` khi `COOKIE_SECURE=true`, hết hạn tuyệt đối sau 12 giờ; không có "ghi nhớ đăng nhập".
 - Mỗi request đã xác thực đọc user, trạng thái và role **từ DB**. User không còn `active` → phiên bị từ chối (`401`).
 - CSRF: server đặt cookie `csrf_token` (không httpOnly); mọi request thay đổi dữ liệu (`POST`, `PUT`, `PATCH`, `DELETE`) có cookie phiên phải gửi header `X-CSRF-Token` khớp → sai thì `403 csrf_failed`. Endpoint `/internal/worker` (bearer token) không áp dụng.
-- Mật khẩu: argon2id; tối thiểu 10 ký tự, không trùng email.
+- Mật khẩu: argon2id; tối thiểu 10 ký tự, không trùng email. Áp dụng cho yêu cầu truy cập, đổi mật khẩu và đặt lại mật khẩu.
 - Giới hạn đăng nhập sai: quá 5 lần trong 15 phút cho cùng email hoặc cùng IP → `429 rate_limited`.
+- IP của client: chỉ lấy từ `X-Forwarded-For` khi kết nối đến từ proxy khai báo trong biến `TRUSTED_PROXIES` (uvicorn `--forwarded-allow-ips`); nếu không thì dùng địa chỉ kết nối. *Lý do:* API đứng sau proxy `/api`; tin mọi header thì bị giả mạo, không tin header nào thì mọi người dùng chung một IP.
+- Cookie `csrf_token` (không httpOnly) được đặt khi đăng nhập thành công và xóa khi đăng xuất.
 - Mọi lỗi trả body `{"error": {"code": ErrorCode, "message": ...}}`.
 
 ### Bảo vệ endpoint
 - Endpoint công khai: `/health`, `/auth/request-access`, `/auth/login`, `/auth/password-reset`, `/verify/{report_id}`.
 - Mọi endpoint khác (trừ `/internal/worker`) yêu cầu phiên hợp lệ và khai báo permission bằng dependency `require_permission(...)`. Thiếu phiên → `401`; thiếu permission → `403`. Kiểm tra này chạy **trước** khi endpoint trả `501`.
+- Placeholder `GET /users` của Phase 0 bị bỏ; quản lý người dùng nằm ở `/admin/users`.
 
 ### Luật quản trị
 - Duyệt phải gán ít nhất một role.
 - Admin không vô hiệu hóa được chính mình.
 - Không thể bỏ role admin hoặc vô hiệu hóa admin `active` cuối cùng.
-- Mỗi thao tác quản trị ghi `audit_log` với `before` và `after` (trạng thái, role): `user.approved`, `user.rejected`, `user.roles_changed`, `user.disabled`, `user.enabled`, `user.reset_link_created`. Người dùng tự đổi mật khẩu ghi `user.password_changed` (không ghi mật khẩu).
-- Yêu cầu truy cập ghi `user.access_requested`.
+- Chuyển trạng thái không hợp lệ (approve/reject user không `pending`, disable user không `active`, enable user không `disabled`) → `409 conflict`.
+- Mỗi thao tác quản trị ghi `audit_log` với `before` và `after` (trạng thái, role): `user.approved`, `user.rejected`, `user.roles_changed`, `user.disabled`, `user.enabled`, `user.reset_link_created`. Người dùng tự đổi mật khẩu ghi `user.password_changed`; dùng link đặt lại ghi `user.password_reset` (không ghi mật khẩu hay token).
+- Yêu cầu truy cập ghi `user.access_requested`. Actor của `user.access_requested`, `user.password_changed`, `user.password_reset` là chính người dùng đó.
 - Đăng nhập thành công/thất bại và đăng xuất ghi vào `auth_events`, không ghi vào `audit_log`.
 
 ### Frontend
@@ -167,6 +171,7 @@ Người dùng có nhiều role có hợp các permission. Các luật phụ thu
 - **Mọi người dùng `active` đọc được mọi experiment; chỉ chủ sở hữu được sửa hoặc hủy.** *Lý do:* tổ chức nhỏ, minh bạch có lợi cho kiểm toán, và reviewer cần đọc mọi experiment.
 - **Không tiết lộ email đã tồn tại.** *Lý do:* tránh dò danh sách tài khoản.
 - **Link đặt lại mật khẩu do admin tạo.** *Lý do:* chưa có email ở phase này; admin đã là người duyệt tài khoản nên việc xác minh danh tính khi cấp lại mật khẩu cũng thuộc về admin.
+- **Phiên 12 giờ tuyệt đối, không có "ghi nhớ đăng nhập".** *Lý do:* công cụ nội bộ, ưu tiên đơn giản và an toàn; có thể xem lại ở Phase 11.
 - **Sự kiện đăng nhập tách khỏi `audit_log`.** *Lý do:* số lượng lớn và khác mục đích; `audit_log` dành cho thao tác thay đổi quyền và dữ liệu.
 
 ## Context
@@ -178,4 +183,4 @@ Người dùng có nhiều role có hợp các permission. Các luật phụ thu
 
 ## Open Questions
 
-- [ ] Thời hạn phiên 12 giờ có phù hợp không, hay cần "ghi nhớ đăng nhập" dài hơn.
+- [x] Thời hạn phiên 12 giờ có phù hợp không, hay cần "ghi nhớ đăng nhập" dài hơn. → Giữ 12 giờ, không ghi nhớ (2026-09-29).

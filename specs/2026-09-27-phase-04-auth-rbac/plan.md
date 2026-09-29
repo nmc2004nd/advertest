@@ -1,7 +1,7 @@
 # Plan: Phase 4 — Xác thực và phân quyền
 
 > Phân chia thư mục:
-> `backend/app/auth/`, `backend/app/admin/`, `backend/app/audit/` (agent `backend`); `frontend/src/` (agent `frontend`).
+> `backend/app/auth/`, `backend/app/admin/`, `backend/app/audit/`, `backend/app/api/` (gắn dependency, lỗi), `backend/migrations/`, `docker/`, `.env.example` (`TRUSTED_PROXIES`, `APP_BASE_URL`, `COOKIE_SECURE`) (agent `backend`); `frontend/src/`, `frontend/package.json` (`react-hook-form`, `zod`, `@playwright/test`), `frontend/playwright.config.ts` (agent `frontend`).
 >
 > Thứ tự: Group 0 → (Group 1–3 của backend song song với Group 4–6 của frontend) → Group 7.
 > Frontend làm với mock (`VITE_USE_MOCKS=true`) cho đến khi backend merge, sau đó chuyển sang API thật.
@@ -9,9 +9,12 @@
 ## Group 0 — Constitution và contract `[người duyệt]`
 
 1. Cập nhật `tech-stack.md` mục 4 (phiên phía server) và mục 5 (`react-hook-form`, `zod`), ghi lý do.
+1a. Sửa `tech-stack.md` mục 4.1 (`require_role` → `require_permission`) và mục Phase 4 của `roadmap.md` (bỏ "JWT cookie", `require_role`); mô tả cookie trong `backend/app/api/security.py` do backend sửa ở Group 1.
 2. Thêm `Permission`, `ROLE_PERMISSIONS`, `ErrorCode` vào contract; sinh sang TypeScript.
 3. Thêm các schema trong `requirements.md` và mock tương ứng (gồm mock `Me` cho từng tổ hợp role, danh sách `UserAdminView` đủ các trạng thái, `AuditLogEntry`).
 4. Cập nhật OpenAPI: endpoint `/auth/*`, `/admin/users/*`, `/audit-log`; khai báo permission của mọi endpoint hiện có (dùng extension `x-permission`).
+4a. Bỏ placeholder `GET /users` khỏi OpenAPI. Sửa `tests/acceptance/phase_00/test_api.py`: bỏ nhóm `/users`, thêm `/admin`; kiểm tra `501` bằng phiên hợp lệ, chỉ cho các nhóm còn là khung (không gồm `/auth`, `/admin`, `/audit-log`).
+4b. Dựng job CI `e2e` (Postgres, API có seed admin, frontend build, Playwright 3 viewport) với một kịch bản khói, để Group 4–6 chạy thật sớm.
 5. `make contracts`; ghi `CHANGELOG.md`.
 
 ## Group 1 — Backend: phiên và xác thực `[agent: backend]`
@@ -20,8 +23,8 @@
 7. Băm mật khẩu argon2id; kiểm tra chính sách mật khẩu.
 8. Tạo, tra cứu, thu hồi phiên (lưu sha256 token); cookie theo đúng cờ trong `requirements.md`.
 9. Middleware CSRF (double-submit) cho request thay đổi dữ liệu có cookie phiên.
-10. Giới hạn đăng nhập sai theo email và IP dựa trên `auth_events`.
-11. Endpoint `/auth/request-access`, `/auth/login`, `/auth/logout`, `/auth/me`, `/auth/password`, `/auth/password-reset`.
+10. Giới hạn đăng nhập sai theo email và IP dựa trên `auth_events`; IP lấy theo `TRUSTED_PROXIES` (uvicorn `--forwarded-allow-ips`, cấu hình trong compose).
+11. Endpoint `/auth/request-access`, `/auth/login`, `/auth/logout`, `/auth/me`, `/auth/password` (sai mật khẩu hiện tại → `422 invalid_request`), `/auth/password-reset`; email chuyển về chữ thường.
 12. Định dạng lỗi thống nhất theo `ErrorCode`.
 
 ## Group 2 — Backend: phân quyền `[agent: backend]`
@@ -33,8 +36,8 @@
 ## Group 3 — Backend: quản trị và audit `[agent: backend]`
 
 16. Service quản lý người dùng: duyệt, từ chối, đổi role, vô hiệu hóa, kích hoạt, tạo link đặt lại; luật admin cuối cùng và không tự vô hiệu hóa.
-17. Ghi `audit_log` với `before`/`after` cho mọi thao tác trong `requirements.md`.
-18. Endpoint `/admin/users/*` và `/audit-log` (lọc, phân trang theo cursor).
+17. Ghi `audit_log` với `before`/`after` cho mọi thao tác trong `requirements.md` (gồm `user.password_reset`; actor theo luật trong requirements).
+18. Endpoint `/admin/users/*` và `/audit-log` (lọc, phân trang theo cursor; `actor` trả dạng object).
 
 ## Group 4 — Frontend: nền tảng `[agent: frontend]`
 

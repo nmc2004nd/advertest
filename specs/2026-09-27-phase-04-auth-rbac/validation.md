@@ -14,15 +14,19 @@
 - [ ] Mọi route không công khai có khai báo `x-permission`.
 - [ ] Ứng dụng từ chối khởi động nếu có route không công khai thiếu khai báo permission (test bằng một route giả).
 - [ ] Với từng role đơn lẻ: gọi một route đại diện cho mỗi permission; được phép ↔ ✓ trong ma trận, không được phép → `403 forbidden`.
+- [ ] Người dùng nhiều role có hợp các permission; `GET /auth/me` trả `permissions` bằng đúng hợp các ô trong ma trận.
 
 ### Yêu cầu truy cập và đăng nhập — `test_auth.py`
 - [ ] Yêu cầu truy cập tạo user `pending`; mật khẩu lưu dạng argon2id, không có bản gốc trong DB.
 - [ ] Yêu cầu truy cập với email đã tồn tại → `202`, cùng nội dung phản hồi, không tạo user mới.
 - [ ] Mật khẩu ngắn hơn 10 ký tự hoặc trùng email → `422 validation_error`.
+- [ ] Chính sách mật khẩu áp dụng cho `/auth/password` và `/auth/password-reset` (`422 validation_error`).
+- [ ] Email chữ hoa/thường: yêu cầu truy cập `A@x.com` rồi `a@x.com` → không tạo user thứ hai; đăng nhập bằng email khác hoa thường thành công.
 - [ ] Đăng nhập user `pending` / `rejected` / `disabled` với đúng mật khẩu → `403` với đúng mã lỗi, **không** có cookie phiên.
 - [ ] Sai mật khẩu và email không tồn tại → cùng `401 invalid_credentials`, cùng thông điệp.
 - [ ] Sai 5 lần trong 15 phút → lần thứ 6 trả `429 rate_limited` kể cả khi mật khẩu đúng.
-- [ ] Đăng nhập thành công: cookie phiên có `HttpOnly`, `SameSite=Lax`; có `Secure` khi `COOKIE_SECURE=true`; DB chỉ lưu sha256 của token.
+- [ ] `X-Forwarded-For` từ nguồn ngoài `TRUSTED_PROXIES` bị bỏ qua; từ proxy tin cậy thì giới hạn theo IP gốc (hai IP gốc khác nhau không khóa lẫn nhau).
+- [ ] Đăng nhập thành công: cookie phiên có `HttpOnly`, `SameSite=Lax`; có `Secure` khi `COOKIE_SECURE=true`; DB chỉ lưu sha256 của token; có cookie `csrf_token` không `HttpOnly`; đăng xuất xóa cả hai cookie.
 - [ ] Phiên quá 12 giờ → `401`.
 - [ ] Đăng xuất rồi dùng lại cookie cũ → `401`.
 
@@ -36,6 +40,7 @@
 - [ ] Admin bỏ role `engineer` của người dùng đang đăng nhập → request tiếp theo của người đó với permission `experiment.create` bị `403` (cùng phiên).
 - [ ] Admin vô hiệu hóa người dùng đang đăng nhập → request tiếp theo `401`; mọi phiên của người đó bị thu hồi.
 - [ ] Đổi mật khẩu → các phiên khác của người dùng bị thu hồi, phiên hiện tại vẫn dùng được.
+- [ ] Đổi mật khẩu với `current_password` sai → `422 invalid_request`; phiên hiện tại vẫn dùng được.
 
 ### Quản trị — `test_admin.py`
 - [ ] Duyệt không kèm role → `422`.
@@ -45,9 +50,13 @@
 - [ ] Bỏ role admin hoặc vô hiệu hóa admin `active` cuối cùng → `409 conflict`.
 - [ ] Link đặt lại: dùng được một lần; lần hai → lỗi; hết hạn sau 24 giờ; sau khi dùng mọi phiên cũ bị thu hồi.
 - [ ] Người không có `user.manage` gọi `/admin/users/*` → `403`.
+- [ ] Chuyển trạng thái không hợp lệ (approve user `active`, enable user `active`, disable user `disabled`) → `409 conflict`.
+- [ ] `GET /admin/users?status=pending` chỉ trả user `pending`; phân trang không trùng, không sót.
+- [ ] Link đặt lại bắt đầu bằng `APP_BASE_URL` + `/reset-password/`.
 
 ### Audit — `test_audit_phase04.py`
-- [ ] Mỗi thao tác `user.approved`, `user.rejected`, `user.roles_changed`, `user.disabled`, `user.enabled`, `user.reset_link_created`, `user.password_changed`, `user.access_requested` tạo đúng một dòng `audit_log` với actor, entity, `before`, `after` đúng.
+- [ ] Mỗi thao tác `user.approved`, `user.rejected`, `user.roles_changed`, `user.disabled`, `user.enabled`, `user.reset_link_created`, `user.password_changed`, `user.password_reset`, `user.access_requested` tạo đúng một dòng `audit_log` với actor, entity, `before`, `after` đúng; actor của `access_requested`, `password_changed`, `password_reset` là chính người dùng đó.
+- [ ] `/audit-log` trả `actor` dạng `{id, full_name, email}`, hoặc `null` với hành động hệ thống.
 - [ ] Không dòng `audit_log` nào chứa mật khẩu, hash mật khẩu hoặc token.
 - [ ] Đăng nhập, đăng nhập sai, đăng xuất ghi vào `auth_events`, không ghi vào `audit_log`.
 - [ ] `/audit-log` lọc đúng theo actor, action, khoảng thời gian; phân trang không trùng, không sót.
@@ -66,6 +75,8 @@
 - [ ] Engineer truy cập trực tiếp `/admin/users` → chuyển tới `/forbidden`.
 - [ ] Hết phiên (xóa cookie) → thao tác tiếp theo đưa về `/login`; đăng nhập xong quay lại đúng trang trước.
 - [ ] Ở viewport 390px: thanh tab dưới đáy hiển thị; không có trang nào cuộn ngang; hộp xác nhận hiện dạng bottom sheet.
+- [ ] Ở viewport 820px: điều hướng dạng cột icon.
+- [ ] Admin đăng nhập thấy khối "tài khoản chờ duyệt" trên `/home` với đúng số lượng.
 - [ ] Ở viewport 1440px: sidebar hiển thị; trang người dùng và audit log hiển thị dạng bảng.
 - [ ] Điều hướng toàn bộ form đăng nhập và yêu cầu truy cập bằng bàn phím được.
 
