@@ -144,3 +144,56 @@ jobs:
       - run: make fixtures
       - run: uv run --no-sync pytest -m db backend tests/acceptance
       - run: make test-acceptance
+
+  e2e:
+    name: E2E Playwright (3 viewport, backend thật)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: pg-ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      # Mật khẩu chỉ dùng cho Postgres tạm của CI, không phải bí mật.
+      ADVERTEST_OWNER_PASSWORD: owner-ci
+      ADVERTEST_APP_PASSWORD: app-ci
+      ADVERTEST_TEST_OWNER_URL: postgresql+psycopg://advertest_owner:owner-ci@localhost:5432/advertest
+      ADVERTEST_TEST_APP_URL: postgresql+psycopg://advertest_app:app-ci@localhost:5432/advertest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Tạo DB role
+        env:
+          PGHOST: localhost
+          PGPASSWORD: pg-ci
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+        run: bash docker/postgres/init/01-roles.sh
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - uses: pnpm/action-setup@v6
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: uv sync --extra cpu
+      - run: pnpm --dir frontend install --frozen-lockfile
+      - run: pnpm --dir frontend exec playwright install --with-deps chromium
+      - run: scripts/e2e.sh
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report
+          retention-days: 7
