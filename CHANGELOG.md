@@ -6,7 +6,27 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 3 — Worker và máy local
 
-**Trạng thái:** đang làm. Group 0, 1 đã merge.
+**Trạng thái:** đang làm. Group 0, 1, 2 đã merge.
+
+### Phase 3 — Group 2 (backend) — 2026-09-29
+#### Thêm
+- Migration `0002`: `protocol_status` thêm `dev`, seed `dev-open` (`created_by` null chỉ với `status = dev`); `experiments.lease_id`, `processing_seconds_used`, `inference_params`, `failure_cases_per_run`; `runs.fingerprint` nullable, `cached_from_run_id`, `checkpoint_key`, `checkpoint_batch_index`, `ordinal`; `failure_cases` theo `FailureCaseRecord` (bỏ `artifact_uri`, `thumbnail_uri`, `details`; thêm `fingerprint`, `rank`, `lost_objects`, `new_false_positives`, `detections`, `artifacts`); `slices.slice_sha256`; `cost_profiles.environment`. Upgrade/downgrade hai chiều.
+- `backend/app/services/`: `compute_targets` (token `secrets`, DB lưu sha256, xoay token, xác thực), `audit` (`require_admin`, `record`), `registry` (`import_local` từ `LocalStore` vào DB và MinIO, id là `content_id`, chỉ ảnh thuộc slice, chạy lại an toàn), `experiments` (`submit`, `cancel`, `sweep_cancelled`), `leasing` (`lease` `SKIP LOCKED`, `heartbeat`, `directive`), `runs` (`start` có cache toàn hệ thống, `progress`, `complete` kiểm tra artifact trong MinIO, `record_cost_profile`), `estimate`.
+- `backend/app/storage.py`: client S3 (boto3) của backend, `Buckets`, bố cục khóa MinIO.
+- Test `db` (Postgres và MinIO thật): model khớp migration (trước đây chưa có test này), `dev-open`, compute target, registry, lease (kể cả hai worker đồng thời), cache, giới hạn thời gian, hủy, ước lượng, audit.
+#### Quyết định (người dùng chốt hoặc ghi theo review; đã ghi vào `requirements.md` Phase 3)
+- `dev-open` không có người tạo, id cố định (mục Protocol phát triển).
+- Cost profile giữ lịch sử, profile mới nhất thắng (Calibration và ước lượng).
+- Hủy: chờ worker báo nếu lease còn hạn; lease hết hạn thì dọn ngay hoặc ở lần `lease` kế tiếp (Trạng thái).
+- Dạng `manifest_uri` và khóa artifact (Bố cục lưu trữ trong MinIO); `runs.ordinal`, `SKIP LOCKED`, thứ tự khóa (API nội bộ); `gpu_seconds` lấy từ worker, giới hạn tính theo tổng API cộng dồn (Trạng thái); kiểm tra admin ở CLI (CLI quản trị).
+#### Review
+- Review (do chính agent viết nhánh, không độc lập): 3 điểm phải sửa trước khi merge, đã sửa kèm test: run kẹt ở `running` khi hủy rồi worker chết; thứ tự khóa run/experiment có thể gây deadlock; khóa artifact có `..` gây lỗi 500. Test thứ tự khóa và test khóa `..` đã chạy lại trên code cũ và fail; test dọn run kẹt chưa chạy lại trên code cũ. Trong lúc viết test cũng phát hiện và sửa: `lease` khóa dòng compute target làm worker cùng target chờ nhau.
+- `make check` pass (546 test Python, 153 test nghiệm thu, 36 Vitest); `make test-db` 67 test pass.
+#### Tồn đọng
+- Group 3: dựng `WorkerJobBundle`, presigned URL, đổi lỗi service sang HTTP (404/403/409/422).
+- Target `local-dev` do seed tạo không có token: dùng `rotate-token` thay vì `create` (Group 5, `validation.md` Manual Checks).
+- User MinIO riêng cho API (tồn đọng Phase 0) chưa có task.
+- Migration 0002 thêm cột NOT NULL vào `failure_cases`: chỉ chạy được khi bảng rỗng (đúng với mọi môi trường trước Phase 3).
 
 ### Phase 3 — Group 1 (ml-core) — 2026-09-29
 #### Thêm
