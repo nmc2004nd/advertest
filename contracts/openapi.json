@@ -1161,6 +1161,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "Không tồn tại",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         },
         "x-permission": "model.read"
@@ -1304,6 +1314,16 @@
           },
           "422": {
             "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại",
             "content": {
               "application/json": {
                 "schema": {
@@ -1736,6 +1756,7 @@
           "compute-targets"
         ],
         "summary": "List Compute Targets",
+        "description": "`online`: heartbeat trong 60 giây gần nhất; `queue_length`: số experiment `queued`.",
         "operationId": "list_compute_targets_compute_targets_get",
         "responses": {
           "200": {

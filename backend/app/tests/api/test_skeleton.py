@@ -39,18 +39,14 @@ WORKER_ENDPOINTS = {
 RUN_ID = "00000000-0000-5000-8000-000000000001"
 # Endpoint xác thực công khai (requirements.md Phase 4, mục Bảo vệ endpoint).
 PUBLIC_AUTH_PATHS = {"/auth/request-access", "/auth/login", "/auth/password-reset"}
+# Phase 5 Group 1 cài đặt API đọc tài nguyên (/models, /datasets, /dataset-versions, /slices,
+# /class-mappings, /attack-specs, GET /protocols, /compute-targets): test với DB ở
+# tests/db/test_catalog_api.py.
 SAMPLE_CALLS = [
-    ("get", "/models"),
-    ("get", "/datasets"),
-    ("get", "/slices"),
-    ("get", "/attack-specs"),
+    ("post", "/protocols"),
     ("get", "/failure-cases/" + RUN_ID),
     ("get", "/runs/" + RUN_ID),
-    # Phase 5 Group 0: khung cho wizard, experiment, run, failure case, ảnh.
-    ("get", "/models/" + RUN_ID),
-    ("get", "/dataset-versions/" + RUN_ID),
-    ("get", "/class-mappings"),
-    ("get", "/protocols"),
+    # Phase 5 Group 0: khung cho experiment, run, failure case, ảnh.
     ("get", "/experiments"),
     ("post", "/experiments"),
     ("post", "/experiments/estimate"),
@@ -63,7 +59,6 @@ SAMPLE_CALLS = [
     ("get", "/artifacts/token-mau"),
     ("get", "/reviews"),
     ("get", "/reports/" + RUN_ID),
-    ("get", "/compute-targets"),
     ("get", "/budget"),
     ("get", "/verify/" + RUN_ID),
     # Endpoint worker còn là khung (Phase 7).
@@ -72,6 +67,7 @@ SAMPLE_CALLS = [
 # Endpoint có body bắt buộc: gửi body hợp lệ lấy từ contracts/mocks.
 MOCKS = Path(__file__).resolve().parents[4] / "contracts" / "mocks"
 BODIES = {
+    "/protocols": "protocol_body/default.json",
     "/experiments": "experiment_create/fgsm_pgd.json",
     "/experiments/estimate": "experiment_create/fgsm_pgd.json",
     "/internal/worker/heartbeat": "heartbeat_request/default.json",

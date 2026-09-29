@@ -392,7 +392,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Compute Targets */
+        /**
+         * List Compute Targets
+         * @description `online`: heartbeat trong 60 giây gần nhất; `queue_length`: số experiment `queued`.
+         */
         get: operations["list_compute_targets_compute_targets_get"];
         put?: never;
         post?: never;
@@ -3990,6 +3993,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Không tồn tại */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ) */
             422: {
                 headers: {
@@ -4097,6 +4109,15 @@ export interface operations {
             };
             /** @description Thiếu permission */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Không tồn tại */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

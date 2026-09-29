@@ -110,8 +110,10 @@ def upgraded(alembic_config: Config, owner_engine: Engine) -> Iterator[dict[str,
         completed = _insert_experiment(conn, chain, "completed")
         spec: uuid.UUID = conn.execute(
             text(
-                "INSERT INTO attack_specs (name, version, kind, access, spec, spec_sha256)"
-                " VALUES (:n, 1, 'attack', 'white_box', '{}'::jsonb, :s) RETURNING id"
+                # is_active = false: spec rỗng không được lọt vào GET /attack-specs của test khác.
+                "INSERT INTO attack_specs (name, version, kind, access, spec, spec_sha256,"
+                " is_active) VALUES (:n, 1, 'attack', 'white_box', '{}'::jsonb, :s, false)"
+                " RETURNING id"
             ),
             {"n": f"m4-{tag}", "s": _sha()},
         ).scalar_one()
