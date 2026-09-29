@@ -2,7 +2,8 @@
 xác thực, quản trị người dùng và audit log của Phase 4 (khung, trả 501 cho tới Group 1-3).
 
 Model request/response chỉ dùng schema đã có trong `advertest_contracts`; schema còn lại
-do phase tương ứng thêm vào contract (Phase 5-8).
+do phase tương ứng thêm vào contract (Phase 6-8). Phase 5 Group 0 thêm khung cho các endpoint
+đọc tài nguyên, experiment, run, failure case và ảnh (requirements.md Phase 5, Behaviour).
 
 Mọi route cần phiên khai quyền bằng `**guard(p)` (requirements.md Phase 4, mục Bảo vệ endpoint):
 dependency kiểm tra phiên và permission chạy trước thân hàm (nên trước cả `501`), và `x-permission`
@@ -12,28 +13,41 @@ trong OpenAPI là một `Permission` của ma trận hoặc `authenticated` (ch�
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, Response, Security, status
 
-from advertest_contracts.enums import ErrorCode, UserStatus
+from advertest_contracts.enums import ErrorCode, ExperimentStatus, UserStatus
 from advertest_contracts.models import (
     AccessRequest,
     ApproveRequest,
     AttackSpec,
     AuditLogPage,
+    ClassMappingSummary,
+    ComputeTargetPublic,
+    DatasetSummary,
+    DatasetVersionSummary,
     ErrorResponse,
-    ExperimentConfig,
+    EstimateResponse,
+    ExperimentClone,
+    ExperimentCreate,
+    ExperimentDetail,
+    ExperimentPage,
+    FailureCaseView,
     LoginRequest,
+    Manifest,
     Me,
+    ModelSummary,
     PasswordChange,
     PasswordResetConsume,
     PasswordResetLink,
     ProtocolBody,
+    ProtocolSummary,
     RejectRequest,
     RolesUpdate,
-    RunResult,
+    RunView,
+    SliceSummary,
     UserAdminPage,
     UserAdminView,
 )
@@ -44,6 +58,7 @@ from backend.app.api.deps import SessionFactory, get_clock, get_sessionmaker, tr
 from backend.app.api.errors import (
     AUTH_REQUIRED_RESPONSES,
     NOT_IMPLEMENTED_RESPONSE,
+    VALIDATION_ERROR_RESPONSE,
     ApiError,
     not_implemented,
 )
@@ -79,7 +94,9 @@ def client_ip(request: Request) -> str | None:
 
 
 # Endpoint công khai của xác thực: không cần phiên.
-auth_public_router = APIRouter(prefix="/auth", tags=["auth"], responses=NOT_IMPLEMENTED_RESPONSE)
+auth_public_router = APIRouter(
+    prefix="/auth", tags=["auth"], responses=NOT_IMPLEMENTED_RESPONSE | VALIDATION_ERROR_RESPONSE
+)
 
 
 @auth_public_router.post("/request-access", status_code=status.HTTP_202_ACCEPTED)
@@ -133,7 +150,7 @@ def consume_password_reset(body: PasswordResetConsume, factory: Sessions, clock:
 
 router = APIRouter(
     dependencies=[Security(user_session)],
-    responses=NOT_IMPLEMENTED_RESPONSE | AUTH_REQUIRED_RESPONSES,
+    responses=NOT_IMPLEMENTED_RESPONSE | AUTH_REQUIRED_RESPONSES | VALIDATION_ERROR_RESPONSE,
 )
 
 Cursor = Annotated[str | None, Query(description="next_cursor của trang trước")]
@@ -245,23 +262,50 @@ def create_reset_link(
         return admin_users.create_reset_link(session, actor, user_id, now=clock())
 
 
+# ---------------------------------------------------------------- Phase 5: đọc tài nguyên
+
+
 @router.get("/models", tags=["models"], **guard(P.MODEL_READ))
-def list_models() -> None:
+def list_models() -> list[ModelSummary]:
+    not_implemented()
+
+
+@router.get("/models/{model_id}", tags=["models"], **guard(P.MODEL_READ))
+def get_model(model_id: UUID) -> ModelSummary:
     not_implemented()
 
 
 @router.get("/datasets", tags=["datasets"], **guard(P.DATASET_READ))
-def list_datasets() -> None:
+def list_datasets() -> list[DatasetSummary]:
+    not_implemented()
+
+
+@router.get("/dataset-versions/{dataset_version_id}", tags=["datasets"], **guard(P.DATASET_READ))
+def get_dataset_version(dataset_version_id: UUID) -> DatasetVersionSummary:
     not_implemented()
 
 
 @router.get("/slices", tags=["slices"], **guard(P.DATASET_READ))
-def list_slices() -> None:
+def list_slices(dataset_version: UUID | None = None) -> list[SliceSummary]:
+    not_implemented()
+
+
+@router.get("/class-mappings", tags=["datasets"], **guard(P.DATASET_READ))
+def list_class_mappings(
+    dataset_version: UUID | None = None, model: UUID | None = None
+) -> list[ClassMappingSummary]:
     not_implemented()
 
 
 @router.get("/attack-specs", tags=["attack-specs"], **guard(P.ATTACK_CATALOG_READ))
 def list_attack_specs() -> list[AttackSpec]:
+    """Chỉ spec đang hoạt động."""
+    not_implemented()
+
+
+@router.get("/protocols", tags=["protocols"], **guard(P.PROTOCOL_READ))
+def list_protocols() -> list[ProtocolSummary]:
+    """Protocol trạng thái `active` và `dev`."""
     not_implemented()
 
 
@@ -270,18 +314,149 @@ def create_protocol(body: ProtocolBody) -> None:
     not_implemented()
 
 
-@router.post("/experiments", tags=["experiments"], **guard(P.EXPERIMENT_CREATE))
-def create_experiment(config: ExperimentConfig) -> None:
+@router.get("/compute-targets", tags=["compute-targets"], **guard(P.COMPUTE_TARGET_READ))
+def list_compute_targets() -> list[ComputeTargetPublic]:
     not_implemented()
 
 
-@router.get("/runs/{run_id}", tags=["runs"], **guard(P.EXPERIMENT_READ))
-def get_run(run_id: UUID) -> RunResult:
+# ---------------------------------------------------------------- Phase 5: experiment
+
+CONFLICT_RESPONSE: dict[int | str, dict[str, Any]] = {
+    status.HTTP_409_CONFLICT: {"model": ErrorResponse, "description": "Sai trạng thái"}
+}
+NOT_FOUND_RESPONSE: dict[int | str, dict[str, Any]] = {
+    status.HTTP_404_NOT_FOUND: {"model": ErrorResponse, "description": "Không tồn tại"}
+}
+
+
+@router.get("/experiments", tags=["experiments"], **guard(P.EXPERIMENT_READ))
+def list_experiments(
+    owner: Literal["me", "all"] = "all",
+    status: ExperimentStatus | None = None,
+    model: UUID | None = None,
+    cursor: Cursor = None,
+    limit: Limit = 50,
+) -> ExperimentPage:
     not_implemented()
 
 
-@router.get("/failure-cases/{case_id}", tags=["failure-cases"], **guard(P.EXPERIMENT_READ))
-def get_failure_case(case_id: UUID) -> None:
+@router.post(
+    "/experiments",
+    tags=["experiments"],
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        status.HTTP_409_CONFLICT: {"model": ErrorResponse, "description": "queue_limit_reached"}
+    },
+    **guard(P.EXPERIMENT_CREATE),
+)
+def create_experiment(body: ExperimentCreate) -> ExperimentDetail:
+    not_implemented()
+
+
+@router.post("/experiments/estimate", tags=["experiments"], **guard(P.EXPERIMENT_CREATE))
+def estimate_experiment(body: ExperimentCreate) -> EstimateResponse:
+    """Kiểm tra cấu hình như khi tạo; không tạo gì."""
+    not_implemented()
+
+
+@router.get(
+    "/experiments/{experiment_id}",
+    tags=["experiments"],
+    responses=NOT_FOUND_RESPONSE,
+    **guard(P.EXPERIMENT_READ),
+)
+def get_experiment(experiment_id: UUID) -> ExperimentDetail:
+    not_implemented()
+
+
+@router.get(
+    "/experiments/{experiment_id}/runs",
+    tags=["experiments"],
+    responses=NOT_FOUND_RESPONSE,
+    **guard(P.EXPERIMENT_READ),
+)
+def list_experiment_runs(experiment_id: UUID) -> list[RunView]:
+    not_implemented()
+
+
+@router.post(
+    "/experiments/{experiment_id}/cancel",
+    tags=["experiments"],
+    responses=NOT_FOUND_RESPONSE | CONFLICT_RESPONSE,
+    **guard(P.EXPERIMENT_CANCEL_OWN),
+)
+def cancel_experiment(experiment_id: UUID) -> ExperimentDetail:
+    """Chỉ chủ sở hữu (kiểm tra ở service); trạng thái `queued` hoặc `running`."""
+    not_implemented()
+
+
+@router.get(
+    "/experiments/{experiment_id}/clone",
+    tags=["experiments"],
+    responses=NOT_FOUND_RESPONSE,
+    **guard(P.EXPERIMENT_CREATE),
+)
+def clone_experiment(experiment_id: UUID) -> ExperimentClone:
+    not_implemented()
+
+
+@router.get(
+    "/runs/{run_id}", tags=["runs"], responses=NOT_FOUND_RESPONSE, **guard(P.EXPERIMENT_READ)
+)
+def get_run(run_id: UUID) -> RunView:
+    not_implemented()
+
+
+@router.get(
+    "/runs/{run_id}/manifest",
+    tags=["runs"],
+    responses=NOT_FOUND_RESPONSE,
+    **guard(P.EXPERIMENT_READ),
+)
+def get_run_manifest(run_id: UUID) -> Manifest:
+    not_implemented()
+
+
+@router.get(
+    "/runs/{run_id}/failure-cases",
+    tags=["runs"],
+    responses=NOT_FOUND_RESPONSE,
+    **guard(P.EXPERIMENT_READ),
+)
+def list_run_failure_cases(run_id: UUID) -> list[FailureCaseView]:
+    """Sắp theo `severity_score` giảm dần; chỉ có URL thumbnail."""
+    not_implemented()
+
+
+@router.get(
+    "/failure-cases/{case_id}",
+    tags=["failure-cases"],
+    responses=NOT_FOUND_RESPONSE,
+    **guard(P.EXPERIMENT_READ),
+)
+def get_failure_case(case_id: UUID) -> FailureCaseView:
+    not_implemented()
+
+
+@router.get(
+    "/artifacts/{token}",
+    tags=["artifacts"],
+    response_class=Response,
+    responses={
+        status.HTTP_200_OK: {
+            "content": {"image/png": {}, "image/webp": {}},
+            "description": "Ảnh của đúng đối tượng gắn với token",
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "model": ErrorResponse,
+            "description": "Token sai, bị sửa hoặc hết hạn (10 phút)",
+        },
+    },
+    **guard(P.EXPERIMENT_READ),
+)
+def get_artifact(token: str) -> Response:
+    """Stream ảnh từ MinIO. Cần cả phiên có `experiment.read` lẫn token do API cấp trong
+    `FailureCaseView.urls`."""
     not_implemented()
 
 
@@ -292,11 +467,6 @@ def list_reviews() -> None:
 
 @router.get("/reports/{report_id}", tags=["reports"], **guard(P.REPORT_READ))
 def get_report(report_id: UUID) -> None:
-    not_implemented()
-
-
-@router.get("/compute-targets", tags=["compute-targets"], **guard(P.COMPUTE_TARGET_READ))
-def list_compute_targets() -> None:
     not_implemented()
 
 
@@ -323,7 +493,7 @@ def list_audit_log(
 
 
 # Trang xác minh report công khai, không cần đăng nhập.
-verify_router = APIRouter(responses=NOT_IMPLEMENTED_RESPONSE)
+verify_router = APIRouter(responses=NOT_IMPLEMENTED_RESPONSE | VALIDATION_ERROR_RESPONSE)
 
 
 @verify_router.get("/verify/{report_id}", tags=["verify"])

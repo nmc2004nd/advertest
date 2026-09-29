@@ -107,8 +107,13 @@ def test_removing_a_role_takes_effect_on_the_next_request(env: Env) -> None:
 
 
 def test_every_permission_with_a_route_is_covered() -> None:
-    # Permission chưa có route (Phase 5+) chỉ được kiểm tra ở mức ma trận (tests/auth).
-    assert {Permission.USER_MANAGE, Permission.AUDIT_READ, Permission.MODEL_READ} <= set(
-        REPRESENTATIVES
-    )
-    assert len(REPRESENTATIVES) == 12
+    # Permission chưa có route (Phase 6+) chỉ được kiểm tra ở mức ma trận (tests/auth).
+    # Phase 5 Group 0 thêm route cho protocol.read và experiment.cancel_own: 12 → 14.
+    assert {
+        Permission.USER_MANAGE,
+        Permission.AUDIT_READ,
+        Permission.MODEL_READ,
+        Permission.PROTOCOL_READ,
+        Permission.EXPERIMENT_CANCEL_OWN,
+    } <= set(REPRESENTATIVES)
+    assert len(REPRESENTATIVES) == 14
