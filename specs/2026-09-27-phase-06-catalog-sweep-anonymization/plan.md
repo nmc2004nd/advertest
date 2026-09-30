@@ -16,6 +16,7 @@
 3. Thêm 7 spec mới vào `contracts/seeds/attack_specs.json`; tính `spec_sha256`.
 4. Viết mock: experiment toàn catalog có run `early_stop`, `attack_ranking` đủ trường hợp (kể cả `auc_drop = null`), tiến độ patch ở giai đoạn `training`, case có `anonymization.applied`.
 5. `make contracts`; ghi `CHANGELOG.md`.
+5a. Migration `0006`: thêm `not_applicable` vào enum `attack_access` (seed mới phải nạp được vào DB).
 
 ## Group 1 — Corruption và occlusion `[agent: attack-transform]`
 
@@ -41,6 +42,7 @@
 18. Thêm `patch_key` vào `fingerprint_inputs`.
 19. Tạo ảnh nhiễu / vùng khác biệt chung cho mọi loại biến đổi (|δ| chuẩn hóa).
 20. `ml_core/metrics/ranking.py`: tính `auc_drop`, `max_relative_drop`, xử lý `early_stop` và thiếu dữ liệu.
+20a. CLI `advertest slice create --exclude-slice <id>`: slice huấn luyện không giao với slice đánh giá.
 
 ## Group 4 — Làm mờ ảnh `[agent: ml-privacy]`
 
@@ -52,6 +54,7 @@
 
 24. Kiểm tra khi tạo experiment: `training_slice_id` bắt buộc với patch, cùng dataset version, **không giao** với slice đánh giá, tối đa 50 ảnh.
 24a. Gán `ordinal` của run theo thứ tự thô → mịn (hàm của task 15).
+24b. `GET /slices?disjoint_from=<slice_id>`: chỉ slice không giao với slice đó.
 25. Ước lượng: `training_seconds` = `max_iter` × số ảnh slice huấn luyện × `sec_per_image_iteration` khi patch chưa có; cộng vào `total_seconds` và `exceeds_limit`.
 26. Lưu và tra `PatchArtifact`; endpoint nội bộ cho worker tra và đăng ký patch; presigned URL cho khóa patch.
 26a. Endpoint nội bộ báo run chưa start là `skipped` (`early_stop`).
@@ -72,7 +75,7 @@
 ## Group 7 — Test nghiệm thu và kiểm tra cuối `[người duyệt]`
 
 36. Viết test nghiệm thu `tests/acceptance/phase_06/` và kịch bản Playwright `frontend/e2e/phase_06/` theo `validation.md`.
-36a. `scripts/e2e.sh` nạp seed `adv_patch` với `max_iter = 4` thay cho 200.
+36a. `scripts/e2e.sh` nạp seed `adv_patch` với `max_iter = 4` thay cho 200; fixture chỉ có 5 ảnh nên kịch bản patch cần slice đánh giá và slice huấn luyện tách từ 5 ảnh đó (ví dụ 3 và 2 ảnh, qua `--exclude-slice`).
 37. Chạy experiment toàn catalog trên KITTI bằng laptop; hiệu chỉnh tham số patch.
 38. Kiểm tra bằng mắt kết quả làm mờ; trả lời câu hỏi mở.
 39. Cập nhật `CHANGELOG.md`, `roadmap.md`; merge.

@@ -27,8 +27,8 @@
 | 2 ✅ | FGSM/PGD trên CLI, có manifest | ml-core, attack | 1 | 4 |
 | 3 ✅ | Job chạy qua API trên máy local | backend, attack | 2 | 4 |
 | 4 ✅ | Yêu cầu truy cập, duyệt, RBAC | backend, frontend | 0 | 2, 3 |
-| 5 | Wizard tạo experiment, theo dõi tiến độ | frontend, backend | 3, 4 | 6 |
-| 6 | Đủ catalog, quét lưới | attack | 3 | 5 |
+| 5 ✅ | Wizard tạo experiment, theo dõi tiến độ | frontend, backend | 3, 4 | 6 |
+| 6 | Đủ catalog, quét lưới, làm mờ ảnh | attack, ml-core, backend, frontend | 3, 5 | — |
 | 7 | Tự tìm ngưỡng | attack, frontend | 5, 6 | 8 |
 | 8 | Protocol, review, report | backend, frontend | 5 | 7 |
 | 9 | Máy thuê và ngân sách | backend | 3, 5 | 10 |
@@ -136,20 +136,22 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 
 **Demo:** engineer tạo experiment trên web, theo dõi tiến độ trên điện thoại, xem đường cong khi xong.
 
-## Phase 6 — Đủ attack catalog và quét lưới
+## Phase 6 — Đủ attack catalog, quét lưới và làm mờ ảnh
 
-**Mục tiêu:** bộ attack và biến đổi đầy đủ cho MVP.
+**Mục tiêu:** bộ attack và biến đổi đầy đủ cho MVP; ảnh failure case được làm mờ để report ở Phase 8 có ảnh.
 
 - [ ] Patch attack: train một lần, lưu MinIO, quét theo kích thước.
 - [ ] Corruption: fog, snow, frost, motion blur, contrast (severity 1–5).
 - [ ] Occlusion theo tỷ lệ bounding box.
 - [ ] Quét lưới thô trước, mịn sau; dừng sớm khi mAP gần 0.
 - [ ] Trang admin xem attack catalog.
+- [ ] Xếp hạng attack gây hại nhất (`auc_drop`).
+- [ ] Làm mờ mặt và biển số ở tầng hiển thị (với dataset chưa ẩn danh); chuyển từ Phase 10 (report ở Phase 8 cần ảnh failure case, `mission.md` nguyên tắc 9).
 - [ ] (Từ Phase 2) Lưới mịn ở eps nhỏ: trên KITTI, PGD L∞ eps 2/255 đã sụt 98%, PGD L2 eps 1 sụt 90% (vùng hữu ích dưới 2/255 và dưới 1).
 - [ ] (Từ Phase 5) Đo sai số ước lượng: PGD eps 2/4/8/16 trên KITTI 300 ảnh qua wizard (tồn đọng Phase 5), làm cùng lúc với manual check hiệu chỉnh patch.
 - [ ] (Từ Phase 5) CLI `advertest` in JSON ra stdout, nhưng Ultralytics lần đầu import in thông báo settings vào stdout (`scripts/e2e.sh` đang né bằng `YOLO_CONFIG_DIR` và import trước một lần).
 
-**Demo:** một experiment quét toàn bộ catalog, ra bảng xếp hạng attack gây hại nhất.
+**Demo:** một experiment quét toàn bộ catalog, ra bảng xếp hạng attack gây hại nhất; failure case hiển thị với ảnh đã làm mờ.
 
 ## Phase 7 — Tự tìm ngưỡng
 
@@ -204,7 +206,7 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 - [ ] Báo cáo kiểm tra khi import.
 - [ ] Giao diện map class.
 - [ ] Tạo slice theo bộ lọc.
-- [ ] Làm mờ mặt và biển số ở tầng hiển thị (với dataset chưa ẩn danh).
+- [x] ~~Làm mờ mặt và biển số ở tầng hiển thị~~: chuyển sang Phase 6. Dataset riêng dùng lại bước làm mờ của Phase 6.
 - [ ] (Tùy chọn) Pseudo-label cho dữ liệu không có nhãn, gắn nhãn consistency metric.
 - [ ] (Từ Phase 3) `DEFAULT_STORE_DIR` chỉ đúng khi cài editable; `LocalStore` ghi file quyền 0600 (`import-local` phải chạy bằng uid của máy).
 

@@ -7,6 +7,7 @@
 ### Chung
 - [ ] `make check` pass, bao gồm test nghiệm thu các phase trước.
 - [ ] `make contracts` không tạo thay đổi; 7 spec mới validate được và `spec_sha256` khớp.
+- [ ] `spec_sha256` của 3 spec cũ, fingerprint của mock manifest cũ và `config_sha256` của experiment cũ không đổi sau khi thêm trường Phase 6.
 - [ ] `roadmap.md` đã phản ánh việc chuyển làm mờ sang Phase 6.
 
 ### Seed theo ảnh — `test_per_image_seed.py`
@@ -38,6 +39,8 @@
 - [ ] Hàm sắp thứ tự: level `[2, 4, 8, 16, 32]` → `[2, 8, 32, 4, 16]`.
 - [ ] Experiment mới có `ordinal` của run theo thứ tự thô → mịn trong từng attack.
 - [ ] Ngắt worker sau khi một level kích hoạt dừng sớm; worker mới vẫn đánh dấu đúng các level lớn hơn là `skipped` (`early_stop`).
+- [ ] Run `early_stop` có `status_reason.trigger_run_id` đúng run kích hoạt; `POST /runs/{id}/skip` với run không ở `queued` → `409`.
+- [ ] `slice create --exclude-slice` tạo slice không giao; `GET /slices?disjoint_from=` không trả slice giao.
 - [ ] Dựng tình huống level 8 làm mAP ≤ 5% mAP sạch: level 16 và 32 chưa chạy bị `skipped` (`early_stop`), attack không được gọi cho chúng; level nhỏ hơn vẫn chạy.
 - [ ] `early_stop = false` → mọi level đều chạy.
 - [ ] Dừng sớm của attack này không ảnh hưởng attack khác.
@@ -46,7 +49,7 @@
 ### Xếp hạng — `test_ranking.py`
 - [ ] `auc_drop` đúng quy tắc hình thang trên dữ liệu dựng sẵn với `x = level / max` (severity 1 → 0.2), có điểm (0, 0) ở đầu, tính đến `coverage` và không ngoại suy.
 - [ ] Level `early_stop` được tính bằng `relative_drop` của level kích hoạt.
-- [ ] Attack có dưới 2 level có kết quả → `auc_drop = null`, xếp cuối.
+- [ ] Attack có dưới 2 điểm (level có metric cộng level `early_stop`) → `auc_drop = null`, xếp cuối; attack sụp ở level đầu rồi các level còn lại bị `early_stop` vẫn có `auc_drop`.
 - [ ] Run `partial` hoặc `stopped_limit` → cờ `partial = true`.
 - [ ] `attack_ranking` trả qua API trùng với kết quả gọi trực tiếp hàm trong `ml_core`.
 

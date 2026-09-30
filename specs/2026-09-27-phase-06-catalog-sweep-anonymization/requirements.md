@@ -47,6 +47,18 @@ Cuối phase: một experiment quét toàn bộ catalog trên slice KITTI, ra b�
 | `ExperimentDetail` | Thêm `attack_ranking` (xem Behaviour) |
 | Interface `Perturbation` | Ghi rõ: mỗi phần tử của `targets` bắt buộc có `image_id` |
 
+**Chi tiết chốt ở Group 0** (người duyệt, 2026-10-01; code trong `contracts/python/advertest_contracts/models.py`):
+
+- **Hash cũ không đổi:** các trường mới có giá trị mặc định (`AttackSpec.requires_training`, `training`; `GridConfig.early_stop`; `AttackConfig.training_slice_id`; `FingerprintInputs.patch_key`; `StatusReason.trigger_run_id`) bị bỏ khỏi JSON khi mang giá trị mặc định (`exclude_if`), và JSON Schema không khai chúng là bắt buộc. `spec_sha256` của 3 spec cũ, `config_sha256` và fingerprint của run không dùng patch giữ nguyên.
+- **`AttackSpec.training`** (`TrainingParams`): `max_iter`, `learning_rate` (thang [0, 1]), `sample_size`, `checkpoint_every`, `max_training_images`. Seed `adv_patch`: 200, 0.02, 1, 50, 50. Giới hạn 50 ảnh của slice huấn luyện đọc từ `max_training_images`. Attack không được có `access = not_applicable`.
+- **`adv_patch.cost_model = cpu_only`:** giai đoạn đánh giá chỉ dán patch rồi chạy inference; chi phí train tính riêng qua `sec_per_image_iteration`.
+- **Dừng sớm:** `StatusReason.trigger_run_id` (có khi và chỉ khi `code = early_stop`) trỏ tới run đã kích hoạt; `RunView.fingerprint` được null với run `skipped` do `early_stop` (run chưa từng start). Endpoint `POST /internal/worker/runs/{id}/skip` (`RunSkipRequest`, `204`). `BundleRun.metrics` để worker tính lại khi chạy tiếp.
+- **Patch:** `compute_patch_key` và `patch_prefix` (`patches/<key>/`) trong contract để backend và worker tính cùng khóa. `PatchArtifact` thêm `side_px`, `iterations`, `created_at`; `objective_history` là loss của detector trên ảnh đã dán patch (attack untargeted làm giá trị này tăng). `WorkerJobBundle` thêm `training_slices` (ảnh của chúng có trong `downloads.images`), `patches[]` (`artifact` khi đã train, `checkpoint_key` khi đang dở) và `runs[].patch_key`. `POST /internal/worker/runs/{id}/patch` (`PatchRegistration` → `PatchArtifact`; khóa đã có thì giữ bản cũ và trả bản đó). `artifact-url` nhận thêm khóa trong `patches/<patch_key>/` của run.
+- **Tiến độ train:** `ProgressReport` với `phase = training` có `images_done = 0`, `batch_index = 0`, `checkpoint_key` là checkpoint patch mới nhất trong `patches/<key>/` (worker ghi checkpoint ở vòng 0 trước lần báo đầu); file checkpoint tự ghi số vòng lặp đã xong. `RunView` thêm `phase` (chỉ khi `running`) và `training` (`{done, total}`, khi `phase = training`).
+- **Ảnh thứ ba:** `FailureCaseRecord.perturbation_kind` (`amplified_noise` / `difference` / `patch_location`, mặc định `amplified_noise` cho case cũ) để trình xem chọn nhãn, không phải suy từ loại attack.
+- **Catalog cho admin:** `GET /admin/attack-specs` (`attack_catalog.manage`, `cursor`, `limit`) trả `AttackSpecAdminPage` gồm mọi version, kể cả spec đã tắt (`AttackSpecAdminView` = `AttackSpec` + `is_active`).
+- **DB:** migration `0006` chỉ thêm giá trị `not_applicable` vào enum `attack_access` (để seed mới nạp được và test enum khớp contract). Bảng patch, cột `anonymization`, `sec_per_image_iteration` thuộc Group 5.
+
 ### Catalog (thêm vào `contracts/seeds/attack_specs.json`)
 
 | Spec | Loại | Tham số chính | Giá trị | Tham số cố định |
@@ -69,7 +81,8 @@ Mọi spec corruption và occlusion có `requires_gradients = false`, `access = 
 | `auc_drop` | Diện tích dưới đường `relative_drop` theo level chuẩn hóa `x = level / max` của spec |
 | `coverage` | `x` lớn nhất được tính (level lớn nhất có kết quả hoặc bị `early_stop`) |
 | `max_relative_drop` | Mức sụt lớn nhất đo được |
-| `levels_evaluated` | Số level có kết quả |
+| `levels_evaluated` | Số level có metric |
+| `levels_early_stopped` | Số level bị bỏ qua do `early_stop` (được tính vào đường cong) |
 | `partial` | Có run `stopped_limit` hoặc `metrics.partial` |
 
 ## Behaviour
@@ -91,6 +104,7 @@ Mọi spec corruption và occlusion có `requires_gradients = false`, `access = 
 - **Khóa patch** = hash của (`spec_sha256`, `weights_sha256`, `training_slice_sha256`, `area_ratio`, `seed`). Mỗi khóa chỉ train một lần; lần sau dùng lại từ MinIO.
 - Worker train patch khi chưa có, trước khi đánh giá run đó. Thời gian train tính vào giới hạn của experiment. Lưu checkpoint patch mỗi 50 vòng lặp; bị gián đoạn thì train tiếp từ checkpoint.
 - **Đánh giá:** dán patch vào vị trí cố định trên mọi ảnh của slice đánh giá, rồi chạy pipeline metric như các attack khác.
+- **Tạo slice huấn luyện** (bổ sung ở Group 0): CLI `advertest slice create` thêm `--exclude-slice <id>` để lấy ảnh không thuộc slice đánh giá; `GET /slices` thêm tham số `disjoint_from=<slice_id>` để wizard chỉ liệt kê slice không giao (wizard tự lọc cùng dataset version và kích thước ≤ `max_training_images`).
 - `PatchArtifact` lưu patch (PNG và mảng numpy), lịch sử giá trị mục tiêu theo vòng lặp.
 
 ### Quét lưới: thứ tự và dừng sớm
@@ -102,7 +116,7 @@ Mọi spec corruption và occlusion có `requires_gradients = false`, `access = 
 ### Xếp hạng attack
 - `auc_drop` tính bằng quy tắc hình thang trên các điểm (`level / max`, `relative_drop`), thêm điểm (0, 0) ở đầu. Diện tích tính đến `coverage`, không ngoại suy ra đến 1; bảng xếp hạng hiển thị `coverage`.
 - Level bị `early_stop` được tính với `relative_drop` bằng giá trị của level đã kích hoạt dừng sớm.
-- Attack có ít hơn 2 level có kết quả: `auc_drop = null`, xếp cuối, ghi chú "không đủ dữ liệu".
+- Attack có ít hơn 2 điểm (level có metric cộng level `early_stop`): `auc_drop = null`, xếp cuối, ghi chú "không đủ dữ liệu". Level `early_stop` được đếm (chốt ở Group 0) để attack mạnh sụp ngay ở level đầu không bị xếp cuối.
 - Xếp giảm dần theo `auc_drop`. Hàm tính nằm trong `ml_core/metrics/ranking.py`, backend dùng lại để Phase 8 (report) cho cùng kết quả.
 
 ### Làm mờ ảnh
