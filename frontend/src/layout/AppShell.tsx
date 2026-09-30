@@ -1,5 +1,5 @@
 import { Ellipsis } from 'lucide-react'
-import { NavLink, Outlet } from 'react-router'
+import { Link, Outlet, useLocation } from 'react-router'
 
 import { RequirePermission } from '@/auth/RequirePermission'
 import { AUTHENTICATED } from '@/auth/permissions'
@@ -13,7 +13,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
-import { splitTabs, visibleNav, type NavItem } from '@/nav/config'
+import { isNavActive, splitTabs, visibleNav, type NavItem } from '@/nav/config'
 
 /**
  * Khung ứng dụng cho người đã đăng nhập (requirements.md Phase 4, mục Điều hướng):
@@ -52,6 +52,36 @@ function navClass({ isActive }: { isActive: boolean }): string {
   )
 }
 
+/**
+ * Link của một mục điều hướng; tự tính trạng thái sáng (kể cả `exclude`: /experiments/new thuộc
+ * mục "Tạo experiment", không làm mục "Experiment" sáng).
+ */
+function ItemLink({
+  item,
+  className,
+  children,
+  ...rest
+}: {
+  item: NavItem
+  className: (state: { isActive: boolean }) => string
+  children: React.ReactNode
+  title?: string
+  'aria-label'?: string
+}) {
+  const { pathname } = useLocation()
+  const isActive = isNavActive(item, pathname)
+  return (
+    <Link
+      to={item.path}
+      className={className({ isActive })}
+      aria-current={isActive ? 'page' : undefined}
+      {...rest}
+    >
+      {children}
+    </Link>
+  )
+}
+
 /** Sidebar (desktop) và cột icon (tablet): cùng một phần tử, nhãn chỉ hiện từ 1280px. */
 export function SideNav({ items, name }: { items: NavItem[]; name?: string }) {
   return (
@@ -67,16 +97,16 @@ export function SideNav({ items, name }: { items: NavItem[]; name?: string }) {
       </div>
       <nav className="flex flex-col gap-1 px-2">
         {items.map((item) => (
-          <NavLink
+          <ItemLink
             key={item.path}
-            to={item.path}
+            item={item}
             className={navClass}
             title={item.label}
             aria-label={item.label}
           >
             <item.icon className="size-5 shrink-0" aria-hidden />
             <span className="hidden xl:inline">{item.label}</span>
-          </NavLink>
+          </ItemLink>
         ))}
       </nav>
       {name && (
@@ -105,10 +135,10 @@ export function BottomTabs({ items }: { items: NavItem[] }) {
       className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-background pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] md:hidden"
     >
       {tabs.map((item) => (
-        <NavLink key={item.path} to={item.path} className={tabClass}>
+        <ItemLink key={item.path} item={item} className={tabClass}>
           <item.icon className="size-5" aria-hidden />
           <span className="max-w-full truncate px-1">{item.label}</span>
-        </NavLink>
+        </ItemLink>
       ))}
       {more.length > 0 && (
         <Dialog>
@@ -122,10 +152,10 @@ export function BottomTabs({ items }: { items: NavItem[] }) {
             <nav className="flex flex-col gap-1">
               {more.map((item) => (
                 <DialogClose key={item.path} asChild>
-                  <NavLink to={item.path} className={navClass}>
+                  <ItemLink item={item} className={navClass}>
                     <item.icon className="size-5 shrink-0" aria-hidden />
                     <span>{item.label}</span>
-                  </NavLink>
+                  </ItemLink>
                 </DialogClose>
               ))}
             </nav>

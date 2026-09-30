@@ -47,13 +47,22 @@ describe('/home', () => {
   })
 })
 
-describe('điều hướng (trang đã có đến Group 6)', () => {
-  it('engineer và reviewer thấy Trang chủ, Tài khoản; admin thấy thêm trang quản trị', () => {
-    for (const name of ['engineer', 'reviewer']) {
-      expect(visibleNav(mockMe(name)).map((i) => i.path)).toEqual(['/home', '/account'])
-    }
+describe('điều hướng (Phase 5 Group 6: bật Experiment và Tạo experiment)', () => {
+  it('engineer có Tạo experiment; reviewer không; admin thêm trang quản trị', () => {
+    expect(visibleNav(mockMe('engineer')).map((i) => i.path)).toEqual([
+      '/home',
+      '/experiments',
+      '/experiments/new',
+      '/account',
+    ])
+    expect(visibleNav(mockMe('reviewer')).map((i) => i.path)).toEqual([
+      '/home',
+      '/experiments',
+      '/account',
+    ])
     expect(visibleNav(mockMe('admin')).map((i) => i.path)).toEqual([
       '/home',
+      '/experiments',
       '/admin/users',
       '/admin/audit',
       '/account',

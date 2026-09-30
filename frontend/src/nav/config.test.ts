@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import { mockMe } from '@/api/mocks'
 
-import { MAX_TABS, NAV_ITEMS, splitTabs, visibleNav, type NavItem } from './config'
+import { isNavActive, MAX_TABS, NAV_ITEMS, splitTabs, visibleNav, type NavItem } from './config'
 
 function item(path: string, overrides: Partial<NavItem> = {}): NavItem {
   return {
@@ -46,5 +46,17 @@ describe('splitTabs', () => {
     const { tabs, more } = splitTabs(items)
     expect(tabs.map((i) => i.path)).toEqual(['/a', '/b', '/c'])
     expect(more.map((i) => i.path)).toEqual(['/d', '/e'])
+  })
+})
+
+describe('isNavActive', () => {
+  const experiments = { path: '/experiments', exclude: ['/experiments/new'] }
+
+  it('sáng ở đúng trang và trang con, trừ đường dẫn loại trừ', () => {
+    expect(isNavActive(experiments, '/experiments')).toBe(true)
+    expect(isNavActive(experiments, '/experiments/abc')).toBe(true)
+    expect(isNavActive(experiments, '/experiments/new')).toBe(false)
+    expect(isNavActive({ path: '/experiments/new' }, '/experiments/new')).toBe(true)
+    expect(isNavActive({ path: '/home' }, '/homepage')).toBe(false)
   })
 })
