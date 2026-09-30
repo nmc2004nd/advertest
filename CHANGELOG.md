@@ -15,6 +15,31 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 - DB dev đã seed trước đó còn dòng `adv_patch` version 1 đang bật: tắt tay hoặc dựng lại DB. DB của test và CI dựng mới.
 - Số liệu: `make check` (lint, type check, 1047 test Python, 201 Vitest, 211 test nghiệm thu không cần DB).
 - Việc tiếp theo: agent attack-patch cho `PatchTrainer` và `measure_sec_per_image_iteration` dùng `spec.training.batch_size` (nhánh `phase06-attack-patch`); Group 3 train patch không dùng batch size của cost profile; `scripts/e2e.sh` (task 36a) nạp `adv_patch` kèm `batch_size`.
+### Phase 6 — Group 2 (attack-patch) — 2026-10-01
+#### Thêm
+- `attacks/patch/geometry.py`: `patch_key` (bọc `compute_patch_key`), vùng ảnh thật từ mask, phần giao vùng thật của slice huấn luyện, cạnh `round(sqrt(area_ratio × diện tích))`, vị trí ở tâm; `PatchDoesNotFit` khi không vừa.
+- `attacks/patch/training.py`: `PatchTrainer` gọi `RobustDPatch` mỗi lần một vòng (`max_iter = 1`, giữ `attack._patch` giữa các lần gọi) để có checkpoint và tiến độ; patch khởi tạo theo `np.random.default_rng(seed)`; trạng thái `random` của ART lưu trong `TrainingState` nên train tiếp từ checkpoint cho cùng patch và cùng lịch sử như train liền; khôi phục `random` chung sau khi train; callback checkpoint ở vòng 0 và mỗi `checkpoint_every` vòng, callback tiến độ trả `False` thì dừng. Checkpoint là `.npz` không pickle, tự ghi số vòng đã xong.
+- Giá trị mục tiêu: trung bình `compute_loss` trên ảnh huấn luyện đã dán patch (không biến đổi ngẫu nhiên) so với prediction ảnh sạch tính một lần.
+- `attacks/patch/artifact.py`: `patch.npy` (float32, không pickle, `patch_sha256` là sha256 của file), `patch.png`, `build_artifact` tạo `PatchArtifact` (chỉ khi đủ `max_iter` vòng), `load_patch` kiểm tra sha256 và kích thước.
+- `attacks/patch/adapter.py` (`PatchPerturbation`): dán patch vào tâm vùng ảnh thật của từng ảnh, `level` phải bằng `area_ratio` của patch, vùng pad giữ nguyên.
+- `attacks/patch/calibration.py`: `measure_sec_per_image_iteration` (5 vòng, `area_ratio` lớn nhất).
+- Theo đề xuất contract 001: `PatchTrainer` và `measure_sec_per_image_iteration` lấy batch size từ `spec.training.batch_size` (bỏ tham số `batch_size`), không từ cost profile.
+- Test: 27 test mới trong `attacks/tests/` với estimator giả (diện tích, vị trí, mục tiêu tăng, train tiếp từ checkpoint khớp train liền, checkpoint ở 0 và mỗi n vòng, `PatchArtifact` hợp lệ, dán patch, đo chi phí).
+#### Kiểm tra
+- YOLOv8n thật trên 5 ảnh fixture (CPU), `area_ratio` 0,1 (cạnh 111): 10 vòng mất 12,8 giây (0,25 giây/ảnh/vòng); giá trị mục tiêu 4,06 → 4,94. Ước tính một patch 200 vòng trên slice 50 ảnh khoảng 42 phút trên CPU.
+#### Số liệu
+- `make check`: 1076 test Python (+29 so với trước group), 201 Vitest, 211 test nghiệm thu không cần DB.
+#### Quyết định (người dùng chốt ở Group 2; người duyệt ghi vào spec)
+- Kích thước và vị trí patch khi train theo phần giao vùng ảnh thật của slice huấn luyện; khi đánh giá đặt ở tâm vùng thật của từng ảnh.
+- Giá trị mục tiêu là loss của detector trên ảnh đã dán patch.
+- Sai số diện tích ±1% tính theo diện tích vùng ảnh thật (patch vuông cạnh nguyên không đạt ±1% tương đối ở tỉ lệ nhỏ: 0,02 trên KITTI lệch tối thiểu 1,2%) → sửa câu chữ trong `validation.md`.
+#### Ghi nhận
+- ART làm tròn ảnh về bội số của `learning_rate` ở bước chỉnh độ sáng (hành vi gốc); `patch_location` của ART là (hàng, cột), `patch_shape` là (C, H, W) khi `channels_first`.
+- `attacks/factory.py` vẫn báo `UnsupportedAttack` cho `adv_patch`: adapter cần patch đã train, Group 3 dựng `PatchPerturbation` sau khi tra hoặc train patch.
+
+#### Review (phase-review, 2026-10-01)
+- Phát hiện #1 (người dùng chọn sửa): patch phụ thuộc batch size lấy từ cost profile → đề xuất contract 001 (người dùng duyệt, người duyệt áp dụng), code dùng `spec.training.batch_size`. Ghi nhận: `training_seconds` chưa tính lượt dự đoán ảnh sạch đầu mỗi lần train; giới hạn 50 ảnh do backend chặn; gán `attack._patch` (thuộc tính riêng của ART, kiểm tra lại khi nâng ART).
+- Review và phần sửa do cùng một agent làm (không độc lập).
 
 ### Phase 6 — Group 1 (attack-transform) — 2026-10-01
 #### Thêm
