@@ -139,7 +139,7 @@
       "type": "array"
     },
     "exceeds_limit": {
-      "description": "Tổng ước lượng của các run ước lượng được (cận dưới khi thiếu profile) lớn hơn giới hạn thời gian",
+      "description": "Tổng est_seconds và training_seconds của các run ước lượng được (cận dưới khi thiếu profile) lớn hơn giới hạn thời gian",
       "title": "Exceeds Limit",
       "type": "boolean"
     },

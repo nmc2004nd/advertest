@@ -29,6 +29,11 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 - `roadmap.md`: Phase 6 đổi tên, thêm xếp hạng và làm mờ (chuyển từ Phase 10), phụ thuộc 3 và 5; bảng Tổng quan đánh dấu Phase 5 ✅.
 #### Số liệu
 - `make check` (lint, type check, `contracts-check`, 862 test Python, 201 Vitest, 211 test nghiệm thu không cần DB), `make test-db` (354 test), `verify:build` đều pass.
+#### Review (phase-review, 2026-10-01)
+- Không có phát hiện chặn. Người dùng yêu cầu sửa trước merge: #1 thiếu test cho ca sai của validator mới và cho việc bỏ trường mặc định → thêm `contracts/python/tests/test_phase06_models.py` (20 test: hash spec, config, fingerprint cũ không đổi; trường bỏ được không bắt buộc, không có `default`; luật `training`, `trigger_run_id`, `phase`, `PatchArtifact`, `BundlePatch`, bundle, `ProgressReport`, `training_seconds`, xếp hạng, mock làm mờ); #2 mô tả `exceeds_limit` nói rõ cộng `training_seconds`; #3 `WorkerJobBundle` kiểm tra slice huấn luyện cùng dataset version và không giao với slice đánh giá.
+- Người dùng chấp nhận (đã có trong spec): #8 `--exclude-slice` và `disjoint_from` (task 20a, 24b); #9 level `early_stop` được đếm vào ngưỡng 2 điểm của `auc_drop`.
+- Ghi nhận cho group sau: Group 5 thêm xác thực token cho `skip`, `patch`; sau merge, wizard cho chọn spec Phase 6 trước khi worker có adapter (run `failed` cho tới Group 1, 2, 5); `downgrade` của `0006` lỗi nếu đã có run dùng spec mới; `learning_rate` là giá trị tạm; bảng Tổng quan của roadmap sửa khi đóng phase.
+- `make test-e2e`: 60 test pass. Sau khi sửa: 882 test Python.
 #### Lưu ý
 - Group 0 do agent làm thay người duyệt theo ủy quyền của người dùng; không độc lập.
 

@@ -1157,6 +1157,12 @@ class WorkerJobBundle(_Model):
         needed = {a.training_slice_id for a in cfg.attacks if a.training_slice_id is not None}
         if set(training) != needed:
             raise ValueError("training_slices phải đúng các training_slice_id trong config")
+        evaluation = set(self.slice.image_ids)
+        for training_slice in self.training_slices:
+            if training_slice.dataset_version_sha256 != self.slice.dataset_version_sha256:
+                raise ValueError("slice huấn luyện phải cùng dataset version với slice đánh giá")
+            if evaluation.intersection(training_slice.image_ids):
+                raise ValueError("slice huấn luyện không được giao với slice đánh giá")
         images = set(self.slice.image_ids).union(*(s.image_ids for s in self.training_slices))
         if set(self.downloads.images) != images:
             raise ValueError("downloads.images phải đúng các ảnh của slice và slice huấn luyện")
@@ -1649,8 +1655,8 @@ class EstimateResponse(_Model):
         description="attack_spec_id thiếu cost profile, không trùng"
     )
     exceeds_limit: bool = Field(
-        description="Tổng ước lượng của các run ước lượng được (cận dưới khi thiếu profile) lớn"
-        " hơn giới hạn thời gian"
+        description="Tổng est_seconds và training_seconds của các run ước lượng được (cận dưới khi"
+        " thiếu profile) lớn hơn giới hạn thời gian"
     )
     queue: QueueEstimate
 
