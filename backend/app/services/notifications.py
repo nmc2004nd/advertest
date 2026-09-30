@@ -55,11 +55,19 @@ def app_base_url() -> str:
     return os.environ.get("APP_BASE_URL", DEFAULT_APP_BASE_URL).rstrip("/")
 
 
-def status_sentence(counts: dict[RunStatus, int]) -> str:
-    """Ví dụ "18/20 hoàn thành, 1 lỗi, 1 dừng do giới hạn"; bỏ phần bằng 0."""
+def status_sentence(counts: dict[RunStatus, int], early_stopped: int = 0) -> str:
+    """Ví dụ "18/20 hoàn thành, 1 lỗi, 1 dừng do giới hạn"; bỏ phần bằng 0. Phase 6 (plan task
+    28a): run bỏ qua do dừng sớm ghi riêng, ví dụ "3 bỏ qua (2 do dừng sớm)"."""
     total = sum(counts.values())
     parts = [f"{counts.get(RunStatus.COMPLETED, 0)}/{total} hoàn thành"]
-    parts += [f"{counts[status]} {label}" for status, label in PARTS if counts.get(status, 0)]
+    for status, label in PARTS:
+        count = counts.get(status, 0)
+        if not count:
+            continue
+        if status == RunStatus.SKIPPED and early_stopped:
+            parts.append(f"{count} {label} ({early_stopped} do dừng sớm)")
+        else:
+            parts.append(f"{count} {label}")
     return ", ".join(parts)
 
 
@@ -72,10 +80,16 @@ class Email:
 
 
 def render_experiment_finished(
-    *, to: str, name: str, status: ExperimentStatus, counts: dict[RunStatus, int], link: str
+    *,
+    to: str,
+    name: str,
+    status: ExperimentStatus,
+    counts: dict[RunStatus, int],
+    link: str,
+    early_stopped: int = 0,
 ) -> Email:
     verb = FINISHED[status]
-    sentence = status_sentence(counts)
+    sentence = status_sentence(counts, early_stopped)
     text = (
         f'Experiment "{name}" {verb}.\n\n'
         f"Kết quả các run: {sentence}.\n\n"
@@ -107,12 +121,22 @@ def enqueue_experiment_finished(session: Session, experiment: m.Experiment) -> m
         .group_by(m.Run.status)
     )
     counts = {status: count for status, count in rows}
+    early_stopped = session.scalar(
+        select(func.count())
+        .select_from(m.Run)
+        .where(
+            m.Run.experiment_id == experiment.id,
+            m.Run.status == RunStatus.SKIPPED,
+            m.Run.status_reason["code"].astext == "early_stop",
+        )
+    )
     email = render_experiment_finished(
         to=owner.email,
         name=experiment.name,
         status=experiment.status,
         counts=counts,
         link=f"{app_base_url()}/experiments/{experiment.id}",
+        early_stopped=early_stopped or 0,
     )
     row = m.EmailOutbox(
         to=email.to, subject=email.subject, body_html=email.body_html, body_text=email.body_text

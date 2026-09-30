@@ -15,17 +15,24 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
-from advertest_contracts.enums import LimitKind, RunStatus
+from advertest_contracts.enums import DisplayMode, LimitKind, RunStatus
 from advertest_contracts.models import (
     CaseAnonymization,
     ExperimentConfig,
     PatchArtifact,
     WorkerJobBundle,
+    compute_failure_case_id,
     compute_patch_key,
 )
 from attacks.registry import get_spec, load_catalog
 from backend.app.db import models as m
-from backend.app.services import compute_targets, experiments, registry
+from backend.app.services import (
+    artifacts,
+    compute_targets,
+    experiment_views,
+    experiments,
+    registry,
+)
 from backend.app.storage import Buckets
 from ml_core.data.slice import create_slice, save_slice
 
@@ -310,3 +317,64 @@ def test_complete_stores_anonymization_and_kind(
         stored = session.get_one(m.FailureCase, cases[0].id)
         assert stored.anonymization == anonymization.model_dump(mode="json")
         assert stored.perturbation_kind == "difference"
+
+
+def test_user_views_ranking_phase_and_display_mode(
+    client: TestClient, app_engine: Engine, world: World, clock: FakeClock, training: Any
+) -> None:
+    """Plan task 27, 28: bảng xếp hạng, giai đoạn của run, `display_mode` theo từng case."""
+    setup = _setup(app_engine, world, clock, training)
+    _lease(client, setup.token)
+    bundle = _bundle(client, setup)
+    fgsm = sorted((r for r in bundle.runs if r.patch_key is None), key=lambda r: r.level)
+    patch_run = _patch_run(bundle)
+    with Session(app_engine) as session, session.begin():
+        for run, attacked in zip(fgsm, (0.4, 0.1), strict=True):
+            row = session.get_one(m.Run, run.run_id)
+            row.status, row.metrics, row.fingerprint = (
+                RunStatus.COMPLETED, _metrics(attacked), uuid.uuid4().hex * 2,
+            )  # fmt: skip
+            row.manifest_uri = f"s3://artifacts/runs/{run.run_id}/manifest.json"
+        running = session.get_one(m.Run, patch_run.run_id)
+        running.status, running.fingerprint = RunStatus.RUNNING, uuid.uuid4().hex * 2
+        running.phase, running.iterations_done, running.iterations_total = "training", 7, 200
+        session.flush()
+        detail = experiment_views.detail(session, setup.experiment_id)
+        names = [entry.name for entry in detail.attack_ranking]
+        assert names == ["fgsm", "adv_patch"]
+        fgsm_entry = detail.attack_ranking[0]
+        assert fgsm_entry.levels_evaluated == 2 and fgsm_entry.auc_drop is not None
+        assert detail.attack_ranking[1].auc_drop is None  # chưa có level nào có metric
+        view = experiment_views.get_run(session, patch_run.run_id)
+        assert view.phase == "training" and view.training is not None
+        assert (view.training.done, view.training.total) == (7, 200)
+        assert experiment_views.get_run(session, fgsm[0].run_id).phase is None
+
+        base = {
+            "run_id": fgsm[0].run_id, "severity_score": 1.0, "fingerprint": "a" * 64,
+            "lost_objects": 1, "new_false_positives": 0,
+            "detections": {"ground_truth": [], "clean": [], "attacked": [], "ignore_regions": []},
+            "artifacts": {"clean_png": "runs/x/c.png", "adversarial_png": "runs/x/a.png",
+                          "perturbation_png": "runs/x/p.png"},
+        }  # fmt: skip
+        blurred = m.FailureCase(
+            id=compute_failure_case_id("a" * 64, fgsm[0].run_id, "b"),
+            image_id="b", rank=0, perturbation_kind="difference",
+            anonymization={"applied": True, "method": "rule_v1", "version": 1,
+                           "regions_count": 2},
+            **base,
+        )  # fmt: skip
+        old = m.FailureCase(
+            id=compute_failure_case_id("a" * 64, fgsm[0].run_id, "o"), image_id="o", rank=1,
+            **base,
+        )  # fmt: skip
+        session.add_all([blurred, old])
+        session.flush()
+        now = datetime(2026, 10, 1, tzinfo=UTC)
+        assert artifacts.case_mode(blurred, DisplayMode.HIDDEN_UNANONYMIZED) == DisplayMode.NORMAL
+        assert (
+            artifacts.case_mode(old, DisplayMode.HIDDEN_UNANONYMIZED)
+            == DisplayMode.HIDDEN_UNANONYMIZED
+        )
+        assert artifacts._view(blurred, DisplayMode.HIDDEN_UNANONYMIZED, True, now).urls.clean
+        session.rollback()

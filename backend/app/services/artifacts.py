@@ -151,7 +151,15 @@ def _urls(
     return _Issued(FailureCaseUrls.model_validate(urls), expires_at)
 
 
+def case_mode(case: m.FailureCase, dataset_mode: DisplayMode) -> DisplayMode:
+    """Phase 6 (plan task 28): case đã làm mờ thì hiển thị bình thường dù dataset chưa ẩn danh;
+    case cũ (chưa làm mờ) theo quy tắc của dataset."""
+    anonymization = case.anonymization or {}
+    return DisplayMode.NORMAL if anonymization.get("applied") else dataset_mode
+
+
 def _view(case: m.FailureCase, mode: DisplayMode, full: bool, now: datetime) -> FailureCaseView:
+    mode = case_mode(case, mode)
     issued = _urls(case.artifacts, mode, full, now)
     return FailureCaseView.model_validate(
         {
@@ -164,6 +172,8 @@ def _view(case: m.FailureCase, mode: DisplayMode, full: bool, now: datetime) -> 
             "severity_score": case.severity_score,
             "detections": case.detections,
             "artifacts": case.artifacts,
+            "anonymization": case.anonymization,
+            "perturbation_kind": case.perturbation_kind or "amplified_noise",
             "urls": issued.urls,
             "urls_expire_at": issued.expires_at,
             "display_mode": mode,
