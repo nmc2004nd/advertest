@@ -17,7 +17,7 @@ interface Named {
 }
 
 /** Id của tài nguyên fixture (qua API, bằng phiên của trang đã đăng nhập). */
-export async function fixtureIds(page: Page) {
+export async function fixtureIds(page: Page, targetName = 'local-dev') {
   const request = page.request
   const models = await json<(Named & { framework: string })[]>(request, '/models')
   const model = models.find((m) => m.name === 'yolov8n-coco')
@@ -33,7 +33,8 @@ export async function fixtureIds(page: Page) {
     `/class-mappings?dataset_version=${slice?.dataset_version_id}&model=${model?.id}`,
   )
   const targets = await json<Named[]>(request, '/compute-targets')
-  const target = targets.find((t) => t.name === 'local-dev')
+  const target = targets.find((t) => t.name === targetName)
+  expect(target, targetName).toBeTruthy()
   const specs = await json<(Named & { spec_sha256: string })[]>(request, '/attack-specs')
   return {
     modelId: model?.id ?? '',
@@ -48,10 +49,18 @@ export async function fixtureIds(page: Page) {
   }
 }
 
-/** Tạo experiment qua API (CSRF từ cookie của trang); trả id. */
-export async function createExperiment(page: Page, attacks: [string, number[]][]): Promise<string> {
-  const ids = await fixtureIds(page)
-  const csrf = (await page.context().cookies()).find((c) => c.name === 'csrf_token')?.value ?? ''
+async function csrfToken(page: Page): Promise<string> {
+  return (await page.context().cookies()).find((c) => c.name === 'csrf_token')?.value ?? ''
+}
+
+/** Tạo experiment qua API (CSRF từ cookie của trang); trả id. `e2e-offline` không có worker. */
+export async function createExperiment(
+  page: Page,
+  attacks: [string, number[]][],
+  targetName = 'local-dev',
+): Promise<string> {
+  const ids = await fixtureIds(page, targetName)
+  const csrf = await csrfToken(page)
   const response = await page.request.post('/api/experiments', {
     headers: { 'X-CSRF-Token': csrf },
     data: {
@@ -75,6 +84,13 @@ export async function createExperiment(page: Page, attacks: [string, number[]][]
   })
   expect(response.status(), await response.text()).toBe(201)
   return ((await response.json()) as { id: string }).id
+}
+
+export async function cancelExperiment(page: Page, id: string): Promise<void> {
+  const response = await page.request.post(`/api/experiments/${id}/cancel`, {
+    headers: { 'X-CSRF-Token': await csrfToken(page) },
+  })
+  expect(response.status(), await response.text()).toBe(200)
 }
 
 /** Nút đang hiển thị (desktop và điện thoại có bản riêng của cùng một nút). */

@@ -6,6 +6,8 @@ import json
 import time
 import uuid
 from collections.abc import Sequence
+from datetime import UTC
+from decimal import Decimal
 from uuid import UUID
 
 import pytest
@@ -57,6 +59,18 @@ def test_create_then_worker_completes(api: Api, app_engine: Engine) -> None:
         RunView.model_validate(r) for r in client.get(f"/experiments/{created.id}/runs").json()
     ]
     assert run.status == "completed" and run.fingerprint is not None and run.metrics is not None
+
+
+def test_default_name_and_max_time_limit(api: Api) -> None:
+    _, _, client = api.user("engineer")
+    target = api.target()
+    body = api.body(target, [attack("fgsm", [4])], limit={"kind": "time", "value": "28800"})
+    assert "name" not in body
+    created = ExperimentDetail.model_validate(ok(post(client, "/experiments", body)).json())
+    day = created.created_at.astimezone(UTC).strftime("%Y-%m-%d")
+    assert created.name == f"yolov8n-coco · {created.slice.name} · {day}"
+    assert created.model.name == "yolov8n-coco"
+    assert created.limit.value == Decimal("28800")
 
 
 def test_reviewer_and_admin_cannot_create(api: Api) -> None:

@@ -49,6 +49,7 @@ test('engineer đi hết wizard, theo dõi tới khi xong, xem kết quả, fail
 
   // Bước 6: thấy ước lượng, xác nhận.
   await expect(page.getByText('Ước lượng từng run')).toBeVisible()
+  await expect(page.locator('dt:text-is("Seed") + dd').filter({ visible: true })).toHaveText('0')
   await visibleButton(page, /^Chạy/).click()
   const dialog = page.getByRole('dialog')
   await dialog.getByRole('button', { name: 'Chạy experiment' }).click()
@@ -68,6 +69,12 @@ test('engineer đi hết wizard, theo dõi tới khi xong, xem kết quả, fail
   await page.getByRole('tab', { name: 'Kết quả' }).click()
   await expect(page.getByText('Số liệu của fgsm')).toBeAttached()
   await expect(page.locator('svg.recharts-surface').first()).toBeVisible()
+
+  // Chi phí: thời gian đã dùng so với giới hạn.
+  await page.getByRole('tab', { name: 'Chi phí' }).click()
+  await expect(
+    page.getByText(/Thời gian xử lý đã dùng: .+ \/ giới hạn \d+ (giờ|phút)/),
+  ).toBeVisible()
 
   // Failure case: thumbnail có watermark; mở một case, bật tắt lớp box.
   await page.getByRole('tab', { name: 'Failure case' }).click()

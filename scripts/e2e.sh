@@ -61,6 +61,8 @@ uv run --no-sync advertest --store-dir "$STORE" slice create --dataset "$DATASET
 uv run --no-sync advertest --store-dir "$STORE" mapping create --dataset "$DATASET" --model "$MODEL" >/dev/null
 uv run --no-sync advertest-admin import-local --store "$STORE" --as "$ADVERTEST_ADMIN_EMAIL"
 TOKEN="$(uv run --no-sync advertest-admin compute-target rotate-token local-dev --as "$ADVERTEST_ADMIN_EMAIL" | tail -n 1)"
+# Máy local không có worker: experiment gửi tới đây nằm chờ (E2E giới hạn 3 experiment đang chờ).
+uv run --no-sync advertest-admin compute-target create --name e2e-offline --as "$ADVERTEST_ADMIN_EMAIL" >/dev/null
 
 uv run --no-sync uvicorn backend.app.main:app --host 127.0.0.1 --port "$API_PORT" --no-access-log &
 PIDS+=("$!")
