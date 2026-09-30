@@ -139,21 +139,20 @@ class PatchTrainer:
         *,
         area_ratio: float,
         seed: int,
-        batch_size: int,
     ) -> None:
+        """Batch size lấy từ `spec.training.batch_size`, không từ cost profile: patch phụ thuộc cách
+        chia batch (loss của Ultralytics chuẩn hóa theo cả batch; đề xuất contract 001)."""
         self.params = training_params(spec)
         param = spec.primary_param
         if not param.min <= area_ratio <= param.max:
             raise ValueError(
                 f"{spec.name}: area_ratio {area_ratio} ngoài dải [{param.min}, {param.max}]"
             )
-        if batch_size < 1:
-            raise ValueError("batch_size phải dương")
         self.spec = spec
         self.estimator = estimator
         self.area_ratio = area_ratio
         self.seed = seed
-        self.batch_size = batch_size
+        self.batch_size = self.params.batch_size
         self.brightness_range = brightness_range(spec)
 
     # ------------------------------------------------------------ hình học, trạng thái đầu

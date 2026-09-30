@@ -12,17 +12,17 @@ from attacks.tests import fake_detector as fd
 from attacks.tests.transform_helpers import spec
 
 
-def _spec(checkpoint_every: int = 2) -> AttackSpec:
+def _spec(checkpoint_every: int = 2, batch_size: int = 2) -> AttackSpec:
     base = spec("adv_patch")
     assert base.training is not None
-    training = base.training.model_copy(update={"checkpoint_every": checkpoint_every})
+    training = base.training.model_copy(
+        update={"checkpoint_every": checkpoint_every, "batch_size": batch_size}
+    )
     return base.model_copy(update={"training": training})
 
 
 def _trainer(seed: int = 0, checkpoint_every: int = 2) -> PatchTrainer:
-    return PatchTrainer(
-        _spec(checkpoint_every), fd.estimator(), area_ratio=0.1, seed=seed, batch_size=2
-    )
+    return PatchTrainer(_spec(checkpoint_every), fd.estimator(), area_ratio=0.1, seed=seed)
 
 
 def test_geometry_inside_real_region() -> None:
@@ -92,11 +92,26 @@ def test_checkpoint_shape_must_match() -> None:
         _trainer().train(fd.images(2), fd.mask(2), state=state, max_iter=2)
 
 
+def test_batch_size_comes_from_spec() -> None:
+    assert _trainer().batch_size == 2
+    seeded = PatchTrainer(spec("adv_patch"), fd.estimator(), area_ratio=0.1, seed=0)
+    assert seeded.batch_size == 8  # seed adv_patch version 2 (đề xuất contract 001)
+
+
+def test_same_spec_and_seed_give_same_patch() -> None:
+    images, mask = fd.images(4), fd.mask(4)
+    a = PatchTrainer(_spec(batch_size=4), fd.estimator(), area_ratio=0.1, seed=0)
+    b = PatchTrainer(_spec(batch_size=4), fd.estimator(), area_ratio=0.1, seed=0)
+    np.testing.assert_array_equal(
+        a.train(images, mask, max_iter=2).patch, b.train(images, mask, max_iter=2).patch
+    )
+
+
 def test_rejects_non_patch_spec_and_bad_ratio() -> None:
     with pytest.raises(UnsupportedAttack):
-        PatchTrainer(spec("fgsm"), fd.estimator(), area_ratio=0.1, seed=0, batch_size=1)
+        PatchTrainer(spec("fgsm"), fd.estimator(), area_ratio=0.1, seed=0)
     with pytest.raises(ValueError, match="ngoài dải"):
-        PatchTrainer(spec("adv_patch"), fd.estimator(), area_ratio=0.5, seed=0, batch_size=1)
+        PatchTrainer(spec("adv_patch"), fd.estimator(), area_ratio=0.5, seed=0)
 
 
 def test_paste() -> None:

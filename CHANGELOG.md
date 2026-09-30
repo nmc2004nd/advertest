@@ -23,11 +23,12 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 - `attacks/patch/artifact.py`: `patch.npy` (float32, không pickle, `patch_sha256` là sha256 của file), `patch.png`, `build_artifact` tạo `PatchArtifact` (chỉ khi đủ `max_iter` vòng), `load_patch` kiểm tra sha256 và kích thước.
 - `attacks/patch/adapter.py` (`PatchPerturbation`): dán patch vào tâm vùng ảnh thật của từng ảnh, `level` phải bằng `area_ratio` của patch, vùng pad giữ nguyên.
 - `attacks/patch/calibration.py`: `measure_sec_per_image_iteration` (5 vòng, `area_ratio` lớn nhất).
+- Theo đề xuất contract 001: `PatchTrainer` và `measure_sec_per_image_iteration` lấy batch size từ `spec.training.batch_size` (bỏ tham số `batch_size`), không từ cost profile.
 - Test: 27 test mới trong `attacks/tests/` với estimator giả (diện tích, vị trí, mục tiêu tăng, train tiếp từ checkpoint khớp train liền, checkpoint ở 0 và mỗi n vòng, `PatchArtifact` hợp lệ, dán patch, đo chi phí).
 #### Kiểm tra
 - YOLOv8n thật trên 5 ảnh fixture (CPU), `area_ratio` 0,1 (cạnh 111): 10 vòng mất 12,8 giây (0,25 giây/ảnh/vòng); giá trị mục tiêu 4,06 → 4,94. Ước tính một patch 200 vòng trên slice 50 ảnh khoảng 42 phút trên CPU.
 #### Số liệu
-- `make check`: 1074 test Python (+27), 201 Vitest, 211 test nghiệm thu không cần DB.
+- `make check`: 1076 test Python (+29 so với trước group), 201 Vitest, 211 test nghiệm thu không cần DB.
 #### Quyết định (người dùng chốt ở Group 2; người duyệt ghi vào spec)
 - Kích thước và vị trí patch khi train theo phần giao vùng ảnh thật của slice huấn luyện; khi đánh giá đặt ở tâm vùng thật của từng ảnh.
 - Giá trị mục tiêu là loss của detector trên ảnh đã dán patch.
@@ -35,6 +36,10 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 #### Ghi nhận
 - ART làm tròn ảnh về bội số của `learning_rate` ở bước chỉnh độ sáng (hành vi gốc); `patch_location` của ART là (hàng, cột), `patch_shape` là (C, H, W) khi `channels_first`.
 - `attacks/factory.py` vẫn báo `UnsupportedAttack` cho `adv_patch`: adapter cần patch đã train, Group 3 dựng `PatchPerturbation` sau khi tra hoặc train patch.
+
+#### Review (phase-review, 2026-10-01)
+- Phát hiện #1 (người dùng chọn sửa): patch phụ thuộc batch size lấy từ cost profile → đề xuất contract 001 (người dùng duyệt, người duyệt áp dụng), code dùng `spec.training.batch_size`. Ghi nhận: `training_seconds` chưa tính lượt dự đoán ảnh sạch đầu mỗi lần train; giới hạn 50 ảnh do backend chặn; gán `attack._patch` (thuộc tính riêng của ART, kiểm tra lại khi nâng ART).
+- Review và phần sửa do cùng một agent làm (không độc lập).
 
 ### Phase 6 — Group 1 (attack-transform) — 2026-10-01
 #### Thêm
