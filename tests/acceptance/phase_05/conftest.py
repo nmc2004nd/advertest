@@ -131,6 +131,13 @@ def buckets(cli_env: dict[str, str]) -> Buckets:
     for name in (BUCKET_MODELS, BUCKET_DATASETS, BUCKET_ARTIFACTS):
         if name not in existing:
             raw.create_bucket(Bucket=name)
+            continue
+        # DB vừa dựng lại từ đầu: xóa object của phase trước (cùng key nội dung nhưng card khác
+        # thời điểm đăng ký → import-local báo KeyConflictError).
+        for page in raw.get_paginator("list_objects_v2").paginate(Bucket=name):
+            keys = [{"Key": obj["Key"]} for obj in page.get("Contents", [])]
+            if keys:
+                raw.delete_objects(Bucket=name, Delete={"Objects": keys})
     return Buckets.from_client(client)
 
 
