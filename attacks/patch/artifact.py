@@ -3,7 +3,9 @@
 - `patch.npy`: mảng float32 (3, side, side) trong [0, 1], `np.save` không pickle; `patch_sha256`
   là sha256 của đúng các byte này.
 - `patch.png`: ảnh RGB 8 bit để người xem (làm tròn), không dùng để đánh giá.
-- Khóa MinIO nằm trong `patches/<key>/` (`patch_prefix` của contract).
+- Khóa MinIO: `patches/<key>/<patch_sha256>.npy` và `.png` (đặt tên theo nội dung, người dùng
+  chốt ở Group 3): hai worker cùng train một khóa không ghi đè file của nhau, nên file của bản đã
+  đăng ký luôn khớp `patch_sha256`.
 """
 
 from __future__ import annotations
@@ -19,9 +21,6 @@ from PIL import Image
 from advertest_contracts.models import AttackSpec, PatchArtifact, patch_prefix
 from attacks.patch.geometry import patch_key
 from attacks.patch.training import PatchArray, TrainingState, training_params
-
-NPY_NAME = "patch.npy"
-PNG_NAME = "patch.png"
 
 
 @dataclass(frozen=True)
@@ -78,8 +77,8 @@ def build_artifact(
         seed=seed,
         side_px=int(state.patch.shape[1]),
         patch_sha256=files.sha256,
-        png_key=prefix + PNG_NAME,
-        npy_key=prefix + NPY_NAME,
+        png_key=f"{prefix}{files.sha256}.png",
+        npy_key=f"{prefix}{files.sha256}.npy",
         iterations=state.iterations_done,
         training_seconds=state.seconds,
         objective_history=state.objective_history,
