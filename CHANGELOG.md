@@ -8,6 +8,28 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 **Trạng thái:** đang làm. Group 0 xong (chờ merge).
 
+### Phase 6 — Group 5 (backend) — 2026-10-01
+#### Thêm
+- Migration `0007`: bảng `patches` (khóa patch, `artifact` hoặc `checkpoint_key`, không có cả hai; `GRANT SELECT, INSERT, UPDATE` cho `advertest_app`, không cấp `DELETE`); `cost_profiles.sec_per_image_iteration`; `failure_cases.anonymization`, `perturbation_kind`; `runs.phase`, `iterations_done`, `iterations_total`.
+- Kiểm tra cấu hình (task 24): `attacks.{i}.training_slice_id` bắt buộc với spec cần train, cấm với spec khác; slice phải tồn tại, đã đăng ký, cùng dataset version với slice đánh giá, không giao, không quá `max_training_images` ảnh.
+- Task 24a: run tạo theo thứ tự `coarse_to_fine` của từng attack. Task 24b: `GET /slices?disjoint_from=<id>` (slice không tồn tại → 404).
+- Ước lượng (task 25): `training_seconds = max_iter × số ảnh slice huấn luyện × sec_per_image_iteration`, cộng vào tổng và kiểm giới hạn; null khi patch đã đăng ký hoặc profile chưa có số đo. Cost profile lưu `sec_per_image_iteration`.
+- API nội bộ (task 26, 26a): bundle có `training_slices`, `patches`, `runs[].metrics`, `runs[].patch_key`; `POST /runs/{id}/skip` (chỉ run `queued`, run kích hoạt cùng experiment và attack, level nhỏ hơn, đã sụp theo `collapsed`; `status_reason` có `trigger_run_id`); `POST /runs/{id}/patch` (khóa phải khớp, file `.npy`, `.png` phải có; khóa đã đăng ký thì trả bản có sẵn); tiến độ `phase = training` lưu checkpoint patch (phải nằm dưới `patches/<key>/`) và số vòng; `artifact-url` cho thư mục patch của run; `complete` lưu `anonymization`, `perturbation_kind`.
+- View (task 27, 28, 28a): `attack_ranking` bằng `ml_core.metrics.ranking.rank_attacks`; `RunView.phase` và `training`; `display_mode = normal` khi case có `anonymization.applied` (case cũ không có thì giữ quy tắc Phase 5); câu tóm tắt và email ghi "N bỏ qua (M do dừng sớm)".
+- Task 29: `GET /admin/attack-specs` (mọi spec và version, kể cả spec đã tắt; phân trang keyset theo `(name, version)`, cursor sai → 422; chỉ `attack_catalog.manage`).
+- Test: `test_migration_0007.py`, `test_phase06_api.py`, `test_phase06_worker_api.py`, `test_notifications.py`; `test_skeleton.py` chuyển endpoint đã làm khỏi danh sách 501.
+#### Sửa test cũ (thư mục backend)
+- `test_migration_0004.py` chèn attack spec có body hợp lệ thay vì `{}`: endpoint admin liệt kê cả spec đã tắt nên spec rỗng làm hỏng test khác dùng chung DB.
+#### Đề xuất contract
+- 002 (`FailureCaseView.artifacts` null khi `hidden_unanonymized`): chờ duyệt. Phần "bỏ khóa MinIO khi ảnh bị ẩn" của task 28 chưa làm; view ẩn vẫn trả khóa trong `artifacts` như Phase 5 (không có URL ký).
+#### Ghi nhận
+- `make test-db` còn 2 test nghiệm thu Phase 5 fail: `test_failure_case_access.py::test_unanonymized_dataset_hides_every_image_but_keeps_boxes` và `::test_dev_flag_serves_unblurred_with_mode`. Worker Phase 6 làm mờ mọi case mới nên case có `anonymization.applied` → `normal` (`requirements.md` mục Làm mờ); hai test vẫn mong `hidden_unanonymized`, `dev_unblurred`. Người dùng chọn giữ code theo spec, người duyệt cập nhật test ở Group 7 (ví dụ kiểm trên case cũ không có `anonymization`).
+- Chưa chạy worker end-to-end với luồng patch và `skip` trên API thật (Group 7, e2e `adv_patch` với `max_iter = 4`).
+#### Quyết định nên ghi vào spec
+- Cờ `DEV_ALLOW_UNBLURRED` không đổi `display_mode` của case đã làm mờ (vẫn `normal`).
+- `training_seconds` null (không tính vào tổng) khi profile chưa có `sec_per_image_iteration`.
+- `skip` sai trạng thái → 409; run kích hoạt không hợp lệ → 422.
+
 ### Phase 6 — Group 3, phần worker — 2026-10-01
 #### Thêm
 - Worker dựng perturbation bằng `attacks/factory.py`; `StoreCandidates` nhận `perturbation_kind(spec)`; fingerprint có `patch_key` của run patch (task 17).
