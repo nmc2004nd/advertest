@@ -27,6 +27,8 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 - Group 0 (người duyệt tự chọn, ghi vào `requirements.md` mục "Chi tiết chốt ở Group 0"): trường mới không đổi hash cũ; `trigger_run_id` để xếp hạng biết run kích hoạt; level `early_stop` được đếm là điểm của đường cong (attack sụp ngay ở level đầu không bị xếp cuối); tiến độ train dùng `ProgressReport` với checkpoint ở vòng 0; `perturbation_kind` ở cấp case (không đặt trong `artifacts`, vốn chỉ chứa khóa MinIO); trang admin phân trang; migration `0006` chỉ gồm enum.
 - Phát hiện khi làm: chưa có cách tạo slice huấn luyện không giao (CLI chỉ chọn ngẫu nhiên từ dataset) → thêm task 20a (`slice create --exclude-slice`), 24b (`GET /slices?disjoint_from=`), 36a (fixture 5 ảnh phải tách slice đánh giá và slice huấn luyện).
 - `roadmap.md`: Phase 6 đổi tên, thêm xếp hạng và làm mờ (chuyển từ Phase 10), phụ thuộc 3 và 5; bảng Tổng quan đánh dấu Phase 5 ✅.
+#### Số liệu
+- `make check` (lint, type check, `contracts-check`, 862 test Python, 201 Vitest, 211 test nghiệm thu không cần DB), `make test-db` (354 test), `verify:build` đều pass.
 #### Lưu ý
 - Group 0 do agent làm thay người duyệt theo ủy quyền của người dùng; không độc lập.
 
