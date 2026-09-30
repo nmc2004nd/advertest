@@ -21,6 +21,7 @@ import pytest
 from PIL import Image
 
 from attacks.art_adapter import build_perturbation
+from attacks.registry import load_catalog
 from ml_core.cli.evaluate import ground_truth
 from ml_core.data.loader import Batch
 from ml_core.metrics.attack import ImageAttackStats
@@ -412,3 +413,44 @@ def test_offer_tie_breaks_by_image_id(setup: dict[str, Any]) -> None:
 def test_offer_with_zero_limit_adds_nothing(setup: dict[str, Any]) -> None:
     executor, sink = _offer_all(setup, [("000001", 5)], limit=0)
     assert executor.top == [] and sink.calls == []
+
+
+# ---------------------------------------------------------------- Phase 6
+
+
+class _RecordingPerturbation:
+    """Ghi lại `targets` được truyền vào `apply` (plan task 15a)."""
+
+    def __init__(self) -> None:
+        self.spec = next(s for s in load_catalog() if s.name == "fog")
+        self.targets: list[dict[str, Any]] = []
+
+    def apply(
+        self,
+        images: np.ndarray,
+        targets: list[dict[str, Any]],
+        level: float,
+        seed: int,
+        mask: np.ndarray | None = None,
+    ) -> np.ndarray:
+        self.targets.extend(targets)
+        return images.copy()
+
+
+def test_targets_carry_image_id_and_ignore_boxes(setup: dict[str, Any]) -> None:
+    recording = _RecordingPerturbation()
+    executor = _executor(setup, MemStore(), perturbation=recording)
+    batch = next(executor.batches(setup["runner"].loader, 5))
+    executor.process_batch(batch)
+    assert [t["image_id"] for t in recording.targets] == batch.image_ids
+    for target, ignore in zip(recording.targets, batch.ignore, strict=True):
+        np.testing.assert_array_equal(target["ignore_boxes"], ignore["boxes"])
+        assert set(target) >= {"boxes", "labels", "image_id", "ignore_boxes"}
+
+
+def test_linf_eps_only_for_art_linf(setup: dict[str, Any]) -> None:
+    runner = setup["runner"]
+    recording = _RecordingPerturbation()
+    assert linf_eps(recording.spec, recording, 1) is None
+    assert setup["eps"] == pytest.approx(8 / 255)
+    assert runner.specs[0].name == "fgsm"

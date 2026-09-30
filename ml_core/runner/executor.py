@@ -35,6 +35,7 @@ from advertest_contracts.models import (
     RunMetrics,
     compute_failure_case_id,
 )
+from advertest_contracts.perturbation import Perturbation
 from attacks.art_adapter import ArtPerturbation
 from ml_core.cli.cache import Prediction, load_predictions, prediction_cache_key, save_predictions
 from ml_core.cli.evaluate import ground_truth, predict_slice
@@ -183,8 +184,11 @@ class FinalizedRun:
     images_done: int
 
 
-def linf_eps(spec: AttackSpec, perturbation: ArtPerturbation, level: float) -> float | None:
-    """eps trên ảnh [0, 1] của attack L∞ (để khuếch đại ảnh nhiễu); `None` với chuẩn khác."""
+def linf_eps(spec: AttackSpec, perturbation: Perturbation, level: float) -> float | None:
+    """eps trên ảnh [0, 1] của attack ART L∞ (để khuếch đại ảnh nhiễu); `None` với chuẩn khác và
+    với phép biến đổi không phải attack ART (corruption, occlusion, patch)."""
+    if not isinstance(perturbation, ArtPerturbation):
+        return None
     return perturbation.eps(level) if str(spec.fixed_params.get("norm")) == "inf" else None
 
 
@@ -195,7 +199,7 @@ class RunExecutor:
         fingerprint: str,
         level: float,
         seed: int,
-        perturbation: ArtPerturbation,
+        perturbation: Perturbation,
         estimator: Any,
         context: RunContext,
         candidates: CandidateSink,
@@ -258,9 +262,15 @@ class RunExecutor:
         ctx = self.context
         start = time.perf_counter()
         mask = letterbox_mask(batch.infos)
-        adversarial = self.perturbation.apply(
-            batch.images, batch.targets, self.level, self.seed, mask
-        )
+        # Phase 6 (plan task 15a): mỗi target có `image_id` (seed theo ảnh) và `ignore_boxes`
+        # (occlusion không tô lên ignore region). Adapter ART chỉ đọc `boxes`, `labels`.
+        targets = [
+            {**target, "image_id": image_id, "ignore_boxes": ignore["boxes"]}
+            for target, image_id, ignore in zip(
+                batch.targets, batch.image_ids, batch.ignore, strict=True
+            )
+        ]
+        adversarial = self.perturbation.apply(batch.images, targets, self.level, self.seed, mask)
         preds = self.estimator.predict(adversarial, batch_size=len(batch.image_ids))
         elapsed = time.perf_counter() - start
 
@@ -432,7 +442,7 @@ class RunExecutor:
         fingerprint: str,
         level: float,
         seed: int,
-        perturbation: ArtPerturbation,
+        perturbation: Perturbation,
         estimator: Any,
         context: RunContext,
         candidates: CandidateSink,

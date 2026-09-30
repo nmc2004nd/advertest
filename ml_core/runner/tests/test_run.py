@@ -478,3 +478,19 @@ def test_memory_candidates_keep_own_copies(tmp_path: Path) -> None:
     assert list(candidates._items) == ["000001", "000002", "000003"]
     for shown in candidates._items.values():
         assert all(image.base is None for image in shown.values())
+
+
+# ---------------------------------------------------------------- Phase 6
+
+
+def test_cli_runs_corruption_and_occlusion(base: Base, store: LocalStore) -> None:
+    """Runner dựng perturbation bằng `attacks/factory.py` (plan task 17, phần ml-core)."""
+    config = _config(base, [_attack("fog", [1]), _attack("bbox_occlusion", [0.5])])
+    report = run_module.Runner(store, config).run()
+    assert [o.spec_name for o in report.outcomes] == ["fog", "bbox_occlusion"]
+    assert all(o.result.status == RunStatus.COMPLETED for o in report.outcomes)
+
+
+def test_cli_rejects_patch(base: Base, store: LocalStore) -> None:
+    with pytest.raises(ValueError, match="chỉ chạy qua worker"):
+        run_module.Runner(store, _config(base, [_attack("adv_patch", [0.1])]))
