@@ -26,8 +26,8 @@
       },
       {
         "schema_version": 1,
-        "attack_spec_id": "f8b22364-fcde-5b6c-a6e3-23f9e8f2a67c",
-        "spec_sha256": "a515b489685021d67eda3c5c841c2a37b87676bd576baed7b306f1a6d922a141",
+        "attack_spec_id": "94f2e240-e595-5b21-a5c7-219a2d478f9e",
+        "spec_sha256": "c96cbc20a4c2320986b30d8f8178c1a642e36549008fca6cf491752bfec4955d",
         "mode": "grid",
         "grid": {
           "levels": [
@@ -233,7 +233,7 @@
     {
       "schema_version": 1,
       "name": "adv_patch",
-      "version": 1,
+      "version": 2,
       "kind": "attack",
       "access": "white_box",
       "art_class": "RobustDPatch",
@@ -264,10 +264,11 @@
         "learning_rate": 0.02,
         "sample_size": 1,
         "checkpoint_every": 50,
-        "max_training_images": 50
+        "max_training_images": 50,
+        "batch_size": 8
       },
-      "id": "f8b22364-fcde-5b6c-a6e3-23f9e8f2a67c",
-      "spec_sha256": "a515b489685021d67eda3c5c841c2a37b87676bd576baed7b306f1a6d922a141"
+      "id": "94f2e240-e595-5b21-a5c7-219a2d478f9e",
+      "spec_sha256": "c96cbc20a4c2320986b30d8f8178c1a642e36549008fca6cf491752bfec4955d"
     }
   ],
   "inference_params": {
@@ -413,7 +414,7 @@
     },
     {
       "run_id": "aeb4b250-d294-5b6f-8579-09c1016c66e2",
-      "attack_spec_id": "f8b22364-fcde-5b6c-a6e3-23f9e8f2a67c",
+      "attack_spec_id": "94f2e240-e595-5b21-a5c7-219a2d478f9e",
       "level": 0.1,
       "seed": 0,
       "status": "running",
@@ -421,11 +422,11 @@
       "images_total": 5,
       "checkpoint": null,
       "metrics": null,
-      "patch_key": "77b046f592609b70cf3990c6458225f7c92a91186353cea2c6859e4f0594edeb"
+      "patch_key": "15c714cfb30a4fd416712bdfbdee184f1ed6673415ad4431fdd1a6529c4ecf11"
     },
     {
       "run_id": "0e455953-9050-5797-aaa6-95fbca88d0dd",
-      "attack_spec_id": "f8b22364-fcde-5b6c-a6e3-23f9e8f2a67c",
+      "attack_spec_id": "94f2e240-e595-5b21-a5c7-219a2d478f9e",
       "level": 0.25,
       "seed": 0,
       "status": "queued",
@@ -433,7 +434,7 @@
       "images_total": 5,
       "checkpoint": null,
       "metrics": null,
-      "patch_key": "1899dafed180a51981b7e51d4726d32451ecd6edd561f649a4cf6fced4af0f0c"
+      "patch_key": "2cdf575d7be1e89f75474b2ddb7897bab50f6097352be1ce691c5dd38c8fc935"
     }
   ],
   "training_slices": [
@@ -516,30 +517,30 @@
   ],
   "patches": [
     {
-      "key": "77b046f592609b70cf3990c6458225f7c92a91186353cea2c6859e4f0594edeb",
-      "attack_spec_id": "f8b22364-fcde-5b6c-a6e3-23f9e8f2a67c",
+      "key": "15c714cfb30a4fd416712bdfbdee184f1ed6673415ad4431fdd1a6529c4ecf11",
+      "attack_spec_id": "94f2e240-e595-5b21-a5c7-219a2d478f9e",
       "area_ratio": 0.1,
       "training_slice_id": "5c1a9daf-ceca-535c-b717-f1ca1357834a",
       "artifact": null,
-      "checkpoint_key": "patches/77b046f592609b70cf3990c6458225f7c92a91186353cea2c6859e4f0594edeb/checkpoints/100.npz"
+      "checkpoint_key": "patches/15c714cfb30a4fd416712bdfbdee184f1ed6673415ad4431fdd1a6529c4ecf11/checkpoints/100.npz"
     },
     {
-      "key": "1899dafed180a51981b7e51d4726d32451ecd6edd561f649a4cf6fced4af0f0c",
-      "attack_spec_id": "f8b22364-fcde-5b6c-a6e3-23f9e8f2a67c",
+      "key": "2cdf575d7be1e89f75474b2ddb7897bab50f6097352be1ce691c5dd38c8fc935",
+      "attack_spec_id": "94f2e240-e595-5b21-a5c7-219a2d478f9e",
       "area_ratio": 0.25,
       "training_slice_id": "5c1a9daf-ceca-535c-b717-f1ca1357834a",
       "artifact": {
         "schema_version": 1,
-        "key": "1899dafed180a51981b7e51d4726d32451ecd6edd561f649a4cf6fced4af0f0c",
-        "spec_sha256": "a515b489685021d67eda3c5c841c2a37b87676bd576baed7b306f1a6d922a141",
+        "key": "2cdf575d7be1e89f75474b2ddb7897bab50f6097352be1ce691c5dd38c8fc935",
+        "spec_sha256": "c96cbc20a4c2320986b30d8f8178c1a642e36549008fca6cf491752bfec4955d",
         "weights_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36",
         "training_slice_sha256": "3e756bf37fa3a4c0547906820c4c4e2f2dec86d7a67bb7fdd8030b3dd13dfecd",
         "area_ratio": 0.25,
         "seed": 0,
         "side_px": 176,
         "patch_sha256": "e87b854cfdd5e236badc4b38c637e6b0a81d664de6ecb2c54bf9fd71aab5c8f0",
-        "png_key": "patches/1899dafed180a51981b7e51d4726d32451ecd6edd561f649a4cf6fced4af0f0c/patch.png",
-        "npy_key": "patches/1899dafed180a51981b7e51d4726d32451ecd6edd561f649a4cf6fced4af0f0c/patch.npy",
+        "png_key": "patches/2cdf575d7be1e89f75474b2ddb7897bab50f6097352be1ce691c5dd38c8fc935/patch.png",
+        "npy_key": "patches/2cdf575d7be1e89f75474b2ddb7897bab50f6097352be1ce691c5dd38c8fc935/patch.npy",
         "iterations": 200,
         "training_seconds": 2184.6,
         "objective_history": [

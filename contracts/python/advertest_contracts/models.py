@@ -139,6 +139,10 @@ class TrainingParams(_Model):
     sample_size: PositiveInt = Field(description="Số biến đổi ngẫu nhiên mỗi ảnh mỗi vòng (EOT)")
     checkpoint_every: PositiveInt = Field(description="Lưu checkpoint sau mỗi số vòng lặp này")
     max_training_images: PositiveInt = Field(description="Kích thước tối đa của slice huấn luyện")
+    batch_size: PositiveInt = Field(
+        description="Batch size khi train và khi tính giá trị mục tiêu; cố định trong spec (không"
+        " lấy từ cost profile) vì patch phụ thuộc cách chia batch (đề xuất contract 001, Phase 6)"
+    )
 
 
 class AttackSpecBody(_Model):

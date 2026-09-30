@@ -50,7 +50,7 @@ Cuối phase: một experiment quét toàn bộ catalog trên slice KITTI, ra b�
 **Chi tiết chốt ở Group 0** (người duyệt, 2026-10-01; code trong `contracts/python/advertest_contracts/models.py`):
 
 - **Hash cũ không đổi:** các trường mới có giá trị mặc định (`AttackSpec.requires_training`, `training`; `GridConfig.early_stop`; `AttackConfig.training_slice_id`; `FingerprintInputs.patch_key`; `StatusReason.trigger_run_id`) bị bỏ khỏi JSON khi mang giá trị mặc định (`exclude_if`), và JSON Schema không khai chúng là bắt buộc. `spec_sha256` của 3 spec cũ, `config_sha256` và fingerprint của run không dùng patch giữ nguyên.
-- **`AttackSpec.training`** (`TrainingParams`): `max_iter`, `learning_rate` (thang [0, 1]), `sample_size`, `checkpoint_every`, `max_training_images`. Seed `adv_patch`: 200, 0.02, 1, 50, 50. Giới hạn 50 ảnh của slice huấn luyện đọc từ `max_training_images`. Attack không được có `access = not_applicable`.
+- **`AttackSpec.training`** (`TrainingParams`): `max_iter`, `learning_rate` (thang [0, 1]), `sample_size`, `checkpoint_every`, `max_training_images`, `batch_size` (đề xuất contract 001: batch size khi train cố định trong spec, không lấy từ cost profile, vì loss của Ultralytics chuẩn hóa theo cả batch nên patch phụ thuộc cách chia batch). Seed `adv_patch` version 2: 200, 0.02, 1, 50, 50, 8. Giới hạn 50 ảnh của slice huấn luyện đọc từ `max_training_images`. Attack không được có `access = not_applicable`.
 - **`adv_patch.cost_model = cpu_only`:** giai đoạn đánh giá chỉ dán patch rồi chạy inference; chi phí train tính riêng qua `sec_per_image_iteration`.
 - **Dừng sớm:** `StatusReason.trigger_run_id` (có khi và chỉ khi `code = early_stop`) trỏ tới run đã kích hoạt; `RunView.fingerprint` được null với run `skipped` do `early_stop` (run chưa từng start). Endpoint `POST /internal/worker/runs/{id}/skip` (`RunSkipRequest`, `204`). `BundleRun.metrics` để worker tính lại khi chạy tiếp.
 - **Patch:** `compute_patch_key` và `patch_prefix` (`patches/<key>/`) trong contract để backend và worker tính cùng khóa. `PatchArtifact` thêm `side_px`, `iterations`, `created_at`; `objective_history` là loss của detector trên ảnh đã dán patch (attack untargeted làm giá trị này tăng). `WorkerJobBundle` thêm `training_slices` (ảnh của chúng có trong `downloads.images`), `patches[]` (`artifact` khi đã train, `checkpoint_key` khi đang dở) và `runs[].patch_key`. `POST /internal/worker/runs/{id}/patch` (`PatchRegistration` → `PatchArtifact`; khóa đã có thì giữ bản cũ và trả bản đó). `artifact-url` nhận thêm khóa trong `patches/<patch_key>/` của run.
@@ -69,7 +69,7 @@ Cuối phase: một experiment quét toàn bộ catalog trên slice KITTI, ra b�
 | `motion_blur` | corruption | `severity` | 1–5 | `motion_blur` |
 | `contrast` | corruption | `severity` | 1–5 | `contrast` |
 | `bbox_occlusion` | occlusion | `occlusion_ratio` | 0–0.9 (liên tục) | Hình chữ nhật cùng tỉ lệ với box, màu 114/255 |
-| `adv_patch` | attack | `area_ratio` | 0.02–0.25 (liên tục) | `RobustDPatch` của ART; vị trí: tâm vùng ảnh thật; `max_iter = 200`; `brightness_range = (0.8, 1.2)`; `learning_rate` hiệu chỉnh ở manual check |
+| `adv_patch` | attack | `area_ratio` | 0.02–0.25 (liên tục) | `RobustDPatch` của ART; vị trí: tâm vùng ảnh thật; `max_iter = 200`; `batch_size = 8` khi train (đề xuất contract 001); `brightness_range = (0.8, 1.2)`; `learning_rate` hiệu chỉnh ở manual check |
 
 Mọi spec corruption và occlusion có `requires_gradients = false`, `access = not_applicable`. `adv_patch` có `requires_gradients = true`, `requires_training = true`.
 

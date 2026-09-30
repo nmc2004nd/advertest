@@ -9551,6 +9551,12 @@
             "exclusiveMinimum": 0.0,
             "title": "Max Training Images",
             "description": "Kích thước tối đa của slice huấn luyện"
+          },
+          "batch_size": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Batch Size",
+            "description": "Batch size khi train và khi tính giá trị mục tiêu; cố định trong spec (không lấy từ cost profile) vì patch phụ thuộc cách chia batch (đề xuất contract 001, Phase 6)"
           }
         },
         "additionalProperties": false,
@@ -9560,7 +9566,8 @@
           "learning_rate",
           "sample_size",
           "checkpoint_every",
-          "max_training_images"
+          "max_training_images",
+          "batch_size"
         ],
         "title": "TrainingParams",
         "description": "Tham số huấn luyện của spec cần train trước khi đánh giá (patch, Phase 6)."

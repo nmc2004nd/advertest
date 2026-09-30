@@ -1,7 +1,7 @@
 # Đề xuất contract 001: batch size cố định khi train patch
 
 - Người đề xuất: agent attack-patch, Phase 6, Group 2
-- Trạng thái: chờ duyệt
+- Trạng thái: đã duyệt và áp dụng (người dùng duyệt, 2026-10-01; áp dụng ở nhánh `phase06-reviewer-p001`). `adv_patch` version 2 có `spec_sha256 = c96cbc20a4c2320986b30d8f8178c1a642e36549008fca6cf491752bfec4955d`.
 
 ## Vấn đề
 
