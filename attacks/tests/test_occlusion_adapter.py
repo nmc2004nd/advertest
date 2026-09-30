@@ -92,6 +92,17 @@ def test_rectangle_size_keeps_aspect_and_area() -> None:
     assert rectangle_size(1.2, 1.2, 0.1, 1, 1) == (0, 0)  # 1 pixel xa hơn 0 pixel
 
 
+def test_missing_boxes_is_an_error_but_empty_boxes_are_allowed() -> None:
+    images, mask = letterbox_batch(1)
+    perturbation = OcclusionPerturbation(spec("bbox_occlusion"))
+    with pytest.raises(ValueError, match="thiếu boxes"):
+        perturbation.apply(images, [{"image_id": "a"}], 0.5, 0, mask)
+    with pytest.raises(ValueError, match="thiếu boxes"):
+        perturbation.apply(images, [{"image_id": "a", "boxes": None}], 0.5, 0, mask)
+    empty = perturbation.apply(images, [{"image_id": "a", "boxes": np.zeros((0, 4))}], 0.5, 0, mask)
+    np.testing.assert_array_equal(empty, images)
+
+
 def test_invalid_inputs() -> None:
     images, mask = letterbox_batch(1)
     perturbation = OcclusionPerturbation(spec("bbox_occlusion"))

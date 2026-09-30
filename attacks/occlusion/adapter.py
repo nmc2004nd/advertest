@@ -31,9 +31,13 @@ from attacks.common.seed import image_rng, target_image_id
 DEFAULT_FILL_255 = 114
 
 
-def _boxes(target: dict[str, Any], key: str) -> NDArray[np.float64]:
+def _boxes(target: dict[str, Any], key: str, *, required: bool) -> NDArray[np.float64]:
+    """Box (K, 4) của target. Khóa bắt buộc mà vắng (hoặc None) thì báo lỗi, để occlusion không
+    lặng lẽ bỏ qua ảnh khi nơi gọi quên truyền ground truth; mảng rỗng là ảnh không có object."""
     value = target.get(key)
     if value is None:
+        if required:
+            raise ValueError(f"target thiếu {key} (occlusion cần box ground truth đã map)")
         return np.zeros((0, 4), dtype=np.float64)
     boxes = np.asarray(value, dtype=np.float64)
     if boxes.size == 0:
@@ -96,7 +100,7 @@ class OcclusionPerturbation:
             protected = self._protected(target, height, width)
             if mask is not None:
                 protected |= mask[i, 0] == 0
-            for x1, y1, x2, y2 in _boxes(target, "boxes"):
+            for x1, y1, x2, y2 in _boxes(target, "boxes", required=True):
                 self._occlude(result[i], protected, (x1, y1, x2, y2), level, rng)
         return result
 
@@ -104,7 +108,7 @@ class OcclusionPerturbation:
     def _protected(target: dict[str, Any], height: int, width: int) -> NDArray[np.bool_]:
         """Pixel chạm vào ignore region."""
         protected = np.zeros((height, width), dtype=bool)
-        for x1, y1, x2, y2 in _boxes(target, "ignore_boxes"):
+        for x1, y1, x2, y2 in _boxes(target, "ignore_boxes", required=False):
             c0, c1 = max(0, math.floor(x1)), min(width, math.ceil(x2))
             r0, r1 = max(0, math.floor(y1)), min(height, math.ceil(y2))
             if c1 > c0 and r1 > r0:
