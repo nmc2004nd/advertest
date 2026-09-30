@@ -8,7 +8,7 @@ from attacks.occlusion.adapter import OcclusionPerturbation, rectangle_size
 from attacks.tests.transform_helpers import letterbox_batch, spec, targets
 
 FILL = np.float32(114 / 255)
-# Box trong vùng ảnh thật (hàng 223–416), có tọa độ lẻ và nhiều tỉ lệ khác nhau.
+# Box trong vùng ảnh thật (hàng 223 đến 416), có tọa độ lẻ và nhiều tỉ lệ khác nhau.
 BOXES = [
     [30.0, 240.0, 130.0, 290.0],
     [200.5, 250.2, 260.7, 380.9],
@@ -20,7 +20,8 @@ BOXES = [
 def _painted(out: np.ndarray, original: np.ndarray) -> np.ndarray:
     """(H, W) pixel bị tô ở ảnh đầu tiên."""
     changed = np.any(out[0] != original[0], axis=0)
-    return changed & np.all(out[0] == FILL, axis=0)
+    painted: np.ndarray = changed & np.all(out[0] == FILL, axis=0)
+    return painted
 
 
 def test_zero_ratio_leaves_image_unchanged() -> None:
