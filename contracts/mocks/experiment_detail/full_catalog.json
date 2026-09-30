@@ -1,0 +1,330 @@
+{
+  "id": "9ec0fa7e-1626-56f2-a9e4-db3a427d1173",
+  "name": "Toàn bộ catalog trên KITTI 300",
+  "owner": {
+    "id": "0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e02",
+    "full_name": "Nguyễn Văn An"
+  },
+  "status": "completed",
+  "model": {
+    "id": "81686f0e-32b6-5806-819c-3b0e37072342",
+    "name": "yolov8n-coco"
+  },
+  "slice": {
+    "id": "0ed10c11-0bc2-5615-a171-4a08748dfda9",
+    "name": "kitti-moderate-300",
+    "size": 300
+  },
+  "compute_target": {
+    "id": "8679be42-13ce-51fb-876b-ca6d4d3f3c74",
+    "name": "local-dev",
+    "kind": "local"
+  },
+  "run_counts": {
+    "queued": 0,
+    "running": 0,
+    "completed": 24,
+    "failed": 1,
+    "skipped": 2,
+    "stopped_limit": 1,
+    "cancelled": 0
+  },
+  "progress": {
+    "images_done": 7476,
+    "images_total": 8400
+  },
+  "created_at": "2026-10-01T08:00:00Z",
+  "finished_at": "2026-10-01T09:58:40Z",
+  "config": {
+    "schema_version": 1,
+    "protocol_id": "2edcdef5-0d3a-5d5f-98ac-b02637fa6718",
+    "model_version_id": "81686f0e-32b6-5806-819c-3b0e37072342",
+    "slice_id": "0ed10c11-0bc2-5615-a171-4a08748dfda9",
+    "class_mapping_id": "4c239faf-34f6-5144-a3d5-f0328b0881ac",
+    "compute_target_id": "8679be42-13ce-51fb-876b-ca6d4d3f3c74",
+    "attacks": [
+      {
+        "schema_version": 1,
+        "attack_spec_id": "8d15422d-f111-5c7e-96eb-e704767e6218",
+        "spec_sha256": "a6d81b6643af13e1d2f7983ce51340f54c26629304f1fdd98b954c236c1e735f",
+        "mode": "grid",
+        "grid": {
+          "levels": [
+            2.0,
+            4.0,
+            8.0,
+            16.0,
+            32.0
+          ]
+        },
+        "search": null,
+        "seed": 0
+      },
+      {
+        "schema_version": 1,
+        "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+        "spec_sha256": "68fe8f72f176fe27981eadfe8b5e98bb36b8e85fc41c97b5702e2e149f52d72c",
+        "mode": "grid",
+        "grid": {
+          "levels": [
+            4.0
+          ]
+        },
+        "search": null,
+        "seed": 0
+      },
+      {
+        "schema_version": 1,
+        "attack_spec_id": "9b1a8ccf-9447-5e5c-b4d3-1fa5cf5de7b8",
+        "spec_sha256": "fb54ce834934be1340423f2fb4283b37766e2c1ca74a8fceea9b762e64f7351e",
+        "mode": "grid",
+        "grid": {
+          "levels": [
+            1.0,
+            2.0
+          ]
+        },
+        "search": null,
+        "seed": 0
+      },
+      {
+        "schema_version": 1,
+        "attack_spec_id": "9603bf27-ab9b-5086-be38-f60a4e6ebe74",
+        "spec_sha256": "1c0a2e649d9b01f4a900bbe7592adcf02134a8c8525ee76b9c60e4cb466a44e7",
+        "mode": "grid",
+        "grid": {
+          "levels": [
+            1.0,
+            3.0,
+            5.0
+          ]
+        },
+        "search": null,
+        "seed": 0
+      },
+      {
+        "schema_version": 1,
+        "attack_spec_id": "9da1d4ea-78da-5d61-8b5c-981884d5b010",
+        "spec_sha256": "76c4d0938fcde338ff496a4c9e29ef4b3949a16ae410f1e2d409eab3b6ae7d9d",
+        "mode": "grid",
+        "grid": {
+          "levels": [
+            1.0,
+            3.0,
+            5.0
+          ]
+        },
+        "search": null,
+        "seed": 0
+      },
+      {
+        "schema_version": 1,
+        "attack_spec_id": "033c8c5b-1f02-538d-9477-974ef9416cde",
+        "spec_sha256": "74736d1cc4065bf991282efb6f677f54f33fcabba9858b9532a1dac1b0b378fd",
+        "mode": "grid",
+        "grid": {
+          "levels": [
+            1.0,
+            3.0,
+            5.0
+          ]
+        },
+        "search": null,
+        "seed": 0
+      },
+      {
+        "schema_version": 1,
+        "attack_spec_id": "3ba0f2f1-9f16-5631-a8d7-149df6f9d043",
+        "spec_sha256": "e935e0e29f06a4769d71805ba639ea9ecee51651e4a017c8fe95d54d8f9e1b7a",
+        "mode": "grid",
+        "grid": {
+          "levels": [
+            1.0,
+            3.0,
+            5.0
+          ]
+        },
+        "search": null,
+        "seed": 0
+      },
+      {
+        "schema_version": 1,
+        "attack_spec_id": "ad2a3de0-f7ae-539f-9273-38b4f005c191",
+        "spec_sha256": "6c55690eaa596356ebd446ee9eb2ab45dac81dc2cd7e459e9871266b64876952",
+        "mode": "grid",
+        "grid": {
+          "levels": [
+            1.0,
+            3.0,
+            5.0
+          ]
+        },
+        "search": null,
+        "seed": 0
+      },
+      {
+        "schema_version": 1,
+        "attack_spec_id": "e3edcb22-e3bc-505a-92f4-9e30186fe26f",
+        "spec_sha256": "2aca8c91a3318d2a8084f592019b6c44d3cb983e395ed6cd12f48c9337b753ad",
+        "mode": "grid",
+        "grid": {
+          "levels": [
+            0.3,
+            0.6,
+            0.9
+          ]
+        },
+        "search": null,
+        "seed": 0
+      },
+      {
+        "schema_version": 1,
+        "attack_spec_id": "f8b22364-fcde-5b6c-a6e3-23f9e8f2a67c",
+        "spec_sha256": "a515b489685021d67eda3c5c841c2a37b87676bd576baed7b306f1a6d922a141",
+        "mode": "grid",
+        "grid": {
+          "levels": [
+            0.1,
+            0.25
+          ]
+        },
+        "search": null,
+        "seed": 0,
+        "training_slice_id": "5c1a9daf-ceca-535c-b717-f1ca1357834a"
+      }
+    ],
+    "limit": {
+      "kind": "time",
+      "value": "7200"
+    }
+  },
+  "config_sha256": "150934900279221eaa6bca9f408f53240815a27c297969beeceb2c094ffc3b7a",
+  "protocol": {
+    "id": "2edcdef5-0d3a-5d5f-98ac-b02637fa6718",
+    "name": "dev-open",
+    "status": "dev"
+  },
+  "limit": {
+    "kind": "time",
+    "value": "7200"
+  },
+  "processing_seconds_used": 7200.0,
+  "queue_position": null,
+  "cloned_from": null,
+  "clean_metrics": {
+    "map50": 0.512,
+    "map50_95": 0.298
+  },
+  "attack_ranking": [
+    {
+      "attack_spec_id": "8d15422d-f111-5c7e-96eb-e704767e6218",
+      "name": "fgsm",
+      "kind": "attack",
+      "auc_drop": 0.9126,
+      "max_relative_drop": 0.977,
+      "levels_evaluated": 3,
+      "levels_early_stopped": 2,
+      "coverage": 1.0,
+      "partial": false
+    },
+    {
+      "attack_spec_id": "9da1d4ea-78da-5d61-8b5c-981884d5b010",
+      "name": "snow",
+      "kind": "corruption",
+      "auc_drop": 0.364,
+      "max_relative_drop": 0.6301,
+      "levels_evaluated": 3,
+      "levels_early_stopped": 0,
+      "coverage": 1.0,
+      "partial": false
+    },
+    {
+      "attack_spec_id": "e3edcb22-e3bc-505a-92f4-9e30186fe26f",
+      "name": "bbox_occlusion",
+      "kind": "occlusion",
+      "auc_drop": 0.285,
+      "max_relative_drop": 0.71,
+      "levels_evaluated": 3,
+      "levels_early_stopped": 0,
+      "coverage": 1.0,
+      "partial": false
+    },
+    {
+      "attack_spec_id": "f8b22364-fcde-5b6c-a6e3-23f9e8f2a67c",
+      "name": "adv_patch",
+      "kind": "attack",
+      "auc_drop": 0.254,
+      "max_relative_drop": 0.4801,
+      "levels_evaluated": 2,
+      "levels_early_stopped": 0,
+      "coverage": 1.0,
+      "partial": false
+    },
+    {
+      "attack_spec_id": "033c8c5b-1f02-538d-9477-974ef9416cde",
+      "name": "frost",
+      "kind": "corruption",
+      "auc_drop": 0.239,
+      "max_relative_drop": 0.44,
+      "levels_evaluated": 3,
+      "levels_early_stopped": 0,
+      "coverage": 1.0,
+      "partial": false
+    },
+    {
+      "attack_spec_id": "3ba0f2f1-9f16-5631-a8d7-149df6f9d043",
+      "name": "motion_blur",
+      "kind": "corruption",
+      "auc_drop": 0.132,
+      "max_relative_drop": 0.35,
+      "levels_evaluated": 3,
+      "levels_early_stopped": 0,
+      "coverage": 1.0,
+      "partial": false
+    },
+    {
+      "attack_spec_id": "ad2a3de0-f7ae-539f-9273-38b4f005c191",
+      "name": "contrast",
+      "kind": "corruption",
+      "auc_drop": 0.131,
+      "max_relative_drop": 0.5199,
+      "levels_evaluated": 3,
+      "levels_early_stopped": 0,
+      "coverage": 1.0,
+      "partial": true
+    },
+    {
+      "attack_spec_id": "9603bf27-ab9b-5086-be38-f60a4e6ebe74",
+      "name": "fog",
+      "kind": "corruption",
+      "auc_drop": 0.11,
+      "max_relative_drop": 0.2699,
+      "levels_evaluated": 3,
+      "levels_early_stopped": 0,
+      "coverage": 1.0,
+      "partial": false
+    },
+    {
+      "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+      "name": "pgd_linf",
+      "kind": "attack",
+      "auc_drop": null,
+      "max_relative_drop": 0.959,
+      "levels_evaluated": 1,
+      "levels_early_stopped": 0,
+      "coverage": 0.125,
+      "partial": false
+    },
+    {
+      "attack_spec_id": "9b1a8ccf-9447-5e5c-b4d3-1fa5cf5de7b8",
+      "name": "pgd_l2",
+      "kind": "attack",
+      "auc_drop": null,
+      "max_relative_drop": 0.9,
+      "levels_evaluated": 1,
+      "levels_early_stopped": 0,
+      "coverage": 0.0625,
+      "partial": false
+    }
+  ]
+}

@@ -123,6 +123,19 @@
           "pattern": "^(none|sha256:[0-9a-f]{64})$",
           "title": "Docker Image Digest",
           "type": "string"
+        },
+        "patch_key": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Phase 6: khóa patch (compute_patch_key) với run patch; bỏ khỏi JSON khi null nên fingerprint của run khác không đổi",
+          "title": "Patch Key"
         }
       },
       "required": [

@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "name": "fgsm",
+  "version": 1,
+  "kind": "attack",
+  "access": "white_box",
+  "art_class": "FastGradientMethod",
+  "primary_param": {
+    "name": "eps",
+    "type": "continuous",
+    "min": 0.0,
+    "max": 32.0,
+    "values": null,
+    "unit": "1/255"
+  },
+  "fixed_params": {
+    "norm": "inf"
+  },
+  "cost_model": {
+    "passes_per_image": 1,
+    "cpu_only": false
+  },
+  "requires_gradients": true,
+  "id": "8d15422d-f111-5c7e-96eb-e704767e6218",
+  "spec_sha256": "a6d81b6643af13e1d2f7983ce51340f54c26629304f1fdd98b954c236c1e735f",
+  "is_active": false
+}

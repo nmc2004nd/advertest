@@ -1,5 +1,43 @@
 {
   "$defs": {
+    "CaseAnonymization": {
+      "additionalProperties": false,
+      "description": "Làm mờ mặt người và biển số trên ảnh hiển thị của failure case (Phase 6).",
+      "properties": {
+        "applied": {
+          "title": "Applied",
+          "type": "boolean"
+        },
+        "method": {
+          "examples": [
+            "rule_v1"
+          ],
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Method",
+          "type": "string"
+        },
+        "version": {
+          "description": "Version cài đặt của method",
+          "exclusiveMinimum": 0,
+          "title": "Version",
+          "type": "integer"
+        },
+        "regions_count": {
+          "description": "Số vùng đã làm mờ trên ảnh",
+          "minimum": 0,
+          "title": "Regions Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "applied",
+        "method",
+        "version",
+        "regions_count"
+      ],
+      "title": "CaseAnonymization",
+      "type": "object"
+    },
     "CaseArtifacts": {
       "additionalProperties": false,
       "description": "Khóa lưu trữ (LocalStore ở Phase 2, MinIO từ Phase 3) của ảnh PNG letterbox.",
@@ -15,7 +53,7 @@
           "type": "string"
         },
         "perturbation_png": {
-          "description": "Ảnh nhiễu khuếch đại",
+          "description": "Ảnh thứ ba; nội dung theo FailureCaseRecord.perturbation_kind",
           "minLength": 1,
           "title": "Perturbation Png",
           "type": "string"
@@ -187,7 +225,7 @@
       "type": "object"
     },
     "DisplayMode": {
-      "description": "Cách hiển thị ảnh failure case (Phase 5, tạm thời đến khi có làm mờ ở Phase 10).",
+      "description": "Cách hiển thị ảnh failure case (Phase 5; Phase 6 thêm làm mờ theo từng case).",
       "enum": [
         "normal",
         "hidden_unanonymized",
@@ -270,6 +308,16 @@
       ],
       "title": "FailureCaseUrls",
       "type": "object"
+    },
+    "PerturbationImageKind": {
+      "description": "Nội dung ảnh thứ ba của failure case (Phase 6).",
+      "enum": [
+        "amplified_noise",
+        "difference",
+        "patch_location"
+      ],
+      "title": "PerturbationImageKind",
+      "type": "string"
     }
   },
   "additionalProperties": false,
@@ -325,6 +373,23 @@
     },
     "artifacts": {
       "$ref": "#/$defs/CaseArtifacts"
+    },
+    "perturbation_kind": {
+      "$ref": "#/$defs/PerturbationImageKind",
+      "default": "amplified_noise",
+      "description": "Phase 6: nhiễu khuếch đại (FGSM, PGD), vùng khác biệt (corruption, occlusion) hoặc vị trí patch"
+    },
+    "anonymization": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CaseAnonymization"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "null với case tạo trước Phase 6 (ảnh chưa làm mờ); case mới luôn có"
     },
     "urls": {
       "$ref": "#/$defs/FailureCaseUrls"

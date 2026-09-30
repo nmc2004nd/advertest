@@ -55,6 +55,7 @@ class StopReason(StrEnum):
 class SkipReason(StrEnum):
     CACHED = "cached"
     INCOMPATIBLE = "incompatible"
+    EARLY_STOP = "early_stop"  # Phase 6: level nhỏ hơn của cùng attack đã làm model sụp
 
 
 class ComputeKind(StrEnum):
@@ -81,6 +82,7 @@ class AttackKind(StrEnum):
 class AttackAccess(StrEnum):
     WHITE_BOX = "white_box"
     BLACK_BOX = "black_box"
+    NOT_APPLICABLE = "not_applicable"  # Phase 6: corruption và occlusion (không phải kẻ tấn công)
 
 
 class RunMode(StrEnum):
@@ -136,8 +138,23 @@ class CaseSeverity(StrEnum):
 
 
 class DisplayMode(StrEnum):
-    """Cách hiển thị ảnh failure case (Phase 5, tạm thời đến khi có làm mờ ở Phase 10)."""
+    """Cách hiển thị ảnh failure case (Phase 5; Phase 6 thêm làm mờ theo từng case)."""
 
-    NORMAL = "normal"  # dataset đã ẩn danh: có URL ảnh
-    HIDDEN_UNANONYMIZED = "hidden_unanonymized"  # dataset chưa làm mờ: không cấp URL ảnh
+    NORMAL = "normal"  # dataset đã ẩn danh, hoặc case đã làm mờ (Phase 6): có URL ảnh
+    HIDDEN_UNANONYMIZED = "hidden_unanonymized"  # dataset và case chưa làm mờ: không cấp URL ảnh
     DEV_UNBLURRED = "dev_unblurred"  # chưa làm mờ nhưng server bật DEV_ALLOW_UNBLURRED
+
+
+class RunPhase(StrEnum):
+    """Giai đoạn của run đang chạy (Phase 6): run patch train trước khi đánh giá."""
+
+    TRAINING = "training"
+    EVALUATING = "evaluating"
+
+
+class PerturbationImageKind(StrEnum):
+    """Nội dung ảnh thứ ba của failure case (Phase 6)."""
+
+    AMPLIFIED_NOISE = "amplified_noise"  # nhiễu khuếch đại (FGSM, PGD)
+    DIFFERENCE = "difference"  # vùng khác biệt |δ| (corruption, occlusion)
+    PATCH_LOCATION = "patch_location"  # vị trí patch

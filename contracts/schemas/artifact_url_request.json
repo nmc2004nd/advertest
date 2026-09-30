@@ -7,7 +7,7 @@
       "type": "string"
     },
     "key": {
-      "description": "Khóa đầy đủ, phải nằm trong runs/<run_id>/",
+      "description": "Khóa đầy đủ, phải nằm trong runs/<run_id>/, hoặc trong patches/<patch_key>/ với patch_key của run (Phase 6)",
       "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]*(/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$",
       "title": "Key",
       "type": "string"

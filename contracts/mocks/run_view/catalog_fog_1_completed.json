@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "run_id": "abb01184-8b11-51e6-b003-703a1002f156",
+  "experiment_id": "9ec0fa7e-1626-56f2-a9e4-db3a427d1173",
+  "attack_spec_id": "9603bf27-ab9b-5086-be38-f60a4e6ebe74",
+  "level": 1.0,
+  "status": "completed",
+  "status_reason": null,
+  "progress": {
+    "images_done": 300,
+    "images_total": 300
+  },
+  "metrics": {
+    "clean": {
+      "map50": 0.512,
+      "map50_95": 0.298
+    },
+    "attacked": {
+      "map50": 0.4915,
+      "map50_95": 0.2861
+    },
+    "relative_drop": 0.04,
+    "absolute_drop": 0.0205,
+    "attack_success_rate": 0.041,
+    "per_class": null,
+    "partial": false
+  },
+  "gpu_seconds": 41.5,
+  "cost": null,
+  "failure_case_ids": [],
+  "manifest_uri": "s3://artifacts/runs/abb01184-8b11-51e6-b003-703a1002f156/manifest.json",
+  "cached_from_run_id": null,
+  "fingerprint": "c005d57e2660fab7c3ff7efcda89386a19be175e1b22c833adba8639c4be48c0",
+  "attack_spec": {
+    "name": "fog",
+    "version": 1,
+    "param_name": "severity",
+    "param_unit": "severity"
+  },
+  "phase": null,
+  "training": null
+}

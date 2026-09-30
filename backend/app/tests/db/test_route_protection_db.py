@@ -118,4 +118,4 @@ def test_every_permission_with_a_route_is_covered() -> None:
         Permission.PROTOCOL_READ,
         Permission.EXPERIMENT_CANCEL_OWN,
     } <= set(REPRESENTATIVES)
-    assert len(REPRESENTATIVES) == 14
+    assert len(REPRESENTATIVES) == 15  # Phase 6: attack_catalog.manage (/admin/attack-specs)

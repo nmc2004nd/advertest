@@ -50,6 +50,19 @@
           "minimum": 0,
           "title": "Seed",
           "type": "integer"
+        },
+        "training_slice_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Phase 6: bắt buộc khi spec có requires_training; không giao với slice đánh giá",
+          "title": "Training Slice Id"
         }
       },
       "required": [
@@ -193,6 +206,11 @@
           "minItems": 1,
           "title": "Levels",
           "type": "array"
+        },
+        "early_stop": {
+          "description": "Phase 6: bỏ level lớn hơn khi model đã sụp (mAP@0.5 <= 5% mAP sạch)",
+          "title": "Early Stop",
+          "type": "boolean"
         }
       },
       "required": [

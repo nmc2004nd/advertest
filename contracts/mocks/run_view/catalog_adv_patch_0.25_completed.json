@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "run_id": "c93450a2-8ae3-533e-8e6c-bdb68c19d3f1",
+  "experiment_id": "9ec0fa7e-1626-56f2-a9e4-db3a427d1173",
+  "attack_spec_id": "f8b22364-fcde-5b6c-a6e3-23f9e8f2a67c",
+  "level": 0.25,
+  "status": "completed",
+  "status_reason": null,
+  "progress": {
+    "images_done": 300,
+    "images_total": 300
+  },
+  "metrics": {
+    "clean": {
+      "map50": 0.512,
+      "map50_95": 0.298
+    },
+    "attacked": {
+      "map50": 0.2662,
+      "map50_95": 0.155
+    },
+    "relative_drop": 0.4801,
+    "absolute_drop": 0.2458,
+    "attack_success_rate": 0.49,
+    "per_class": null,
+    "partial": false
+  },
+  "gpu_seconds": 36.9,
+  "cost": null,
+  "failure_case_ids": [
+    "0398c2a9-3176-5361-959a-af13027bbc3a"
+  ],
+  "manifest_uri": "s3://artifacts/runs/c93450a2-8ae3-533e-8e6c-bdb68c19d3f1/manifest.json",
+  "cached_from_run_id": null,
+  "fingerprint": "65d08067524e170b89476353cd111be15a6191c1752bc2d4e18c7120557d82c8",
+  "attack_spec": {
+    "name": "adv_patch",
+    "version": 1,
+    "param_name": "area_ratio",
+    "param_unit": "ratio"
+  },
+  "phase": null,
+  "training": null
+}

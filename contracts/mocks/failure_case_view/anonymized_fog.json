@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "id": "9f8a8961-11aa-5d68-a85d-c3ccd767f3cc",
+  "run_id": "45ad73f7-002b-55ab-8a7d-d4f05a1d726f",
+  "fingerprint": "f3d9aefae2c8c5ac5b978bd2350a0a308525a4b435d671886b239dd803792238",
+  "image_id": "000057",
+  "lost_objects": 3,
+  "new_false_positives": 1,
+  "severity_score": 3.5,
+  "detections": {
+    "ground_truth": [
+      {
+        "bbox": [
+          102.4,
+          290.1,
+          188.7,
+          331.6
+        ],
+        "class_name": "car",
+        "score": null
+      },
+      {
+        "bbox": [
+          301.0,
+          285.5,
+          352.9,
+          318.2
+        ],
+        "class_name": "car",
+        "score": null
+      },
+      {
+        "bbox": [
+          455.2,
+          270.3,
+          470.8,
+          318.9
+        ],
+        "class_name": "person",
+        "score": null
+      }
+    ],
+    "clean": [
+      {
+        "bbox": [
+          101.9,
+          289.7,
+          189.3,
+          332.0
+        ],
+        "class_name": "car",
+        "score": 0.91
+      },
+      {
+        "bbox": [
+          300.2,
+          286.0,
+          353.5,
+          318.8
+        ],
+        "class_name": "car",
+        "score": 0.84
+      },
+      {
+        "bbox": [
+          454.8,
+          271.0,
+          471.5,
+          319.4
+        ],
+        "class_name": "person",
+        "score": 0.67
+      }
+    ],
+    "attacked": [
+      {
+        "bbox": [
+          520.3,
+          300.2,
+          560.1,
+          322.8
+        ],
+        "class_name": "car",
+        "score": 0.41
+      }
+    ],
+    "ignore_regions": [
+      {
+        "bbox": [
+          0.0,
+          280.4,
+          40.6,
+          330.2
+        ],
+        "source": "difficulty:Car"
+      }
+    ]
+  },
+  "artifacts": {
+    "clean_png": "runs/45ad73f7-002b-55ab-8a7d-d4f05a1d726f/cases/9f8a8961-11aa-5d68-a85d-c3ccd767f3cc/clean.png",
+    "adversarial_png": "runs/45ad73f7-002b-55ab-8a7d-d4f05a1d726f/cases/9f8a8961-11aa-5d68-a85d-c3ccd767f3cc/adversarial.png",
+    "perturbation_png": "runs/45ad73f7-002b-55ab-8a7d-d4f05a1d726f/cases/9f8a8961-11aa-5d68-a85d-c3ccd767f3cc/perturbation.png",
+    "clean_thumb": "runs/45ad73f7-002b-55ab-8a7d-d4f05a1d726f/cases/9f8a8961-11aa-5d68-a85d-c3ccd767f3cc/clean_thumb.webp",
+    "adversarial_thumb": "runs/45ad73f7-002b-55ab-8a7d-d4f05a1d726f/cases/9f8a8961-11aa-5d68-a85d-c3ccd767f3cc/adversarial_thumb.webp"
+  },
+  "perturbation_kind": "difference",
+  "anonymization": {
+    "applied": true,
+    "method": "rule_v1",
+    "version": 1,
+    "regions_count": 4
+  },
+  "urls": {
+    "clean": "/artifacts/9f8a896111aa5d68a85dc3.clean",
+    "adversarial": "/artifacts/9f8a896111aa5d68a85dc3.adversarial",
+    "perturbation": "/artifacts/9f8a896111aa5d68a85dc3.perturbation",
+    "clean_thumb": "/artifacts/9f8a896111aa5d68a85dc3.clean_thumb",
+    "adversarial_thumb": "/artifacts/9f8a896111aa5d68a85dc3.adversarial_thumb"
+  },
+  "urls_expire_at": "2026-09-29T10:12:11Z",
+  "display_mode": "normal"
+}

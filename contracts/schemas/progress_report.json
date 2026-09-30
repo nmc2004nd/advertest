@@ -1,5 +1,17 @@
 {
+  "$defs": {
+    "RunPhase": {
+      "description": "Giai đoạn của run đang chạy (Phase 6): run patch train trước khi đánh giá.",
+      "enum": [
+        "training",
+        "evaluating"
+      ],
+      "title": "RunPhase",
+      "type": "string"
+    }
+  },
   "additionalProperties": false,
+  "description": "Tiến độ sau mỗi batch (đánh giá) hoặc sau mỗi vòng lặp train patch (Phase 6).",
   "properties": {
     "lease_id": {
       "format": "uuid",
@@ -7,26 +19,60 @@
       "type": "string"
     },
     "images_done": {
-      "description": "Tổng số ảnh đã xử lý của run",
+      "description": "Tổng số ảnh đã xử lý của run; 0 khi phase = training",
       "minimum": 0,
       "title": "Images Done",
       "type": "integer"
     },
     "batch_index": {
+      "description": "0 khi phase = training",
       "minimum": 0,
       "title": "Batch Index",
       "type": "integer"
     },
     "checkpoint_key": {
+      "description": "evaluating: trong runs/<run_id>/; training: checkpoint patch mới nhất trong patches/<patch_key>/ (worker ghi checkpoint ở vòng 0 trước khi báo)",
       "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]*(/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$",
       "title": "Checkpoint Key",
       "type": "string"
     },
     "processing_seconds_delta": {
-      "description": "Thời gian xử lý từ lần báo trước; API cộng dồn",
+      "description": "Thời gian xử lý từ lần báo trước (gồm thời gian train); API cộng dồn",
       "minimum": 0,
       "title": "Processing Seconds Delta",
       "type": "number"
+    },
+    "phase": {
+      "$ref": "#/$defs/RunPhase",
+      "default": "evaluating"
+    },
+    "iterations_done": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Chỉ có khi phase = training",
+      "title": "Iterations Done"
+    },
+    "iterations_total": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Chỉ có khi phase = training (training.max_iter)",
+      "title": "Iterations Total"
     }
   },
   "required": [

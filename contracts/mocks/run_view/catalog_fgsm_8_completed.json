@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "run_id": "ac30b06f-1864-5c5e-8e47-c940fb3a812b",
+  "experiment_id": "9ec0fa7e-1626-56f2-a9e4-db3a427d1173",
+  "attack_spec_id": "8d15422d-f111-5c7e-96eb-e704767e6218",
+  "level": 8.0,
+  "status": "completed",
+  "status_reason": null,
+  "progress": {
+    "images_done": 300,
+    "images_total": 300
+  },
+  "metrics": {
+    "clean": {
+      "map50": 0.512,
+      "map50_95": 0.298
+    },
+    "attacked": {
+      "map50": 0.0118,
+      "map50_95": 0.0069
+    },
+    "relative_drop": 0.977,
+    "absolute_drop": 0.5002,
+    "attack_success_rate": 0.997,
+    "per_class": null,
+    "partial": false
+  },
+  "gpu_seconds": 180.0,
+  "cost": null,
+  "failure_case_ids": [],
+  "manifest_uri": "s3://artifacts/runs/ac30b06f-1864-5c5e-8e47-c940fb3a812b/manifest.json",
+  "cached_from_run_id": null,
+  "fingerprint": "d384349550e1a33dcde0c106c05e1278559bb8a9ad61e38bfca138fb956de981",
+  "attack_spec": {
+    "name": "fgsm",
+    "version": 1,
+    "param_name": "eps",
+    "param_unit": "1/255"
+  },
+  "phase": null,
+  "training": null
+}

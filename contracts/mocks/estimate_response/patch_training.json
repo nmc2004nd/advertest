@@ -1,0 +1,38 @@
+{
+  "runs": [
+    {
+      "attack_spec_id": "f8b22364-fcde-5b6c-a6e3-23f9e8f2a67c",
+      "level": 0.1,
+      "images": 300,
+      "sec_per_image": 0.162,
+      "est_seconds": 58.32,
+      "skip_reason": null,
+      "training_seconds": 4300.0
+    },
+    {
+      "attack_spec_id": "f8b22364-fcde-5b6c-a6e3-23f9e8f2a67c",
+      "level": 0.25,
+      "images": 300,
+      "sec_per_image": 0.162,
+      "est_seconds": 58.32,
+      "skip_reason": null,
+      "training_seconds": null
+    },
+    {
+      "attack_spec_id": "9603bf27-ab9b-5086-be38-f60a4e6ebe74",
+      "level": 3.0,
+      "images": 300,
+      "sec_per_image": 0.171,
+      "est_seconds": 61.56,
+      "skip_reason": null,
+      "training_seconds": null
+    }
+  ],
+  "total_seconds": 4474.96,
+  "missing_profiles": [],
+  "exceeds_limit": false,
+  "queue": {
+    "position": 1,
+    "ahead_seconds": 0.0
+  }
+}

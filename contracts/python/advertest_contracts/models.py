@@ -32,9 +32,11 @@ from advertest_contracts.enums import (
     ErrorCode,
     ExperimentStatus,
     LimitKind,
+    PerturbationImageKind,
     ProtocolStatus,
     Role,
     RunMode,
+    RunPhase,
     RunStatus,
     SearchStatus,
     SkipReason,
@@ -68,8 +70,25 @@ def _require_utc(value: datetime) -> datetime:
 UtcDatetime = Annotated[AwareDatetime, AfterValidator(_require_utc)]
 
 
+def _omittable_not_required(schema: dict[str, Any], cls: type[BaseModel]) -> None:
+    """Trường có `exclude_if` có thể vắng trong JSON trả về (Phase 6: trường mới bị bỏ khi mang
+    giá trị mặc định để hash cũ không đổi), nên không được khai là bắt buộc ở chế độ serialization
+    (TypeScript type sinh ra khai là tùy chọn)."""
+    omitted = {name for name, field in cls.model_fields.items() if field.exclude_if is not None}
+    # openapi-typescript coi trường có `default` là luôn có mặt; giá trị mặc định ghi ở description.
+    for name in omitted:
+        schema.get("properties", {}).get(name, {}).pop("default", None)
+    required = [name for name in schema.get("required", []) if name not in omitted]
+    if required:
+        schema["required"] = required
+    else:
+        schema.pop("required", None)
+
+
 class _Model(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
+    model_config = ConfigDict(
+        extra="forbid", frozen=True, json_schema_extra=_omittable_not_required
+    )
 
 
 # ---------------------------------------------------------------- AttackSpec
@@ -110,24 +129,59 @@ class CostModel(_Model):
         return self
 
 
+class TrainingParams(_Model):
+    """Tham số huấn luyện của spec cần train trước khi đánh giá (patch, Phase 6)."""
+
+    max_iter: PositiveInt = Field(
+        description="Số vòng lặp; mỗi vòng đi qua toàn bộ slice huấn luyện"
+    )
+    learning_rate: PositiveFloat = Field(description="Trong thang ảnh [0, 1]")
+    sample_size: PositiveInt = Field(description="Số biến đổi ngẫu nhiên mỗi ảnh mỗi vòng (EOT)")
+    checkpoint_every: PositiveInt = Field(description="Lưu checkpoint sau mỗi số vòng lặp này")
+    max_training_images: PositiveInt = Field(description="Kích thước tối đa của slice huấn luyện")
+
+
 class AttackSpecBody(_Model):
-    """Nội dung của attack spec (mọi trường trừ `id` và `spec_sha256`); là đầu vào của hash."""
+    """Nội dung của attack spec (mọi trường trừ `id` và `spec_sha256`); là đầu vào của hash.
+
+    Trường thêm ở Phase 6 (`requires_training`, `training`) bị bỏ khỏi JSON khi mang giá trị mặc
+    định, nên hash của spec cũ không đổi.
+    """
 
     schema_version: Literal[1] = 1
     name: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
     version: PositiveInt
     kind: AttackKind
-    access: AttackAccess
+    access: AttackAccess = Field(
+        description="Corruption và occlusion dùng not_applicable; attack không dùng giá trị này"
+    )
     art_class: str | None = Field(default=None, description="Null với corruption và occlusion")
     primary_param: PrimaryParam
     fixed_params: dict[str, JsonValue]
     cost_model: CostModel
     requires_gradients: bool
+    requires_training: bool = Field(
+        default=False,
+        exclude_if=lambda v: v is False,
+        description="Phase 6: phải train (patch) trên slice huấn luyện trước khi đánh giá",
+    )
+    training: TrainingParams | None = Field(
+        default=None,
+        exclude_if=lambda v: v is None,
+        description="Có khi và chỉ khi requires_training = true",
+    )
 
     @model_validator(mode="after")
     def _check_art_class(self) -> AttackSpecBody:
-        if (self.kind == AttackKind.ATTACK) != (self.art_class is not None):
+        is_attack = self.kind == AttackKind.ATTACK
+        if is_attack != (self.art_class is not None):
             raise ValueError("art_class bắt buộc với kind = attack và phải null với loại khác")
+        if is_attack and self.access == AttackAccess.NOT_APPLICABLE:
+            raise ValueError("attack (kind = attack) không được có access = not_applicable")
+        if self.requires_training != (self.training is not None):
+            raise ValueError("training có khi và chỉ khi requires_training = true")
+        if self.requires_training and not (is_attack and self.requires_gradients):
+            raise ValueError("requires_training chỉ dùng cho attack cần gradient")
         return self
 
 
@@ -147,9 +201,13 @@ class AttackSpec(AttackSpecBody):
 
 def compute_spec_sha256(spec: AttackSpecBody | Mapping[str, Any]) -> str:
     """sha256 của phần thân attack spec (đã điền giá trị mặc định), bỏ qua `id` và `spec_sha256`."""
-    data = spec.model_dump(mode="json") if isinstance(spec, BaseModel) else dict(spec)
-    data.pop("id", None)
-    data.pop("spec_sha256", None)
+    if isinstance(spec, BaseModel):
+        # Chỉ các trường của phần thân: lớp con (AttackSpecAdminView) có thêm trường hiển thị.
+        data = spec.model_dump(mode="json", include=set(AttackSpecBody.model_fields))
+    else:
+        data = dict(spec)
+        data.pop("id", None)
+        data.pop("spec_sha256", None)
     return sha256_of(AttackSpecBody.model_validate(data))
 
 
@@ -158,6 +216,11 @@ def compute_spec_sha256(spec: AttackSpecBody | Mapping[str, Any]) -> str:
 
 class GridConfig(_Model):
     levels: list[float] = Field(min_length=1)
+    early_stop: bool = Field(
+        default=True,
+        exclude_if=lambda v: v is True,
+        description="Phase 6: bỏ level lớn hơn khi model đã sụp (mAP@0.5 <= 5% mAP sạch)",
+    )
 
 
 class SearchConfig(_Model):
@@ -194,6 +257,12 @@ class AttackConfig(_Model):
     grid: GridConfig | None = None
     search: SearchConfig | None = None
     seed: NonNegativeInt
+    training_slice_id: UUID | None = Field(
+        default=None,
+        exclude_if=lambda v: v is None,
+        description="Phase 6: bắt buộc khi spec có requires_training; không giao với slice"
+        " đánh giá",
+    )
 
     @model_validator(mode="after")
     def _check(self) -> AttackConfig:
@@ -235,6 +304,17 @@ _ABNORMAL = frozenset(_REASON_CODES)
 class StatusReason(_Model):
     code: StopReason | SkipReason | Literal["error", "cancelled"]
     message: str = Field(min_length=1)
+    trigger_run_id: UUID | None = Field(
+        default=None,
+        exclude_if=lambda v: v is None,
+        description="Phase 6: run đã kích hoạt dừng sớm; có khi và chỉ khi code = early_stop",
+    )
+
+    @model_validator(mode="after")
+    def _check_trigger(self) -> StatusReason:
+        if (self.trigger_run_id is not None) != (self.code == SkipReason.EARLY_STOP):
+            raise ValueError("trigger_run_id có khi và chỉ khi code = early_stop")
+        return self
 
 
 class Progress(_Model):
@@ -349,6 +429,12 @@ class FingerprintInputs(_Model):
     git_dirty: bool = Field(description="Working tree có thay đổi chưa commit lúc chạy")
     lib_versions: LibVersions
     docker_image_digest: DockerDigest
+    patch_key: Sha256Hex | None = Field(
+        default=None,
+        exclude_if=lambda v: v is None,
+        description="Phase 6: khóa patch (compute_patch_key) với run patch; bỏ khỏi JSON khi null"
+        " nên fingerprint của run khác không đổi",
+    )
 
 
 class Environment(_Model):
@@ -776,9 +862,20 @@ class CaseArtifacts(_Model):
 
     clean_png: str = Field(min_length=1)
     adversarial_png: str = Field(min_length=1)
-    perturbation_png: str = Field(min_length=1, description="Ảnh nhiễu khuếch đại")
+    perturbation_png: str = Field(
+        min_length=1, description="Ảnh thứ ba; nội dung theo FailureCaseRecord.perturbation_kind"
+    )
     clean_thumb: str | None = Field(default=None, description=_THUMB)
     adversarial_thumb: str | None = Field(default=None, description=_THUMB)
+
+
+class CaseAnonymization(_Model):
+    """Làm mờ mặt người và biển số trên ảnh hiển thị của failure case (Phase 6)."""
+
+    applied: bool
+    method: str = Field(pattern=r"^[a-z][a-z0-9_]*$", examples=["rule_v1"])
+    version: PositiveInt = Field(description="Version cài đặt của method")
+    regions_count: NonNegativeInt = Field(description="Số vùng đã làm mờ trên ảnh")
 
 
 def compute_failure_case_id(fingerprint: str, run_id: UUID, image_id: str) -> UUID:
@@ -806,6 +903,15 @@ class FailureCaseRecord(_Model):
     )
     detections: CaseDetections
     artifacts: CaseArtifacts
+    perturbation_kind: PerturbationImageKind = Field(
+        default=PerturbationImageKind.AMPLIFIED_NOISE,
+        description="Phase 6: nhiễu khuếch đại (FGSM, PGD), vùng khác biệt (corruption,"
+        " occlusion) hoặc vị trí patch",
+    )
+    anonymization: CaseAnonymization | None = Field(
+        default=None,
+        description="null với case tạo trước Phase 6 (ảnh chưa làm mờ); case mới luôn có",
+    )
 
     @model_validator(mode="after")
     def _check(self) -> FailureCaseRecord:
@@ -815,6 +921,75 @@ class FailureCaseRecord(_Model):
         expected = self.lost_objects + 0.5 * self.new_false_positives
         if self.severity_score != expected:
             raise ValueError(f"severity_score phải bằng {expected}")
+        return self
+
+
+# ---------------------------------------------------------------- Phase 6: patch
+
+
+def compute_patch_key(
+    *,
+    spec_sha256: str,
+    weights_sha256: str,
+    training_slice_sha256: str,
+    area_ratio: float,
+    seed: int,
+) -> str:
+    """Khóa patch: mỗi khóa chỉ train một lần (requirements.md Phase 6, Patch attack)."""
+    return sha256_of(
+        {
+            "spec_sha256": spec_sha256,
+            "weights_sha256": weights_sha256,
+            "training_slice_sha256": training_slice_sha256,
+            "area_ratio": area_ratio,
+            "seed": seed,
+        }
+    )
+
+
+def patch_prefix(key: str) -> str:
+    """Thư mục của patch trong bucket artifact (patch, checkpoint)."""
+    return f"patches/{key}/"
+
+
+class PatchArtifact(_Model):
+    """Patch đã train, lưu trong MinIO dưới `patches/<key>/`, dùng lại giữa các experiment."""
+
+    schema_version: Literal[1] = 1
+    key: Sha256Hex = Field(description="compute_patch_key của năm trường bên dưới")
+    spec_sha256: Sha256Hex
+    weights_sha256: Sha256Hex
+    training_slice_sha256: Sha256Hex
+    area_ratio: float = Field(gt=0, le=1)
+    seed: NonNegativeInt
+    side_px: PositiveInt = Field(description="Cạnh patch vuông, pixel trong không gian letterbox")
+    patch_sha256: Sha256Hex = Field(description="sha256 của file .npy")
+    png_key: ObjectKey
+    npy_key: ObjectKey = Field(description="Mảng float32 (C, H, W) trong [0, 1]")
+    iterations: PositiveInt = Field(description="Số vòng lặp đã train (bằng training.max_iter)")
+    training_seconds: NonNegativeFloat = Field(description="Cộng dồn qua các lần chạy tiếp")
+    objective_history: list[float] = Field(
+        description="Giá trị mục tiêu sau mỗi vòng lặp (loss của detector trên ảnh đã dán patch;"
+        " attack untargeted làm giá trị này tăng)"
+    )
+    created_at: UtcDatetime
+
+    @model_validator(mode="after")
+    def _check(self) -> PatchArtifact:
+        expected = compute_patch_key(
+            spec_sha256=self.spec_sha256,
+            weights_sha256=self.weights_sha256,
+            training_slice_sha256=self.training_slice_sha256,
+            area_ratio=self.area_ratio,
+            seed=self.seed,
+        )
+        if self.key != expected:
+            raise ValueError(f"key phải là compute_patch_key (tính lại: {expected})")
+        prefix = patch_prefix(self.key)
+        if not (self.png_key.startswith(prefix) and self.npy_key.startswith(prefix)):
+            raise ValueError("png_key và npy_key phải nằm trong patches/<key>/")
+        if len(self.objective_history) != self.iterations:
+            raise ValueError("objective_history phải có đúng iterations phần tử")
         return self
 
 
@@ -829,6 +1004,11 @@ class CostProfile(_Model):
     model_version_id: UUID
     attack_spec_id: UUID
     sec_per_image: PositiveFloat
+    sec_per_image_iteration: PositiveFloat | None = Field(
+        default=None,
+        description="Phase 6: giây cho một ảnh trong một vòng lặp huấn luyện; chỉ có với spec"
+        " requires_training",
+    )
     peak_vram_mb: NonNegativeInt = Field(description="0 khi chạy trên CPU")
     batch_size: PositiveInt
     measured_at: UtcDatetime
@@ -876,6 +1056,14 @@ class BundleRun(_Model):
     images_done: NonNegativeInt
     images_total: PositiveInt
     checkpoint: BundleCheckpoint | None = Field(description="Checkpoint mới nhất khi đang chạy dở")
+    metrics: RunMetrics | None = Field(
+        default=None,
+        description="Phase 6: metric của run đã có kết quả, để worker tính lại dừng sớm khi chạy"
+        " tiếp sau gián đoạn",
+    )
+    patch_key: Sha256Hex | None = Field(
+        default=None, description="Phase 6: khóa patch với run patch (có trong bundle.patches)"
+    )
 
     @model_validator(mode="after")
     def _check(self) -> BundleRun:
@@ -883,6 +1071,33 @@ class BundleRun(_Model):
             raise ValueError("images_done không được lớn hơn images_total")
         if self.checkpoint is not None and self.status != RunStatus.RUNNING:
             raise ValueError("checkpoint chỉ có khi status = running")
+        return self
+
+
+class BundlePatch(_Model):
+    """Patch mà một run của experiment cần (Phase 6)."""
+
+    key: Sha256Hex
+    attack_spec_id: UUID
+    area_ratio: float = Field(gt=0, le=1)
+    training_slice_id: UUID
+    artifact: PatchArtifact | None = Field(description="null khi chưa train xong")
+    checkpoint_key: ObjectKey | None = Field(
+        description="Checkpoint train mới nhất trong patches/<key>/ khi đang train dở; file"
+        " checkpoint tự ghi số vòng lặp đã xong"
+    )
+
+    @model_validator(mode="after")
+    def _check(self) -> BundlePatch:
+        if self.artifact is not None:
+            if self.artifact.key != self.key or self.artifact.area_ratio != self.area_ratio:
+                raise ValueError("artifact phải cùng key và area_ratio")
+            if self.checkpoint_key is not None:
+                raise ValueError("patch đã train xong không còn checkpoint_key")
+        if self.checkpoint_key is not None and not self.checkpoint_key.startswith(
+            patch_prefix(self.key)
+        ):
+            raise ValueError("checkpoint_key phải nằm trong patches/<key>/")
         return self
 
 
@@ -910,6 +1125,13 @@ class WorkerJobBundle(_Model):
     downloads: BundleDownloads
     limit: BundleLimit
     runs: list[BundleRun] = Field(min_length=1, description="Theo thứ tự chạy")
+    training_slices: list[SliceSpec] = Field(
+        default_factory=list,
+        description="Phase 6: slice huấn luyện của các attack có training_slice_id",
+    )
+    patches: list[BundlePatch] = Field(
+        default_factory=list, description="Phase 6: patch mà các run patch cần, không trùng key"
+    )
 
     @model_validator(mode="after")
     def _check(self) -> WorkerJobBundle:
@@ -931,8 +1153,27 @@ class WorkerJobBundle(_Model):
             raise ValueError("run có attack_spec_id không nằm trong config")
         if len({r.run_id for r in self.runs}) != len(self.runs):
             raise ValueError("run_id không được trùng")
-        if set(self.downloads.images) != set(self.slice.image_ids):
-            raise ValueError("downloads.images phải đúng các ảnh của slice")
+        training = {s.id: s for s in self.training_slices}
+        needed = {a.training_slice_id for a in cfg.attacks if a.training_slice_id is not None}
+        if set(training) != needed:
+            raise ValueError("training_slices phải đúng các training_slice_id trong config")
+        evaluation = set(self.slice.image_ids)
+        for training_slice in self.training_slices:
+            if training_slice.dataset_version_sha256 != self.slice.dataset_version_sha256:
+                raise ValueError("slice huấn luyện phải cùng dataset version với slice đánh giá")
+            if evaluation.intersection(training_slice.image_ids):
+                raise ValueError("slice huấn luyện không được giao với slice đánh giá")
+        images = set(self.slice.image_ids).union(*(s.image_ids for s in self.training_slices))
+        if set(self.downloads.images) != images:
+            raise ValueError("downloads.images phải đúng các ảnh của slice và slice huấn luyện")
+        patches = {p.key: p for p in self.patches}
+        if len(patches) != len(self.patches):
+            raise ValueError("patches không được trùng key")
+        for patch in self.patches:
+            if patch.attack_spec_id not in spec_ids or patch.training_slice_id not in training:
+                raise ValueError("patch phải thuộc attack và slice huấn luyện của config")
+        if {r.patch_key for r in self.runs if r.patch_key is not None} != set(patches):
+            raise ValueError("patches phải đúng các patch_key của runs")
         if (self.limit.kind, self.limit.value) != (cfg.limit.kind, cfg.limit.value):
             raise ValueError("limit phải khớp config.limit")
         for profile in self.cost_profiles:
@@ -986,13 +1227,41 @@ class RunStartResponse(_Model):
 
 
 class ProgressReport(_Model):
+    """Tiến độ sau mỗi batch (đánh giá) hoặc sau mỗi vòng lặp train patch (Phase 6)."""
+
     lease_id: UUID
-    images_done: NonNegativeInt = Field(description="Tổng số ảnh đã xử lý của run")
-    batch_index: NonNegativeInt
-    checkpoint_key: ObjectKey
-    processing_seconds_delta: NonNegativeFloat = Field(
-        description="Thời gian xử lý từ lần báo trước; API cộng dồn"
+    images_done: NonNegativeInt = Field(
+        description="Tổng số ảnh đã xử lý của run; 0 khi phase = training"
     )
+    batch_index: NonNegativeInt = Field(description="0 khi phase = training")
+    checkpoint_key: ObjectKey = Field(
+        description="evaluating: trong runs/<run_id>/; training: checkpoint patch mới nhất trong"
+        " patches/<patch_key>/ (worker ghi checkpoint ở vòng 0 trước khi báo)"
+    )
+    processing_seconds_delta: NonNegativeFloat = Field(
+        description="Thời gian xử lý từ lần báo trước (gồm thời gian train); API cộng dồn"
+    )
+    phase: RunPhase = RunPhase.EVALUATING
+    iterations_done: NonNegativeInt | None = Field(
+        default=None, description="Chỉ có khi phase = training"
+    )
+    iterations_total: PositiveInt | None = Field(
+        default=None, description="Chỉ có khi phase = training (training.max_iter)"
+    )
+
+    @model_validator(mode="after")
+    def _check_phase(self) -> ProgressReport:
+        training = self.phase == RunPhase.TRAINING
+        if training != (self.iterations_done is not None and self.iterations_total is not None):
+            raise ValueError(
+                "iterations_done và iterations_total có khi và chỉ khi phase = training"
+            )
+        done, total = self.iterations_done, self.iterations_total
+        if done is not None and total is not None and done > total:
+            raise ValueError("iterations_done không được lớn hơn iterations_total")
+        if training and (self.images_done != 0 or self.batch_index != 0):
+            raise ValueError("phase = training có images_done = 0 và batch_index = 0")
+        return self
 
 
 class WorkerDirective(_Model):
@@ -1004,7 +1273,10 @@ class WorkerDirective(_Model):
 
 class ArtifactUrlRequest(_Model):
     lease_id: UUID
-    key: ObjectKey = Field(description="Khóa đầy đủ, phải nằm trong runs/<run_id>/")
+    key: ObjectKey = Field(
+        description="Khóa đầy đủ, phải nằm trong runs/<run_id>/, hoặc trong patches/<patch_key>/"
+        " với patch_key của run (Phase 6)"
+    )
     method: Literal["PUT", "GET", "DELETE"]
 
 
@@ -1034,6 +1306,26 @@ class RunCompletion(_Model):
             if case.run_id != result.run_id or case.fingerprint != result.fingerprint:
                 raise ValueError("failure case phải cùng run_id và fingerprint với run_result")
         return self
+
+
+class RunSkipRequest(_Model):
+    """Body của `POST /runs/{id}/skip` (Phase 6): bỏ run chưa start do dừng sớm."""
+
+    lease_id: UUID
+    code: Literal["early_stop"]
+    trigger_run_id: UUID = Field(description="Run của cùng attack đã làm model sụp")
+    message: str = Field(min_length=1)
+
+
+class PatchRegistration(_Model):
+    """Body của `POST /runs/{id}/patch` (Phase 6): đăng ký patch vừa train xong.
+
+    Khóa đã có (worker khác đăng ký trước) thì API giữ bản cũ và trả bản đó; worker dùng bản trả
+    về để đánh giá.
+    """
+
+    lease_id: UUID
+    artifact: PatchArtifact
 
 
 # ---------------------------------------------------------------- API chung
@@ -1325,9 +1617,19 @@ class EstimateRun(_Model):
     skip_reason: Literal["incompatible"] | None = Field(
         description="Run sẽ bị `skipped`: attack cần gradient, model không hỗ trợ"
     )
+    training_seconds: Seconds | None = Field(
+        default=None,
+        description="Phase 6: max_iter * số ảnh slice huấn luyện * sec_per_image_iteration khi"
+        " patch chưa có; null khi patch đã có, spec không cần train, thiếu profile hoặc run bị bỏ"
+        " qua. Không gồm trong est_seconds, nhưng cộng vào total_seconds và exceeds_limit",
+    )
 
     @model_validator(mode="after")
     def _check(self) -> EstimateRun:
+        if self.training_seconds is not None and (
+            self.skip_reason is not None or self.est_seconds is None
+        ):
+            raise ValueError("training_seconds chỉ có khi run được ước lượng và không bị bỏ qua")
         if self.skip_reason is not None:
             if self.est_seconds != 0:
                 raise ValueError("run sẽ bị bỏ qua phải có est_seconds = 0")
@@ -1346,13 +1648,15 @@ class QueueEstimate(_Model):
 
 class EstimateResponse(_Model):
     runs: list[EstimateRun] = Field(min_length=1)
-    total_seconds: Seconds | None = Field(description="null khi có run thiếu profile")
+    total_seconds: Seconds | None = Field(
+        description="Tổng est_seconds và training_seconds; null khi có run thiếu profile"
+    )
     missing_profiles: list[UUID] = Field(
         description="attack_spec_id thiếu cost profile, không trùng"
     )
     exceeds_limit: bool = Field(
-        description="Tổng ước lượng của các run ước lượng được (cận dưới khi thiếu profile) lớn"
-        " hơn giới hạn thời gian"
+        description="Tổng est_seconds và training_seconds của các run ước lượng được (cận dưới khi"
+        " thiếu profile) lớn hơn giới hạn thời gian"
     )
     queue: QueueEstimate
 
@@ -1430,6 +1734,42 @@ class ExperimentSummary(_Model):
         return self
 
 
+class AttackRankingEntry(_Model):
+    """Một attack trong bảng xếp hạng (Phase 6, `ml_core/metrics/ranking.py`).
+
+    Điểm của đường cong: (level / primary_param.max, relative_drop), thêm (0, 0) ở đầu; level bị
+    `early_stop` lấy relative_drop của run kích hoạt. Diện tích tính đến `coverage`, không ngoại
+    suy.
+    """
+
+    attack_spec_id: UUID
+    name: str
+    kind: AttackKind
+    auc_drop: float | None = Field(
+        description="Diện tích hình thang; null khi ít hơn 2 điểm (không đủ dữ liệu)"
+    )
+    max_relative_drop: float | None = Field(description="null khi không có level nào có metric")
+    levels_evaluated: NonNegativeInt = Field(description="Số level có metric")
+    levels_early_stopped: NonNegativeInt = Field(description="Số level bị bỏ qua do dừng sớm")
+    coverage: UnitFloat | None = Field(
+        description="level / max lớn nhất được tính (có metric hoặc early_stop); null khi không có"
+    )
+    partial: bool = Field(description="Có run stopped_limit hoặc metrics.partial")
+
+    @model_validator(mode="after")
+    def _check(self) -> AttackRankingEntry:
+        points = self.levels_evaluated + self.levels_early_stopped
+        if points < 2 and self.auc_drop is not None:
+            raise ValueError("auc_drop là null khi ít hơn 2 level có kết quả")
+        if (self.coverage is None) != (points == 0):
+            raise ValueError("coverage là null khi và chỉ khi không có level nào có kết quả")
+        if self.levels_early_stopped and not self.levels_evaluated:
+            raise ValueError("level early_stop cần ít nhất một level có metric")
+        if self.levels_evaluated == 0 and self.max_relative_drop is not None:
+            raise ValueError("max_relative_drop là null khi không có level nào có metric")
+        return self
+
+
 class ExperimentDetail(ExperimentSummary):
     config: ExperimentConfig
     config_sha256: Sha256Hex
@@ -1441,6 +1781,11 @@ class ExperimentDetail(ExperimentSummary):
     clean_metrics: MapPair | None = Field(
         description="mAP ảnh sạch; null khi chưa run nào có metric"
     )
+    attack_ranking: list[AttackRankingEntry] = Field(
+        default_factory=list,
+        description="Phase 6: mỗi attack của config một dòng, giảm dần theo auc_drop, null xếp"
+        " cuối",
+    )
 
     @model_validator(mode="after")
     def _check_detail(self) -> ExperimentDetail:
@@ -1448,6 +1793,15 @@ class ExperimentDetail(ExperimentSummary):
             raise ValueError("queue_position có khi và chỉ khi status = queued")
         if self.limit != self.config.limit:
             raise ValueError("limit phải bằng config.limit")
+        ids = [entry.attack_spec_id for entry in self.attack_ranking]
+        if len(set(ids)) != len(ids):
+            raise ValueError("attack_ranking không được trùng attack")
+        if not set(ids) <= {attack.attack_spec_id for attack in self.config.attacks}:
+            raise ValueError("attack_ranking chỉ gồm attack của config")
+        scores = [entry.auc_drop for entry in self.attack_ranking]
+        known = [score for score in scores if score is not None]
+        if scores[: len(known)] != sorted(known, reverse=True):
+            raise ValueError("attack_ranking phải giảm dần theo auc_drop, null xếp cuối")
         return self
 
 
@@ -1462,27 +1816,55 @@ class RunAttackSpec(_Model):
     param_unit: str = Field(description="Đơn vị tham số chính (primary_param.unit)")
 
 
+class IterationProgress(_Model):
+    done: NonNegativeInt
+    total: PositiveInt
+
+    @model_validator(mode="after")
+    def _check(self) -> IterationProgress:
+        if self.done > self.total:
+            raise ValueError("done không được lớn hơn total")
+        return self
+
+
 class RunView(_RunCommon):
     """Run hiển thị cho người dùng. `fingerprint` null khi và chỉ khi run chưa bắt đầu: worker
     tính fingerprint ở `start` (đề xuất contract 001, Phase 5)."""
 
     fingerprint: Sha256Hex | None = Field(
-        description="null khi run chưa bắt đầu (queued, hoặc bị hủy/dừng trước khi chạy)"
+        description="null khi run chưa bắt đầu (queued, bị hủy/dừng trước khi chạy, hoặc bị bỏ qua"
+        " do early_stop)"
     )
     attack_spec: RunAttackSpec
+    phase: RunPhase | None = Field(
+        default=None, description="Phase 6: giai đoạn khi status = running; null khi khác"
+    )
+    training: IterationProgress | None = Field(
+        default=None, description="Phase 6: tiến độ train patch; có khi và chỉ khi phase = training"
+    )
+
+    @model_validator(mode="after")
+    def _check_phase(self) -> RunView:
+        if self.phase is not None and self.status != RunStatus.RUNNING:
+            raise ValueError("phase chỉ có khi status = running")
+        if (self.training is not None) != (self.phase == RunPhase.TRAINING):
+            raise ValueError("training có khi và chỉ khi phase = training")
+        return self
 
     @model_validator(mode="after")
     def _check_not_started(self) -> RunView:
+        early_stop = self.status_reason is not None and self.status_reason.code == "early_stop"
         if self.fingerprint is None and (
-            self.status not in _NOT_STARTED
+            (self.status not in _NOT_STARTED and not early_stop)
             or self.progress.images_done != 0
             or self.metrics is not None
             or self.manifest_uri is not None
             or self.failure_case_ids
         ):
             raise ValueError(
-                "fingerprint chỉ null khi run chưa bắt đầu (queued, cancelled hoặc stopped_limit;"
-                " chưa xử lý ảnh nào; không có metric, manifest, failure case)"
+                "fingerprint chỉ null khi run chưa bắt đầu (queued, cancelled, stopped_limit, hoặc"
+                " skipped do early_stop; chưa xử lý ảnh nào; không có metric, manifest, failure"
+                " case)"
             )
         return self
 
@@ -1595,3 +1977,16 @@ class ProtocolSummary(_Model):
     version: PositiveInt
     status: ProtocolStatus
     body_sha256: Sha256Hex
+
+
+# ---------------------------------------------------------------- Attack catalog cho admin
+
+
+class AttackSpecAdminView(AttackSpec):
+    """Spec trong trang `/admin/attacks`: mọi version, kể cả spec đã tắt."""
+
+    is_active: bool
+
+
+class AttackSpecAdminPage(Page[AttackSpecAdminView]):
+    pass

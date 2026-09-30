@@ -24,6 +24,7 @@ from advertest_contracts.models import (
     AccessRequest,
     ApproveRequest,
     AttackSpec,
+    AttackSpecAdminPage,
     AuditLogPage,
     ClassMappingSummary,
     ComputeTargetPublic,
@@ -337,6 +338,14 @@ def list_attack_specs(factory: Sessions) -> list[AttackSpec]:
     """Chỉ spec đang hoạt động."""
     with transaction(factory) as session:
         return catalog.list_attack_specs(session)
+
+
+@router.get("/admin/attack-specs", tags=["admin-attacks"], **guard(P.ATTACK_CATALOG_MANAGE))
+def list_attack_specs_admin(
+    factory: Sessions, cursor: Cursor = None, limit: Limit = 50
+) -> AttackSpecAdminPage:
+    """Mọi spec, mọi version, kể cả spec đã tắt (Phase 6, trang `/admin/attacks`)."""
+    not_implemented()
 
 
 @router.get("/protocols", tags=["protocols"], **guard(P.PROTOCOL_READ))

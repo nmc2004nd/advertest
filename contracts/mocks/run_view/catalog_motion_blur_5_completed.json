@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "run_id": "a0c496c8-e155-57d0-87cd-d277f0635375",
+  "experiment_id": "9ec0fa7e-1626-56f2-a9e4-db3a427d1173",
+  "attack_spec_id": "3ba0f2f1-9f16-5631-a8d7-149df6f9d043",
+  "level": 5.0,
+  "status": "completed",
+  "status_reason": null,
+  "progress": {
+    "images_done": 300,
+    "images_total": 300
+  },
+  "metrics": {
+    "clean": {
+      "map50": 0.512,
+      "map50_95": 0.298
+    },
+    "attacked": {
+      "map50": 0.3328,
+      "map50_95": 0.1937
+    },
+    "relative_drop": 0.35,
+    "absolute_drop": 0.1792,
+    "attack_success_rate": 0.357,
+    "per_class": null,
+    "partial": false
+  },
+  "gpu_seconds": 41.5,
+  "cost": null,
+  "failure_case_ids": [],
+  "manifest_uri": "s3://artifacts/runs/a0c496c8-e155-57d0-87cd-d277f0635375/manifest.json",
+  "cached_from_run_id": null,
+  "fingerprint": "7dd38dfd8462a347eb130b218fdedb23c5852800a3217a15c98a39dcc23bfd00",
+  "attack_spec": {
+    "name": "motion_blur",
+    "version": 1,
+    "param_name": "severity",
+    "param_unit": "severity"
+  },
+  "phase": null,
+  "training": null
+}

@@ -66,6 +66,27 @@
       "title": "Cost",
       "type": "object"
     },
+    "IterationProgress": {
+      "additionalProperties": false,
+      "properties": {
+        "done": {
+          "minimum": 0,
+          "title": "Done",
+          "type": "integer"
+        },
+        "total": {
+          "exclusiveMinimum": 0,
+          "title": "Total",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "done",
+        "total"
+      ],
+      "title": "IterationProgress",
+      "type": "object"
+    },
     "MapPair": {
       "additionalProperties": false,
       "properties": {
@@ -213,6 +234,15 @@
       "title": "RunMetrics",
       "type": "object"
     },
+    "RunPhase": {
+      "description": "Giai đoạn của run đang chạy (Phase 6): run patch train trước khi đánh giá.",
+      "enum": [
+        "training",
+        "evaluating"
+      ],
+      "title": "RunPhase",
+      "type": "string"
+    },
     "RunStatus": {
       "enum": [
         "queued",
@@ -229,7 +259,8 @@
     "SkipReason": {
       "enum": [
         "cached",
-        "incompatible"
+        "incompatible",
+        "early_stop"
       ],
       "title": "SkipReason",
       "type": "string"
@@ -259,6 +290,19 @@
           "minLength": 1,
           "title": "Message",
           "type": "string"
+        },
+        "trigger_run_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Phase 6: run đã kích hoạt dừng sớm; có khi và chỉ khi code = early_stop",
+          "title": "Trigger Run Id"
         }
       },
       "required": [
@@ -394,11 +438,35 @@
           "type": "null"
         }
       ],
-      "description": "null khi run chưa bắt đầu (queued, hoặc bị hủy/dừng trước khi chạy)",
+      "description": "null khi run chưa bắt đầu (queued, bị hủy/dừng trước khi chạy, hoặc bị bỏ qua do early_stop)",
       "title": "Fingerprint"
     },
     "attack_spec": {
       "$ref": "#/$defs/RunAttackSpec"
+    },
+    "phase": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RunPhase"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Phase 6: giai đoạn khi status = running; null khi khác"
+    },
+    "training": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/IterationProgress"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Phase 6: tiến độ train patch; có khi và chỉ khi phase = training"
     }
   },
   "required": [

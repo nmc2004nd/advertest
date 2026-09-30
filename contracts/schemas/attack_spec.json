@@ -3,7 +3,8 @@
     "AttackAccess": {
       "enum": [
         "white_box",
-        "black_box"
+        "black_box",
+        "not_applicable"
       ],
       "title": "AttackAccess",
       "type": "string"
@@ -99,6 +100,51 @@
       ],
       "title": "PrimaryParam",
       "type": "object"
+    },
+    "TrainingParams": {
+      "additionalProperties": false,
+      "description": "Tham số huấn luyện của spec cần train trước khi đánh giá (patch, Phase 6).",
+      "properties": {
+        "max_iter": {
+          "description": "Số vòng lặp; mỗi vòng đi qua toàn bộ slice huấn luyện",
+          "exclusiveMinimum": 0,
+          "title": "Max Iter",
+          "type": "integer"
+        },
+        "learning_rate": {
+          "description": "Trong thang ảnh [0, 1]",
+          "exclusiveMinimum": 0,
+          "title": "Learning Rate",
+          "type": "number"
+        },
+        "sample_size": {
+          "description": "Số biến đổi ngẫu nhiên mỗi ảnh mỗi vòng (EOT)",
+          "exclusiveMinimum": 0,
+          "title": "Sample Size",
+          "type": "integer"
+        },
+        "checkpoint_every": {
+          "description": "Lưu checkpoint sau mỗi số vòng lặp này",
+          "exclusiveMinimum": 0,
+          "title": "Checkpoint Every",
+          "type": "integer"
+        },
+        "max_training_images": {
+          "description": "Kích thước tối đa của slice huấn luyện",
+          "exclusiveMinimum": 0,
+          "title": "Max Training Images",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "max_iter",
+        "learning_rate",
+        "sample_size",
+        "checkpoint_every",
+        "max_training_images"
+      ],
+      "title": "TrainingParams",
+      "type": "object"
     }
   },
   "additionalProperties": false,
@@ -124,7 +170,8 @@
       "$ref": "#/$defs/AttackKind"
     },
     "access": {
-      "$ref": "#/$defs/AttackAccess"
+      "$ref": "#/$defs/AttackAccess",
+      "description": "Corruption và occlusion dùng not_applicable; attack không dùng giá trị này"
     },
     "art_class": {
       "anyOf": [
@@ -155,6 +202,22 @@
     "requires_gradients": {
       "title": "Requires Gradients",
       "type": "boolean"
+    },
+    "requires_training": {
+      "description": "Phase 6: phải train (patch) trên slice huấn luyện trước khi đánh giá",
+      "title": "Requires Training",
+      "type": "boolean"
+    },
+    "training": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TrainingParams"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Có khi và chỉ khi requires_training = true"
     },
     "id": {
       "format": "uuid",

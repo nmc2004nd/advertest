@@ -42,7 +42,7 @@ def test_seed_creates_expected_rows_and_is_idempotent(app_engine: Engine) -> Non
             .select_from(m.AttackSpecRow)
             .where(m.AttackSpecRow.spec_sha256.in_([sp.spec_sha256 for sp in load_attack_specs()]))
         )
-        assert count == len(load_attack_specs()) == 3
+        assert count == len(load_attack_specs()) == 10  # Phase 6: 3 attack + 7 spec mới
 
 
 def test_admin_from_env_requires_both_values(monkeypatch: pytest.MonkeyPatch) -> None:

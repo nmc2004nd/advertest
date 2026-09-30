@@ -40,6 +40,9 @@ WORKER_ENDPOINTS = {
     "/internal/worker/experiments/{experiment_id}/bundle",
     "/internal/worker/runs/{run_id}/start",
     "/internal/worker/cost-profiles",
+    # Phase 6: dừng sớm, đăng ký patch.
+    "/internal/worker/runs/{run_id}/skip",
+    "/internal/worker/runs/{run_id}/patch",
 }
 # Nhóm Phase 4 cài đặt thật: không còn là khung trả 501.
 # Phase 5 Group 1: API đọc tài nguyên (plan.md task 5b). /protocols: GET đã cài đặt, POST vẫn là

@@ -3,7 +3,8 @@
     "AttackAccess": {
       "enum": [
         "white_box",
-        "black_box"
+        "black_box",
+        "not_applicable"
       ],
       "title": "AttackAccess",
       "type": "string"
@@ -58,6 +59,19 @@
           "minimum": 0,
           "title": "Seed",
           "type": "integer"
+        },
+        "training_slice_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Phase 6: bắt buộc khi spec có requires_training; không giao với slice đánh giá",
+          "title": "Training Slice Id"
         }
       },
       "required": [
@@ -102,7 +116,8 @@
           "$ref": "#/$defs/AttackKind"
         },
         "access": {
-          "$ref": "#/$defs/AttackAccess"
+          "$ref": "#/$defs/AttackAccess",
+          "description": "Corruption và occlusion dùng not_applicable; attack không dùng giá trị này"
         },
         "art_class": {
           "anyOf": [
@@ -133,6 +148,22 @@
         "requires_gradients": {
           "title": "Requires Gradients",
           "type": "boolean"
+        },
+        "requires_training": {
+          "description": "Phase 6: phải train (patch) trên slice huấn luyện trước khi đánh giá",
+          "title": "Requires Training",
+          "type": "boolean"
+        },
+        "training": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TrainingParams"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Có khi và chỉ khi requires_training = true"
         },
         "id": {
           "format": "uuid",
@@ -271,6 +302,67 @@
       "title": "BundleLimit",
       "type": "object"
     },
+    "BundlePatch": {
+      "additionalProperties": false,
+      "description": "Patch mà một run của experiment cần (Phase 6).",
+      "properties": {
+        "key": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Key",
+          "type": "string"
+        },
+        "attack_spec_id": {
+          "format": "uuid",
+          "title": "Attack Spec Id",
+          "type": "string"
+        },
+        "area_ratio": {
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Area Ratio",
+          "type": "number"
+        },
+        "training_slice_id": {
+          "format": "uuid",
+          "title": "Training Slice Id",
+          "type": "string"
+        },
+        "artifact": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PatchArtifact"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null khi chưa train xong"
+        },
+        "checkpoint_key": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]*(/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Checkpoint train mới nhất trong patches/<key>/ khi đang train dở; file checkpoint tự ghi số vòng lặp đã xong",
+          "title": "Checkpoint Key"
+        }
+      },
+      "required": [
+        "key",
+        "attack_spec_id",
+        "area_ratio",
+        "training_slice_id",
+        "artifact",
+        "checkpoint_key"
+      ],
+      "title": "BundlePatch",
+      "type": "object"
+    },
     "BundleRun": {
       "additionalProperties": false,
       "properties": {
@@ -316,6 +408,32 @@
             }
           ],
           "description": "Checkpoint mới nhất khi đang chạy dở"
+        },
+        "metrics": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RunMetrics"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Phase 6: metric của run đã có kết quả, để worker tính lại dừng sớm khi chạy tiếp sau gián đoạn"
+        },
+        "patch_key": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Phase 6: khóa patch với run patch (có trong bundle.patches)",
+          "title": "Patch Key"
         }
       },
       "required": [
@@ -413,6 +531,43 @@
       "title": "ClassMapping",
       "type": "object"
     },
+    "ClassRunMetrics": {
+      "additionalProperties": false,
+      "properties": {
+        "clean_ap50": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Clean Ap50"
+        },
+        "attacked_ap50": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Attacked Ap50"
+        }
+      },
+      "required": [
+        "clean_ap50",
+        "attacked_ap50"
+      ],
+      "title": "ClassRunMetrics",
+      "type": "object"
+    },
     "CostModel": {
       "additionalProperties": false,
       "properties": {
@@ -468,6 +623,20 @@
           "exclusiveMinimum": 0,
           "title": "Sec Per Image",
           "type": "number"
+        },
+        "sec_per_image_iteration": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Phase 6: giây cho một ảnh trong một vòng lặp huấn luyện; chỉ có với spec requires_training",
+          "title": "Sec Per Image Iteration"
         },
         "peak_vram_mb": {
           "description": "0 khi chạy trên CPU",
@@ -696,6 +865,11 @@
           "minItems": 1,
           "title": "Levels",
           "type": "array"
+        },
+        "early_stop": {
+          "description": "Phase 6: bỏ level lớn hơn khi model đã sụp (mAP@0.5 <= 5% mAP sạch)",
+          "title": "Early Stop",
+          "type": "boolean"
         }
       },
       "required": [
@@ -818,6 +992,29 @@
       "title": "LimitKind",
       "type": "string"
     },
+    "MapPair": {
+      "additionalProperties": false,
+      "properties": {
+        "map50": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Map50",
+          "type": "number"
+        },
+        "map50_95": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Map50 95",
+          "type": "number"
+        }
+      },
+      "required": [
+        "map50",
+        "map50_95"
+      ],
+      "title": "MapPair",
+      "type": "object"
+    },
     "ModelCard": {
       "additionalProperties": false,
       "description": "Model đã đăng ký. id = content_id(weights_sha256).",
@@ -897,6 +1094,116 @@
       "title": "ModelCard",
       "type": "object"
     },
+    "PatchArtifact": {
+      "additionalProperties": false,
+      "description": "Patch đã train, lưu trong MinIO dưới `patches/<key>/`, dùng lại giữa các experiment.",
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "key": {
+          "description": "compute_patch_key của năm trường bên dưới",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Key",
+          "type": "string"
+        },
+        "spec_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Spec Sha256",
+          "type": "string"
+        },
+        "weights_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Weights Sha256",
+          "type": "string"
+        },
+        "training_slice_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Training Slice Sha256",
+          "type": "string"
+        },
+        "area_ratio": {
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Area Ratio",
+          "type": "number"
+        },
+        "seed": {
+          "minimum": 0,
+          "title": "Seed",
+          "type": "integer"
+        },
+        "side_px": {
+          "description": "Cạnh patch vuông, pixel trong không gian letterbox",
+          "exclusiveMinimum": 0,
+          "title": "Side Px",
+          "type": "integer"
+        },
+        "patch_sha256": {
+          "description": "sha256 của file .npy",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Patch Sha256",
+          "type": "string"
+        },
+        "png_key": {
+          "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]*(/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$",
+          "title": "Png Key",
+          "type": "string"
+        },
+        "npy_key": {
+          "description": "Mảng float32 (C, H, W) trong [0, 1]",
+          "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]*(/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$",
+          "title": "Npy Key",
+          "type": "string"
+        },
+        "iterations": {
+          "description": "Số vòng lặp đã train (bằng training.max_iter)",
+          "exclusiveMinimum": 0,
+          "title": "Iterations",
+          "type": "integer"
+        },
+        "training_seconds": {
+          "description": "Cộng dồn qua các lần chạy tiếp",
+          "minimum": 0,
+          "title": "Training Seconds",
+          "type": "number"
+        },
+        "objective_history": {
+          "description": "Giá trị mục tiêu sau mỗi vòng lặp (loss của detector trên ảnh đã dán patch; attack untargeted làm giá trị này tăng)",
+          "items": {
+            "type": "number"
+          },
+          "title": "Objective History",
+          "type": "array"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "spec_sha256",
+        "weights_sha256",
+        "training_slice_sha256",
+        "area_ratio",
+        "seed",
+        "side_px",
+        "patch_sha256",
+        "png_key",
+        "npy_key",
+        "iterations",
+        "training_seconds",
+        "objective_history",
+        "created_at"
+      ],
+      "title": "PatchArtifact",
+      "type": "object"
+    },
     "PrimaryParam": {
       "additionalProperties": false,
       "properties": {
@@ -951,6 +1258,77 @@
         "unit"
       ],
       "title": "PrimaryParam",
+      "type": "object"
+    },
+    "RunMetrics": {
+      "additionalProperties": false,
+      "properties": {
+        "clean": {
+          "$ref": "#/$defs/MapPair"
+        },
+        "attacked": {
+          "$ref": "#/$defs/MapPair"
+        },
+        "relative_drop": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null khi mAP@0.5 sạch bằng 0",
+          "title": "Relative Drop"
+        },
+        "absolute_drop": {
+          "title": "Absolute Drop",
+          "type": "number"
+        },
+        "attack_success_rate": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null khi không có object nào được detect đúng trên ảnh sạch (|C| = 0)",
+          "title": "Attack Success Rate"
+        },
+        "per_class": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/ClassRunMetrics"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Per Class"
+        },
+        "partial": {
+          "default": false,
+          "description": "true khi metric chỉ tính trên phần ảnh đã xử lý (stopped_limit)",
+          "title": "Partial",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "clean",
+        "attacked",
+        "relative_drop",
+        "absolute_drop",
+        "attack_success_rate"
+      ],
+      "title": "RunMetrics",
       "type": "object"
     },
     "RunMode": {
@@ -1147,6 +1525,51 @@
       ],
       "title": "ThresholdKind",
       "type": "string"
+    },
+    "TrainingParams": {
+      "additionalProperties": false,
+      "description": "Tham số huấn luyện của spec cần train trước khi đánh giá (patch, Phase 6).",
+      "properties": {
+        "max_iter": {
+          "description": "Số vòng lặp; mỗi vòng đi qua toàn bộ slice huấn luyện",
+          "exclusiveMinimum": 0,
+          "title": "Max Iter",
+          "type": "integer"
+        },
+        "learning_rate": {
+          "description": "Trong thang ảnh [0, 1]",
+          "exclusiveMinimum": 0,
+          "title": "Learning Rate",
+          "type": "number"
+        },
+        "sample_size": {
+          "description": "Số biến đổi ngẫu nhiên mỗi ảnh mỗi vòng (EOT)",
+          "exclusiveMinimum": 0,
+          "title": "Sample Size",
+          "type": "integer"
+        },
+        "checkpoint_every": {
+          "description": "Lưu checkpoint sau mỗi số vòng lặp này",
+          "exclusiveMinimum": 0,
+          "title": "Checkpoint Every",
+          "type": "integer"
+        },
+        "max_training_images": {
+          "description": "Kích thước tối đa của slice huấn luyện",
+          "exclusiveMinimum": 0,
+          "title": "Max Training Images",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "max_iter",
+        "learning_rate",
+        "sample_size",
+        "checkpoint_every",
+        "max_training_images"
+      ],
+      "title": "TrainingParams",
+      "type": "object"
     }
   },
   "additionalProperties": false,
@@ -1213,6 +1636,22 @@
       },
       "minItems": 1,
       "title": "Runs",
+      "type": "array"
+    },
+    "training_slices": {
+      "description": "Phase 6: slice huấn luyện của các attack có training_slice_id",
+      "items": {
+        "$ref": "#/$defs/SliceSpec"
+      },
+      "title": "Training Slices",
+      "type": "array"
+    },
+    "patches": {
+      "description": "Phase 6: patch mà các run patch cần, không trùng key",
+      "items": {
+        "$ref": "#/$defs/BundlePatch"
+      },
+      "title": "Patches",
       "type": "array"
     }
   },

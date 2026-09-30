@@ -4,6 +4,41 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ---
 
+## Phase 6 — Đủ attack catalog, quét lưới và làm mờ ảnh
+
+**Trạng thái:** đang làm. Group 0 xong (chờ merge).
+
+### Phase 6 — Group 0 (người duyệt, người dùng giao) — 2026-10-01
+#### Contract
+- Enum: `AttackAccess.not_applicable`, `SkipReason.early_stop`; enum mới `RunPhase` (`training`, `evaluating`), `PerturbationImageKind` (`amplified_noise`, `difference`, `patch_location`).
+- `AttackSpec`: `requires_training`, `training` (`TrainingParams`: `max_iter`, `learning_rate`, `sample_size`, `checkpoint_every`, `max_training_images`); attack không được có `access = not_applicable`.
+- `AttackConfig.training_slice_id`, `GridConfig.early_stop` (mặc định `true`); `StatusReason.trigger_run_id` (khi và chỉ khi `early_stop`); `FingerprintInputs.patch_key`; `CostProfile.sec_per_image_iteration`; `ProgressReport.phase`, `iterations_done`, `iterations_total`; `EstimateRun.training_seconds` (cộng vào `total_seconds`); `FailureCaseRecord.perturbation_kind`; `FailureCaseRecord.anonymization` (`CaseAnonymization`); `ExperimentDetail.attack_ranking` (`AttackRankingEntry`, có `coverage`, `levels_early_stopped`); `RunView.phase`, `training` (`IterationProgress`); `RunView.fingerprint` được null với run `early_stop`.
+- Schema mới: `PatchArtifact` (kèm `compute_patch_key`, `patch_prefix`), `PatchRegistration`, `RunSkipRequest`, `AttackSpecAdminView`, `AttackSpecAdminPage`; `WorkerJobBundle.training_slices`, `patches` (`BundlePatch`), `runs[].metrics`, `runs[].patch_key`. 59 JSON Schema.
+- **Hash cũ không đổi:** trường mới mang giá trị mặc định bị bỏ khỏi JSON (`exclude_if`), JSON Schema không khai bắt buộc và không ghi `default` (openapi-typescript coi trường có `default` là luôn có mặt). Đã kiểm tra: `spec_sha256` của `fgsm`, `pgd_linf`, `pgd_l2` và nội dung seed cũ giữ nguyên.
+- Seed: 7 spec mới (`fog`, `snow`, `frost`, `motion_blur`, `contrast` với severity rời rạc 1–5; `bbox_occlusion` 0–0.9; `adv_patch` `RobustDPatch` 0.02–0.25, `training` 200 / 0.02 / 1 / 50 / 50, `cost_model.cpu_only`).
+- OpenAPI (endpoint khung trả `501`, Group 5 cài đặt): `GET /admin/attack-specs` (`attack_catalog.manage`), `POST /internal/worker/runs/{id}/skip`, `POST /internal/worker/runs/{id}/patch`.
+- Mock: experiment toàn catalog (10 attack, 28 run: `early_stop` có `trigger_run_id`, `failed`, `stopped_limit` partial; `attack_ranking` có `auc_drop = null`, `partial`, tính bằng quy tắc hình thang), experiment patch đang train (`phase = training`, 120/200), run patch đang đánh giá, failure case đã làm mờ (vị trí patch, vùng khác biệt), `PatchArtifact`, `PatchRegistration`, `RunSkipRequest`, `ProgressReport` khi train, cost profile patch, ước lượng có `training_seconds`, manifest có `patch_key`, bundle chạy tiếp có slice huấn luyện, patch đang dở và run cần tính lại dừng sớm, trang catalog admin (10 spec), slice huấn luyện 50 ảnh.
+#### Thay đổi ngoài thư mục người duyệt (theo task Group 0)
+- `backend/migrations/versions/0006_attack_access_not_applicable.py`: thêm giá trị enum (seed mới phải nạp được; test enum khớp contract).
+- `backend/app/api/public.py`, `worker.py`: 3 endpoint khung.
+- Test: `backend/app/tests/api/test_skeleton.py` (endpoint worker và khung mới), `backend/app/tests/db/test_seed.py` (10 spec), `test_route_protection_db.py` (15 permission có route), `contracts/python/tests/test_seeds.py`, `test_enums.py`, test nghiệm thu Phase 0 (`test_contracts.py` enum, `test_api.py` endpoint worker).
+#### Quyết định (đã ghi vào spec Phase 6)
+- Kickoff (người dùng chốt): dừng sớm là hàm thuần ở ml-core, worker áp dụng, backend gán thứ tự; chi phí train theo ảnh × vòng lặp, slice huấn luyện ≤ 50 ảnh, preset 2 kích thước patch; `x = level / max`, không ngoại suy; làm mờ cả ảnh thứ ba; E2E dùng `adv_patch` với `max_iter = 4`.
+- Group 0 (người duyệt tự chọn, ghi vào `requirements.md` mục "Chi tiết chốt ở Group 0"): trường mới không đổi hash cũ; `trigger_run_id` để xếp hạng biết run kích hoạt; level `early_stop` được đếm là điểm của đường cong (attack sụp ngay ở level đầu không bị xếp cuối); tiến độ train dùng `ProgressReport` với checkpoint ở vòng 0; `perturbation_kind` ở cấp case (không đặt trong `artifacts`, vốn chỉ chứa khóa MinIO); trang admin phân trang; migration `0006` chỉ gồm enum.
+- Phát hiện khi làm: chưa có cách tạo slice huấn luyện không giao (CLI chỉ chọn ngẫu nhiên từ dataset) → thêm task 20a (`slice create --exclude-slice`), 24b (`GET /slices?disjoint_from=`), 36a (fixture 5 ảnh phải tách slice đánh giá và slice huấn luyện).
+- `roadmap.md`: Phase 6 đổi tên, thêm xếp hạng và làm mờ (chuyển từ Phase 10), phụ thuộc 3 và 5; bảng Tổng quan đánh dấu Phase 5 ✅.
+#### Số liệu
+- `make check` (lint, type check, `contracts-check`, 862 test Python, 201 Vitest, 211 test nghiệm thu không cần DB), `make test-db` (354 test), `verify:build` đều pass.
+#### Review (phase-review, 2026-10-01)
+- Không có phát hiện chặn. Người dùng yêu cầu sửa trước merge: #1 thiếu test cho ca sai của validator mới và cho việc bỏ trường mặc định → thêm `contracts/python/tests/test_phase06_models.py` (20 test: hash spec, config, fingerprint cũ không đổi; trường bỏ được không bắt buộc, không có `default`; luật `training`, `trigger_run_id`, `phase`, `PatchArtifact`, `BundlePatch`, bundle, `ProgressReport`, `training_seconds`, xếp hạng, mock làm mờ); #2 mô tả `exceeds_limit` nói rõ cộng `training_seconds`; #3 `WorkerJobBundle` kiểm tra slice huấn luyện cùng dataset version và không giao với slice đánh giá.
+- Người dùng chấp nhận (đã có trong spec): #8 `--exclude-slice` và `disjoint_from` (task 20a, 24b); #9 level `early_stop` được đếm vào ngưỡng 2 điểm của `auc_drop`.
+- Ghi nhận cho group sau: Group 5 thêm xác thực token cho `skip`, `patch`; sau merge, wizard cho chọn spec Phase 6 trước khi worker có adapter (run `failed` cho tới Group 1, 2, 5); `downgrade` của `0006` lỗi nếu đã có run dùng spec mới; `learning_rate` là giá trị tạm; bảng Tổng quan của roadmap sửa khi đóng phase.
+- `make test-e2e`: 60 test pass. Sau khi sửa: 882 test Python.
+#### Lưu ý
+- Group 0 do agent làm thay người duyệt theo ủy quyền của người dùng; không độc lập.
+
+---
+
 ## Phase 5 — Wizard tạo experiment và theo dõi tiến độ
 
 **Trạng thái:** ✅ hoàn thành 2026-09-30, còn tồn đọng. Group 0–7 đã merge.

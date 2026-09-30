@@ -1,0 +1,35 @@
+{
+  "additionalProperties": false,
+  "description": "Body của `POST /runs/{id}/skip` (Phase 6): bỏ run chưa start do dừng sớm.",
+  "properties": {
+    "lease_id": {
+      "format": "uuid",
+      "title": "Lease Id",
+      "type": "string"
+    },
+    "code": {
+      "const": "early_stop",
+      "title": "Code",
+      "type": "string"
+    },
+    "trigger_run_id": {
+      "description": "Run của cùng attack đã làm model sụp",
+      "format": "uuid",
+      "title": "Trigger Run Id",
+      "type": "string"
+    },
+    "message": {
+      "minLength": 1,
+      "title": "Message",
+      "type": "string"
+    }
+  },
+  "required": [
+    "lease_id",
+    "code",
+    "trigger_run_id",
+    "message"
+  ],
+  "title": "RunSkipRequest",
+  "type": "object"
+}

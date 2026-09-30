@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "name": "bbox_occlusion",
+  "version": 1,
+  "kind": "occlusion",
+  "access": "not_applicable",
+  "art_class": null,
+  "primary_param": {
+    "name": "occlusion_ratio",
+    "type": "continuous",
+    "min": 0.0,
+    "max": 0.9,
+    "values": null,
+    "unit": "ratio"
+  },
+  "fixed_params": {
+    "shape": "box_aspect_rectangle",
+    "placement": "random_inside_box",
+    "fill_255": 114
+  },
+  "cost_model": {
+    "passes_per_image": null,
+    "cpu_only": true
+  },
+  "requires_gradients": false,
+  "id": "e3edcb22-e3bc-505a-92f4-9e30186fe26f",
+  "spec_sha256": "2aca8c91a3318d2a8084f592019b6c44d3cb983e395ed6cd12f48c9337b753ad"
+}

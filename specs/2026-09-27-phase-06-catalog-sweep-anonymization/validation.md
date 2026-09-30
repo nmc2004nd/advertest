@@ -7,6 +7,7 @@
 ### Chung
 - [ ] `make check` pass, bao gồm test nghiệm thu các phase trước.
 - [ ] `make contracts` không tạo thay đổi; 7 spec mới validate được và `spec_sha256` khớp.
+- [ ] `spec_sha256` của 3 spec cũ, fingerprint của mock manifest cũ và `config_sha256` của experiment cũ không đổi sau khi thêm trường Phase 6.
 - [ ] `roadmap.md` đã phản ánh việc chuyển làm mờ sang Phase 6.
 
 ### Seed theo ảnh — `test_per_image_seed.py`
@@ -25,7 +26,8 @@
 - [ ] Điểm ảnh ngoài mọi box và trong ignore region không đổi.
 
 ### Patch — `test_patch.py`
-- [ ] Slice huấn luyện giao với slice đánh giá → tạo experiment bị `422`; thiếu `training_slice_id` với patch → `422`.
+- [ ] Slice huấn luyện giao với slice đánh giá, khác dataset version, hoặc nhiều hơn 50 ảnh → tạo experiment bị `422`; thiếu `training_slice_id` với patch → `422`.
+- [ ] Chạm giới hạn thời gian giữa lúc train → run `stopped_limit`; thời gian train đã được cộng vào thời gian đã dùng của experiment.
 - [ ] Train patch với `max_iter` nhỏ tạo `PatchArtifact` hợp lệ; giá trị mục tiêu cuối tốt hơn giá trị đầu.
 - [ ] Diện tích patch bằng `area_ratio` × diện tích vùng ảnh thật (sai số ±1%); patch nằm hoàn toàn trong vùng ảnh thật.
 - [ ] Chạy experiment thứ hai cùng khóa patch → không train lại (spy), dùng patch có cùng `patch_sha256`.
@@ -35,42 +37,49 @@
 
 ### Thứ tự và dừng sớm — `test_grid_order_early_stop.py`
 - [ ] Hàm sắp thứ tự: level `[2, 4, 8, 16, 32]` → `[2, 8, 32, 4, 16]`.
+- [ ] Experiment mới có `ordinal` của run theo thứ tự thô → mịn trong từng attack.
+- [ ] Ngắt worker sau khi một level kích hoạt dừng sớm; worker mới vẫn đánh dấu đúng các level lớn hơn là `skipped` (`early_stop`).
+- [ ] Run `early_stop` có `status_reason.trigger_run_id` đúng run kích hoạt; `POST /runs/{id}/skip` với run không ở `queued` → `409`.
+- [ ] `slice create --exclude-slice` tạo slice không giao; `GET /slices?disjoint_from=` không trả slice giao.
 - [ ] Dựng tình huống level 8 làm mAP ≤ 5% mAP sạch: level 16 và 32 chưa chạy bị `skipped` (`early_stop`), attack không được gọi cho chúng; level nhỏ hơn vẫn chạy.
 - [ ] `early_stop = false` → mọi level đều chạy.
 - [ ] Dừng sớm của attack này không ảnh hưởng attack khác.
 - [ ] Experiment bị dừng do giới hạn sau lượt một vẫn có kết quả ở level nhỏ nhất và lớn nhất.
 
 ### Xếp hạng — `test_ranking.py`
-- [ ] `auc_drop` đúng quy tắc hình thang trên dữ liệu dựng sẵn (có điểm (0, 0) ở đầu).
+- [ ] `auc_drop` đúng quy tắc hình thang trên dữ liệu dựng sẵn với `x = level / max` (severity 1 → 0.2), có điểm (0, 0) ở đầu, tính đến `coverage` và không ngoại suy.
 - [ ] Level `early_stop` được tính bằng `relative_drop` của level kích hoạt.
-- [ ] Attack có dưới 2 level có kết quả → `auc_drop = null`, xếp cuối.
+- [ ] Attack có dưới 2 điểm (level có metric cộng level `early_stop`) → `auc_drop = null`, xếp cuối; attack sụp ở level đầu rồi các level còn lại bị `early_stop` vẫn có `auc_drop`.
 - [ ] Run `partial` hoặc `stopped_limit` → cờ `partial = true`.
 - [ ] `attack_ranking` trả qua API trùng với kết quả gọi trực tiếp hàm trong `ml_core`.
 
 ### Ước lượng — `test_estimate_phase06.py`
-- [ ] Patch chưa có → `training_seconds = max_iter × sec_per_iteration`; patch đã có → `null`.
-- [ ] Calibration cho `adv_patch` tạo cost profile có `sec_per_iteration`.
+- [ ] Patch chưa có → `training_seconds = max_iter × số ảnh slice huấn luyện × sec_per_image_iteration`, đã cộng vào `total_seconds` và `exceeds_limit`; patch đã có → `null`.
+- [ ] Calibration cho `adv_patch` tạo cost profile có `sec_per_image_iteration`.
 
 ### Làm mờ — `test_anonymization.py`
 - [ ] Vùng làm mờ `rule_v1` đúng quy tắc trên dữ liệu dựng sẵn: 1/3 trên của `person`, 40% dưới của `car`/`truck`, toàn bộ ignore region; lấy từ hợp ground truth và prediction (score ≥ 0.25).
-- [ ] Điểm ảnh trong vùng làm mờ khác ảnh gốc; ngoài vùng làm mờ giống hệt ảnh gốc.
+- [ ] Với ảnh sạch, ảnh sau biến đổi và ảnh thứ ba: điểm ảnh trong vùng làm mờ khác bản chưa làm mờ; ngoài vùng làm mờ giống hệt.
 - [ ] Mọi failure case mới có `anonymization.applied = true`, `method = rule_v1`.
 - [ ] Không có đối tượng nào trong MinIO của một run mới chứa ảnh hiển thị chưa làm mờ (so sánh vùng làm mờ với ảnh gốc tái tạo từ dataset).
 - [ ] Metric của run không đổi khi bật hoặc tắt bước làm mờ (làm mờ không đụng vào ảnh đưa vào model).
 - [ ] Case mới của dataset chưa ẩn danh → `display_mode = normal`; case cũ không có `anonymization` → vẫn `hidden_unanonymized`.
+- [ ] `FailureCaseView` có `display_mode = hidden_unanonymized` không chứa khóa MinIO.
 
 ### Quyền — `test_permissions_phase06.py`
 - [ ] Endpoint catalog đầy đủ cho `/admin/attacks`: admin → `200`; engineer, reviewer → `403`.
 
 ### Frontend — unit và E2E (Playwright, 3 viewport)
 - [ ] Wizard: chọn patch mà chưa chọn slice huấn luyện → không sang bước tiếp; danh sách slice huấn luyện không chứa slice giao với slice đánh giá.
-- [ ] Preset "Toàn bộ catalog" chọn đủ 10 attack với level mặc định.
+- [ ] Preset "Toàn bộ catalog" chọn đủ 10 attack với level mặc định; `adv_patch` có 2 level (0.1, 0.25).
+- [ ] Nháp wizard cũ (`advertest.wizard.v1`) không làm hỏng wizard (khóa mới `v2`).
+- [ ] Ước lượng hiển thị `training_seconds` khi patch cần train; công tắc dừng sớm bật mặc định.
 - [ ] Engineer chạy experiment toàn catalog (level rút gọn) trên fixture → `completed`; tab Kết quả có bảng xếp hạng và biểu đồ cột; run `early_stop` hiển thị đúng lý do.
 - [ ] Chuyển trục hoành chuẩn hóa → mọi attack hiển thị trên dải 0–100%.
-- [ ] Run patch hiển thị "Đang train patch" trước "Đang đánh giá".
+- [ ] Run patch hiển thị "Đang train patch" trước "Đang đánh giá" (E2E dùng seed `adv_patch` với `max_iter = 4`).
 - [ ] Trình xem case hiển thị dải "Đã làm mờ mặt và biển số" và nhãn ảnh thứ ba đúng theo loại.
 - [ ] Admin mở `/admin/attacks` thấy đủ 10 spec; engineer bị chuyển tới `/forbidden`.
-- [ ] Ở viewport 390px: bảng xếp hạng hiển thị dạng thẻ, không cuộn ngang.
+- [ ] Ở viewport 390px: bảng xếp hạng và `/admin/attacks` hiển thị dạng thẻ, không cuộn ngang.
 
 ## Manual Checks
 

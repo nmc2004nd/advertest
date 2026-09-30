@@ -55,6 +55,20 @@
           ],
           "description": "Run sẽ bị `skipped`: attack cần gradient, model không hỗ trợ",
           "title": "Skip Reason"
+        },
+        "training_seconds": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Phase 6: max_iter * số ảnh slice huấn luyện * sec_per_image_iteration khi patch chưa có; null khi patch đã có, spec không cần train, thiếu profile hoặc run bị bỏ qua. Không gồm trong est_seconds, nhưng cộng vào total_seconds và exceeds_limit",
+          "title": "Training Seconds"
         }
       },
       "required": [
@@ -112,7 +126,7 @@
           "type": "null"
         }
       ],
-      "description": "null khi có run thiếu profile",
+      "description": "Tổng est_seconds và training_seconds; null khi có run thiếu profile",
       "title": "Total Seconds"
     },
     "missing_profiles": {
@@ -125,7 +139,7 @@
       "type": "array"
     },
     "exceeds_limit": {
-      "description": "Tổng ước lượng của các run ước lượng được (cận dưới khi thiếu profile) lớn hơn giới hạn thời gian",
+      "description": "Tổng est_seconds và training_seconds của các run ước lượng được (cận dưới khi thiếu profile) lớn hơn giới hạn thời gian",
       "title": "Exceeds Limit",
       "type": "boolean"
     },
