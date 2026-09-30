@@ -54,9 +54,12 @@ test('admin duyệt với role engineer; người dùng vào /home, điều hư�
   await expect(user).toHaveURL(/\/home$/)
   const nav = visibleNav(user, info)
   await expect(nav).toBeVisible()
+  // Phase 5 Group 6: engineer có thêm "Experiment" và "Tạo experiment" (plan.md Phase 5, task 37).
   const labels = (await nav.getByRole('link').all()).length
-  expect(labels).toBe(2)
+  expect(labels).toBe(4)
   await expect(nav.getByRole('link', { name: 'Trang chủ' })).toBeVisible()
+  await expect(nav.getByRole('link', { name: 'Experiment', exact: true })).toBeVisible()
+  await expect(nav.getByRole('link', { name: 'Tạo experiment' })).toBeVisible()
   await expect(nav.getByRole('link', { name: 'Tài khoản' })).toBeVisible()
   await expect(nav.getByRole('link', { name: 'Người dùng' })).toHaveCount(0)
 })
