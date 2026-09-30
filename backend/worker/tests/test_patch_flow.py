@@ -117,9 +117,16 @@ def _job(
     )
 
 
+def _obtain(
+    job: PatchJob, images: np.ndarray | None, mask: np.ndarray | None
+) -> tuple[np.ndarray, PatchArtifact]:
+    obtained = obtain_patch(job, images, mask)
+    return obtained.patch, obtained.artifact
+
+
 def test_trains_reports_progress_registers_and_cleans_checkpoints() -> None:
     store, client = Store(), Client()
-    patch, artifact = obtain_patch(_job(store, client), fd.images(3), fd.mask(3))
+    patch, artifact = _obtain(_job(store, client), fd.images(3), fd.mask(3))
     assert patch.shape == (3, artifact.side_px, artifact.side_px)
     assert artifact.iterations == MAX_ITER and len(client.registered) == 1
     reports = client.reports
@@ -143,20 +150,20 @@ def test_trains_reports_progress_registers_and_cleans_checkpoints() -> None:
 
 def test_existing_patch_is_downloaded_not_trained() -> None:
     store, client = Store(), Client()
-    trained, artifact = obtain_patch(_job(store, client), fd.images(3), fd.mask(3))
+    trained, artifact = _obtain(_job(store, client), fd.images(3), fd.mask(3))
     again_client = Client()
-    patch, same = obtain_patch(_job(store, again_client, artifact=artifact), None, None)
+    patch, same = _obtain(_job(store, again_client, artifact=artifact), None, None)
     np.testing.assert_array_equal(patch, trained)
     assert same == artifact and again_client.reports == [] and again_client.registered == []
 
 
 def test_resume_from_checkpoint_reaches_max_iter_with_same_patch() -> None:
-    straight, _ = obtain_patch(_job(Store(), Client()), fd.images(3), fd.mask(3))
+    straight, _ = _obtain(_job(Store(), Client()), fd.images(3), fd.mask(3))
 
     store = Store()
     stop = WorkerDirective(action="stop_limit", remaining_seconds=0.0)
     with pytest.raises(PatchInterrupted) as interrupted:
-        obtain_patch(_job(store, Client({3: stop})), fd.images(3), fd.mask(3))
+        _obtain(_job(store, Client({3: stop})), fd.images(3), fd.mask(3))
     assert interrupted.value.directive.action == "stop_limit"
     key = _key(_spec())
     saved = checkpoint_key(key, 2)
@@ -164,7 +171,7 @@ def test_resume_from_checkpoint_reaches_max_iter_with_same_patch() -> None:
     assert TrainingState.from_bytes(store.data[saved]).iterations_done == 2
 
     client = Client()
-    patch, artifact = obtain_patch(_job(store, client, checkpoint=saved), fd.images(3), fd.mask(3))
+    patch, artifact = _obtain(_job(store, client, checkpoint=saved), fd.images(3), fd.mask(3))
     assert artifact.iterations == MAX_ITER
     assert [r.iterations_done for r in client.reports] == [3, 4, 5]
     np.testing.assert_array_equal(patch, straight)
@@ -191,7 +198,7 @@ def test_registered_patch_from_other_worker_is_used() -> None:
     store.put(other.npy_key, files.npy)  # worker kia đã upload
     client = Client()
     client.answer = other
-    patch, artifact = obtain_patch(_job(store, client), fd.images(3), fd.mask(3))
+    patch, artifact = _obtain(_job(store, client), fd.images(3), fd.mask(3))
     assert artifact == other
     np.testing.assert_array_equal(patch, other_state.patch)
     mine = client.registered[0]
@@ -203,9 +210,26 @@ def test_lease_lost_while_deleting_checkpoint_propagates() -> None:
     store, client = Store(), Client()
     store.fail_delete = LeaseLost(409, "conflict", "lease mất")
     with pytest.raises(LeaseLost):
-        obtain_patch(_job(store, client), fd.images(3), fd.mask(3))
+        _obtain(_job(store, client), fd.images(3), fd.mask(3))
 
 
 def test_training_needs_images() -> None:
     with pytest.raises(ValueError, match="slice huấn luyện"):
-        obtain_patch(_job(Store(), Client()), None, None)
+        _obtain(_job(Store(), Client()), None, None)
+
+
+def test_training_seconds_reported_for_gpu_seconds() -> None:
+    """Review Group 3 #1: thời gian train trả về để cộng vào `gpu_seconds` của run."""
+    store, client = Store(), Client()
+    trained = obtain_patch(_job(store, client), fd.images(3), fd.mask(3))
+    reported = sum(r.processing_seconds_delta for r in client.reports)
+    assert trained.training_seconds == pytest.approx(reported) and reported > 0
+    reused = obtain_patch(_job(store, Client(), artifact=trained.artifact), None, None)
+    assert reused.training_seconds == 0.0
+
+    stop = WorkerDirective(action="cancel", remaining_seconds=None)
+    stopping = Client({2: stop})
+    with pytest.raises(PatchInterrupted) as interrupted:
+        obtain_patch(_job(Store(), stopping), fd.images(3), fd.mask(3))
+    so_far = sum(r.processing_seconds_delta for r in stopping.reports)
+    assert interrupted.value.seconds == pytest.approx(so_far) and so_far > 0

@@ -8,6 +8,10 @@
    giữ lại để chạy tiếp.
 3. Train xong: upload `patch.npy`, `patch.png`, đăng ký (`register_patch`). Khóa đã có (worker khác
    đăng ký trước) thì API trả bản cũ: dùng bản đó.
+
+Thời gian train (`TrainingState.seconds`, cộng dồn qua các lần chạy tiếp) được trả về để worker
+cộng vào `gpu_seconds` của run (review Group 3 #1): API ghi đè `gpu_seconds` của run bằng giá trị
+trong `RunResult` khi hoàn tất.
 """
 
 from __future__ import annotations
@@ -54,9 +58,17 @@ class PatchClient(Protocol):
 class PatchInterrupted(Exception):
     """Train dừng giữa chừng theo chỉ thị của API (`cancel` hoặc `stop_limit`)."""
 
-    def __init__(self, directive: WorkerDirective) -> None:
+    def __init__(self, directive: WorkerDirective, seconds: float) -> None:
         super().__init__(f"Train patch dừng theo chỉ thị {directive.action}")
         self.directive = directive
+        self.seconds = seconds  # thời gian train cộng dồn tới lúc dừng
+
+
+@dataclass(frozen=True)
+class ObtainedPatch:
+    patch: PatchArray
+    artifact: PatchArtifact
+    training_seconds: float  # 0 khi dùng patch có sẵn
 
 
 @dataclass
@@ -79,23 +91,19 @@ def checkpoint_key(key: str, iterations_done: int) -> str:
     return f"{patch_prefix(key)}checkpoints/{iterations_done}.npz"
 
 
-def obtain_patch(
-    job: PatchJob, images: ImageBatch | None, mask: MaskBatch | None
-) -> tuple[PatchArray, PatchArtifact]:
+def obtain_patch(job: PatchJob, images: ImageBatch | None, mask: MaskBatch | None) -> ObtainedPatch:
     """Patch đã train của run (tải về hoặc train). `images`, `mask` là ảnh letterbox của slice
     huấn luyện; chỉ cần khi phải train (không dùng khi đã có patch)."""
     existing = job.patch.artifact
     if existing is not None:
         logger.info("Dùng patch có sẵn %s", existing.key)
-        return load_patch(job.store.get(existing.npy_key), existing), existing
+        return ObtainedPatch(load_patch(job.store.get(existing.npy_key), existing), existing, 0.0)
     if images is None:
         raise ValueError("Cần ảnh của slice huấn luyện để train patch")
     return _train(job, images, mask)
 
 
-def _train(
-    job: PatchJob, images: ImageBatch, mask: MaskBatch | None
-) -> tuple[PatchArray, PatchArtifact]:
+def _train(job: PatchJob, images: ImageBatch, mask: MaskBatch | None) -> ObtainedPatch:
     params = training_params(job.spec)
     key = job.patch.key
     state: TrainingState | None = None
@@ -143,7 +151,7 @@ def _train(
         images, mask, state=state, on_progress=on_progress, on_checkpoint=on_checkpoint
     )
     if stopped:
-        raise PatchInterrupted(stopped[0])
+        raise PatchInterrupted(stopped[0], state.seconds)
 
     artifact, files = build_artifact(
         job.spec,
@@ -163,8 +171,9 @@ def _train(
         _delete_quietly(job.store, latest)  # patch đã đăng ký, checkpoint không còn cần
     if registered.patch_sha256 != artifact.patch_sha256:
         logger.info("Khóa %s đã có patch khác; dùng bản đã đăng ký", key)
-        return load_patch(job.store.get(registered.npy_key), registered), registered
-    return state.patch, registered
+        patch = load_patch(job.store.get(registered.npy_key), registered)
+        return ObtainedPatch(patch, registered, state.seconds)
+    return ObtainedPatch(state.patch, registered, state.seconds)
 
 
 def _delete_quietly(store: PatchStore, key: str) -> None:

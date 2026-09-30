@@ -57,6 +57,7 @@ from advertest_worker.patch import PatchInterrupted, PatchJob, obtain_patch
 from attacks.art_adapter import IncompatibleAttack
 from attacks.factory import build_perturbation
 from attacks.patch.adapter import PatchPerturbation
+from attacks.patch.geometry import patch_key
 from ml_core.cli.evaluate import load_model_from_store
 from ml_core.models.estimator import build_estimator
 from ml_core.models.register import lib_versions
@@ -235,8 +236,12 @@ class JobRunner:
                 now=self.clock(),
             )
             if spec.requires_training:
-                seconds = patch_training_cost(spec, loader, self._estimator(bundle))
-                profile = profile.model_copy(update={"sec_per_image_iteration": seconds})
+                try:
+                    seconds = patch_training_cost(spec, loader, self._estimator(bundle))
+                except Exception:  # thiếu chi phí train chỉ làm ước lượng thiếu, không dừng job
+                    logger.warning("Không đo được chi phí train %s", spec.name, exc_info=True)
+                else:
+                    profile = profile.model_copy(update={"sec_per_image_iteration": seconds})
             logger.info(
                 "Calibration %s: batch %d, %.3f s/ảnh",
                 spec.name,
@@ -382,13 +387,17 @@ class JobRunner:
             return
         try:
             if spec.requires_training:
-                perturbation: Perturbation = self._patch_perturbation(job, run_id, spec, store)
+                perturbation: Perturbation
+                perturbation, finish.extra_seconds = self._patch_perturbation(
+                    job, run_id, spec, store
+                )
             else:
                 perturbation = build_perturbation(spec, self._estimator(bundle))
         except IncompatibleAttack as exc:
             finish.skipped(str(exc))
             return
         except PatchInterrupted as exc:  # hủy hoặc chạm giới hạn giữa lúc train patch
+            finish.extra_seconds = exc.seconds
             if exc.directive.action == "cancel":
                 finish.cancelled(None)
             else:
@@ -485,13 +494,27 @@ class JobRunner:
 
     def _patch_perturbation(
         self, job: _Job, run_id: UUID, spec: AttackSpec, store: PresignedStore
-    ) -> PatchPerturbation:
+    ) -> tuple[PatchPerturbation, float]:
         """Phase 6 (plan task 17): lấy patch đã train (hoặc train trên slice huấn luyện, báo tiến
-        độ `phase = training`), rồi dựng adapter dán patch."""
+        độ `phase = training`), rồi dựng adapter dán patch. Trả kèm thời gian train để cộng vào
+        `gpu_seconds` của run."""
         bundle = job.bundle
         run = next(r for r in bundle.runs if r.run_id == run_id)
         patch = next(p for p in bundle.patches if p.key == run.patch_key)
         training = next(s for s in bundle.training_slices if s.id == patch.training_slice_id)
+        # Review Group 3 #2: không tin khóa và kích thước patch của bundle mà không đối chiếu.
+        expected = patch_key(
+            spec,
+            weights_sha256=bundle.model_card.weights_sha256,
+            training_slice_sha256=training.slice_sha256,
+            area_ratio=run.level,
+            seed=run.seed,
+        )
+        if patch.key != expected or patch.area_ratio != run.level:
+            raise ValueError(
+                f"Patch trong bundle ({patch.key}, area_ratio {patch.area_ratio}) không khớp run"
+                f" (khóa tính lại {expected}, area_ratio {run.level})"
+            )
         images = mask = None
         if patch.artifact is None:
             loader = self.cache.training_loader(bundle, training)
@@ -503,7 +526,7 @@ class JobRunner:
             job.box.update(directive)
             job.remaining_seconds = directive.remaining_seconds
 
-        array, _ = obtain_patch(
+        obtained = obtain_patch(
             PatchJob(
                 spec=spec,
                 estimator=self._estimator(bundle),
@@ -521,7 +544,10 @@ class JobRunner:
             images,
             mask,
         )
-        return PatchPerturbation(spec, array, area_ratio=run.level)
+        return (
+            PatchPerturbation(spec, obtained.patch, area_ratio=run.level),
+            obtained.training_seconds,
+        )
 
     @staticmethod
     def _drop_checkpoint(store: PresignedStore, previous: str | None, current: str) -> None:
@@ -608,6 +634,9 @@ class _Finisher:
         self.inputs = inputs
         self.store = store
         self.prefix = prefix
+        # Thời gian train patch của run (Phase 6): API ghi đè `gpu_seconds` của run bằng giá trị
+        # gửi khi hoàn tất, nên phải cộng vào đây (review Group 3 #1).
+        self.extra_seconds = 0.0
 
     def _manifest(self) -> str:
         manifest = Manifest(
@@ -643,7 +672,7 @@ class _Finisher:
                 images_done=executor.images_done if executor else 0, images_total=images_total
             ),
             metrics=metrics,
-            gpu_seconds=executor.processing_seconds if executor else 0.0,
+            gpu_seconds=(executor.processing_seconds if executor else 0.0) + self.extra_seconds,
             cost=None,
             failure_case_ids=[case.id for case in cases],
             manifest_uri=self._manifest(),

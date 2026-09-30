@@ -20,6 +20,10 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 - `attacks/patch/artifact.py`: file patch đặt tên theo nội dung `patches/<key>/<patch_sha256>.npy|.png` (trước là `patch.npy`, `patch.png` cố định): hai worker cùng train một khóa không còn ghi đè file của nhau (test tái hiện lỗi sai sha256).
 #### Ghi nhận
 - Endpoint `skip`, `patch`, bundle có `patches`/`training_slices`, `artifact-url` cho `patches/` vẫn trả 501 tới Group 5: luồng mới mới kiểm bằng client giả; `JobRunner._patch_perturbation` chưa có test tích hợp với API thật (Group 7).
+#### Review (phase-review, 2026-10-01)
+- Người dùng yêu cầu sửa trước merge: #1 `gpu_seconds` của run patch thiếu thời gian train (API ghi đè bằng `RunResult.gpu_seconds`) → `obtain_patch` trả `training_seconds` (cộng dồn qua các lần chạy tiếp; 0 khi dùng patch có sẵn), `PatchInterrupted.seconds`, `_Finisher.extra_seconds` cộng vào `gpu_seconds`; #2 đối chiếu `run.patch_key` và `patch.area_ratio` của bundle với `compute_patch_key` và `run.level`, lệch thì run `failed`; #3 lỗi khi đo chi phí train `adv_patch` chỉ ghi cảnh báo, không dừng job. Test: `test_patch_job.py`, `test_training_seconds_reported_for_gpu_seconds`.
+- Ghi nhận: 409 khi `skip` làm dừng cả experiment (client coi 409 là mất lease); luồng patch và `skip` chưa chạy với API thật.
+- Review và phần sửa do cùng một agent làm (không độc lập).
 
 ### Phase 6 — Group 3, phần ml-core — 2026-10-01
 #### Thêm
