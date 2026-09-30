@@ -149,6 +149,12 @@ Worker được coi là `online` nếu có heartbeat trong 60 giây gần nhất
 - Điện thoại: mỗi bước một màn hình; thanh dưới cố định hiển thị thời gian ước lượng và nút "Tiếp". Desktop: cột tóm tắt bên phải luôn hiển thị.
 - Trạng thái wizard giữ qua lần tải lại trang (sessionStorage), xóa sau khi tạo thành công.
 - "Nhân bản" từ trang chi tiết mở wizard đã điền sẵn tới bước 6.
+- Chi tiết (Group 5):
+  - Route `/experiments/new` (chặn theo `experiment.create`); nhân bản qua `/experiments/new?clone=<id>`. Nháp lưu `sessionStorage` khóa `advertest.wizard.v1`.
+  - Tự chọn protocol khi chỉ có một; tự chọn sẵn máy local (ưu tiên online) để ước lượng được từ bước 4 (đổi được ở bước 5); giới hạn thời gian nhập theo phút, không vượt `max_time_limit_s`.
+  - Đổi model thì bỏ class mapping; đổi dataset version thì bỏ slice và mapping.
+  - Bộ level gợi ý: spec rời rạc lấy mọi giá trị; liên tục lấy tối đa 4 lũy thừa của 2 trong dải (ví dụ eps 4, 8, 16, 32), ít hơn 2 thì chia đều dải thành 4 điểm. Ô nhập level đang sai (ở attack đang chọn) chặn sang bước sau.
+  - Bước 6 có ô tên tùy chọn (bỏ trống: server đặt tên); tên không thuộc body ước lượng.
 - Lỗi `422` từ server hiển thị tại đúng bước và đúng trường.
 
 ### Frontend: danh sách và chi tiết

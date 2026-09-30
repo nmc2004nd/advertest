@@ -6,7 +6,23 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 5 — Wizard tạo experiment và theo dõi tiến độ
 
-**Trạng thái:** đang làm. Group 0–4 đã merge.
+**Trạng thái:** đang làm. Group 0–5 đã merge.
+
+### Phase 5 — Group 5 (frontend) — 2026-09-30
+#### Thêm
+- `features/wizard/`: wizard 6 bước tại `/experiments/new` (chặn theo `experiment.create`): thanh bước, cột tóm tắt (desktop), thanh dưới cố định nằm trên thanh tab điều hướng (điện thoại); nháp `sessionStorage` (`advertest.wizard.v1`), xóa khi tạo thành công; protocol, model, dataset version và slice (class mapping tự chọn khi chỉ có một, báo lỗi khi không có), attack với chip level (kiểm dải, trùng, tối đa 12) và bộ gợi ý, "Tự tìm ngưỡng" hiện "Sắp có", máy chạy và giới hạn (phút); ước lượng debounce 500 ms; bước 6 tóm tắt, ước lượng từng run, ô tên, hộp xác nhận; lỗi 422 về đúng bước và trường, 409 `queue_limit_reached` giữ nháp; nhân bản `?clone=<id>` mở bước 6 kèm cảnh báo.
+- `ApiError.fields`; chế độ mock trả `POST /experiments/estimate`. Vitest 151 → 187.
+#### Kiểm tra
+- Chromium 390 và 1440 với mock: đi hết wizard, level ngoài dải chặn bước 4, tải lại giữ nháp, hộp xác nhận, nhân bản mở bước 6, không cuộn ngang. Phát hiện và sửa: thanh tab điều hướng của khung ứng dụng che thanh dưới của wizard trên điện thoại.
+#### Quyết định (đã ghi vào `requirements.md`)
+- Người dùng chốt: sửa `router.tsx`, `api/errors.ts`, `api/mocks.ts`; chọn sẵn máy local.
+- Agent chọn, người duyệt chấp nhận ở review: tự chọn protocol duy nhất, giới hạn theo phút, bộ level gợi ý, bỏ lựa chọn phụ thuộc khi đổi model/dataset, ô tên tùy chọn.
+#### Review
+- Phát hiện #1 (sửa trước merge): lỗi ô nhập level của attack đã bỏ chọn vẫn khóa nút "Tiếp" → chỉ tính attack đang chọn (có test). Sửa kèm: tên không thuộc body ước lượng; nhân bản báo lỗi khi không tải được slice. Ghi nhận: nháp cũ có model/slice đã xóa chỉ được báo qua 422 (xem lại ở Phase 11).
+#### Số liệu
+- `make check`: 804 test Python, 209 test nghiệm thu không cần DB, 187 Vitest; `verify:build` pass.
+#### Lưu ý
+- Code, review, sửa sau review và ghi spec do cùng một agent làm (không độc lập).
 
 ### Phase 5 — Group 4 (frontend) — 2026-09-30
 #### Thêm

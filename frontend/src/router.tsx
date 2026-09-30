@@ -1,6 +1,7 @@
 import { createBrowserRouter, type RouteObject } from 'react-router'
 
 import { RequirePermission } from './auth/RequirePermission'
+import { WizardPage } from './features/wizard/WizardPage'
 import { AppShell } from './layout/AppShell'
 import { AccountPage } from './pages/AccountPage'
 import { AuditPage } from './pages/admin/AuditPage'
@@ -27,6 +28,14 @@ const routes: RouteObject[] = [
     children: [
       { path: '/home', element: <HomePage /> },
       { path: '/account', element: <AccountPage /> },
+      {
+        path: '/experiments/new',
+        element: (
+          <RequirePermission requirement="experiment.create">
+            <WizardPage />
+          </RequirePermission>
+        ),
+      },
       {
         path: '/admin/users',
         element: (

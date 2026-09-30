@@ -5,6 +5,7 @@
 import type {
   ClassMappingSummary,
   DatasetVersionSummary,
+  EstimateResponse,
   ExperimentClone,
   ExperimentDetail,
   ExperimentPage,
@@ -122,7 +123,14 @@ export function mockMe(name: string = import.meta.env.VITE_MOCK_ME ?? 'admin'): 
   return found as Me
 }
 
-/** Chế độ mock không ghi được gì: request thay đổi dữ liệu báo lỗi rõ ràng. */
-export function mockSend(method: string, path: string): never {
+/**
+ * Chế độ mock không ghi được gì: request thay đổi dữ liệu báo lỗi rõ ràng. Riêng
+ * `POST /experiments/estimate` (chỉ tính toán, không tạo gì) trả mock ước lượng để wizard dùng được.
+ */
+export function mockSend<T>(method: string, path: string): T {
+  if (method === 'POST' && path === '/experiments/estimate') {
+    const estimate = listMocks<EstimateResponse>('estimate_response')[0]
+    if (estimate) return estimate as T
+  }
   throw new Error(`Chế độ mock không hỗ trợ ${method} ${path}`)
 }
