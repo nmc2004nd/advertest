@@ -306,8 +306,8 @@ def test_store_candidates_promote_is_idempotent_and_discard_cleans() -> None:
     store = MemStore()
     candidates = StoreCandidates(store, "runs/r", 4 / 255)
     image = np.full((3, 640, 640), 0.5, np.float32)
-    candidates.add("000001", image, image)
-    candidates.add("000002", image, image)
+    candidates.add("000001", image, image, [])
+    candidates.add("000002", image, image, [])
     assert store.keys("runs/r/candidates/000001/") == [
         f"runs/r/candidates/000001/{name}" for name in sorted(CANDIDATE_FILES)
     ]
@@ -338,7 +338,7 @@ class RecordingSink:
     def __init__(self) -> None:
         self.calls: list[tuple[str, str]] = []
 
-    def add(self, image_id: str, clean: np.ndarray, adversarial: np.ndarray) -> None:
+    def add(self, image_id: str, clean: np.ndarray, adversarial: np.ndarray, regions: Any) -> None:
         self.calls.append(("add", image_id))
 
     def evict(self, image_id: str) -> None:
@@ -351,12 +351,21 @@ class RecordingSink:
         self.calls.append(("discard", image_id))
 
 
+EMPTY_PREDICTION: dict[str, np.ndarray] = {
+    "boxes": np.zeros((0, 4), np.float32),
+    "labels": np.zeros(0, np.int64),
+    "scores": np.zeros(0, np.float32),
+}
+
+
 def _offer_all(
     setup: dict[str, Any], severities: list[tuple[str, int]], limit: int
 ) -> tuple[RunExecutor, RecordingSink]:
     """Đưa lần lượt từng ảnh (độ nghiêm trọng = số object mất) vào `_offer`."""
     sink = RecordingSink()
-    context = replace(setup["context"], failure_cases_per_run=limit)
+    base = setup["context"]
+    clean = {**base.clean_predictions, **{image_id: EMPTY_PREDICTION for image_id, _ in severities}}
+    context = replace(base, failure_cases_per_run=limit, clean_predictions=clean)
     executor = _executor(setup, MemStore(), context=context, candidates=sink)
     images = np.zeros((1, 3, 8, 8), np.float32)
     batch = Batch(
@@ -369,7 +378,7 @@ def _offer_all(
     for image_id, lost in severities:
         stats = ImageAttackStats(correct=lost, lost=lost, clean_fp=0, attacked_fp=0)
         executor.stats[image_id] = stats
-        executor._offer(image_id, stats, batch, 0, images[0])
+        executor._offer(image_id, stats, batch, 0, images[0], EMPTY_PREDICTION)
     return executor, sink
 
 
