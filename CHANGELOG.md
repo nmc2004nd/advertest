@@ -16,6 +16,7 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 #### Phát hiện khi làm
 - Viewport chạy sau dùng cùng cấu hình nên run trúng cache: E2E chờ trạng thái `completed` và chấp nhận câu "0/2 hoàn thành, 2 bỏ qua".
 - Chạy chung `make test-db`: MinIO còn object của Phase 3 (card cùng key, khác thời điểm đăng ký) → `KeyConflictError`; fixture Phase 5 dọn bucket khi dựng lại DB.
+- CI job e2e fail lần đầu (sau merge): Ultralytics lần đầu import in thông báo tạo settings ra stdout, lẫn vào JSON của CLI `advertest` mà `e2e.sh` đọc. `e2e.sh` dùng `YOLO_CONFIG_DIR` riêng và import trước một lần (máy local nay chạy như CI).
 #### Số liệu
 - `make check`: 804 test Python, 209 test nghiệm thu không cần DB, 201 Vitest. `make test-db`: 353 test. `make test-e2e`: 60 test trong khoảng 2,3 phút.
 #### Chưa làm (cần người dùng, task 34)

@@ -36,6 +36,12 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# Ultralytics lần đầu import in thông báo tạo file settings ra stdout, làm hỏng JSON của CLI
+# `advertest` (máy CI luôn là lần đầu). Thư mục cấu hình riêng để mọi máy chạy như CI; import
+# trước một lần để thông báo đó không lẫn vào output được đọc.
+export YOLO_CONFIG_DIR="$WORK/ultralytics"
+uv run --no-sync python -c "import ultralytics" >/dev/null
+
 MIGRATION_DATABASE_URL="$ADVERTEST_TEST_OWNER_URL" uv run --no-sync alembic -c backend/alembic.ini upgrade head
 uv run --no-sync python -m backend.admin_cli.seed
 
