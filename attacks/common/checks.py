@@ -10,6 +10,10 @@ from advertest_contracts.models import AttackSpec
 from advertest_contracts.perturbation import ImageBatch, MaskBatch
 
 
+class UnsupportedTransform(ValueError):
+    """Spec không dựng được bằng adapter corruption hoặc occlusion."""
+
+
 def check_inputs(
     spec: AttackSpec,
     images: ImageBatch,

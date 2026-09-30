@@ -3,7 +3,8 @@
 import numpy as np
 import pytest
 
-from attacks.corruptions.adapter import CorruptionPerturbation, UnsupportedTransform
+from attacks.common.checks import UnsupportedTransform
+from attacks.corruptions.adapter import CorruptionPerturbation
 from attacks.tests.transform_helpers import letterbox_batch, spec, targets
 
 NAMES = ["fog", "snow", "frost", "motion_blur", "contrast"]

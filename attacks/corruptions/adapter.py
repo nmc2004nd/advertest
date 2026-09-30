@@ -14,13 +14,9 @@ import numpy as np
 from advertest_contracts.enums import AttackKind
 from advertest_contracts.models import AttackSpec
 from advertest_contracts.perturbation import ImageBatch, MaskBatch
-from attacks.common.checks import check_inputs, image_region
+from attacks.common.checks import UnsupportedTransform, check_inputs, image_region
 from attacks.common.seed import image_rng, target_image_id
 from attacks.corruptions.functions import MIN_SIDE, NAMES, corrupt
-
-
-class UnsupportedTransform(ValueError):
-    """Spec không dựng được bằng adapter corruption hoặc occlusion."""
 
 
 class CorruptionPerturbation:
