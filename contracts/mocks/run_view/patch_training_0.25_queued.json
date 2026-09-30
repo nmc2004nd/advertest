@@ -2,7 +2,7 @@
   "schema_version": 1,
   "run_id": "20fe00fd-fc99-5c60-81e5-ef87b68063d1",
   "experiment_id": "aba42d7e-4cc1-5d1a-a387-2235af16ddcd",
-  "attack_spec_id": "f8b22364-fcde-5b6c-a6e3-23f9e8f2a67c",
+  "attack_spec_id": "94f2e240-e595-5b21-a5c7-219a2d478f9e",
   "level": 0.25,
   "status": "queued",
   "status_reason": null,
@@ -19,7 +19,7 @@
   "fingerprint": null,
   "attack_spec": {
     "name": "adv_patch",
-    "version": 1,
+    "version": 2,
     "param_name": "area_ratio",
     "param_unit": "ratio"
   },

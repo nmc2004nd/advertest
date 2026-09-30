@@ -41,6 +41,8 @@ def test_seed_catalog_contents() -> None:
     assert patch.art_class == "RobustDPatch" and patch.requires_training
     assert patch.training is not None and patch.training.max_iter == 200
     assert patch.training.max_training_images == 50 and patch.training.checkpoint_every == 50
+    # Đề xuất contract 001: batch size cố định trong spec, adv_patch lên version 2.
+    assert patch.training.batch_size == 8 and patch.version == 2
     assert (patch.primary_param.name, patch.primary_param.min, patch.primary_param.max) == (
         "area_ratio",
         0.02,

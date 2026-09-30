@@ -3329,6 +3329,11 @@ export interface components {
              * @description Kích thước tối đa của slice huấn luyện
              */
             max_training_images: number;
+            /**
+             * Batch Size
+             * @description Batch size khi train và khi tính giá trị mục tiêu; cố định trong spec (không lấy từ cost profile) vì patch phụ thuộc cách chia batch (đề xuất contract 001, Phase 6)
+             */
+            batch_size: number;
         };
         /** TrajectoryPoint */
         TrajectoryPoint: {
