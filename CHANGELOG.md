@@ -6,7 +6,28 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 5 — Wizard tạo experiment và theo dõi tiến độ
 
-**Trạng thái:** đang làm. Group 0–5 đã merge.
+**Trạng thái:** đang làm. Group 0–6 đã merge.
+
+### Phase 5 — Group 6 (frontend) — 2026-09-30
+#### Thêm
+- `/experiments`: lọc Của tôi / Tất cả, trạng thái, model; bảng (≥ 1280px) / thẻ; Tải thêm; polling khi còn experiment đang chạy.
+- `/experiments/:id`: 5 tab (Tổng quan, Kết quả, Failure case, Chi phí, Tái lập) giữ trên `?tab=`; Hủy (chủ sở hữu, `queued`/`running`, hộp xác nhận); Nhân bản mở wizard `?clone=`; tab Failure case có watermark và ô "Ảnh bị ẩn"; tab Tái lập có fingerprint rút gọn, git commit, cảnh báo `git_dirty`, phiên bản thư viện, Docker image, môi trường, tải `manifest.json`.
+- `/failure-cases/:id`: `CaseViewer`, chuyển case trong run (`?run=`), xin lại URL khi ảnh lỗi.
+- `/home`: khối engineer (đang chạy hoặc chờ, 5 kết thúc gần nhất, nút tạo).
+- Điều hướng: bật "Experiment", thêm "Tạo experiment"; `AppShell` tự tính mục đang sáng (có đường dẫn loại trừ). Vitest 187 → 201.
+#### Thay đổi
+- Test điều hướng và `/home` (Vitest) theo điều hướng mới; E2E Phase 4 `onboarding.spec.ts`: engineer có 4 mục (commit `phase05(reviewer)`, task 37, người dùng cho phép).
+#### Kiểm tra
+- Chromium 390/820/1440 với mock: 10 trang không cuộn ngang, không lỗi console; `make test-e2e` 39/39.
+#### Quyết định (đã ghi vào `requirements.md`)
+- Người dùng chốt: sửa `router.tsx`, `nav/config.ts`, `HomePage.tsx`, `AppShell.tsx`, E2E Phase 4.
+- Agent chọn, người duyệt chấp nhận ở review: bộ lọc mặc định theo quyền, tab trên URL, `?run=` cho trình xem, khối `/home` từ 50 experiment mới nhất.
+#### Review
+- Phát hiện #1 (sửa trước merge): trình xem mở không có `?run=` gọi `GET /runs/` rỗng → `useRun` chỉ gọi khi có id (có test). Ghi nhận: luồng với backend thật (hủy khi đang chạy, tiến độ, tải manifest) chờ E2E Group 7; bảng "Thêm" của admin trên điện thoại chưa có E2E thao tác.
+#### Số liệu
+- `make check`: 804 test Python, 209 test nghiệm thu không cần DB, 201 Vitest; `verify:build` pass; `make test-e2e` 39 test.
+#### Lưu ý
+- Code, review, sửa sau review và ghi spec do cùng một agent làm (không độc lập).
 
 ### Phase 5 — Group 5 (frontend) — 2026-09-30
 #### Thêm
