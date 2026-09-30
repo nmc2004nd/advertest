@@ -354,7 +354,7 @@ export function WizardPage() {
   const stepProps = { draft, dispatch, errors }
   const loadingClone = cloneId !== null && draft.clonedFrom !== cloneId && !clone.isError
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-4 p-4 pb-[calc(6rem+env(safe-area-inset-bottom))] md:p-6 md:pb-6">
+    <div className="mx-auto flex max-w-7xl flex-col gap-4 p-4 pb-24 md:p-6">
       <h1 className="text-2xl font-semibold">Tạo experiment</h1>
       <StepBar draft={draft} onGo={go} />
       {clone.isError && <FormAlert>Không tải được cấu hình để nhân bản.</FormAlert>}
@@ -432,8 +432,9 @@ export function WizardPage() {
           </div>
         </aside>
       </div>
-      {/* Điện thoại: thanh dưới cố định (thời gian ước lượng + nút), tránh thanh home. */}
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-background px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden">
+      {/* Điện thoại: thanh dưới cố định (thời gian ước lượng + nút), nằm ngay trên thanh tab điều
+          hướng của khung ứng dụng (cao 3.5rem + viền, đã tránh thanh home). */}
+      <div className="fixed inset-x-0 bottom-[calc(3.5rem+1px+env(safe-area-inset-bottom))] z-30 border-t bg-background px-4 py-3 md:hidden">
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
