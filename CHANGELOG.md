@@ -8,6 +8,22 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 **Trạng thái:** đang làm. Group 0 xong (chờ merge).
 
+### Phase 6 — Group 3, phần ml-core — 2026-10-01
+#### Thêm
+- `ml_core/runner/grid.py` (task 15): `coarse_to_fine` (`[2, 4, 8, 16, 32]` → `[2, 8, 32, 4, 16]`), `collapsed` (mAP@0.5 tấn công ≤ 5% mAP sạch; mAP sạch bằng 0 thì không coi là sụp), `early_stop` (run kích hoạt là level nhỏ nhất đã sụp, chỉ tính run có metric đầy đủ; bỏ mọi run `queued` có level lớn hơn trong cùng attack).
+- `RunExecutor.process_batch` (task 15a): mỗi target có `image_id` và `ignore_boxes` (ART chỉ đọc `boxes`, `labels`).
+- Task 17 (ml-core): `RunExecutor`, `Runner` nhận mọi `Perturbation`; `Runner` dựng bằng `attacks/factory.py` nên CLI `advertest run` chạy được corruption, occlusion; spec cần train (patch) bị từ chối khi đọc cấu hình ("chỉ chạy qua worker"); `linf_eps` trả `None` với phép biến đổi không phải attack ART.
+- Task 18: `build_fingerprint_inputs(..., patch_key=)`; null thì fingerprint không đổi.
+- Task 19: `ml_core/runner/images.py`: `difference_image` (`|δ| / max|δ|`), `perturbation_kind(spec)`, `third_image`; `StoreCandidates`, `MemoryCandidates` nhận `kind` (mặc định nhiễu khuếch đại), ảnh thứ ba vẫn đi qua làm mờ; `FailureCaseRecord.perturbation_kind` ghi theo `candidates.kind`.
+- Task 20: `ml_core/metrics/ranking.py`: `rank_attack`, `rank_attacks` (hình thang từ (0, 0) trên `level / max`, level `early_stop` lấy `relative_drop` của `trigger_run_id`, không ngoại suy, dưới 2 điểm → null xếp cuối, `partial`); cho cùng kết quả với mock `experiment_detail/full_catalog` (tính độc lập bằng script sinh mock).
+- Task 20a: `create_slice(..., exclude=)` và `advertest slice create --exclude-slice <id>` (lặp lại được, phải cùng dataset version).
+#### Quyết định (người dùng chốt ở kế hoạch Group 3; người duyệt ghi vào spec)
+- Group 3 chia hai nhánh tuần tự: `phase06-ml-core` rồi `phase06-worker`.
+- Không dừng sớm khi mAP@0.5 sạch bằng 0 (không đánh giá được mức sụt).
+#### Ghi nhận
+- Worker (nhánh sau) cần: truyền `perturbation_kind(spec)` cho `StoreCandidates`, dùng `attacks/factory.py`, `patch_key` trong fingerprint, gọi `early_stop` trước mỗi run.
+- Level có metric nhưng `relative_drop = null` (mAP sạch bằng 0) đếm vào `levels_evaluated` nhưng không thành điểm của đường cong.
+
 ### Phase 6 — Group 4 (ml-privacy) — 2026-10-01
 #### Thêm
 - `ml_core/privacy/regions.py`: vùng `rule_v1` từ hợp ground truth, prediction sạch và prediction sau biến đổi (score ≥ 0,25): 1/3 trên của `person`, 40% dưới của `car`/`truck`, toàn bộ ignore region; cắt theo khung ảnh.
