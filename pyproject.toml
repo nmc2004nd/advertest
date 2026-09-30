@@ -21,6 +21,10 @@ dependencies = [
     "pycocotools==2.0.11",
     "pyyaml==6.0.3",
     "httpx==0.28.1",
+    # Phase 6: bản vá nội bộ của imagecorruptions (attacks/corruptions/); cùng phiên bản đã khóa
+    # qua ultralytics.
+    "opencv-python==5.0.0.93",
+    "scipy==1.17.1",
 ]
 
 [project.scripts]
@@ -99,9 +103,10 @@ plugins = ["pydantic.mypy"]
 module = ["advertest_contracts.*", "advertest_worker.*", "backend.*"]
 strict = true
 
-# boto3/botocore, ART và PyYAML không kèm type stub; gói stub là dependency riêng, chưa được duyệt.
+# boto3/botocore, ART, PyYAML và SciPy không kèm type stub; gói stub là dependency riêng, chưa được
+# duyệt.
 [[tool.mypy.overrides]]
-module = ["boto3", "botocore.*", "art", "art.*", "yaml"]
+module = ["boto3", "botocore.*", "art", "art.*", "yaml", "scipy", "scipy.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
