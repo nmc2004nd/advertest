@@ -8,6 +8,23 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 **Trạng thái:** đang làm. Group 0 xong (chờ merge).
 
+### Phase 6 — Group 4 (ml-privacy) — 2026-10-01
+#### Thêm
+- `ml_core/privacy/regions.py`: vùng `rule_v1` từ hợp ground truth, prediction sạch và prediction sau biến đổi (score ≥ 0,25): 1/3 trên của `person`, 40% dưới của `car`/`truck`, toàn bộ ignore region; cắt theo khung ảnh.
+- `ml_core/privacy/blur.py`: mỗi vùng (mọi pixel chạm box) làm mờ Gaussian bán kính `max(8, 0,2 × cạnh ngắn)` px rồi pixelate khối `max(4, cạnh ngắn / 6)` px; ngoài vùng giữ nguyên; tất định. `METHOD = rule_v1`, `VERSION = 1`.
+- `ml_core/privacy/case.py`: vùng của một ảnh từ prediction thô (mọi class của model, kể cả class không phải class đích) và `CaseAnonymization`.
+- `ml_core/runner/candidates.py`: `add` nhận vùng làm mờ bắt buộc; ảnh sạch, ảnh sau biến đổi, ảnh thứ ba (tính từ ảnh chưa làm mờ) và thumbnail được làm mờ trước khi giữ trong RAM hay ghi vào store.
+- `ml_core/runner/executor.py` (người dùng cho phép sửa tối thiểu): `_offer` tính vùng và truyền vào `add`, lưu số vùng trong `case_inputs` (có trong checkpoint); `_record` ghi `anonymization`. Checkpoint cũ không có số vùng → `anonymization = None` (ảnh ứng viên của nó chưa làm mờ).
+- Test: `ml_core/privacy/tests/` (vùng, làm mờ trên ảnh có chi tiết, tích hợp với executor: mọi case có `anonymization` `rule_v1`, mọi ảnh hiển thị và thumbnail trùng đúng bản làm mờ tính lại từ dataset, ngoài vùng giống hệt ảnh gốc, metric không đổi khi tắt làm mờ, checkpoint cũ). Test của `ml_core/runner` cập nhật lời gọi `add`, `_offer`.
+#### Ghi nhận
+- Backend chưa lưu `anonymization` (bảng `failure_cases` chưa có cột; Group 5 task 28): tới lúc đó case vẫn `hidden_unanonymized` (an toàn).
+- Ảnh của fixture executor là mảng màu phẳng nên làm mờ có thể không đổi pixel; việc làm mờ thay đổi ảnh có chi tiết kiểm tra ở `test_blur.py`.
+#### Số liệu
+- `make check`: 1088 test Python (+12), 201 Vitest, 211 test nghiệm thu không cần DB. `make test-db`: 354 test (gồm test nghiệm thu Phase 3, 5 với worker thật đi qua bước làm mờ).
+#### Quyết định (người dùng chốt ở kế hoạch Group 4; người duyệt ghi vào spec)
+- ml-privacy được sửa tối thiểu `executor.py` (`_offer`, `_record`) → `plan.md` phần phân chia thư mục.
+- Vùng làm mờ dùng prediction thô mọi class (không chỉ class đích); làm mờ luôn áp cho case mới (không phụ thuộc `datasets.anonymized`).
+
 ### Phase 6 — Đề xuất contract 001 (người duyệt, người dùng duyệt) — 2026-10-01
 - Nguồn: review Group 2 phát hiện #1: patch train ra phụ thuộc batch size (`v8DetectionLoss` trả `loss * batch_size`, chuẩn hóa theo cả batch), batch size lấy từ cost profile của từng máy, còn khóa patch và fingerprint không chứa batch size.
 - `TrainingParams.batch_size` (bắt buộc); seed `adv_patch` lên version 2 với `batch_size = 8`, thay version 1 trong file seed (version 1 chưa có run nào). Hash của 9 spec còn lại không đổi; `schema_version` không đổi.
