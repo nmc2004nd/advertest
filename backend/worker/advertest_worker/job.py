@@ -24,6 +24,7 @@ from typing import Any
 from uuid import UUID
 
 import httpx
+import numpy as np
 import torch
 
 from advertest_contracts.enums import RunStatus, SkipReason, StopReason
@@ -48,12 +49,14 @@ from advertest_contracts.models import (
 )
 from advertest_contracts.perturbation import Perturbation
 from advertest_worker.cache import JobCache
-from advertest_worker.calibrate import calibrate
+from advertest_worker.calibrate import calibrate, calibration_patch, patch_training_cost
 from advertest_worker.client import LeaseLost, WorkerClient
 from advertest_worker.config import HEARTBEAT_INTERVAL_S
 from advertest_worker.early_stop import RunLedger
+from advertest_worker.patch import PatchInterrupted, PatchJob, obtain_patch
 from attacks.art_adapter import IncompatibleAttack
 from attacks.factory import build_perturbation
+from attacks.patch.adapter import PatchPerturbation
 from ml_core.cli.evaluate import load_model_from_store
 from ml_core.models.estimator import build_estimator
 from ml_core.models.register import lib_versions
@@ -68,7 +71,7 @@ from ml_core.runner.executor import (
     load_clean_predictions,
 )
 from ml_core.runner.fingerprint import build_fingerprint_inputs, fingerprint
-from ml_core.runner.images import perturbation_kind
+from ml_core.runner.images import letterbox_mask, perturbation_kind
 from ml_core.store import PresignedStore
 
 logger = logging.getLogger(__name__)
@@ -207,8 +210,14 @@ class JobRunner:
             ):
                 continue
             levels = [r.level for r in bundle.runs if r.attack_spec_id == spec.id]
+            level = levels[0] if levels else spec.primary_param.min
             try:
-                perturbation = build_perturbation(spec, self._estimator(bundle))
+                if spec.requires_training:
+                    # Phase 6: đánh giá đo bằng patch ngẫu nhiên; chi phí train đo riêng bên dưới.
+                    perturbation: Perturbation = calibration_patch(spec, loader)
+                    level = spec.primary_param.max
+                else:
+                    perturbation = build_perturbation(spec, self._estimator(bundle))
             except Exception:
                 logger.warning("Không dựng được %s để calibration", spec.name, exc_info=True)
                 continue
@@ -216,7 +225,7 @@ class JobRunner:
                 loader=loader,
                 estimator=self._estimator(bundle),
                 perturbation=perturbation,
-                level=levels[0] if levels else spec.primary_param.min,
+                level=level,
                 seed=attack.seed,
                 device=self.device,
                 compute_target_id=bundle.config.compute_target_id,
@@ -225,6 +234,9 @@ class JobRunner:
                 environment=self._environment(bundle),
                 now=self.clock(),
             )
+            if spec.requires_training:
+                seconds = patch_training_cost(spec, loader, self._estimator(bundle))
+                profile = profile.model_copy(update={"sec_per_image_iteration": seconds})
             logger.info(
                 "Calibration %s: batch %d, %.3f s/ảnh",
                 spec.name,
@@ -290,6 +302,7 @@ class JobRunner:
                 git_dirty=git.dirty,
                 lib_versions=versions,
                 docker_image_digest=digest,
+                patch_key=run.patch_key,
             )
             try:
                 self._run_one(job, run.run_id, spec, inputs)
@@ -368,10 +381,21 @@ class JobRunner:
             finish.skipped(f"{spec.name} cần gradient nhưng model không hỗ trợ gradient")
             return
         try:
-            perturbation = build_perturbation(spec, self._estimator(bundle))
+            if spec.requires_training:
+                perturbation: Perturbation = self._patch_perturbation(job, run_id, spec, store)
+            else:
+                perturbation = build_perturbation(spec, self._estimator(bundle))
         except IncompatibleAttack as exc:
             finish.skipped(str(exc))
             return
+        except PatchInterrupted as exc:  # hủy hoặc chạm giới hạn giữa lúc train patch
+            if exc.directive.action == "cancel":
+                finish.cancelled(None)
+            else:
+                finish.stopped(None)
+            raise _StopExperiment from exc
+        except LeaseLost:
+            raise
         except Exception as exc:  # lỗi khi dựng attack: run này failed, run khác chạy tiếp
             finish.failed(exc, None)
             return
@@ -458,6 +482,46 @@ class JobRunner:
             raise
         except Exception as exc:  # một run lỗi không dừng các run khác
             finish.failed(exc, executor)
+
+    def _patch_perturbation(
+        self, job: _Job, run_id: UUID, spec: AttackSpec, store: PresignedStore
+    ) -> PatchPerturbation:
+        """Phase 6 (plan task 17): lấy patch đã train (hoặc train trên slice huấn luyện, báo tiến
+        độ `phase = training`), rồi dựng adapter dán patch."""
+        bundle = job.bundle
+        run = next(r for r in bundle.runs if r.run_id == run_id)
+        patch = next(p for p in bundle.patches if p.key == run.patch_key)
+        training = next(s for s in bundle.training_slices if s.id == patch.training_slice_id)
+        images = mask = None
+        if patch.artifact is None:
+            loader = self.cache.training_loader(bundle, training)
+            loaded = [loader.load(image_id) for image_id in training.image_ids]
+            images = np.stack([item[0] for item in loaded])
+            mask = letterbox_mask([item[3] for item in loaded])
+
+        def on_directive(directive: WorkerDirective) -> None:
+            job.box.update(directive)
+            job.remaining_seconds = directive.remaining_seconds
+
+        array, _ = obtain_patch(
+            PatchJob(
+                spec=spec,
+                estimator=self._estimator(bundle),
+                patch=patch,
+                run_id=run_id,
+                lease_id=job.lease.lease_id,
+                seed=run.seed,
+                weights_sha256=bundle.model_card.weights_sha256,
+                training_slice_sha256=training.slice_sha256,
+                store=store,
+                client=self.client,
+                clock=self.clock,
+                on_directive=on_directive,
+            ),
+            images,
+            mask,
+        )
+        return PatchPerturbation(spec, array, area_ratio=run.level)
 
     @staticmethod
     def _drop_checkpoint(store: PresignedStore, previous: str | None, current: str) -> None:
@@ -605,11 +669,11 @@ class _Finisher:
         finalized = executor.finalize(self.run_id)
         self._send(RunStatus.COMPLETED, None, executor, finalized.metrics, finalized.failure_cases)
 
-    def stopped(self, executor: RunExecutor) -> None:
+    def stopped(self, executor: RunExecutor | None) -> None:
         reason = StatusReason(
             code=StopReason.TIME, message="Chạm giới hạn thời gian của experiment"
         )
-        if executor.images_done == 0:
+        if executor is None or executor.images_done == 0:
             self._send(RunStatus.STOPPED_LIMIT, reason, executor)
             return
         finalized = executor.finalize(self.run_id, partial=True)
@@ -617,7 +681,7 @@ class _Finisher:
             RunStatus.STOPPED_LIMIT, reason, executor, finalized.metrics, finalized.failure_cases
         )
 
-    def cancelled(self, executor: RunExecutor) -> None:
+    def cancelled(self, executor: RunExecutor | None) -> None:
         self._discard_candidates(executor)
         self._send(
             RunStatus.CANCELLED,
