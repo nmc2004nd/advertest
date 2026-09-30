@@ -134,6 +134,7 @@ Ký hiệu `d(x, S)` là mức sụt ở level `x` trên tập ảnh `S`.
 - `mission.md` nguyên tắc 4 (tái lập), 5 (chi phí tối đa biết trước), 6 (trạng thái rõ).
 - `tech-stack.md` mục 2.3 (metric, bootstrap), 3.3 (tự tìm ngưỡng).
 - Phase 2: metric theo class, ASR. Phase 3: executor, checkpoint, API nội bộ. Phase 5: wizard, ước lượng, tab Kết quả. Phase 6: seed theo ảnh, xếp hạng AUC, điểm "không biến đổi" của spec.
+- Phase 5: `mode = search` hiện trả `422 not_supported_yet` cho mọi spec (`experiment_config.py`); Phase 7 thu hẹp lại chỉ còn `adv_patch`. `EstimateResponse` đang có `total_seconds` (null khi thiếu profile) và `exceeds_limit` (cận dưới); `max_seconds` "tối đa" của chế độ tìm cần định nghĩa rõ cách ghép với hai trường này (contract).
 
 ## Open Questions
 

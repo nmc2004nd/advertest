@@ -146,6 +146,8 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 - [ ] Quét lưới thô trước, mịn sau; dừng sớm khi mAP gần 0.
 - [ ] Trang admin xem attack catalog.
 - [ ] (Từ Phase 2) Lưới mịn ở eps nhỏ: trên KITTI, PGD L∞ eps 2/255 đã sụt 98%, PGD L2 eps 1 sụt 90% (vùng hữu ích dưới 2/255 và dưới 1).
+- [ ] (Từ Phase 5) Đo sai số ước lượng: PGD eps 2/4/8/16 trên KITTI 300 ảnh qua wizard (tồn đọng Phase 5), làm cùng lúc với manual check hiệu chỉnh patch.
+- [ ] (Từ Phase 5) CLI `advertest` in JSON ra stdout, nhưng Ultralytics lần đầu import in thông báo settings vào stdout (`scripts/e2e.sh` đang né bằng `YOLO_CONFIG_DIR` và import trước một lần).
 
 **Demo:** một experiment quét toàn bộ catalog, ra bảng xếp hạng attack gây hại nhất.
 
@@ -219,6 +221,7 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 - [ ] Rà soát bảo mật: quyền endpoint, token worker, cấu hình Tailscale.
 - [ ] Tài liệu cài đặt và vận hành.
 - [ ] (Từ Phase 4) `/docs`, `/redoc`, `/openapi.json` đang công khai; compose tin cả mạng Docker trong `TRUSTED_PROXIES` (chỉ hợp cho dev; bản triển khai đặt IP reverse proxy); ô chọn người thực hiện trên trang audit tối đa 100 người dùng.
+- [ ] (Từ Phase 5) Box trên canvas của trình xem case chưa đọc được bằng trình đọc màn hình; nháp wizard có model/slice đã xóa chỉ được báo qua `422`.
 - [ ] (Từ Phase 0) Pin image nền và GitHub Action theo digest/SHA; tài liệu cài đặt nhắc đổi mật khẩu `change-me-*` và việc `make check` cần mạng ở lần đầu.
 
 **Demo:** trọn luồng từ yêu cầu truy cập đến report đã xác minh, trên desktop và điện thoại.

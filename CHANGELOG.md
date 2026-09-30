@@ -8,6 +8,12 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 **Trạng thái:** ✅ hoàn thành 2026-09-30, còn tồn đọng. Group 0–7 đã merge.
 
+### Replan sau Phase 5 — 2026-09-30
+- Phase 6 `requirements.md` mục Context: ghi các giả định từ code Phase 5 (`display_mode` tính trong `artifacts.py`, cần lưu `anonymization` và bỏ khóa MinIO khi ẩn; `training_seconds` cộng vào `total_seconds` và `exceeds_limit`; preset "Toàn bộ catalog" khoảng 45 run sát trần 50; nháp wizard `v1` gộp nông; E2E trúng cache, máy `e2e-offline`; `early_stop` đếm vào "bỏ qua").
+- Phase 7 `requirements.md` mục Context: `not_supported_yet` hiện áp mọi spec; `max_seconds` phải ghép với `total_seconds` và `exceeds_limit`.
+- `roadmap.md`: Phase 6 thêm đo sai số ước lượng PGD 300 ảnh (tồn đọng Phase 5) và lỗi stdout của CLI khi Ultralytics import lần đầu; Phase 11 thêm khả năng tiếp cận của box trên canvas và nháp wizard có tài nguyên đã xóa.
+- Người dùng chấp nhận toàn bộ đề xuất.
+
 ### Phase 5 — Tổng kết (phase-close) — 2026-09-30
 - **Giao được:** API experiment (tạo có kiểm tra cấu hình `422` kèm `fields`, ước lượng từ cost profile `images × spp × 1.2`, xem, hủy, nhân bản, giới hạn 3 experiment đang chờ, tên mặc định do DB đặt); đọc tài nguyên cho wizard; URL ảnh `/artifacts/<token>` (HMAC 10 phút, cần phiên), `display_mode` theo `anonymized` và `DEV_ALLOW_UNBLURRED`; email khi kết thúc qua outbox (Mailpit ở dev); frontend wizard 6 bước giữ nháp, danh sách và chi tiết experiment 5 tab (tiến độ polling, biểu đồ Recharts, failure case có watermark, chi phí, tái lập), trình xem case (zoom, slider, vuốt), khối engineer trên `/home`.
 - **Contract:** 3 `ErrorCode` mới, `DisplayMode`, `ErrorBody.fields`, 15 schema, OpenAPI các route Phase 5; đề xuất 001 (`RunView.fingerprint` được null khi run chưa bắt đầu). Người dùng chấp nhận (làm thay người duyệt theo ủy quyền).

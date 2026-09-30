@@ -148,6 +148,13 @@ Mọi spec corruption và occlusion có `requires_gradients = false`, `access = 
 - Phase 2: adapter ART, mask, metric, failure case. Phase 3: executor, checkpoint, cost profile, ước lượng. Phase 5: wizard, tab Kết quả, `CaseViewer`, quy tắc `display_mode`.
 - Phase 3 (ảnh hưởng thiết kế): ảnh failure case được tạo ở worker lúc ảnh vào top-K (`StoreCandidates`, `ml_core/runner/candidates.py`), nên làm mờ phải chạy ở đó trước khi upload; `RunExecutor.process_batch` hiện truyền `targets` không có `image_id` vào `Perturbation.apply` (cần sửa cùng thay đổi interface); thời gian train patch phải được worker báo qua `progress` (`processing_seconds_delta`) mới được tính vào giới hạn; thời gian calibration hiện không tính.
 - Đo ở Phase 3: PGD trên KITTI thật phụ thuộc nhẹ vào batch size (≤ 0.0006 mAP, ≤ 0.006 ASR giữa batch 2 và batch 8), trái với giả định "không phụ thuộc batch size" của Phase 2; cần kiểm lại khi thêm seed theo ảnh.
+- Phase 5 (ảnh hưởng thiết kế):
+  - `display_mode` hiện tính lúc đọc trong `backend/app/services/artifacts.py`, chỉ từ `datasets.anonymized` và `DEV_ALLOW_UNBLURRED`. Quy tắc mới theo từng case (`anonymization.applied`) cần lưu `anonymization` cùng failure case trong DB (migration), và `FailureCaseView` phải bỏ khóa MinIO khi ảnh bị ẩn (Phase 5 vẫn trả khóa trong `artifacts`).
+  - Ước lượng: `total_seconds` là null khi có run thiếu profile; `exceeds_limit` tính trên cận dưới. `training_seconds` phải cộng vào cả hai.
+  - Bộ level gợi ý của wizard (lũy thừa của 2, spec rời rạc lấy mọi giá trị) áp cho preset "Toàn bộ catalog" cho khoảng 45 run, sát trần `MAX_RUNS = 50` (`experiment_config.py`). Thêm spec hoặc severity nữa sẽ vượt trần.
+  - Nháp wizard lưu ở `localStorage` khóa `advertest.wizard.v1`, và `loadDraft` chỉ gộp nông. Thêm `training_slice_id` và `early_stop` vào từng attack thì phải điền mặc định cho nháp cũ, hoặc đổi khóa sang `v2`.
+  - E2E: 3 viewport chạy tuần tự trên cùng DB nên run trúng cache; worker CPU chạy thật trên fixture 5 ảnh; máy `e2e-offline` không có worker. Train patch trong E2E phải rất ngắn, hoặc dùng patch có sẵn.
+  - `status_reason.code = early_stop` được đếm vào "bỏ qua" trong câu tóm tắt và email (cùng hàm tóm tắt); bảng run cần thêm nhãn riêng.
 
 ## Open Questions
 
