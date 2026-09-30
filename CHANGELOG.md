@@ -8,6 +8,23 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 **Trạng thái:** đang làm. Group 0 xong (chờ merge).
 
+### Phase 6 — Group 3, phần worker — 2026-10-01
+#### Thêm
+- Worker dựng perturbation bằng `attacks/factory.py`; `StoreCandidates` nhận `perturbation_kind(spec)`; fingerprint có `patch_key` của run patch (task 17).
+- `advertest_worker/early_stop.py` (task 16): `RunLedger` giữ trạng thái và metric mọi run (từ `bundle.runs[].metrics`, cập nhật khi run trong phiên xong hoặc trúng cache); trước mỗi run `queued`, gọi `ml_core.runner.grid.early_stop` cho attack đó (theo `grid.early_stop`) rồi `POST /runs/{id}/skip` kèm `trigger_run_id`. Client thêm `skip`, `register_patch`.
+- `advertest_worker/patch.py` (task 17): patch có sẵn thì tải và kiểm sha256; chưa có thì train trên slice huấn luyện (tiếp từ `checkpoint_key`), checkpoint `patches/<key>/checkpoints/<vòng>.npz` (vòng 0 trước lần báo đầu, bản cũ xóa sau khi API nhận bản mới; mất lease khi xóa thì dừng), mỗi vòng `ProgressReport` với `phase = training`; chỉ thị khác `continue` → run `cancelled` hoặc `stopped_limit` (0 ảnh), checkpoint giữ lại; train xong upload `.npy`, `.png`, đăng ký, API trả bản khác thì dùng bản đó.
+- `JobCache.training_loader`: tải ảnh của slice huấn luyện. `JobRunner._patch_perturbation` nối luồng trên vào run.
+- Calibration `adv_patch`: `sec_per_image` đo khi dán patch ngẫu nhiên ở `area_ratio` lớn nhất; `sec_per_image_iteration` đo bằng `measure_sec_per_image_iteration` trên tối đa `training.batch_size` ảnh.
+- Test: `backend/worker/tests/test_early_stop.py`, `test_patch_flow.py` (client giả, store trong bộ nhớ, estimator giả: train mới, dùng patch có sẵn, chạy tiếp từ checkpoint cho cùng patch, dừng giữa lúc train, bản đăng ký của worker khác, mất lease), calibration patch trong `test_calibrate.py`.
+#### Thay đổi ngoài thư mục (người dùng cho phép)
+- `attacks/patch/artifact.py`: file patch đặt tên theo nội dung `patches/<key>/<patch_sha256>.npy|.png` (trước là `patch.npy`, `patch.png` cố định): hai worker cùng train một khóa không còn ghi đè file của nhau (test tái hiện lỗi sai sha256).
+#### Ghi nhận
+- Endpoint `skip`, `patch`, bundle có `patches`/`training_slices`, `artifact-url` cho `patches/` vẫn trả 501 tới Group 5: luồng mới mới kiểm bằng client giả; `JobRunner._patch_perturbation` chưa có test tích hợp với API thật (Group 7).
+#### Review (phase-review, 2026-10-01)
+- Người dùng yêu cầu sửa trước merge: #1 `gpu_seconds` của run patch thiếu thời gian train (API ghi đè bằng `RunResult.gpu_seconds`) → `obtain_patch` trả `training_seconds` (cộng dồn qua các lần chạy tiếp; 0 khi dùng patch có sẵn), `PatchInterrupted.seconds`, `_Finisher.extra_seconds` cộng vào `gpu_seconds`; #2 đối chiếu `run.patch_key` và `patch.area_ratio` của bundle với `compute_patch_key` và `run.level`, lệch thì run `failed`; #3 lỗi khi đo chi phí train `adv_patch` chỉ ghi cảnh báo, không dừng job. Test: `test_patch_job.py`, `test_training_seconds_reported_for_gpu_seconds`.
+- Ghi nhận: 409 khi `skip` làm dừng cả experiment (client coi 409 là mất lease); luồng patch và `skip` chưa chạy với API thật.
+- Review và phần sửa do cùng một agent làm (không độc lập).
+
 ### Phase 6 — Group 3, phần ml-core — 2026-10-01
 #### Thêm
 - `ml_core/runner/grid.py` (task 15): `coarse_to_fine` (`[2, 4, 8, 16, 32]` → `[2, 8, 32, 4, 16]`), `collapsed` (mAP@0.5 tấn công ≤ 5% mAP sạch; mAP sạch bằng 0 thì không coi là sụp), `early_stop` (run kích hoạt là level nhỏ nhất đã sụp, chỉ tính run có metric đầy đủ; bỏ mọi run `queued` có level lớn hơn trong cùng attack).

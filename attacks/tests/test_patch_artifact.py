@@ -41,7 +41,9 @@ def test_artifact_valid_and_patch_round_trip() -> None:
     artifact, npy = _build(state)
     PatchArtifact.model_validate(artifact.model_dump(mode="json"))
     assert artifact.side_px == 12 and artifact.iterations == 200
-    assert artifact.png_key.startswith(f"patches/{artifact.key}/")
+    prefix = f"patches/{artifact.key}/"
+    assert artifact.npy_key == f"{prefix}{artifact.patch_sha256}.npy"
+    assert artifact.png_key == f"{prefix}{artifact.patch_sha256}.png"
     np.testing.assert_array_equal(load_patch(npy, artifact), state.patch)
 
 

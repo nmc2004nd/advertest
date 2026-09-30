@@ -24,6 +24,7 @@ from typing import Any
 from uuid import UUID
 
 import httpx
+import numpy as np
 import torch
 
 from advertest_contracts.enums import RunStatus, SkipReason, StopReason
@@ -39,17 +40,24 @@ from advertest_contracts.models import (
     RunCompletion,
     RunMetrics,
     RunResult,
+    RunSkipRequest,
     RunStartRequest,
     StatusReason,
     WorkerDirective,
     WorkerJobBundle,
     WorkerLease,
 )
+from advertest_contracts.perturbation import Perturbation
 from advertest_worker.cache import JobCache
-from advertest_worker.calibrate import calibrate
+from advertest_worker.calibrate import calibrate, calibration_patch, patch_training_cost
 from advertest_worker.client import LeaseLost, WorkerClient
 from advertest_worker.config import HEARTBEAT_INTERVAL_S
-from attacks.art_adapter import ArtPerturbation, IncompatibleAttack, build_perturbation
+from advertest_worker.early_stop import RunLedger
+from advertest_worker.patch import PatchInterrupted, PatchJob, obtain_patch
+from attacks.art_adapter import IncompatibleAttack
+from attacks.factory import build_perturbation
+from attacks.patch.adapter import PatchPerturbation
+from attacks.patch.geometry import patch_key
 from ml_core.cli.evaluate import load_model_from_store
 from ml_core.models.estimator import build_estimator
 from ml_core.models.register import lib_versions
@@ -64,6 +72,7 @@ from ml_core.runner.executor import (
     load_clean_predictions,
 )
 from ml_core.runner.fingerprint import build_fingerprint_inputs, fingerprint
+from ml_core.runner.images import letterbox_mask, perturbation_kind
 from ml_core.store import PresignedStore
 
 logger = logging.getLogger(__name__)
@@ -149,6 +158,7 @@ class _Job:
     profiles: dict[UUID, CostProfile]
     specs: dict[UUID, AttackSpec]
     remaining_seconds: float | None
+    ledger: RunLedger
     context: RunContext | None = None
 
 
@@ -201,8 +211,14 @@ class JobRunner:
             ):
                 continue
             levels = [r.level for r in bundle.runs if r.attack_spec_id == spec.id]
+            level = levels[0] if levels else spec.primary_param.min
             try:
-                perturbation = build_perturbation(spec, self._estimator(bundle))
+                if spec.requires_training:
+                    # Phase 6: đánh giá đo bằng patch ngẫu nhiên; chi phí train đo riêng bên dưới.
+                    perturbation: Perturbation = calibration_patch(spec, loader)
+                    level = spec.primary_param.max
+                else:
+                    perturbation = build_perturbation(spec, self._estimator(bundle))
             except Exception:
                 logger.warning("Không dựng được %s để calibration", spec.name, exc_info=True)
                 continue
@@ -210,7 +226,7 @@ class JobRunner:
                 loader=loader,
                 estimator=self._estimator(bundle),
                 perturbation=perturbation,
-                level=levels[0] if levels else spec.primary_param.min,
+                level=level,
                 seed=attack.seed,
                 device=self.device,
                 compute_target_id=bundle.config.compute_target_id,
@@ -219,6 +235,13 @@ class JobRunner:
                 environment=self._environment(bundle),
                 now=self.clock(),
             )
+            if spec.requires_training:
+                try:
+                    seconds = patch_training_cost(spec, loader, self._estimator(bundle))
+                except Exception:  # thiếu chi phí train chỉ làm ước lượng thiếu, không dừng job
+                    logger.warning("Không đo được chi phí train %s", spec.name, exc_info=True)
+                else:
+                    profile = profile.model_copy(update={"sec_per_image_iteration": seconds})
             logger.info(
                 "Calibration %s: batch %d, %.3f s/ảnh",
                 spec.name,
@@ -257,6 +280,7 @@ class JobRunner:
             profiles=self.calibrate_bundle(bundle, loader),
             specs={s.id: s for s in bundle.attack_specs},
             remaining_seconds=(float(limit.value - limit.used) if limit.kind == "time" else None),
+            ledger=RunLedger(bundle),
         )
         git = git_state()
         versions = lib_versions()
@@ -269,6 +293,8 @@ class JobRunner:
                 logger.info("Dừng experiment theo chỉ thị %s", directive.action)
                 return
             spec = job.specs[run.attack_spec_id]
+            if self._skip_early_stop(job, run.run_id, spec.name, run.level):
+                continue
             inputs = build_fingerprint_inputs(
                 spec=spec,
                 level=run.level,
@@ -281,11 +307,33 @@ class JobRunner:
                 git_dirty=git.dirty,
                 lib_versions=versions,
                 docker_image_digest=digest,
+                patch_key=run.patch_key,
             )
             try:
                 self._run_one(job, run.run_id, spec, inputs)
             except _StopExperiment:
                 return
+
+    def _skip_early_stop(self, job: _Job, run_id: UUID, name: str, level: float) -> bool:
+        """Phase 6 (plan task 16): bỏ run `queued` khi level nhỏ hơn của cùng attack đã làm model
+        sụp."""
+        if job.ledger.status(run_id) != RunStatus.QUEUED:
+            return False
+        stop = job.ledger.decision(run_id)
+        if stop is None:
+            return False
+        self.client.skip(
+            run_id,
+            RunSkipRequest(
+                lease_id=job.lease.lease_id,
+                code="early_stop",
+                trigger_run_id=stop.trigger_run_id,
+                message=f"Bỏ qua: model đã sụp ở level {stop.trigger_level:g}",
+            ),
+        )
+        job.ledger.record(run_id, RunStatus.SKIPPED)
+        logger.info("[%s %g] bỏ qua: dừng sớm (sụp ở %g)", name, level, stop.trigger_level)
+        return True
 
     def _context(self, job: _Job) -> RunContext:
         if job.context is None:
@@ -323,6 +371,8 @@ class JobRunner:
         )
         if response.action == "skip_cached":
             logger.info("[%s %g] bỏ qua: trùng fingerprint", spec.name, run.level)
+            cached = response.cached_result
+            job.ledger.record(run_id, RunStatus.SKIPPED, cached.metrics if cached else None)
             return
 
         store = PresignedStore(
@@ -336,15 +386,32 @@ class JobRunner:
             finish.skipped(f"{spec.name} cần gradient nhưng model không hỗ trợ gradient")
             return
         try:
-            perturbation = build_perturbation(spec, self._estimator(bundle))
+            if spec.requires_training:
+                perturbation: Perturbation
+                perturbation, finish.extra_seconds = self._patch_perturbation(
+                    job, run_id, spec, store
+                )
+            else:
+                perturbation = build_perturbation(spec, self._estimator(bundle))
         except IncompatibleAttack as exc:
             finish.skipped(str(exc))
             return
+        except PatchInterrupted as exc:  # hủy hoặc chạm giới hạn giữa lúc train patch
+            finish.extra_seconds = exc.seconds
+            if exc.directive.action == "cancel":
+                finish.cancelled(None)
+            else:
+                finish.stopped(None)
+            raise _StopExperiment from exc
+        except LeaseLost:
+            raise
         except Exception as exc:  # lỗi khi dựng attack: run này failed, run khác chạy tiếp
             finish.failed(exc, None)
             return
 
-        candidates = StoreCandidates(store, prefix, linf_eps(spec, perturbation, run.level))
+        candidates = StoreCandidates(
+            store, prefix, linf_eps(spec, perturbation, run.level), perturbation_kind(spec)
+        )
         try:
             executor, batch_index = self._executor(
                 job, run_id, fp, run.level, run.seed, perturbation, candidates
@@ -425,6 +492,63 @@ class JobRunner:
         except Exception as exc:  # một run lỗi không dừng các run khác
             finish.failed(exc, executor)
 
+    def _patch_perturbation(
+        self, job: _Job, run_id: UUID, spec: AttackSpec, store: PresignedStore
+    ) -> tuple[PatchPerturbation, float]:
+        """Phase 6 (plan task 17): lấy patch đã train (hoặc train trên slice huấn luyện, báo tiến
+        độ `phase = training`), rồi dựng adapter dán patch. Trả kèm thời gian train để cộng vào
+        `gpu_seconds` của run."""
+        bundle = job.bundle
+        run = next(r for r in bundle.runs if r.run_id == run_id)
+        patch = next(p for p in bundle.patches if p.key == run.patch_key)
+        training = next(s for s in bundle.training_slices if s.id == patch.training_slice_id)
+        # Review Group 3 #2: không tin khóa và kích thước patch của bundle mà không đối chiếu.
+        expected = patch_key(
+            spec,
+            weights_sha256=bundle.model_card.weights_sha256,
+            training_slice_sha256=training.slice_sha256,
+            area_ratio=run.level,
+            seed=run.seed,
+        )
+        if patch.key != expected or patch.area_ratio != run.level:
+            raise ValueError(
+                f"Patch trong bundle ({patch.key}, area_ratio {patch.area_ratio}) không khớp run"
+                f" (khóa tính lại {expected}, area_ratio {run.level})"
+            )
+        images = mask = None
+        if patch.artifact is None:
+            loader = self.cache.training_loader(bundle, training)
+            loaded = [loader.load(image_id) for image_id in training.image_ids]
+            images = np.stack([item[0] for item in loaded])
+            mask = letterbox_mask([item[3] for item in loaded])
+
+        def on_directive(directive: WorkerDirective) -> None:
+            job.box.update(directive)
+            job.remaining_seconds = directive.remaining_seconds
+
+        obtained = obtain_patch(
+            PatchJob(
+                spec=spec,
+                estimator=self._estimator(bundle),
+                patch=patch,
+                run_id=run_id,
+                lease_id=job.lease.lease_id,
+                seed=run.seed,
+                weights_sha256=bundle.model_card.weights_sha256,
+                training_slice_sha256=training.slice_sha256,
+                store=store,
+                client=self.client,
+                clock=self.clock,
+                on_directive=on_directive,
+            ),
+            images,
+            mask,
+        )
+        return (
+            PatchPerturbation(spec, obtained.patch, area_ratio=run.level),
+            obtained.training_seconds,
+        )
+
     @staticmethod
     def _drop_checkpoint(store: PresignedStore, previous: str | None, current: str) -> None:
         """Xóa checkpoint cũ sau khi API đã nhận checkpoint mới (`progress` thành công): API
@@ -447,7 +571,7 @@ class JobRunner:
         fp: str,
         level: float,
         seed: int,
-        perturbation: ArtPerturbation,
+        perturbation: Perturbation,
         candidates: StoreCandidates,
     ) -> tuple[RunExecutor, int]:
         run = next(r for r in job.bundle.runs if r.run_id == run_id)
@@ -510,6 +634,9 @@ class _Finisher:
         self.inputs = inputs
         self.store = store
         self.prefix = prefix
+        # Thời gian train patch của run (Phase 6): API ghi đè `gpu_seconds` của run bằng giá trị
+        # gửi khi hoàn tất, nên phải cộng vào đây (review Group 3 #1).
+        self.extra_seconds = 0.0
 
     def _manifest(self) -> str:
         manifest = Manifest(
@@ -545,7 +672,7 @@ class _Finisher:
                 images_done=executor.images_done if executor else 0, images_total=images_total
             ),
             metrics=metrics,
-            gpu_seconds=executor.processing_seconds if executor else 0.0,
+            gpu_seconds=(executor.processing_seconds if executor else 0.0) + self.extra_seconds,
             cost=None,
             failure_case_ids=[case.id for case in cases],
             manifest_uri=self._manifest(),
@@ -554,6 +681,7 @@ class _Finisher:
             self.run_id,
             RunCompletion(lease_id=self.job.lease.lease_id, run_result=result, failure_cases=cases),
         )
+        self.job.ledger.record(self.run_id, status, metrics)
         logger.info("[%s %g] %s", self.spec.name, self.level, status)
 
     def _discard_candidates(self, executor: RunExecutor | None) -> None:
@@ -570,11 +698,11 @@ class _Finisher:
         finalized = executor.finalize(self.run_id)
         self._send(RunStatus.COMPLETED, None, executor, finalized.metrics, finalized.failure_cases)
 
-    def stopped(self, executor: RunExecutor) -> None:
+    def stopped(self, executor: RunExecutor | None) -> None:
         reason = StatusReason(
             code=StopReason.TIME, message="Chạm giới hạn thời gian của experiment"
         )
-        if executor.images_done == 0:
+        if executor is None or executor.images_done == 0:
             self._send(RunStatus.STOPPED_LIMIT, reason, executor)
             return
         finalized = executor.finalize(self.run_id, partial=True)
@@ -582,7 +710,7 @@ class _Finisher:
             RunStatus.STOPPED_LIMIT, reason, executor, finalized.metrics, finalized.failure_cases
         )
 
-    def cancelled(self, executor: RunExecutor) -> None:
+    def cancelled(self, executor: RunExecutor | None) -> None:
         self._discard_candidates(executor)
         self._send(
             RunStatus.CANCELLED,

@@ -17,7 +17,7 @@ from pathlib import Path
 import httpx
 
 from advertest_contracts.hashing import sha256_of
-from advertest_contracts.models import DatasetManifest, WorkerJobBundle
+from advertest_contracts.models import DatasetManifest, SliceSpec, WorkerJobBundle
 from ml_core.data.dataset import manifest_key
 from ml_core.data.mapping import save_mapping
 from ml_core.data.slice import save_slice
@@ -74,8 +74,16 @@ class JobCache:
         save_slice(self.store, bundle.slice)
         save_mapping(self.store, bundle.class_mapping)
 
+        return self._loader(bundle, bundle.slice)
+
+    def training_loader(self, bundle: WorkerJobBundle, slice_spec: SliceSpec) -> ShaCacheLoader:
+        """Loader của slice huấn luyện patch (Phase 6); gọi sau `prepare` (manifest đã có)."""
+        save_slice(self.store, slice_spec)
+        return self._loader(bundle, slice_spec)
+
+    def _loader(self, bundle: WorkerJobBundle, slice_spec: SliceSpec) -> ShaCacheLoader:
         loader = ShaCacheLoader(
-            self.store, bundle.slice, bundle.class_mapping, card, self.image_dir
+            self.store, slice_spec, bundle.class_mapping, bundle.model_card, self.image_dir
         )
         for image_id in loader.missing_images():
             image_sha = loader.image_sha256(image_id)

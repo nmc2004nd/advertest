@@ -22,8 +22,11 @@ from advertest_contracts.models import (
     CostProfile,
     ErrorResponse,
     HeartbeatRequest,
+    PatchArtifact,
+    PatchRegistration,
     ProgressReport,
     RunCompletion,
+    RunSkipRequest,
     RunStartRequest,
     RunStartResponse,
     WorkerDirective,
@@ -132,3 +135,12 @@ class WorkerClient:
 
     def cost_profile(self, body: CostProfile) -> None:
         self._request("POST", "/cost-profiles", body)
+
+    # Phase 6
+    def skip(self, run_id: UUID, body: RunSkipRequest) -> None:
+        """Bỏ run `queued` do dừng sớm."""
+        self._request("POST", f"/runs/{run_id}/skip", body)
+
+    def register_patch(self, run_id: UUID, body: PatchRegistration) -> PatchArtifact:
+        """Đăng ký patch vừa train; khóa đã có thì API trả bản cũ (dùng bản trả về)."""
+        return self._parse(PatchArtifact, self._request("POST", f"/runs/{run_id}/patch", body))

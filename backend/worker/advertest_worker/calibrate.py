@@ -18,8 +18,12 @@ from uuid import UUID
 import numpy as np
 import torch
 
-from advertest_contracts.models import CostProfile, Environment
-from attacks.art_adapter import ArtPerturbation
+from advertest_contracts.models import AttackSpec, CostProfile, Environment
+from advertest_contracts.perturbation import Perturbation
+from attacks.patch.adapter import PatchPerturbation
+from attacks.patch.calibration import measure_sec_per_image_iteration
+from attacks.patch.geometry import Region, patch_side
+from attacks.patch.training import training_params
 from ml_core.data.loader import SliceLoader
 from ml_core.runner.images import letterbox_mask
 
@@ -53,7 +57,7 @@ def measure(
     loader: SliceLoader,
     image_ids: list[str],
     estimator: Any,
-    perturbation: ArtPerturbation,
+    perturbation: Perturbation,
     level: float,
     seed: int,
     device: str,
@@ -77,7 +81,7 @@ def calibrate(
     *,
     loader: SliceLoader,
     estimator: Any,
-    perturbation: ArtPerturbation,
+    perturbation: Perturbation,
     level: float,
     seed: int,
     device: str,
@@ -120,3 +124,28 @@ def calibrate(
         measured_at=now,
         environment=environment,
     )
+
+
+# ---------------------------------------------------------------- patch (Phase 6)
+
+
+def calibration_patch(spec: AttackSpec, loader: SliceLoader) -> PatchPerturbation:
+    """Patch ngẫu nhiên ở `area_ratio` lớn nhất, đặt vừa ảnh đầu của slice: đo `sec_per_image` của
+    giai đoạn đánh giá (dán patch rồi predict) mà không cần patch đã train."""
+    _, _, _, info = loader.load(loader.slice.image_ids[0])
+    mask = letterbox_mask([info])[0, 0]
+    rows = np.flatnonzero(mask.any(axis=1))
+    cols = np.flatnonzero(mask.any(axis=0))
+    region = Region(int(rows[0]), int(rows[-1]) + 1, int(cols[0]), int(cols[-1]) + 1)
+    side = patch_side(spec.primary_param.max, region)
+    patch = np.random.default_rng(0).random((3, side, side)).astype(np.float32)
+    return PatchPerturbation(spec, patch, area_ratio=spec.primary_param.max)
+
+
+def patch_training_cost(spec: AttackSpec, loader: SliceLoader, estimator: Any) -> float:
+    """`sec_per_image_iteration`: 5 vòng train trên tối đa `training.batch_size` ảnh đầu."""
+    n = min(len(loader.slice.image_ids), training_params(spec).batch_size)
+    loaded = [loader.load(image_id) for image_id in loader.slice.image_ids[:n]]
+    images = np.stack([item[0] for item in loaded])
+    mask = letterbox_mask([item[3] for item in loaded])
+    return measure_sec_per_image_iteration(spec, estimator, images, mask)
