@@ -10,6 +10,7 @@ import {
 import { ROLE_LABELS } from '@/auth/roles'
 import { useMe } from '@/auth/useMe'
 import type { Role, UserAdminPage } from '@/contracts/schemas'
+import { EngineerHome } from '@/features/experiments/EngineerHome'
 
 /** "Việc của tôi" theo từng role người dùng có (requirements.md Phase 4, mục Điều hướng). */
 export function HomePage() {
@@ -35,7 +36,13 @@ function RoleBlock({ role }: { role: Role }) {
   return (
     <section className="flex flex-col gap-2 rounded-xl border border-border p-4">
       <h2 className="font-semibold">{ROLE_LABELS[role]}</h2>
-      {role === 'admin' ? <PendingUsers /> : <p className="text-muted-foreground">Sắp có.</p>}
+      {role === 'admin' ? (
+        <PendingUsers />
+      ) : role === 'engineer' ? (
+        <EngineerHome />
+      ) : (
+        <p className="text-muted-foreground">Sắp có.</p>
+      )}
     </section>
   )
 }
