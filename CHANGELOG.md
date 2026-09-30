@@ -8,6 +8,13 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 **Trạng thái:** đang làm. Group 0 xong (chờ merge).
 
+### Phase 6 — Đề xuất contract 001 (người duyệt, người dùng duyệt) — 2026-10-01
+- Nguồn: review Group 2 phát hiện #1: patch train ra phụ thuộc batch size (`v8DetectionLoss` trả `loss * batch_size`, chuẩn hóa theo cả batch), batch size lấy từ cost profile của từng máy, còn khóa patch và fingerprint không chứa batch size.
+- `TrainingParams.batch_size` (bắt buộc); seed `adv_patch` lên version 2 với `batch_size = 8`, thay version 1 trong file seed (version 1 chưa có run nào). Hash của 9 spec còn lại không đổi; `schema_version` không đổi.
+- Mock có `adv_patch` sinh lại (19 file: `id`, `spec_sha256`, `version`, khóa patch, fingerprint); `test_seeds.py` kiểm tra `batch_size` và version 2.
+- DB dev đã seed trước đó còn dòng `adv_patch` version 1 đang bật: tắt tay hoặc dựng lại DB. DB của test và CI dựng mới.
+- Số liệu: `make check` (lint, type check, 1047 test Python, 201 Vitest, 211 test nghiệm thu không cần DB).
+- Việc tiếp theo: agent attack-patch cho `PatchTrainer` và `measure_sec_per_image_iteration` dùng `spec.training.batch_size` (nhánh `phase06-attack-patch`); Group 3 train patch không dùng batch size của cost profile; `scripts/e2e.sh` (task 36a) nạp `adv_patch` kèm `batch_size`.
 ### Phase 6 — Group 2 (attack-patch) — 2026-10-01
 #### Thêm
 - `attacks/patch/geometry.py`: `patch_key` (bọc `compute_patch_key`), vùng ảnh thật từ mask, phần giao vùng thật của slice huấn luyện, cạnh `round(sqrt(area_ratio × diện tích))`, vị trí ở tâm; `PatchDoesNotFit` khi không vừa.

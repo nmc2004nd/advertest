@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
   "run_id": "c93450a2-8ae3-533e-8e6c-bdb68c19d3f1",
-  "fingerprint": "f4f3c8366b7b4a78b428c9a25f8af9036baafc2281692b3201adb8b5b56d45df",
+  "fingerprint": "147f2e7c2fabea10ac1c117a5ed8a75412fdcc63de8ee498a53289058fce515a",
   "fingerprint_inputs": {
     "config_sha256": "813150ad5cc124991064aaa9d82f978970bbfeebb43cd8fddf74c13f3faa3a08",
     "weights_sha256": "436b0ea8b820172a2eafa1e02a70c302d737f3f55e2223566ac55fd20fae7e44",
     "dataset_version_sha256": "7f51d03be9016fe968c288e4a093721350bc371e373d5dc298e10de145bab104",
     "slice_id": "569c7b5d-35d2-5404-9a52-0de97971e46f",
     "slice_sha256": "2cbf4a6420298ef9ab12504b56b307b150b4231121f6d35a893aa9fd227d6d37",
-    "attack_spec_sha256": "a515b489685021d67eda3c5c841c2a37b87676bd576baed7b306f1a6d922a141",
+    "attack_spec_sha256": "c96cbc20a4c2320986b30d8f8178c1a642e36549008fca6cf491752bfec4955d",
     "params": {
       "area_ratio": 0.25
     },
@@ -23,7 +23,7 @@
       "numpy": "2.4.6"
     },
     "docker_image_digest": "sha256:7e18c2d4932528cb9b9e2746811cc15a8e75e64d05ec07169c6e9f79ad1e4532",
-    "patch_key": "1899dafed180a51981b7e51d4726d32451ecd6edd561f649a4cf6fced4af0f0c"
+    "patch_key": "2cdf575d7be1e89f75474b2ddb7897bab50f6097352be1ce691c5dd38c8fc935"
   },
   "environment": {
     "compute_target_id": "8679be42-13ce-51fb-876b-ca6d4d3f3c74",

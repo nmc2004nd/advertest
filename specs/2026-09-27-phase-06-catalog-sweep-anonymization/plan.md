@@ -38,7 +38,7 @@
 15. `ml_core/runner/grid.py`: hàm thuần sắp thứ tự level thô trước, mịn sau, và hàm điều kiện dừng sớm (từ metric các run đã xong).
 15a. `RunExecutor.process_batch` truyền `image_id` trong mỗi phần tử của `targets`.
 16. `[agent: worker]` `_run_bundle` gọi hàm dừng sớm trước mỗi run và báo `skipped` (`early_stop`) qua API nội bộ cho level lớn hơn chưa chạy; chạy tiếp sau gián đoạn thì tính lại từ bundle.
-17. Tích hợp patch vào `RunExecutor` (ml-core) và worker (`[agent: worker]`): tra `PatchArtifact` theo khóa → train nếu chưa có (báo tiến độ `phase = training`, lưu checkpoint patch qua presigned URL) → đánh giá.
+17. Tích hợp patch vào `RunExecutor` (ml-core) và worker (`[agent: worker]`): tra `PatchArtifact` theo khóa → train nếu chưa có (báo tiến độ `phase = training`, lưu checkpoint patch qua presigned URL) → đánh giá. Train dùng `spec.training.batch_size`, không dùng batch size của cost profile (đề xuất contract 001).
 18. Thêm `patch_key` vào `fingerprint_inputs`.
 19. Tạo ảnh nhiễu / vùng khác biệt chung cho mọi loại biến đổi (|δ| chuẩn hóa).
 20. `ml_core/metrics/ranking.py`: tính `auc_drop`, `max_relative_drop`, xử lý `early_stop` và thiếu dữ liệu.
@@ -75,7 +75,7 @@
 ## Group 7 — Test nghiệm thu và kiểm tra cuối `[người duyệt]`
 
 36. Viết test nghiệm thu `tests/acceptance/phase_06/` và kịch bản Playwright `frontend/e2e/phase_06/` theo `validation.md`.
-36a. `scripts/e2e.sh` nạp seed `adv_patch` với `max_iter = 4` thay cho 200; fixture chỉ có 5 ảnh nên kịch bản patch cần slice đánh giá và slice huấn luyện tách từ 5 ảnh đó (ví dụ 3 và 2 ảnh, qua `--exclude-slice`).
+36a. `scripts/e2e.sh` nạp seed `adv_patch` với `max_iter = 4` thay cho 200 (giữ `batch_size` của spec, đề xuất contract 001); fixture chỉ có 5 ảnh nên kịch bản patch cần slice đánh giá và slice huấn luyện tách từ 5 ảnh đó (ví dụ 3 và 2 ảnh, qua `--exclude-slice`).
 37. Chạy experiment toàn catalog trên KITTI bằng laptop; hiệu chỉnh tham số patch.
 38. Kiểm tra bằng mắt kết quả làm mờ; trả lời câu hỏi mở.
 39. Cập nhật `CHANGELOG.md`, `roadmap.md`; merge.

@@ -239,6 +239,12 @@
           "exclusiveMinimum": 0,
           "title": "Max Training Images",
           "type": "integer"
+        },
+        "batch_size": {
+          "description": "Batch size khi train và khi tính giá trị mục tiêu; cố định trong spec (không lấy từ cost profile) vì patch phụ thuộc cách chia batch (đề xuất contract 001, Phase 6)",
+          "exclusiveMinimum": 0,
+          "title": "Batch Size",
+          "type": "integer"
         }
       },
       "required": [
@@ -246,7 +252,8 @@
         "learning_rate",
         "sample_size",
         "checkpoint_every",
-        "max_training_images"
+        "max_training_images",
+        "batch_size"
       ],
       "title": "TrainingParams",
       "type": "object"

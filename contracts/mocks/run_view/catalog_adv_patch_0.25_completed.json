@@ -2,7 +2,7 @@
   "schema_version": 1,
   "run_id": "c93450a2-8ae3-533e-8e6c-bdb68c19d3f1",
   "experiment_id": "9ec0fa7e-1626-56f2-a9e4-db3a427d1173",
-  "attack_spec_id": "f8b22364-fcde-5b6c-a6e3-23f9e8f2a67c",
+  "attack_spec_id": "94f2e240-e595-5b21-a5c7-219a2d478f9e",
   "level": 0.25,
   "status": "completed",
   "status_reason": null,
@@ -35,7 +35,7 @@
   "fingerprint": "65d08067524e170b89476353cd111be15a6191c1752bc2d4e18c7120557d82c8",
   "attack_spec": {
     "name": "adv_patch",
-    "version": 1,
+    "version": 2,
     "param_name": "area_ratio",
     "param_unit": "ratio"
   },

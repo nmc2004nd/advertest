@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "attack_spec_id": "f8b22364-fcde-5b6c-a6e3-23f9e8f2a67c",
-  "spec_sha256": "a515b489685021d67eda3c5c841c2a37b87676bd576baed7b306f1a6d922a141",
+  "attack_spec_id": "94f2e240-e595-5b21-a5c7-219a2d478f9e",
+  "spec_sha256": "c96cbc20a4c2320986b30d8f8178c1a642e36549008fca6cf491752bfec4955d",
   "mode": "grid",
   "grid": {
     "levels": [

@@ -1,7 +1,7 @@
 {
   "runs": [
     {
-      "attack_spec_id": "f8b22364-fcde-5b6c-a6e3-23f9e8f2a67c",
+      "attack_spec_id": "94f2e240-e595-5b21-a5c7-219a2d478f9e",
       "level": 0.1,
       "images": 300,
       "sec_per_image": 0.162,
@@ -10,7 +10,7 @@
       "training_seconds": 4300.0
     },
     {
-      "attack_spec_id": "f8b22364-fcde-5b6c-a6e3-23f9e8f2a67c",
+      "attack_spec_id": "94f2e240-e595-5b21-a5c7-219a2d478f9e",
       "level": 0.25,
       "images": 300,
       "sec_per_image": 0.162,
