@@ -8,6 +8,26 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 **Trạng thái:** đang làm. Group 0 xong (chờ merge).
 
+### Phase 6 — Group 1 (attack-transform) — 2026-10-01
+#### Thêm
+- `attacks/common/seed.py`: `per_image_seed(seed, image_id)` (64 bit đầu của sha256 `canonical_json`), `image_rng`, `target_image_id`; `attacks/common/checks.py`: kiểm tra đầu vào chung, vùng ảnh thật theo mask.
+- `attacks/corruptions/functions.py`: bản vá nội bộ của 5 hàm imagecorruptions 1.1.2 (Apache-2.0, `LICENSE.imagecorruptions`, ảnh `frost/`): `np.float_` → `np.float64`, số ngẫu nhiên lấy từ `np.random.Generator` truyền vào, đọc ảnh frost không cần `pkg_resources`. Hằng số giữ nguyên; cùng dãy số ngẫu nhiên thì kết quả trùng từng pixel với bản gốc ở 5 corruption × 5 severity (so bằng môi trường tạm).
+- `attacks/corruptions/adapter.py` (`CorruptionPerturbation`): cắt vùng ảnh thật → uint8 (làm tròn) → corruption → float → đặt lại; mask = 0 giữ nguyên; mỗi ảnh một `rng` theo `image_id`; vùng thật nhỏ hơn 32 pixel báo lỗi.
+- `attacks/occlusion/adapter.py` (`OcclusionPerturbation`): hình chữ nhật pixel nguyên nằm trọn trong box, kích thước nguyên gần `ratio` × diện tích box nhất (ưu tiên đúng tỉ lệ box), vị trí theo `rng` của ảnh, màu `fill_255`; không tô pixel chạm `ignore_boxes` (khóa tùy chọn trong target) và pixel mask = 0.
+- `attacks/factory.py`: `build_perturbation(spec, estimator | None)` cho corruption, occlusion (không cần estimator) và attack ART; `adv_patch` báo `UnsupportedAttack` tới Group 2. `attacks.art_adapter.build_perturbation` giữ nguyên kiểu `ArtPerturbation` (ml_core và worker khai theo nó); Group 3 chuyển chỗ gọi.
+- `pyproject.toml`: khai trực tiếp `opencv-python==5.0.0.93`, `scipy==1.17.1` (đã khóa qua ultralytics, `uv.lock` không đổi phiên bản); `scipy` vào danh sách `ignore_missing_imports` của mypy.
+- Test: `attacks/tests/` thêm 164 test (seed, 5 × 5 × 4 kích thước, pad, dải giá trị, mức khác biệt tăng theo severity với fog và contrast, độc lập batch size và thứ tự, diện tích ±2%, ignore region, factory).
+#### Kiểm tra
+- 5 ảnh fixture KITTI (vùng thật 640x193): mỗi corruption ở severity 1, 3, 5 và occlusion 0,25/0,5/0,75 cho ảnh hợp lý, pad giữ nguyên (script tạm, không commit).
+#### Quyết định (người dùng chốt ở kế hoạch Group 1; người duyệt ghi vào spec)
+- imagecorruptions 1.1.2 lỗi (cần `pkg_resources`; `fog` dùng `np.float_`) → bản vá nội bộ; `tech-stack.md` mục 3 cần cập nhật.
+- Occlusion đọc `ignore_boxes` tùy chọn trong target; Group 3 truyền cùng `image_id` (plan task 15a) và docstring `Perturbation` cần ghi.
+#### Số liệu
+- `make check`: 1046 test Python (+164), 201 Vitest, 211 test nghiệm thu không cần DB (không đổi so với trước group).
+#### Review (phase-review, 2026-10-01)
+- Người dùng yêu cầu sửa trước merge #1: target thiếu khóa `boxes` (hoặc `None`) làm occlusion lặng lẽ không che → nay báo lỗi; mảng rỗng vẫn hợp lệ (có test). Ghi nhận: unit test dùng ảnh giả lập (Group 7 phủ ảnh thật); seed > 2^53 − 1 bị `canonical_json` từ chối; `frost6.jpg` không dùng (giữ như bản gốc); `attacks/factory.py` nằm ngoài thư mục con của plan nhưng đã được duyệt ở kế hoạch; commit `5084517` lọt lỗi lint, sửa ở `b442481`.
+- Review và phần sửa do cùng một agent làm (không độc lập).
+
 ### Phase 6 — Group 0 (người duyệt, người dùng giao) — 2026-10-01
 #### Contract
 - Enum: `AttackAccess.not_applicable`, `SkipReason.early_stop`; enum mới `RunPhase` (`training`, `evaluating`), `PerturbationImageKind` (`amplified_noise`, `difference`, `patch_location`).
