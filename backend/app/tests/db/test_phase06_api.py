@@ -9,6 +9,7 @@ import pytest
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
+from advertest_contracts.enums import Role
 from attacks.registry import get_spec, load_catalog
 from backend.app.db import models as m
 from backend.app.services.patches import patch_key_for
@@ -166,3 +167,38 @@ def test_estimate_without_training_cost(api: Api, fx: Fx, owner_engine: Engine) 
     _, client = api.client()
     result = _estimate(client, _body(fx, [_patch([0.1], training)], compute_target_id=str(target)))
     assert result.runs[0].training_seconds is None and result.total_seconds is not None
+
+
+def test_admin_attack_catalog(api: Api, owner_engine: Engine) -> None:
+    """Plan task 29: mọi spec kể cả spec đã tắt, phân trang; chỉ admin (validation Quyền)."""
+    with Session(owner_engine) as s, s.begin():
+        off = s.get(m.AttackSpecRow, get_spec(load_catalog(), name="fog").id)
+        assert off is not None
+        off.is_active = False
+    try:
+        _, admin = api.client(Role.ADMIN)
+        seen: list[dict[str, Any]] = []
+        cursor = None
+        while True:
+            query = "?limit=3" + (f"&cursor={cursor}" if cursor else "")
+            response = admin.get(f"/admin/attack-specs{query}")
+            assert response.status_code == 200, response.text
+            page = response.json()
+            seen += page["items"]
+            cursor = page["next_cursor"]
+            if cursor is None:
+                break
+        names = {item["name"] for item in seen}
+        assert {s.name for s in load_catalog()} <= names
+        assert len({item["id"] for item in seen}) == len(seen)  # không trùng giữa các trang
+        fog = next(item for item in seen if item["name"] == "fog")
+        assert fog["is_active"] is False
+        for role in (Role.ENGINEER, Role.REVIEWER):
+            _, other = api.client(role)
+            assert other.get("/admin/attack-specs").status_code == 403
+        assert admin.get("/admin/attack-specs?cursor=khong-hop-le").status_code == 422
+    finally:
+        with Session(owner_engine) as s, s.begin():
+            row = s.get(m.AttackSpecRow, get_spec(load_catalog(), name="fog").id)
+            assert row is not None
+            row.is_active = True

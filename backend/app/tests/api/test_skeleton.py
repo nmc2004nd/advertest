@@ -55,8 +55,6 @@ SAMPLE_CALLS = [
     ("get", "/verify/" + RUN_ID),
     # Endpoint worker còn là khung (Phase 7).
     ("post", "/internal/worker/experiments/" + RUN_ID + "/search-result"),
-    # Phase 6 Group 0: khung, Group 5 cài đặt.
-    ("get", "/admin/attack-specs"),
 ]
 # Endpoint có body bắt buộc: gửi body hợp lệ lấy từ contracts/mocks.
 MOCKS = Path(__file__).resolve().parents[4] / "contracts" / "mocks"

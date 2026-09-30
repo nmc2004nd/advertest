@@ -5,15 +5,20 @@ Chỉ đọc; mọi hàm trả schema contract. Danh sách sắp xếp ổn đ�
 
 from __future__ import annotations
 
+import base64
+import binascii
+import json
 from datetime import datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import ARRAY, Text, cast, func, select
+from sqlalchemy import ARRAY, Text, cast, func, select, tuple_
 from sqlalchemy.orm import Session
 
 from advertest_contracts.enums import ExperimentStatus, ProtocolStatus
 from advertest_contracts.models import (
     AttackSpec,
+    AttackSpecAdminPage,
+    AttackSpecAdminView,
     ClassMappingSummary,
     ComputeTargetPublic,
     DatasetSummary,
@@ -23,7 +28,7 @@ from advertest_contracts.models import (
     SliceSummary,
 )
 from backend.app.db import models as m
-from backend.app.services.errors import NotFound
+from backend.app.services.errors import Invalid, NotFound
 
 # Worker được coi là online nếu có heartbeat trong 60 giây gần nhất.
 ONLINE_WINDOW = timedelta(seconds=60)
@@ -204,3 +209,57 @@ def list_compute_targets(session: Session, now: datetime) -> list[ComputeTargetP
         )
         for target in targets
     ]
+
+
+# ---------------------------------------------------------------- catalog cho admin (Phase 6)
+
+
+def _encode_spec_cursor(name: str, version: int) -> str:
+    raw = json.dumps({"name": name, "version": version}, separators=(",", ":"))
+    return base64.urlsafe_b64encode(raw.encode()).decode().rstrip("=")
+
+
+def _decode_spec_cursor(value: str) -> tuple[str, int]:
+    try:
+        padded = value + "=" * (-len(value) % 4)
+        data = json.loads(base64.urlsafe_b64decode(padded.encode()))
+        name, version = data["name"], data["version"]
+    except (ValueError, KeyError, TypeError, binascii.Error) as exc:
+        raise Invalid("Cursor không hợp lệ") from exc
+    if not isinstance(name, str) or not isinstance(version, int):
+        raise Invalid("Cursor không hợp lệ")
+    return name, version
+
+
+def list_attack_specs_admin(
+    session: Session, cursor: str | None = None, limit: int = 50
+) -> AttackSpecAdminPage:
+    """Mọi spec, mọi version, kể cả spec đã tắt (plan task 29); keyset theo `(name, version)`."""
+    query = select(m.AttackSpecRow)
+    if cursor is not None:
+        name, version = _decode_spec_cursor(cursor)
+        query = query.where(
+            tuple_(m.AttackSpecRow.name, m.AttackSpecRow.version) > tuple_(name, version)
+        )
+    rows = list(
+        session.scalars(
+            query.order_by(m.AttackSpecRow.name, m.AttackSpecRow.version).limit(limit + 1)
+        )
+    )
+    page, more = rows[:limit], len(rows) > limit
+    items = [
+        AttackSpecAdminView.model_validate(
+            {
+                **row.spec,
+                "id": str(row.id),
+                "spec_sha256": row.spec_sha256,
+                "is_active": row.is_active,
+            }
+        )
+        for row in page
+    ]
+    last = page[-1] if page and more else None
+    return AttackSpecAdminPage(
+        items=items,
+        next_cursor=_encode_spec_cursor(last.name, last.version) if last is not None else None,
+    )
