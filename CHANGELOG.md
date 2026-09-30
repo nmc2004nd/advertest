@@ -24,6 +24,9 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 - Occlusion đọc `ignore_boxes` tùy chọn trong target; Group 3 truyền cùng `image_id` (plan task 15a) và docstring `Perturbation` cần ghi.
 #### Số liệu
 - `make check`: 1046 test Python (+164), 201 Vitest, 211 test nghiệm thu không cần DB (không đổi so với trước group).
+#### Review (phase-review, 2026-10-01)
+- Người dùng yêu cầu sửa trước merge #1: target thiếu khóa `boxes` (hoặc `None`) làm occlusion lặng lẽ không che → nay báo lỗi; mảng rỗng vẫn hợp lệ (có test). Ghi nhận: unit test dùng ảnh giả lập (Group 7 phủ ảnh thật); seed > 2^53 − 1 bị `canonical_json` từ chối; `frost6.jpg` không dùng (giữ như bản gốc); `attacks/factory.py` nằm ngoài thư mục con của plan nhưng đã được duyệt ở kế hoạch; commit `5084517` lọt lỗi lint, sửa ở `b442481`.
+- Review và phần sửa do cùng một agent làm (không độc lập).
 
 ### Phase 6 — Group 0 (người duyệt, người dùng giao) — 2026-10-01
 #### Contract
