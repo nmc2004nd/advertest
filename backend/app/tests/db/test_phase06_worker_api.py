@@ -4,6 +4,7 @@ URL cho thư mục patch, đăng ký patch, bỏ run do dừng sớm, lưu làm 
 from __future__ import annotations
 
 import uuid
+from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -54,16 +55,22 @@ class Setup:
 
 
 @pytest.fixture(scope="module")
-def training(world: World, app_engine: Engine, buckets: Buckets) -> tuple[UUID, str, list[str]]:
+def training(
+    world: World, app_engine: Engine, buckets: Buckets
+) -> Iterator[tuple[UUID, str, list[str]]]:
     """Slice huấn luyện 1 ảnh (fixture chỉ có 3 ảnh hợp lệ) không giao slice đánh giá, đăng ký
-    qua import-local."""
+    qua import-local. MinIO dùng chung giữa các module: xóa object mới upload khi xong, để
+    `test_registry` vẫn chỉ thấy ảnh của slice đánh giá."""
     local = world.local
     spec = create_slice(local.manifest, size=1, seed=5, exclude=local.slice.image_ids)
     save_slice(local.store, spec)
+    before = set(buckets.datasets.list())
     with Session(app_engine) as session, session.begin():
         admin = session.get_one(m.User, world.admin_id)
         registry.import_local(session, local.store, buckets, actor=admin)
-    return spec.id, spec.slice_sha256, list(spec.image_ids)
+    yield spec.id, spec.slice_sha256, list(spec.image_ids)
+    for key in set(buckets.datasets.list()) - before:
+        buckets.datasets.delete(key)
 
 
 def _setup(

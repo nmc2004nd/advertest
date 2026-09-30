@@ -3,9 +3,11 @@ trần thời gian của compute target, bảng email_outbox."""
 
 from __future__ import annotations
 
+import json
 import uuid
 from collections.abc import Iterator
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 from alembic import command
@@ -13,11 +15,14 @@ from alembic.config import Config
 from sqlalchemy import Connection, Engine, text
 from sqlalchemy.exc import IntegrityError, ProgrammingError
 
+from advertest_contracts.models import compute_spec_sha256
+
 pytestmark = pytest.mark.db
 
 SHA = "b" * 64
 SUBMITTED = datetime(2026, 9, 28, 23, 30, tzinfo=UTC)
 RUN_FINISHED = datetime(2026, 9, 29, 0, 45, tzinfo=UTC)
+SEEDS = Path(__file__).resolve().parents[4] / "contracts" / "seeds" / "attack_specs.json"
 
 
 def _sha() -> str:
@@ -108,14 +113,18 @@ def upgraded(alembic_config: Config, owner_engine: Engine) -> Iterator[dict[str,
     with owner_engine.begin() as conn:
         chain = _insert_chain(conn, tag)
         completed = _insert_experiment(conn, chain, "completed")
+        # Body hợp lệ: GET /admin/attack-specs (Phase 6) liệt kê cả spec đã tắt của test này.
+        base = next(s for s in json.loads(SEEDS.read_text()) if s["name"] == "fgsm")
+        body = {k: v for k, v in base.items() if k not in ("id", "spec_sha256")}
+        body["name"] = f"m4_{tag}"
         spec: uuid.UUID = conn.execute(
             text(
-                # is_active = false: spec rỗng không được lọt vào GET /attack-specs của test khác.
+                # is_active = false: spec không được lọt vào GET /attack-specs của test khác.
                 "INSERT INTO attack_specs (name, version, kind, access, spec, spec_sha256,"
-                " is_active) VALUES (:n, 1, 'attack', 'white_box', '{}'::jsonb, :s, false)"
+                " is_active) VALUES (:n, 1, 'attack', 'white_box', CAST(:b AS jsonb), :s, false)"
                 " RETURNING id"
             ),
-            {"n": f"m4-{tag}", "s": _sha()},
+            {"n": body["name"], "b": json.dumps(body), "s": compute_spec_sha256(body)},
         ).scalar_one()
         conn.execute(
             text(
