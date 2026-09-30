@@ -411,6 +411,7 @@ class RunExecutor:
             severity_score=stats.severity_score,
             detections=detections,
             artifacts=self.candidates.promote(image_id, case_id),
+            perturbation_kind=self.candidates.kind,
             # Checkpoint cũ (trước Phase 6) không có `blur_regions`: ảnh ứng viên chưa làm mờ.
             anonymization=(
                 anonymization(inputs["blur_regions"]) if "blur_regions" in inputs else None

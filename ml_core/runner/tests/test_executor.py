@@ -20,6 +20,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
+from advertest_contracts.enums import PerturbationImageKind
 from attacks.art_adapter import build_perturbation
 from attacks.registry import load_catalog
 from ml_core.cli.evaluate import ground_truth
@@ -336,6 +337,8 @@ def test_local_store_is_not_deletable(tmp_path: Path) -> None:
 class RecordingSink:
     """Ghi lại lời gọi của executor tới nơi nhận ứng viên."""
 
+    kind = PerturbationImageKind.AMPLIFIED_NOISE
+
     def __init__(self) -> None:
         self.calls: list[tuple[str, str]] = []
 
@@ -454,3 +457,31 @@ def test_linf_eps_only_for_art_linf(setup: dict[str, Any]) -> None:
     assert linf_eps(recording.spec, recording, 1) is None
     assert setup["eps"] == pytest.approx(8 / 255)
     assert runner.specs[0].name == "fgsm"
+
+
+def test_third_image_kind_and_content(setup: dict[str, Any]) -> None:
+    """Phase 6 (plan task 19): ảnh thứ ba theo loại phép thử, ghi vào failure case."""
+    from ml_core.runner.images import difference_image, perturbation_kind, third_image
+
+    catalog = {s.name: s for s in load_catalog()}
+    assert perturbation_kind(catalog["fgsm"]) == PerturbationImageKind.AMPLIFIED_NOISE
+    assert perturbation_kind(catalog["fog"]) == PerturbationImageKind.DIFFERENCE
+    assert perturbation_kind(catalog["bbox_occlusion"]) == PerturbationImageKind.DIFFERENCE
+    assert perturbation_kind(catalog["adv_patch"]) == PerturbationImageKind.PATCH_LOCATION
+
+    clean = np.zeros((3, 4, 4), np.float32)
+    changed = clean.copy()
+    changed[:, 1, 1] = 0.2
+    diff = difference_image(clean, changed)
+    assert diff[:, 1, 1].tolist() == [1.0, 1.0, 1.0] and diff.sum() == 3.0
+    assert difference_image(clean, clean).sum() == 0
+    patch = third_image(PerturbationImageKind.PATCH_LOCATION, clean, changed, None)
+    np.testing.assert_array_equal(patch, diff)
+
+    store = MemStore()
+    kind = PerturbationImageKind.DIFFERENCE
+    candidates = StoreCandidates(store, f"runs/{RUN_ID}", None, kind)
+    executor = _executor(setup, store, candidates=candidates)
+    _run_all(executor, setup, 3)
+    cases = executor.finalize(RUN_ID).failure_cases
+    assert cases and all(case.perturbation_kind == kind for case in cases)
