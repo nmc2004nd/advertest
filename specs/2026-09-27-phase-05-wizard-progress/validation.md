@@ -67,6 +67,8 @@
 
 Môi trường E2E bật `DEV_ALLOW_UNBLURRED=true` (fixture KITTI có `anonymized = false`): trình xem hiển thị dải cảnh báo.
 
+Ba viewport chạy tuần tự trên cùng DB: viewport chạy sau gửi cùng cấu hình nên run trúng cache theo fingerprint (`skipped`). Tiêu chí "khi xong" là experiment `completed`; câu tóm tắt được là "2/2 hoàn thành" hoặc "0/2 hoàn thành, 2 bỏ qua" (quyết định Group 7). `scripts/e2e.sh` tạo thêm máy local `e2e-offline` không có worker, để experiment gửi tới đó nằm chờ (kịch bản `queue_limit_reached` và `/home`).
+
 - [ ] Engineer đi hết wizard (FGSM eps 4, PGD eps 4 trên slice fixture, máy `local-dev`), thấy ước lượng ở bước 6, xác nhận → được chuyển tới trang chi tiết.
 - [ ] Trang chi tiết cập nhật tiến độ không cần tải lại; khi xong, trạng thái `completed`, tab Kết quả hiển thị biểu đồ và bảng.
 - [ ] Tab Failure case có thumbnail kèm watermark; mở một case, bật tắt được từng lớp box.

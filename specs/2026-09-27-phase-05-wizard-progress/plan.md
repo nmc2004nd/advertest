@@ -67,7 +67,7 @@
 
 ## Group 7 — Test nghiệm thu và kiểm tra cuối `[người duyệt]`
 
-33. Viết test nghiệm thu `tests/acceptance/phase_05/` và kịch bản Playwright `frontend/e2e/phase_05/` theo `validation.md` (worker CPU với fixture chạy trong CI). DB test dùng chung: spec tự tạo với nội dung không hợp lệ phải đặt `is_active = false`, nếu không `GET /attack-specs` trả `500` (review Group 1; `backend/app/tests/db/test_schema.py` và `tests/acceptance/phase_00/test_database.py` hiện chèn spec rỗng đang hoạt động).
+33. Viết test nghiệm thu `tests/acceptance/phase_05/` và kịch bản Playwright `frontend/e2e/phase_05/` theo `validation.md` (worker CPU với fixture chạy trong CI). DB test dùng chung: spec tự tạo với nội dung không hợp lệ phải đặt `is_active = false`, nếu không `GET /attack-specs` trả `500` (review Group 1; `backend/app/tests/db/test_schema.py` và `tests/acceptance/phase_00/test_database.py` hiện chèn spec rỗng đang hoạt động). Fixture Phase 5 dựng lại DB từ đầu thì cũng xóa object trong các bucket MinIO dùng chung, nếu không `import-local` báo `KeyConflictError` vì card model của phase trước cùng key nhưng khác thời điểm đăng ký (quyết định Group 7).
 34. Chạy manual check trên laptop và điện thoại thật.
 35. Trả lời câu hỏi mở; cập nhật `roadmap.md` nếu quyết định đưa làm mờ lên sớm.
 36. Cập nhật `CHANGELOG.md`, `roadmap.md`; merge.
