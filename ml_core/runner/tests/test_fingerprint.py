@@ -60,3 +60,12 @@ def test_fingerprint_is_sha_of_inputs() -> None:
 )
 def test_fingerprint_changes(overrides: dict[str, Any]) -> None:
     assert _fp(**overrides) != _fp()
+
+
+def test_patch_key_changes_fingerprint_only_when_set() -> None:
+    """Phase 6 (plan task 18): run không dùng patch giữ nguyên fingerprint cũ."""
+    assert _fp(patch_key=None) == _fp()
+    assert "patch_key" not in build_fingerprint_inputs(**_inputs()).model_dump(mode="json")
+    with_patch = build_fingerprint_inputs(**_inputs(patch_key="c" * 64))
+    assert with_patch.model_dump(mode="json")["patch_key"] == "c" * 64
+    assert fingerprint(with_patch) != _fp()
