@@ -151,6 +151,14 @@ export function canAdvance(
   }
 }
 
+/** Ô nhập level đang có giá trị sai ở một attack **đang chọn** (attack đã bỏ chọn không tính). */
+export function hasLevelInputError(
+  attacks: AttackDraft[],
+  inputErrors: Record<string, boolean>,
+): boolean {
+  return attacks.some((a) => inputErrors[a.attackSpecId] === true)
+}
+
 /** Body gửi lên (`ExperimentCreate`); null khi cấu hình chưa đủ để ước lượng hay tạo. */
 export function buildBody(draft: Draft): ExperimentCreateInput | null {
   const { protocolId, modelId, sliceId, mappingId, targetId, limitSeconds } = draft

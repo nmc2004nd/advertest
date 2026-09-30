@@ -12,6 +12,7 @@ import {
   EMPTY_DRAFT,
   formatDuration,
   groupFieldErrors,
+  hasLevelInputError,
   loadDraft,
   reducer,
   saveDraft,
@@ -88,6 +89,15 @@ describe('điều kiện sang bước sau', () => {
     const step5 = { ...FULL, step: 5 as const }
     expect(canAdvance(step5, { maxLimitSeconds: 7200 })).toBe(true)
     expect(canAdvance(step5, { maxLimitSeconds: 3600 })).toBe(false)
+  })
+})
+
+describe('lỗi ô nhập level (review Group 5 #1)', () => {
+  it('chỉ tính attack đang chọn: bỏ chọn attack có lỗi thì không còn chặn', () => {
+    const errors = { a: false, b: true }
+    expect(hasLevelInputError(FULL.attacks, errors)).toBe(false) // chỉ còn attack "a"
+    const withB = reducer(FULL, { type: 'toggleAttack', attackSpecId: 'b', specSha256: 'sb' })
+    expect(hasLevelInputError(withB.attacks, errors)).toBe(true)
   })
 })
 

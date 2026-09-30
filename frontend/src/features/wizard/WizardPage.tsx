@@ -29,6 +29,7 @@ import {
   draftFromClone,
   formatDuration,
   groupFieldErrors,
+  hasLevelInputError,
   loadDraft,
   reducer,
   saveDraft,
@@ -318,10 +319,12 @@ export function WizardPage() {
   }, [mappings.data, draft.mappingId])
 
   const body = useMemo(() => buildBody(draft), [draft])
-  const estimate = useEstimate(draft.step >= 4 ? body : null)
+  // Tên không ảnh hưởng ước lượng: bỏ khỏi body để gõ tên không gọi lại API.
+  const estimateBody = useMemo(() => (body ? { ...body, name: null } : null), [body])
+  const estimate = useEstimate(draft.step >= 4 ? estimateBody : null)
   const target = targets.data?.find((t) => t.id === draft.targetId)
   const model = models.data?.find((m) => m.id === draft.modelId)
-  const levelInputError = Object.values(levelInputErrors).some(Boolean)
+  const levelInputError = hasLevelInputError(draft.attacks, levelInputErrors)
   const advance = canAdvance(draft, {
     maxLimitSeconds: target?.max_time_limit_s,
     levelInputError,
@@ -352,12 +355,15 @@ export function WizardPage() {
   }
 
   const stepProps = { draft, dispatch, errors }
-  const loadingClone = cloneId !== null && draft.clonedFrom !== cloneId && !clone.isError
+  const cloneFailed = clone.isError || allSlices.isError
+  const loadingClone = cloneId !== null && draft.clonedFrom !== cloneId && !cloneFailed
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-4 p-4 pb-24 md:p-6">
       <h1 className="text-2xl font-semibold">Tạo experiment</h1>
       <StepBar draft={draft} onGo={go} />
-      {clone.isError && <FormAlert>Không tải được cấu hình để nhân bản.</FormAlert>}
+      {cloneId !== null && cloneFailed && (
+        <FormAlert>Không tải được cấu hình để nhân bản.</FormAlert>
+      )}
       {create.isError && (
         <FormAlert>
           {create.error instanceof ApiError && create.error.code === 'queue_limit_reached'
