@@ -166,6 +166,10 @@ jobs:
       ADVERTEST_APP_PASSWORD: app-ci
       ADVERTEST_TEST_OWNER_URL: postgresql+psycopg://advertest_owner:owner-ci@localhost:5432/advertest
       ADVERTEST_TEST_APP_URL: postgresql+psycopg://advertest_app:app-ci@localhost:5432/advertest
+      # Phase 5: artifact và worker thật cần MinIO (cùng cách chạy với job acceptance).
+      ADVERTEST_TEST_MINIO_ENDPOINT: http://localhost:9000
+      ADVERTEST_TEST_MINIO_ACCESS_KEY: advertest
+      ADVERTEST_TEST_MINIO_SECRET_KEY: minio-ci-secret
     steps:
       - uses: actions/checkout@v7
       - name: Tạo DB role
@@ -175,6 +179,16 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_DB: postgres
         run: bash docker/postgres/init/01-roles.sh
+      - name: Chạy MinIO
+        run: |
+          image="$(sed -n 's/^x-minio-image: &minio-image //p' docker/compose.yaml)"
+          docker run -d --name minio -p 9000:9000 \
+            -e MINIO_ROOT_USER="$ADVERTEST_TEST_MINIO_ACCESS_KEY" \
+            -e MINIO_ROOT_PASSWORD="$ADVERTEST_TEST_MINIO_SECRET_KEY" \
+            -e MC_HOST_local="http://$ADVERTEST_TEST_MINIO_ACCESS_KEY:$ADVERTEST_TEST_MINIO_SECRET_KEY@127.0.0.1:9000" \
+            "$image" server /data
+          for _ in $(seq 1 30); do docker exec minio mc ready local && exit 0; sleep 1; done
+          exit 1
       - uses: astral-sh/setup-uv@v10.2.0
         with:
           enable-cache: true
@@ -188,6 +202,15 @@ jobs:
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
       - run: uv sync --extra cpu
+      # Phase 5: dữ liệu fixture (5 ảnh KITTI, YOLOv8n) cho worker CPU của E2E.
+      - name: Cache fixture
+        uses: actions/cache@v6
+        with:
+          path: |
+            tests/fixtures
+            !tests/fixtures/checksums.json
+          key: fixtures-${{ hashFiles('tests/fixtures/checksums.json') }}
+      - run: make fixtures
       - run: pnpm --dir frontend install --frozen-lockfile
       - run: pnpm --dir frontend exec playwright install --with-deps chromium
       - run: scripts/e2e.sh
