@@ -4,6 +4,7 @@ import {
   FlaskConical,
   House,
   ScrollText,
+  SquarePlus,
   Users,
   type LucideIcon,
 } from 'lucide-react'
@@ -19,6 +20,8 @@ export interface NavItem {
   requirement: Requirement
   /** Trang đã có chưa: mục chỉ hiện khi người dùng có quyền **và** trang đã có. */
   implemented: boolean
+  /** Đường dẫn con không làm mục này sáng (thuộc về mục khác, ví dụ /experiments/new). */
+  exclude?: readonly string[]
 }
 
 /** Nguồn duy nhất của điều hướng; thứ tự ở đây là thứ tự hiển thị. */
@@ -35,7 +38,15 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: 'Experiment',
     icon: FlaskConical,
     requirement: 'experiment.read',
-    implemented: false, // Phase 5
+    implemented: true,
+    exclude: ['/experiments/new'],
+  },
+  {
+    path: '/experiments/new',
+    label: 'Tạo experiment',
+    icon: SquarePlus,
+    requirement: 'experiment.create',
+    implemented: true,
   },
   {
     path: '/reviews',
@@ -66,6 +77,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
     implemented: true,
   },
 ]
+
+/** Mục có đang sáng ở `pathname` không: đúng đường dẫn hoặc trang con, trừ `exclude`. */
+export function isNavActive(item: Pick<NavItem, 'path' | 'exclude'>, pathname: string): boolean {
+  const under = (base: string) => pathname === base || pathname.startsWith(`${base}/`)
+  return under(item.path) && !(item.exclude ?? []).some(under)
+}
 
 export function visibleNav(
   me: Pick<Me, 'roles'> | null | undefined,

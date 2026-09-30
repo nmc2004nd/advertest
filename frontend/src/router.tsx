@@ -1,6 +1,9 @@
 import { createBrowserRouter, type RouteObject } from 'react-router'
 
 import { RequirePermission } from './auth/RequirePermission'
+import { ExperimentDetailPage } from './features/experiments/ExperimentDetailPage'
+import { ExperimentsPage } from './features/experiments/ExperimentsPage'
+import { FailureCasePage } from './features/experiments/FailureCasePage'
 import { WizardPage } from './features/wizard/WizardPage'
 import { AppShell } from './layout/AppShell'
 import { AccountPage } from './pages/AccountPage'
@@ -28,6 +31,30 @@ const routes: RouteObject[] = [
     children: [
       { path: '/home', element: <HomePage /> },
       { path: '/account', element: <AccountPage /> },
+      {
+        path: '/experiments',
+        element: (
+          <RequirePermission requirement="experiment.read">
+            <ExperimentsPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: '/experiments/:id',
+        element: (
+          <RequirePermission requirement="experiment.read">
+            <ExperimentDetailPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: '/failure-cases/:id',
+        element: (
+          <RequirePermission requirement="experiment.read">
+            <FailureCasePage />
+          </RequirePermission>
+        ),
+      },
       {
         path: '/experiments/new',
         element: (

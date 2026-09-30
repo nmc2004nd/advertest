@@ -19,11 +19,12 @@ export function useHealth() {
   return useQuery({ queryKey: ['health'], queryFn: () => apiGet<HealthResponse>('/health') })
 }
 
-/** Run theo id; dừng polling khi run đã kết thúc (roadmap: từ Phase 0). */
+/** Run theo id; dừng polling khi run đã kết thúc (roadmap: từ Phase 0). Id rỗng thì không gọi. */
 export function useRun(runId: string) {
   return useQuery({
     queryKey: ['runs', runId],
     queryFn: () => apiGet<RunView>(`/runs/${runId}`),
+    enabled: runId !== '',
     refetchInterval: (query) => {
       const status = query.state.data?.status
       return status !== undefined && FINISHED_RUN.includes(status) ? false : POLL_INTERVAL_MS

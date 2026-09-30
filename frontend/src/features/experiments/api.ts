@@ -167,3 +167,15 @@ export function useRetryOnImageError(refetch: () => unknown, urlsKey: string | n
 export function artifactSrc(url: string | null | undefined): string | null {
   return url ? `${import.meta.env.VITE_API_BASE_URL ?? ''}${url}` : null
 }
+
+/** 50 experiment mới nhất của tôi (khối "việc của tôi" trên /home); polling khi có cái đang chạy. */
+export function useMyRecentExperiments() {
+  return useQuery({
+    queryKey: [...EXPERIMENTS_KEY, 'mine-recent'],
+    queryFn: () => apiGet<ExperimentPage>('/experiments?owner=me&limit=50'),
+    refetchInterval: (query) =>
+      query.state.data?.items.some((e) => ACTIVE_EXPERIMENT.includes(e.status))
+        ? POLL_INTERVAL_MS
+        : false,
+  })
+}

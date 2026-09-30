@@ -3,14 +3,15 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter } from 'react-router'
 import { describe, expect, it } from 'vitest'
 
-import { listMocks } from '@/api/mocks'
+import { listMocks, mockMe } from '@/api/mocks'
 import { ApiError } from '@/api/errors'
 import { RequirePermission } from '@/auth/RequirePermission'
 import { PENDING_USERS_QUERY_KEY, pendingCountLabel } from '@/auth/pending-count'
 import { ME_QUERY_KEY } from '@/auth/useMe'
 import type { UserAdminPage } from '@/contracts/schemas'
 import { visibleNav } from '@/nav/config'
-import { mockMe } from '@/api/mocks'
+import type { ExperimentPage } from '@/contracts/api'
+import { EXPERIMENTS_KEY } from '@/features/experiments/api'
 import { expectLabelledControls, render } from '@/test-utils'
 
 import { AccountPage } from './AccountPage'
@@ -35,9 +36,16 @@ describe('/home', () => {
     expect(html).toContain('href="/admin/users"')
   })
 
-  it('engineer và reviewer thấy "Sắp có", không thấy khối admin', () => {
-    const html = render(<HomePage />, '/home', 'engineer_reviewer')
-    expect(html.match(/Sắp có/g)).toHaveLength(2)
+  it('engineer thấy khối experiment (Phase 5); reviewer vẫn "Sắp có"; không thấy khối admin', () => {
+    const mine = listMocks<ExperimentPage>('experiment_page').find((p) => p.items.length > 0)
+    const html = render(<HomePage />, '/home', 'engineer_reviewer', [
+      [[...EXPERIMENTS_KEY, 'mine-recent'], mine],
+    ])
+    expect(html.match(/Sắp có/g)).toHaveLength(1)
+    expect(html).toContain('href="/experiments/new"')
+    expect(html).toContain('Đang chạy hoặc chờ')
+    expect(html).toContain('Kết thúc gần đây')
+    expect(html).toContain('role="progressbar"')
     expect(html).not.toContain('chờ duyệt')
   })
 
@@ -47,13 +55,22 @@ describe('/home', () => {
   })
 })
 
-describe('điều hướng (trang đã có đến Group 6)', () => {
-  it('engineer và reviewer thấy Trang chủ, Tài khoản; admin thấy thêm trang quản trị', () => {
-    for (const name of ['engineer', 'reviewer']) {
-      expect(visibleNav(mockMe(name)).map((i) => i.path)).toEqual(['/home', '/account'])
-    }
+describe('điều hướng (Phase 5 Group 6: bật Experiment và Tạo experiment)', () => {
+  it('engineer có Tạo experiment; reviewer không; admin thêm trang quản trị', () => {
+    expect(visibleNav(mockMe('engineer')).map((i) => i.path)).toEqual([
+      '/home',
+      '/experiments',
+      '/experiments/new',
+      '/account',
+    ])
+    expect(visibleNav(mockMe('reviewer')).map((i) => i.path)).toEqual([
+      '/home',
+      '/experiments',
+      '/account',
+    ])
     expect(visibleNav(mockMe('admin')).map((i) => i.path)).toEqual([
       '/home',
+      '/experiments',
       '/admin/users',
       '/admin/audit',
       '/account',

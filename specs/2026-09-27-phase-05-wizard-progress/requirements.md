@@ -166,6 +166,7 @@ Worker được coi là `online` nếu có heartbeat trong 60 giây gần nhất
   - **Chi phí:** thời gian xử lý đã dùng so với giới hạn, thời gian từng run.
   - **Tái lập:** với mỗi run: fingerprint (rút gọn giữa, có nút copy), git commit, cảnh báo nếu `git_dirty`, phiên bản thư viện, Docker image, môi trường; nút tải `manifest.json`.
 - Polling 2 giây khi experiment `queued` hoặc `running`; dừng khi trạng thái cuối; tạm dừng khi tab bị ẩn.
+- Chi tiết (Group 6): bộ lọc mặc định "Của tôi" nếu người dùng có `experiment.create`, ngược lại "Tất cả"; tab đang chọn giữ trên URL (`?tab=results|cases|cost|repro`); lưới failure case link tới `/failure-cases/:id?run=<run_id>`, trình xem lấy thứ tự case trước/sau theo run đó. Điều hướng thêm mục "Tạo experiment" (`/experiments/new`, `experiment.create`); mục "Experiment" không sáng ở `/experiments/new` (quy tắc loại trừ đường dẫn trong cấu hình điều hướng).
 
 ### Frontend: trình xem failure case (`/failure-cases/:id`)
 - Desktop: hai ảnh cạnh nhau với zoom đồng bộ. Điện thoại: slider kéo giữa ảnh sạch và ảnh sau tấn công, pinch-zoom, vuốt để chuyển case.
@@ -178,7 +179,7 @@ Worker được coi là `online` nếu có heartbeat trong 60 giây gần nhất
 - URL ảnh: trang xin lại case trước khi URL hết hạn 60 giây; ảnh tải lỗi thì xin lại một lần cho mỗi bộ URL (Group 4).
 
 ### Trang chủ
-- Khối engineer: experiment đang chạy của tôi (thanh tiến độ), 5 experiment kết thúc gần nhất, nút "Tạo experiment".
+- Khối engineer: experiment đang chạy của tôi (thanh tiến độ), 5 experiment kết thúc gần nhất, nút "Tạo experiment". Lấy từ 50 experiment mới nhất của người dùng: "đang chạy" gồm `queued` và `running`, "kết thúc gần nhất" sắp theo `finished_at` (Group 6).
 
 ## Decisions
 
