@@ -225,6 +225,8 @@ class CostProfile(Base):
     batch_size: Mapped[int]
     measured_at: Mapped[datetime]
     environment: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    # Phase 6: giây cho một ảnh trong một vòng train patch.
+    sec_per_image_iteration: Mapped[float | None]
 
 
 class Dataset(Base):
@@ -378,6 +380,10 @@ class Run(Base):
     checkpoint_key: Mapped[str | None] = mapped_column(Text)
     checkpoint_batch_index: Mapped[int | None]
     ordinal: Mapped[int] = mapped_column(server_default=text("0"))
+    # Phase 6: giai đoạn khi đang chạy (`training` / `evaluating`) và tiến độ train patch.
+    phase: Mapped[str | None] = mapped_column(Text)
+    iterations_done: Mapped[int | None]
+    iterations_total: Mapped[int | None]
 
 
 class SearchResultRow(Base):
@@ -405,6 +411,26 @@ class FailureCase(Base):
     new_false_positives: Mapped[int]
     detections: Mapped[dict[str, Any]] = mapped_column(JSONB)
     artifacts: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    # Phase 6: null với case tạo trước khi có làm mờ.
+    anonymization: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    perturbation_kind: Mapped[str | None] = mapped_column(Text)
+
+
+class Patch(Base):
+    """Patch theo khóa (Phase 6): `artifact` khi đã đăng ký, `checkpoint_key` khi đang train dở."""
+
+    __tablename__ = "patches"
+    __table_args__ = (
+        CheckConstraint("artifact IS NULL OR checkpoint_key IS NULL", name="done_no_checkpoint"),
+    )
+
+    key: Mapped[str] = mapped_column(Sha256, primary_key=True)
+    attack_spec_id: Mapped[UUID] = mapped_column(ForeignKey("attack_specs.id"))
+    area_ratio: Mapped[float]
+    artifact: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    checkpoint_key: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _created_at()
 
 
 class CaseVerdict(Base):
