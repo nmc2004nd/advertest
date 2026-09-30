@@ -155,17 +155,32 @@ def complete_run(
 
 
 @router.post("/runs/{run_id}/skip", status_code=status.HTTP_204_NO_CONTENT)
-def skip_run(run_id: UUID, body: RunSkipRequest) -> None:
+def skip_run(
+    run_id: UUID, body: RunSkipRequest, credentials: Credentials, sessions: Sessions, clock: Now
+) -> None:
     """Bỏ run `queued` do dừng sớm (Phase 6); `trigger_run_id` là run cùng attack đã làm model
     sụp."""
-    not_implemented()
+    with transaction(sessions) as session:
+        target = authenticate_worker(session, credentials)
+        runs.skip(session, target, run_id, body, clock)
 
 
 @router.post("/runs/{run_id}/patch")
-def register_patch(run_id: UUID, body: PatchRegistration) -> PatchArtifact:
+def register_patch(
+    run_id: UUID,
+    body: PatchRegistration,
+    credentials: Credentials,
+    sessions: Sessions,
+    stores: Stores,
+    clock: Now,
+) -> PatchArtifact:
     """Đăng ký patch vừa train xong cho run patch (Phase 6). Khóa đã có thì giữ bản cũ và trả bản
     đó."""
-    not_implemented()
+    with transaction(sessions) as session:
+        target = authenticate_worker(session, credentials)
+        return runs.register_patch(
+            session, target, run_id, body, stores.buckets.artifacts.exists, clock
+        )
 
 
 @router.post("/cost-profiles", status_code=status.HTTP_204_NO_CONTENT)
