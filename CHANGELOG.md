@@ -6,7 +6,17 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 5 — Wizard tạo experiment và theo dõi tiến độ
 
-**Trạng thái:** đang làm. Group 0–7 đã merge (task 33, 3a); còn manual check (task 34) và phase-close.
+**Trạng thái:** ✅ hoàn thành 2026-09-30, còn tồn đọng. Group 0–7 đã merge.
+
+### Phase 5 — Tổng kết (phase-close) — 2026-09-30
+- **Giao được:** API experiment (tạo có kiểm tra cấu hình `422` kèm `fields`, ước lượng từ cost profile `images × spp × 1.2`, xem, hủy, nhân bản, giới hạn 3 experiment đang chờ, tên mặc định do DB đặt); đọc tài nguyên cho wizard; URL ảnh `/artifacts/<token>` (HMAC 10 phút, cần phiên), `display_mode` theo `anonymized` và `DEV_ALLOW_UNBLURRED`; email khi kết thúc qua outbox (Mailpit ở dev); frontend wizard 6 bước giữ nháp, danh sách và chi tiết experiment 5 tab (tiến độ polling, biểu đồ Recharts, failure case có watermark, chi phí, tái lập), trình xem case (zoom, slider, vuốt), khối engineer trên `/home`.
+- **Contract:** 3 `ErrorCode` mới, `DisplayMode`, `ErrorBody.fields`, 15 schema, OpenAPI các route Phase 5; đề xuất 001 (`RunView.fingerprint` được null khi run chưa bắt đầu). Người dùng chấp nhận (làm thay người duyệt theo ủy quyền).
+- **Số liệu cuối:** `make check` (804 test Python, 209 test nghiệm thu không cần DB, 201 Vitest), `make test-db` (353 test, gồm 36 test nghiệm thu Phase 5 với worker CPU thật), `make test-e2e` (60 test, gồm 21 test Phase 5 = 7 kịch bản × 3 viewport, khoảng 2 phút).
+- **`validation.md`:** Automated Tests đủ; Manual Checks 6/7 (người dùng xác nhận); Definition of Done 4/5.
+- **CI:** xanh trên `68cf796` gồm job `e2e` với worker thật (sau khi sửa `e2e.sh`; người dùng xác nhận, kiểm tra qua GitHub API).
+- **Tồn đọng (cập nhật khi có kết quả):** manual check PGD eps 2/4/8/16 trên slice KITTI 300 ảnh qua wizard; sai số ước lượng so với thời gian thực tế chưa đo.
+- **Chuyển tiếp (không chặn):** khóa MinIO trong `FailureCaseView.artifacts` vẫn trả khi ảnh bị ẩn; box trên canvas chưa đọc được bằng trình đọc màn hình; nháp cũ có model/slice đã xóa chỉ báo qua `422`; CLI `advertest` có thể lẫn thông báo của Ultralytics vào stdout ở lần đầu (xem replan).
+- **Lưu ý:** Group 0, 7, việc review, merge và phase-close do agent làm thay người duyệt theo ủy quyền của người dùng; review và test nghiệm thu do chính agent đã viết code thực hiện nên không độc lập.
 
 ### Phase 5 — Group 7 (người duyệt, người dùng giao) — 2026-09-30
 #### Thêm

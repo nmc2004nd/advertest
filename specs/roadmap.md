@@ -120,17 +120,19 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 
 **Demo:** tài khoản mới ở trạng thái chờ; admin duyệt và gán role; mỗi role chỉ thấy đúng trang của mình.
 
-## Phase 5 — Wizard tạo experiment và theo dõi tiến độ
+## Phase 5 — Wizard tạo experiment và theo dõi tiến độ ✅ Hoàn thành (2026-09-30), còn tồn đọng
 
 **Mục tiêu:** engineer làm được việc chính trên web.
 
-- [ ] API experiment: tạo, xem, hủy.
-- [ ] Wizard: model → slice → attack và chế độ quét lưới → chọn máy và giới hạn → xác nhận.
-- [ ] Ước lượng thời gian từ cost profile.
-- [ ] Trang chi tiết: tab Tổng quan, Kết quả, Failure case (có watermark), Chi phí, Tái lập.
-- [ ] Biểu đồ đường cong metric.
-- [ ] Email khi experiment xong.
-- [ ] (Từ Phase 0) `useRun` dừng polling khi run kết thúc.
+> Tồn đọng (người dùng cho phép đóng phase, cập nhật sau): manual check PGD eps 2/4/8/16 trên slice KITTI 300 ảnh qua wizard và sai số ước lượng so với thực tế chưa đo. CI xanh sau khi push `main` (người dùng xác nhận, kiểm tra qua GitHub API, 2026-09-30).
+
+- [x] API experiment: tạo, xem, hủy.
+- [x] Wizard: model → slice → attack và chế độ quét lưới → chọn máy và giới hạn → xác nhận.
+- [x] Ước lượng thời gian từ cost profile.
+- [x] Trang chi tiết: tab Tổng quan, Kết quả, Failure case (có watermark), Chi phí, Tái lập.
+- [x] Biểu đồ đường cong metric.
+- [x] Email khi experiment xong.
+- [x] (Từ Phase 0) `useRun` dừng polling khi run kết thúc.
 
 **Demo:** engineer tạo experiment trên web, theo dõi tiến độ trên điện thoại, xem đường cong khi xong.
 
