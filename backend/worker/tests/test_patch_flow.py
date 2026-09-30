@@ -19,9 +19,11 @@ from advertest_contracts.models import (
     PatchRegistration,
     ProgressReport,
     WorkerDirective,
+    patch_prefix,
 )
 from advertest_worker.client import LeaseLost
 from advertest_worker.patch import PatchInterrupted, PatchJob, checkpoint_key, obtain_patch
+from attacks.patch.artifact import build_artifact
 from attacks.patch.geometry import patch_key
 from attacks.patch.training import TrainingState
 from attacks.registry import get_spec, load_catalog
@@ -166,6 +168,35 @@ def test_resume_from_checkpoint_reaches_max_iter_with_same_patch() -> None:
     assert artifact.iterations == MAX_ITER
     assert [r.iterations_done for r in client.reports] == [3, 4, 5]
     np.testing.assert_array_equal(patch, straight)
+
+
+def test_registered_patch_from_other_worker_is_used() -> None:
+    """Worker khác đã đăng ký khóa này trước: API trả bản đó; file của hai worker nằm ở hai khóa
+    khác nhau (tên theo sha256), nên file của bản đã đăng ký còn nguyên và được dùng."""
+    store = Store()
+    other_state = TrainingState(
+        patch=np.full((3, 14, 14), 0.25, np.float32),
+        iterations_done=MAX_ITER,
+        objective_history=[0.0] * MAX_ITER,
+    )
+    other, files = build_artifact(
+        _spec(),
+        other_state,
+        weights_sha256=WEIGHTS,
+        training_slice_sha256=TRAINING,
+        area_ratio=0.1,
+        seed=0,
+        created_at=datetime(2026, 9, 30, tzinfo=UTC),
+    )
+    store.put(other.npy_key, files.npy)  # worker kia đã upload
+    client = Client()
+    client.answer = other
+    patch, artifact = obtain_patch(_job(store, client), fd.images(3), fd.mask(3))
+    assert artifact == other
+    np.testing.assert_array_equal(patch, other_state.patch)
+    mine = client.registered[0]
+    assert mine.npy_key != other.npy_key and store.data[other.npy_key] == files.npy
+    assert other.npy_key.startswith(patch_prefix(other.key))
 
 
 def test_lease_lost_while_deleting_checkpoint_propagates() -> None:
