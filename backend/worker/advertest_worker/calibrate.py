@@ -19,7 +19,7 @@ import numpy as np
 import torch
 
 from advertest_contracts.models import CostProfile, Environment
-from attacks.art_adapter import ArtPerturbation
+from advertest_contracts.perturbation import Perturbation
 from ml_core.data.loader import SliceLoader
 from ml_core.runner.images import letterbox_mask
 
@@ -53,7 +53,7 @@ def measure(
     loader: SliceLoader,
     image_ids: list[str],
     estimator: Any,
-    perturbation: ArtPerturbation,
+    perturbation: Perturbation,
     level: float,
     seed: int,
     device: str,
@@ -77,7 +77,7 @@ def calibrate(
     *,
     loader: SliceLoader,
     estimator: Any,
-    perturbation: ArtPerturbation,
+    perturbation: Perturbation,
     level: float,
     seed: int,
     device: str,

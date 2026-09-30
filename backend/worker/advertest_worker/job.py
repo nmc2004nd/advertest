@@ -45,11 +45,13 @@ from advertest_contracts.models import (
     WorkerJobBundle,
     WorkerLease,
 )
+from advertest_contracts.perturbation import Perturbation
 from advertest_worker.cache import JobCache
 from advertest_worker.calibrate import calibrate
 from advertest_worker.client import LeaseLost, WorkerClient
 from advertest_worker.config import HEARTBEAT_INTERVAL_S
-from attacks.art_adapter import ArtPerturbation, IncompatibleAttack, build_perturbation
+from attacks.art_adapter import IncompatibleAttack
+from attacks.factory import build_perturbation
 from ml_core.cli.evaluate import load_model_from_store
 from ml_core.models.estimator import build_estimator
 from ml_core.models.register import lib_versions
@@ -64,6 +66,7 @@ from ml_core.runner.executor import (
     load_clean_predictions,
 )
 from ml_core.runner.fingerprint import build_fingerprint_inputs, fingerprint
+from ml_core.runner.images import perturbation_kind
 from ml_core.store import PresignedStore
 
 logger = logging.getLogger(__name__)
@@ -344,7 +347,9 @@ class JobRunner:
             finish.failed(exc, None)
             return
 
-        candidates = StoreCandidates(store, prefix, linf_eps(spec, perturbation, run.level))
+        candidates = StoreCandidates(
+            store, prefix, linf_eps(spec, perturbation, run.level), perturbation_kind(spec)
+        )
         try:
             executor, batch_index = self._executor(
                 job, run_id, fp, run.level, run.seed, perturbation, candidates
@@ -447,7 +452,7 @@ class JobRunner:
         fp: str,
         level: float,
         seed: int,
-        perturbation: ArtPerturbation,
+        perturbation: Perturbation,
         candidates: StoreCandidates,
     ) -> tuple[RunExecutor, int]:
         run = next(r for r in job.bundle.runs if r.run_id == run_id)
