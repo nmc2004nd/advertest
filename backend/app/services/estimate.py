@@ -13,10 +13,17 @@ from sqlalchemy import select, tuple_
 from sqlalchemy.orm import Session
 
 from advertest_contracts.enums import ExperimentStatus, RunStatus
-from advertest_contracts.models import EstimateResponse, EstimateRun, QueueEstimate
+from advertest_contracts.models import (
+    AttackConfig,
+    AttackSpec,
+    EstimateResponse,
+    EstimateRun,
+    QueueEstimate,
+)
 from backend.app.db import models as m
 from backend.app.services.experiment_config import CheckedConfig
 from backend.app.services.experiments import runs_of
+from backend.app.services.patches import is_registered, patch_key_for
 
 SAFETY_FACTOR = 1.2
 
@@ -109,6 +116,31 @@ def queue_position(session: Session, experiment: m.Experiment) -> int:
     return len(queued_ahead(session, experiment.compute_target_id, experiment)) + 1
 
 
+def _training_seconds(
+    session: Session,
+    checked: CheckedConfig,
+    attack: AttackConfig,
+    spec: AttackSpec,
+    level: float,
+    profile: m.CostProfile | None,
+) -> float | None:
+    """Phase 6 (plan task 25): `max_iter * số ảnh slice huấn luyện * sec_per_image_iteration` khi
+    patch chưa đăng ký; `None` khi không cần train, patch đã có, hoặc profile thiếu số đo train."""
+    if spec.training is None or attack.training_slice_id is None:
+        return None
+    training = checked.training_slices[attack.training_slice_id]
+    assert training.slice_sha256 is not None  # đã kiểm tra ở experiment_config
+    key = patch_key_for(
+        spec, checked.model.weights_sha256, training.slice_sha256, level, attack.seed
+    )
+    if is_registered(session, key):
+        return None
+    if profile is None or profile.sec_per_image_iteration is None:
+        return None
+    iterations = spec.training.max_iter * len(training.image_ids)
+    return iterations * profile.sec_per_image_iteration
+
+
 def estimate_config(session: Session, checked: CheckedConfig) -> EstimateResponse:
     """`EstimateResponse` cho cấu hình đã kiểm tra (requirements.md Phase 5, Ước lượng)."""
     profiles = latest_profiles(session, checked.target.id, checked.model.id)
@@ -134,10 +166,18 @@ def estimate_config(session: Session, checked: CheckedConfig) -> EstimateRespons
                     sec_per_image=spp,
                     est_seconds=est,
                     skip_reason="incompatible" if skip else None,
+                    training_seconds=(
+                        None
+                        if skip or est is None
+                        else _training_seconds(session, checked, attack, spec, level, profile)
+                    ),
                 )
             )
     unknown = [r for r in runs if r.skip_reason is None and r.est_seconds is None]
-    known = sum(r.est_seconds for r in runs if r.est_seconds is not None)
+    # Phase 6: thời gian train patch cộng vào tổng và vào cận dưới của `exceeds_limit`.
+    known = sum(r.est_seconds for r in runs if r.est_seconds is not None) + sum(
+        r.training_seconds for r in runs if r.training_seconds is not None
+    )
     ahead = queued_ahead(session, checked.target.id)
     return EstimateResponse(
         runs=runs,

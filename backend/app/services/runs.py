@@ -376,6 +376,7 @@ def record_cost_profile(
         batch_size=profile.batch_size,
         measured_at=profile.measured_at,
         environment=profile.environment.model_dump(mode="json"),
+        sec_per_image_iteration=profile.sec_per_image_iteration,
     )
     session.add(row)
     session.flush()

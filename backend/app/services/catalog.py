@@ -107,9 +107,7 @@ def list_slices(
         other = session.get(m.Slice, disjoint_from)
         if other is None:
             raise NotFound(f"Không có slice {disjoint_from}")
-        query = query.where(
-            ~m.Slice.image_ids.op("&&")(cast(list(other.image_ids), ARRAY(Text)))
-        )
+        query = query.where(~m.Slice.image_ids.op("&&")(cast(list(other.image_ids), ARRAY(Text))))
     return [
         SliceSummary(
             id=row.id,

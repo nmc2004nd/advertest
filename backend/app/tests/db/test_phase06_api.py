@@ -9,10 +9,25 @@ import pytest
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
+from attacks.registry import get_spec, load_catalog
 from backend.app.db import models as m
+from backend.app.services.patches import patch_key_for
 
-from .test_experiment_api import Api, Fx, _body, _create, _error, _post, api, env, fx, world
-from .test_worker_services import _attack
+from .test_experiment_api import (
+    Api,
+    Fx,
+    _body,
+    _create,
+    _error,
+    _estimate,
+    _new_target,
+    _post,
+    api,
+    env,
+    fx,
+    world,
+)
+from .test_worker_services import T0, _attack
 
 pytestmark = pytest.mark.db
 __all__ = ["api", "env", "fx", "world"]
@@ -100,3 +115,54 @@ def test_slices_disjoint_from(api: Api, fx: Fx, owner_engine: Engine) -> None:
     ids = {s["id"] for s in client.get(f"/slices?disjoint_from={fx.slice}").json()}
     assert str(disjoint) in ids and str(overlapping) not in ids and str(fx.slice) not in ids
     assert client.get(f"/slices?disjoint_from={uuid.uuid4()}").status_code == 404
+
+
+def _patch_profile(owner_engine: Engine, fx: Fx, target: uuid.UUID, spi: float | None) -> None:
+    spec = get_spec(load_catalog(), name="adv_patch")
+    with Session(owner_engine) as s, s.begin():
+        s.add(
+            m.CostProfile(
+                compute_target_id=target, model_version_id=fx.model, attack_spec_id=spec.id,
+                sec_per_image=0.5, peak_vram_mb=0, batch_size=2, measured_at=T0,
+                sec_per_image_iteration=spi,
+            )
+        )  # fmt: skip
+
+
+def test_estimate_training_seconds(api: Api, fx: Fx, owner_engine: Engine) -> None:
+    """Plan task 25: `max_iter * số ảnh * sec_per_image_iteration`, cộng vào tổng và giới hạn;
+    patch đã đăng ký thì không train."""
+    target = _new_target(owner_engine)
+    _patch_profile(owner_engine, fx, target, 0.25)
+    training = _training_slice(owner_engine, fx, ["e-1", "e-2"])
+    _, client = api.client()
+    body = _body(fx, [_patch([0.1, 0.25], training)], compute_target_id=str(target))
+    result = _estimate(client, body)
+    spec = get_spec(load_catalog(), name="adv_patch")
+    assert spec.training is not None
+    train = spec.training.max_iter * 2 * 0.25
+    assert [r.training_seconds for r in result.runs] == [train, train]
+    evaluation = sum(r.est_seconds or 0 for r in result.runs)
+    assert result.total_seconds == pytest.approx(evaluation + 2 * train)
+
+    limited = {**body, "limit": {"kind": "time", "value": str(int(evaluation) + 1)}}
+    assert _estimate(client, limited).exceeds_limit is True  # chỉ vượt nhờ phần train
+
+    # Patch 0.1 đã đăng ký: không train lại.
+    with Session(owner_engine) as s, s.begin():
+        slice_row = s.get(m.Slice, training)
+        model = s.get(m.ModelVersion, fx.model)
+        assert slice_row is not None and slice_row.slice_sha256 and model is not None
+        key = patch_key_for(spec, model.weights_sha256, slice_row.slice_sha256, 0.1, 0)
+        s.add(m.Patch(key=key, attack_spec_id=spec.id, area_ratio=0.1, artifact={"key": key}))
+    again = _estimate(client, body)
+    assert [r.training_seconds for r in again.runs] == [None, train]
+
+
+def test_estimate_without_training_cost(api: Api, fx: Fx, owner_engine: Engine) -> None:
+    target = _new_target(owner_engine)
+    _patch_profile(owner_engine, fx, target, None)
+    training = _training_slice(owner_engine, fx, ["n-1"])
+    _, client = api.client()
+    result = _estimate(client, _body(fx, [_patch([0.1], training)], compute_target_id=str(target)))
+    assert result.runs[0].training_seconds is None and result.total_seconds is not None
