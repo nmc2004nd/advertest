@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
+from functools import partial
 from pathlib import Path
 from typing import Annotated, TypeVar
 from uuid import UUID
@@ -17,12 +18,13 @@ from uuid import UUID
 import typer
 
 from advertest_contracts.ids import content_id
+from advertest_contracts.models import SliceSpec
 from ml_core.data.dataset import load_manifest, save_dataset
 from ml_core.data.kitti import KittiLabelError, import_kitti
 from ml_core.data.mapping import build_mapping, save_mapping
-from ml_core.data.slice import DEFAULT_SIZE, create_slice, preset_filter, save_slice
+from ml_core.data.slice import DEFAULT_SIZE, create_slice, load_slice, preset_filter, save_slice
 from ml_core.models.register import load_card
-from ml_core.store import KeyNotFoundError, require_store, resolve_id
+from ml_core.store import ArtifactStore, KeyNotFoundError, require_store, resolve_id
 
 dataset_app = typer.Typer(help="Import và quản lý dataset version.", no_args_is_help=True)
 slice_app = typer.Typer(help="Tạo và xem slice.", no_args_is_help=True)
@@ -85,6 +87,10 @@ def mapping_create(
     typer.echo(mapping.model_dump_json(indent=2))
 
 
+def _load_slice_by_id(store: ArtifactStore, slice_id: UUID) -> SliceSpec:
+    return load_slice(store, resolve_id(store, "slice", slice_id))
+
+
 @slice_app.command("create")
 def slice_create(
     ctx: typer.Context,
@@ -92,10 +98,25 @@ def slice_create(
     size: Annotated[int, typer.Option("--size", min=1, help="Số ảnh")] = DEFAULT_SIZE,
     seed: Annotated[int, typer.Option("--seed", min=0)] = 42,
     preset: PresetOption = "kitti-coco",
+    exclude_slice: Annotated[
+        list[UUID] | None,
+        typer.Option(
+            "--exclude-slice",
+            help="id của slice có ảnh cần loại (lặp lại được); ví dụ tạo slice huấn luyện patch"
+            " không giao với slice đánh giá",
+        ),
+    ] = None,
 ) -> None:
     """Tạo slice cố định (không cần model hay mapping), lưu vào store, in `SliceSpec`."""
     store = require_store(ctx.obj)
     manifest = _run(lambda: load_manifest(store, dataset))
-    spec = _run(lambda: create_slice(manifest, size, seed, preset_filter(preset)))
+    excluded: set[str] = set()
+    for slice_id in exclude_slice or []:
+        other = _run(partial(_load_slice_by_id, store, slice_id))
+        if other.dataset_version_sha256 != dataset:
+            typer.echo(f"Slice {slice_id} thuộc dataset version khác", err=True)
+            raise typer.Exit(code=1)
+        excluded.update(other.image_ids)
+    spec = _run(lambda: create_slice(manifest, size, seed, preset_filter(preset), exclude=excluded))
     save_slice(store, spec)
     typer.echo(spec.model_dump_json(indent=2))

@@ -25,14 +25,17 @@ from uuid import UUID
 import numpy as np
 from numpy.typing import NDArray
 
+from advertest_contracts.enums import PerturbationImageKind
 from advertest_contracts.models import CaseArtifacts
 from ml_core.privacy.blur import blur_regions
 from ml_core.privacy.regions import Box
-from ml_core.runner.images import amplified_perturbation, png_bytes, thumbnail_webp
+from ml_core.runner.images import png_bytes, third_image, thumbnail_webp
 from ml_core.store import ArtifactStore, DeletableStore
 
 
 class CandidateSink(Protocol):
+    kind: PerturbationImageKind  # nội dung ảnh thứ ba (Phase 6, plan task 19)
+
     def add(
         self,
         image_id: str,
@@ -62,9 +65,10 @@ def _blurred(
     adversarial: NDArray[np.float32],
     linf_eps: float | None,
     regions: Sequence[Box],
+    kind: PerturbationImageKind,
 ) -> dict[str, NDArray[np.float32]]:
-    """Ba ảnh hiển thị đã làm mờ; ảnh thứ ba tính từ ảnh chưa làm mờ."""
-    perturbation = amplified_perturbation(clean, adversarial, linf_eps)
+    """Ba ảnh hiển thị đã làm mờ; ảnh thứ ba (theo `kind`) tính từ ảnh chưa làm mờ."""
+    perturbation = third_image(kind, clean, adversarial, linf_eps)
     return {
         "clean": blur_regions(clean, regions),
         "adversarial": blur_regions(adversarial, regions),
@@ -81,10 +85,17 @@ def _images(shown: dict[str, NDArray[np.float32]]) -> dict[str, bytes]:
 
 
 class MemoryCandidates:
-    def __init__(self, store: ArtifactStore, prefix: str, linf_eps: float | None) -> None:
+    def __init__(
+        self,
+        store: ArtifactStore,
+        prefix: str,
+        linf_eps: float | None,
+        kind: PerturbationImageKind = PerturbationImageKind.AMPLIFIED_NOISE,
+    ) -> None:
         self.store = store
         self.prefix = prefix
         self.linf_eps = linf_eps
+        self.kind = kind
         self._items: dict[str, dict[str, NDArray[np.float32]]] = {}
 
     def add(
@@ -95,7 +106,7 @@ class MemoryCandidates:
         regions: Sequence[Box],
     ) -> None:
         # `blur_regions` trả bản sao, nên không giữ view của mảng cả batch trong bộ nhớ.
-        self._items[image_id] = _blurred(clean, adversarial, self.linf_eps, regions)
+        self._items[image_id] = _blurred(clean, adversarial, self.linf_eps, regions, self.kind)
 
     def evict(self, image_id: str) -> None:
         self._items.pop(image_id, None)
@@ -127,10 +138,17 @@ CANDIDATE_FILES = (
 
 
 class StoreCandidates:
-    def __init__(self, store: DeletableStore, prefix: str, linf_eps: float | None) -> None:
+    def __init__(
+        self,
+        store: DeletableStore,
+        prefix: str,
+        linf_eps: float | None,
+        kind: PerturbationImageKind = PerturbationImageKind.AMPLIFIED_NOISE,
+    ) -> None:
         self.store = store
         self.prefix = prefix
         self.linf_eps = linf_eps
+        self.kind = kind
 
     def candidate_prefix(self, image_id: str) -> str:
         return f"{self.prefix}/candidates/{image_id}"
@@ -142,7 +160,7 @@ class StoreCandidates:
         adversarial: NDArray[np.float32],
         regions: Sequence[Box],
     ) -> None:
-        shown = _blurred(clean, adversarial, self.linf_eps, regions)
+        shown = _blurred(clean, adversarial, self.linf_eps, regions, self.kind)
         files = {
             **_images(shown),
             "clean_thumb.webp": thumbnail_webp(shown["clean"]),

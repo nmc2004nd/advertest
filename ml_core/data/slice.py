@@ -3,12 +3,17 @@
 Bộ lọc tự mô tả (không phụ thuộc model hay mapping): ảnh được chọn khi có ít nhất `min_objects`
 annotation thuộc `filter.classes` và đạt ngưỡng `filter.difficulty`. Lấy mẫu bằng
 `random.Random(seed).sample` trên danh sách ảnh hợp lệ đã sắp xếp, rồi sắp xếp lại ID.
+
+Phase 6 (plan task 20a): `exclude` bỏ các ảnh cho trước khỏi danh sách hợp lệ (tạo slice huấn
+luyện patch không giao với slice đánh giá). Danh sách loại trừ không thuộc hash: `image_ids` của
+slice đã đủ định danh.
 """
 
 from __future__ import annotations
 
 import random
 from collections import Counter
+from collections.abc import Collection
 
 from advertest_contracts.hashing import sha256_of
 from advertest_contracts.ids import content_id
@@ -51,11 +56,16 @@ def create_slice(
     size: int = DEFAULT_SIZE,
     seed: int = 42,
     slice_filter: SliceFilter | None = None,
+    exclude: Collection[str] = (),
 ) -> SliceSpec:
     slice_filter = slice_filter or preset_filter("kitti-coco")
-    eligible = eligible_image_ids(manifest, slice_filter)
+    excluded = set(exclude)
+    eligible = [i for i in eligible_image_ids(manifest, slice_filter) if i not in excluded]
     if len(eligible) < size:
-        raise ValueError(f"Chỉ có {len(eligible)} ảnh đạt bộ lọc, không đủ {size} ảnh cho slice")
+        raise ValueError(
+            f"Chỉ có {len(eligible)} ảnh đạt bộ lọc (sau khi loại {len(excluded)} ảnh), không đủ"
+            f" {size} ảnh cho slice"
+        )
     image_ids = sorted(random.Random(seed).sample(eligible, size))
     body = {
         "dataset_version_sha256": sha256_of(manifest),

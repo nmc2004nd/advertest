@@ -31,7 +31,9 @@ from advertest_contracts.models import (
     RunResult,
     StatusReason,
 )
-from attacks.art_adapter import ArtPerturbation, IncompatibleAttack, build_perturbation
+from advertest_contracts.perturbation import Perturbation
+from attacks.art_adapter import IncompatibleAttack
+from attacks.factory import build_perturbation
 from ml_core.cli.cache import Prediction
 from ml_core.cli.evaluate import load_model_from_store, predict_slice
 from ml_core.data.loader import SliceLoader
@@ -55,12 +57,12 @@ from ml_core.runner.executor import (
     load_clean_predictions,
 )
 from ml_core.runner.fingerprint import build_fingerprint_inputs, fingerprint
-from ml_core.runner.images import amplified_perturbation, letterbox_mask
+from ml_core.runner.images import amplified_perturbation, letterbox_mask, perturbation_kind
 from ml_core.store import ArtifactStore
 
 __all__ = ["amplified_perturbation", "letterbox_mask"]
 
-PerturbationFactory = Callable[[AttackSpec, Any], ArtPerturbation]
+PerturbationFactory = Callable[[AttackSpec, Any], Perturbation]
 ProgressFn = Callable[[str], None]
 
 
@@ -255,7 +257,7 @@ class Runner:
 
         run_id = uuid4()
         attempt = f"{base}/attempts/{run_id}"
-        perturbation: ArtPerturbation | None = None
+        perturbation: Perturbation | None = None
         reason: str | None = None
         if spec.requires_gradients and not self.card.supports_gradients:
             reason = f"{spec.name} cần gradient nhưng model {self.card.name} không hỗ trợ gradient"
@@ -332,7 +334,7 @@ class Runner:
 
     def _execute(
         self,
-        perturbation: ArtPerturbation,
+        perturbation: Perturbation,
         spec: AttackSpec,
         level: float,
         seed: int,
@@ -351,7 +353,12 @@ class Runner:
             perturbation=perturbation,
             estimator=self.estimator,
             context=context,
-            candidates=MemoryCandidates(self.store, prefix, linf_eps(spec, perturbation, level)),
+            candidates=MemoryCandidates(
+                self.store,
+                prefix,
+                linf_eps(spec, perturbation, level),
+                perturbation_kind(spec),
+            ),
         )
         for batch in executor.batches(self.loader, self.config.batch_size):
             executor.process_batch(batch)

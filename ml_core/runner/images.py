@@ -10,6 +10,8 @@ import numpy as np
 from numpy.typing import NDArray
 from PIL import Image
 
+from advertest_contracts.enums import AttackKind, PerturbationImageKind
+from advertest_contracts.models import AttackSpec
 from ml_core.preprocess import LetterboxInfo
 
 THUMB_WIDTH = 320  # requirements.md Phase 3, mục Failure case trong chế độ batch
@@ -64,3 +66,37 @@ def amplified_perturbation(
     if scale <= 0:
         return np.full(clean.shape, 0.5, dtype=np.float32)
     return np.clip(0.5 + delta / (2 * scale), 0.0, 1.0).astype(np.float32)
+
+
+def difference_image(
+    clean: NDArray[np.float32], adversarial: NDArray[np.float32]
+) -> NDArray[np.float32]:
+    """Vùng khác biệt `|δ| / max|δ|` theo từng kênh (Phase 6, plan task 19): đen ở chỗ không đổi,
+    sáng ở chỗ bị biến đổi; δ = 0 thì toàn ảnh 0."""
+    delta = np.abs(adversarial.astype(np.float64) - clean.astype(np.float64))
+    peak = float(delta.max())
+    if peak <= 0:
+        return np.zeros(clean.shape, dtype=np.float32)
+    return (delta / peak).astype(np.float32)
+
+
+def perturbation_kind(spec: AttackSpec) -> PerturbationImageKind:
+    """Nội dung ảnh thứ ba theo loại phép thử: nhiễu khuếch đại (FGSM, PGD), vị trí patch (spec
+    cần train), vùng khác biệt (corruption, occlusion)."""
+    if spec.kind != AttackKind.ATTACK:
+        return PerturbationImageKind.DIFFERENCE
+    if spec.requires_training:
+        return PerturbationImageKind.PATCH_LOCATION
+    return PerturbationImageKind.AMPLIFIED_NOISE
+
+
+def third_image(
+    kind: PerturbationImageKind,
+    clean: NDArray[np.float32],
+    adversarial: NDArray[np.float32],
+    linf_eps: float | None,
+) -> NDArray[np.float32]:
+    """Ảnh thứ ba của failure case (chưa làm mờ)."""
+    if kind == PerturbationImageKind.AMPLIFIED_NOISE:
+        return amplified_perturbation(clean, adversarial, linf_eps)
+    return difference_image(clean, adversarial)

@@ -267,7 +267,18 @@ def test_attack_labels_are_ground_truth(pipeline: Pipeline, sweep: Sweep, git_co
     expected = next(loader.batches(5)).targets
     assert len(spy.targets) == len(expected)
     for got, want in zip(spy.targets, expected, strict=True):
-        assert set(got) == {"boxes", "labels"}  # không có scores: không phải prediction
+        # Không có scores: nhãn là ground truth, không phải prediction. Phase 6 thêm `image_id`
+        # (bắt buộc, seed theo ảnh) và `ignore_boxes` (tùy chọn, occlusion) vào interface.
+        assert (
+            {"boxes", "labels", "image_id"}
+            <= set(got)
+            <= {
+                "boxes",
+                "labels",
+                "image_id",
+                "ignore_boxes",
+            }
+        )
         assert (got["boxes"] == want["boxes"]).all() and (got["labels"] == want["labels"]).all()
 
 

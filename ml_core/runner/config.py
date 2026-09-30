@@ -65,5 +65,9 @@ def resolve_specs(
             raise ValueError(
                 f"attack_spec_id {attack.attack_spec_id} không khớp spec {spec.name} ({spec.id})"
             )
+        if spec.requires_training:
+            raise ValueError(
+                f"{spec.name} cần train patch trên slice huấn luyện: chỉ chạy qua worker (web)"
+            )
         specs.append(spec)
     return specs

@@ -210,3 +210,13 @@ def test_slice_saved_and_valid(manifest: DatasetManifest, tmp_path: Path) -> Non
     assert SliceSpec.model_validate_json(store.get(f"slices/{spec.slice_sha256}.json")) == spec
     assert load_slice(store, spec.slice_sha256) == spec
     assert resolve_id(store, "slice", spec.id) == spec.slice_sha256
+
+
+def test_slice_excludes_given_images() -> None:
+    """Phase 6 (plan task 20a): slice huấn luyện không giao với slice đánh giá."""
+    manifest = fixture_manifest()
+    evaluation = create_slice(manifest, size=3, seed=42)
+    training = create_slice(manifest, size=2, seed=7, exclude=evaluation.image_ids)
+    assert not set(training.image_ids) & set(evaluation.image_ids)
+    with pytest.raises(ValueError, match="sau khi loại 3 ảnh"):
+        create_slice(manifest, size=3, seed=7, exclude=evaluation.image_ids)
