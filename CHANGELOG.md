@@ -20,6 +20,7 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 #### Quyết định (người dùng chốt ở kế hoạch Group 3; người duyệt ghi vào spec)
 - Group 3 chia hai nhánh tuần tự: `phase06-ml-core` rồi `phase06-worker`.
 - Không dừng sớm khi mAP@0.5 sạch bằng 0 (không đánh giá được mức sụt).
+- Test nghiệm thu Phase 2 `test_attack_labels_are_ground_truth` đòi target có đúng `{boxes, labels}`, mâu thuẫn contract Phase 6 (`image_id` bắt buộc): người dùng cho người duyệt sửa (commit `phase06(reviewer)` trong nhánh) thành có `boxes`, `labels`, `image_id`, chỉ thêm được `ignore_boxes`, vẫn cấm `scores`.
 #### Ghi nhận
 - Worker (nhánh sau) cần: truyền `perturbation_kind(spec)` cho `StoreCandidates`, dùng `attacks/factory.py`, `patch_key` trong fingerprint, gọi `early_stop` trước mỗi run.
 - Level có metric nhưng `relative_drop = null` (mAP sạch bằng 0) đếm vào `levels_evaluated` nhưng không thành điểm của đường cong.
