@@ -47,6 +47,7 @@ from ml_core.metrics.attack import (
 )
 from ml_core.metrics.clean import CleanMetric
 from ml_core.metrics.filters import filter_classes, filter_ignored
+from ml_core.privacy.case import anonymization, case_regions
 from ml_core.runner.candidates import CandidateSink
 from ml_core.runner.images import bbox, letterbox_mask
 from ml_core.store import ArtifactStore
@@ -275,7 +276,7 @@ class RunExecutor:
             )
             self.predictions[image_id] = attacked
             self.stats[image_id] = stats
-            self._offer(image_id, stats, batch, i, adversarial[i])
+            self._offer(image_id, stats, batch, i, adversarial[i], preds[i])
             self.done.append(image_id)
         self.processing_seconds += elapsed
         return elapsed
@@ -287,6 +288,7 @@ class RunExecutor:
         batch: Batch,
         index: int,
         adversarial: NDArray[np.float32],
+        attacked_raw: Prediction,
     ) -> None:
         limit = self.context.failure_cases_per_run
         if limit == 0 or stats.severity_score <= 0:
@@ -295,14 +297,26 @@ class RunExecutor:
         pool[image_id] = stats
         new_top = [k for k, _ in select_failure_cases(pool, limit)]
         if image_id in new_top:
-            self.candidates.add(image_id, batch.images[index], adversarial)
-            self.offered.append(image_id)
             ignore = batch.ignore[index]
+            _, height, width = adversarial.shape
+            # Phase 6 (plan task 23, ml-privacy): làm mờ trước khi lưu ảnh hiển thị.
+            regions = case_regions(
+                ground_truth=batch.targets[index],
+                clean=self.context.clean_predictions[image_id],
+                attacked=attacked_raw,
+                ignore_boxes=ignore["boxes"],
+                class_names=self.context.class_names,
+                width=width,
+                height=height,
+            )
+            self.candidates.add(image_id, batch.images[index], adversarial, regions)
+            self.offered.append(image_id)
             self.case_inputs[image_id] = {
                 "gt_boxes": np.asarray(batch.targets[index]["boxes"]).reshape(-1, 4).tolist(),
                 "gt_labels": np.asarray(batch.targets[index]["labels"]).tolist(),
                 "ignore_boxes": np.asarray(ignore["boxes"]).reshape(-1, 4).tolist(),
                 "ignore_sources": list(ignore["sources"]),
+                "blur_regions": len(regions),
             }
         for evicted in [k for k in self.top if k not in new_top]:
             self.candidates.evict(evicted)
@@ -387,6 +401,10 @@ class RunExecutor:
             severity_score=stats.severity_score,
             detections=detections,
             artifacts=self.candidates.promote(image_id, case_id),
+            # Checkpoint cũ (trước Phase 6) không có `blur_regions`: ảnh ứng viên chưa làm mờ.
+            anonymization=(
+                anonymization(inputs["blur_regions"]) if "blur_regions" in inputs else None
+            ),
         )
 
     # ------------------------------------------------------------------ checkpoint

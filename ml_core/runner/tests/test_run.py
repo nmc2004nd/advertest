@@ -384,7 +384,7 @@ def test_failure_case_record_and_pngs(base: Base, store: LocalStore) -> None:
         "ignore_boxes": loader_batch.ignore[0]["boxes"].tolist(),
         "ignore_sources": loader_batch.ignore[0]["sources"],
     }
-    candidates.add(image_id, image, adversarial)
+    candidates.add(image_id, image, adversarial, [])
     run_id = runner.experiment_id
     record = executor._record(run_id, image_id, stats)
     assert record.id == compute_failure_case_id("e" * 64, run_id, image_id)
@@ -473,8 +473,8 @@ def test_memory_candidates_keep_own_copies(tmp_path: Path) -> None:
     batch = np.zeros((4, 3, 8, 8), np.float32)
     candidates = MemoryCandidates(LocalStore(tmp_path), "runs/x", None)
     for i in range(4):
-        candidates.add(f"{i:06d}", batch[i], batch[i])
+        candidates.add(f"{i:06d}", batch[i], batch[i], [])
     candidates.evict("000000")
     assert list(candidates._items) == ["000001", "000002", "000003"]
-    for clean, adversarial in candidates._items.values():
-        assert clean.base is None and adversarial.base is None
+    for shown in candidates._items.values():
+        assert all(image.base is None for image in shown.values())
