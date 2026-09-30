@@ -4650,6 +4650,8 @@ export interface operations {
         parameters: {
             query?: {
                 dataset_version?: string | null;
+                /** @description Chỉ slice không có ảnh chung với slice này (slice huấn luyện, Phase 6) */
+                disjoint_from?: string | null;
             };
             header?: never;
             path?: never;

@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import ARRAY, Text, cast, func, select
 from sqlalchemy.orm import Session
 
 from advertest_contracts.enums import ExperimentStatus, ProtocolStatus
@@ -95,10 +95,21 @@ def get_dataset_version(session: Session, dataset_version_id: UUID) -> DatasetVe
     return _version_summary(version)
 
 
-def list_slices(session: Session, dataset_version_id: UUID | None = None) -> list[SliceSummary]:
+def list_slices(
+    session: Session, dataset_version_id: UUID | None = None, disjoint_from: UUID | None = None
+) -> list[SliceSummary]:
+    """`disjoint_from` (Phase 6, plan task 24b): bỏ slice có ảnh chung với slice đó (kể cả chính
+    nó); slice không tồn tại → `NotFound`."""
     query = select(m.Slice).order_by(m.Slice.name, m.Slice.id)
     if dataset_version_id is not None:
         query = query.where(m.Slice.dataset_version_id == dataset_version_id)
+    if disjoint_from is not None:
+        other = session.get(m.Slice, disjoint_from)
+        if other is None:
+            raise NotFound(f"Không có slice {disjoint_from}")
+        query = query.where(
+            ~m.Slice.image_ids.op("&&")(cast(list(other.image_ids), ARRAY(Text)))
+        )
     return [
         SliceSummary(
             id=row.id,

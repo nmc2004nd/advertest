@@ -89,3 +89,14 @@ def test_valid_patch_and_coarse_to_fine_order(api: Api, fx: Fx, owner_engine: En
     detail = _create(client, body)
     runs = client.get(f"/experiments/{detail.id}/runs").json()
     assert [r["level"] for r in runs] == [2, 8, 32, 4, 16, 0.1, 0.25]
+
+
+def test_slices_disjoint_from(api: Api, fx: Fx, owner_engine: Engine) -> None:
+    """Plan task 24b."""
+    evaluation = _eval_ids(owner_engine, fx)
+    disjoint = _training_slice(owner_engine, fx, ["d-1"])
+    overlapping = _training_slice(owner_engine, fx, [evaluation[0]])
+    _, client = api.client()
+    ids = {s["id"] for s in client.get(f"/slices?disjoint_from={fx.slice}").json()}
+    assert str(disjoint) in ids and str(overlapping) not in ids and str(fx.slice) not in ids
+    assert client.get(f"/slices?disjoint_from={uuid.uuid4()}").status_code == 404
