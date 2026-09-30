@@ -39,6 +39,7 @@ from advertest_contracts.models import (
     RunCompletion,
     RunMetrics,
     RunResult,
+    RunSkipRequest,
     RunStartRequest,
     StatusReason,
     WorkerDirective,
@@ -50,6 +51,7 @@ from advertest_worker.cache import JobCache
 from advertest_worker.calibrate import calibrate
 from advertest_worker.client import LeaseLost, WorkerClient
 from advertest_worker.config import HEARTBEAT_INTERVAL_S
+from advertest_worker.early_stop import RunLedger
 from attacks.art_adapter import IncompatibleAttack
 from attacks.factory import build_perturbation
 from ml_core.cli.evaluate import load_model_from_store
@@ -152,6 +154,7 @@ class _Job:
     profiles: dict[UUID, CostProfile]
     specs: dict[UUID, AttackSpec]
     remaining_seconds: float | None
+    ledger: RunLedger
     context: RunContext | None = None
 
 
@@ -260,6 +263,7 @@ class JobRunner:
             profiles=self.calibrate_bundle(bundle, loader),
             specs={s.id: s for s in bundle.attack_specs},
             remaining_seconds=(float(limit.value - limit.used) if limit.kind == "time" else None),
+            ledger=RunLedger(bundle),
         )
         git = git_state()
         versions = lib_versions()
@@ -272,6 +276,8 @@ class JobRunner:
                 logger.info("Dừng experiment theo chỉ thị %s", directive.action)
                 return
             spec = job.specs[run.attack_spec_id]
+            if self._skip_early_stop(job, run.run_id, spec.name, run.level):
+                continue
             inputs = build_fingerprint_inputs(
                 spec=spec,
                 level=run.level,
@@ -289,6 +295,27 @@ class JobRunner:
                 self._run_one(job, run.run_id, spec, inputs)
             except _StopExperiment:
                 return
+
+    def _skip_early_stop(self, job: _Job, run_id: UUID, name: str, level: float) -> bool:
+        """Phase 6 (plan task 16): bỏ run `queued` khi level nhỏ hơn của cùng attack đã làm model
+        sụp."""
+        if job.ledger.status(run_id) != RunStatus.QUEUED:
+            return False
+        stop = job.ledger.decision(run_id)
+        if stop is None:
+            return False
+        self.client.skip(
+            run_id,
+            RunSkipRequest(
+                lease_id=job.lease.lease_id,
+                code="early_stop",
+                trigger_run_id=stop.trigger_run_id,
+                message=f"Bỏ qua: model đã sụp ở level {stop.trigger_level:g}",
+            ),
+        )
+        job.ledger.record(run_id, RunStatus.SKIPPED)
+        logger.info("[%s %g] bỏ qua: dừng sớm (sụp ở %g)", name, level, stop.trigger_level)
+        return True
 
     def _context(self, job: _Job) -> RunContext:
         if job.context is None:
@@ -326,6 +353,8 @@ class JobRunner:
         )
         if response.action == "skip_cached":
             logger.info("[%s %g] bỏ qua: trùng fingerprint", spec.name, run.level)
+            cached = response.cached_result
+            job.ledger.record(run_id, RunStatus.SKIPPED, cached.metrics if cached else None)
             return
 
         store = PresignedStore(
@@ -559,6 +588,7 @@ class _Finisher:
             self.run_id,
             RunCompletion(lease_id=self.job.lease.lease_id, run_result=result, failure_cases=cases),
         )
+        self.job.ledger.record(self.run_id, status, metrics)
         logger.info("[%s %g] %s", self.spec.name, self.level, status)
 
     def _discard_candidates(self, executor: RunExecutor | None) -> None:
