@@ -52,6 +52,18 @@ def test_full_flow(env: tuple[Path, Path]) -> None:
     assert spec.image_ids == ["000001", "000002"]
     store = LocalStore(store_dir)
     assert resolve_id(store, "slice", spec.id) == spec.slice_sha256
+    # Phase 6 (plan task 20a): slice 1 ảnh, rồi slice không giao với nó (fixture có 2 ảnh hợp lệ).
+    single = SliceSpec.model_validate_json(
+        _invoke(store_dir, "slice", "create", "--dataset", sha, "--size", "1", "--seed", "1")
+    )
+    other = SliceSpec.model_validate_json(
+        _invoke(
+            store_dir, "slice", "create", "--dataset", sha, "--size", "1",
+            "--exclude-slice", str(single.id),
+        )
+    )  # fmt: skip
+    assert set(other.image_ids) | set(single.image_ids) == {"000001", "000002"}
+    assert not set(other.image_ids) & set(single.image_ids)
 
     model_id = str(content_id(WEIGHTS_SHA))
     mapping = ClassMapping.model_validate_json(
