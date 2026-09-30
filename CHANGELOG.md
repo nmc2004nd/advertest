@@ -6,7 +6,22 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 5 — Wizard tạo experiment và theo dõi tiến độ
 
-**Trạng thái:** đang làm. Group 0–6 đã merge.
+**Trạng thái:** đang làm. Group 0–6 đã merge; Group 7 (task 33, 3a) xong trên nhánh `phase05-reviewer-g7`, chờ manual check (task 34) và merge.
+
+### Phase 5 — Group 7 (người duyệt, người dùng giao) — 2026-09-30
+#### Thêm
+- Test nghiệm thu `tests/acceptance/phase_05/` (35 test `db`, worker CPU thật qua `JobRunner`, fixture KITTI 5 ảnh và YOLOv8n): kiểm tra cấu hình (`422` có `fields`), ước lượng, giới hạn 3 experiment đang chờ, vòng đời (hủy khi đang `running` sau batch đầu, `finished_at`; chuyển từ Group 2), cache theo fingerprint, URL ảnh (token, hết hạn, cần phiên), `display_mode`, email qua outbox (thử lại rồi `failed`), đọc tài nguyên. Spec tự tạo có nội dung không hợp lệ đặt `is_active = false` (task 33).
+- E2E `frontend/e2e/phase_05/` (6 kịch bản × 3 viewport = 18): đi hết wizard → chi tiết → tiến độ tự cập nhật → kết quả (biểu đồ) → failure case (watermark, dải cảnh báo dev, bật tắt lớp box, slider trên điện thoại) → tái lập (fingerprint, tải manifest); giữ nháp khi tải lại; level ngoài dải chặn bước 4; nhân bản mở bước 6; reviewer không thấy "Tạo experiment"; hủy qua hộp xác nhận.
+- `scripts/e2e.sh` (task 3a): dựng dữ liệu fixture bằng CLI và `import-local`, tạo bucket MinIO, chạy worker CPU thật cho `local-dev`, `DEV_ALLOW_UNBLURRED=true`, không gửi email; in log worker khi fail. CI job e2e thêm MinIO và fixture.
+#### Phát hiện khi làm
+- Viewport chạy sau dùng cùng cấu hình nên run trúng cache: E2E chờ trạng thái `completed` và chấp nhận câu "0/2 hoàn thành, 2 bỏ qua".
+- Chạy chung `make test-db`: MinIO còn object của Phase 3 (card cùng key, khác thời điểm đăng ký) → `KeyConflictError`; fixture Phase 5 dọn bucket khi dựng lại DB.
+#### Số liệu
+- `make check`: 804 test Python, 209 test nghiệm thu không cần DB, 201 Vitest. `make test-db`: 352 test. `make test-e2e`: 57 test trong khoảng 2,1 phút.
+#### Chưa làm (cần người dùng, task 34)
+- KITTI 300 ảnh, PGD eps 2/4/8/16 qua wizard (ghi sai số ước lượng); theo dõi trên điện thoại thật; email trong Mailpit và bấm link; ảnh chưa làm mờ bị ẩn, bật cờ dev thì hiện kèm dải cảnh báo; pinch-zoom, slider, vuốt; iPhone (thanh dưới không bị thanh home che, ô nhập không tự zoom); biểu đồ chế độ sáng và tối. Máy phát triển không có GPU.
+#### Lưu ý
+- Test nghiệm thu, E2E và sửa script do agent làm thay người duyệt theo ủy quyền của người dùng (không độc lập).
 
 ### Phase 5 — Group 6 (frontend) — 2026-09-30
 #### Thêm
