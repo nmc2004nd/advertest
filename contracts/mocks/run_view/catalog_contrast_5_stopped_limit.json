@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "run_id": "cead2987-d0b2-561d-9589-88c11db4a3d1",
+  "experiment_id": "9ec0fa7e-1626-56f2-a9e4-db3a427d1173",
+  "attack_spec_id": "ad2a3de0-f7ae-539f-9273-38b4f005c191",
+  "level": 5.0,
+  "status": "stopped_limit",
+  "status_reason": {
+    "code": "time",
+    "message": "Chạm giới hạn thời gian 7200 giây"
+  },
+  "progress": {
+    "images_done": 212,
+    "images_total": 300
+  },
+  "metrics": {
+    "clean": {
+      "map50": 0.512,
+      "map50_95": 0.298
+    },
+    "attacked": {
+      "map50": 0.2458,
+      "map50_95": 0.143
+    },
+    "relative_drop": 0.5199,
+    "absolute_drop": 0.2662,
+    "attack_success_rate": 0.53,
+    "per_class": null,
+    "partial": true
+  },
+  "gpu_seconds": 29.4,
+  "cost": null,
+  "failure_case_ids": [],
+  "manifest_uri": "s3://artifacts/runs/cead2987-d0b2-561d-9589-88c11db4a3d1/manifest.json",
+  "cached_from_run_id": null,
+  "fingerprint": "b7496b56e4838a3f388f46479d9315d8785cf80d3118f2cfc3822d1d2874cbf8",
+  "attack_spec": {
+    "name": "contrast",
+    "version": 1,
+    "param_name": "severity",
+    "param_unit": "severity"
+  },
+  "phase": null,
+  "training": null
+}

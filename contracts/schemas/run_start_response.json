@@ -324,7 +324,8 @@
     "SkipReason": {
       "enum": [
         "cached",
-        "incompatible"
+        "incompatible",
+        "early_stop"
       ],
       "title": "SkipReason",
       "type": "string"
@@ -354,6 +355,19 @@
           "minLength": 1,
           "title": "Message",
           "type": "string"
+        },
+        "trigger_run_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Phase 6: run đã kích hoạt dừng sớm; có khi và chỉ khi code = early_stop",
+          "title": "Trigger Run Id"
         }
       },
       "required": [

@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "run_id": "20fe00fd-fc99-5c60-81e5-ef87b68063d1",
+  "experiment_id": "aba42d7e-4cc1-5d1a-a387-2235af16ddcd",
+  "attack_spec_id": "f8b22364-fcde-5b6c-a6e3-23f9e8f2a67c",
+  "level": 0.25,
+  "status": "queued",
+  "status_reason": null,
+  "progress": {
+    "images_done": 0,
+    "images_total": 300
+  },
+  "metrics": null,
+  "gpu_seconds": 0.0,
+  "cost": null,
+  "failure_case_ids": [],
+  "manifest_uri": null,
+  "cached_from_run_id": null,
+  "fingerprint": null,
+  "attack_spec": {
+    "name": "adv_patch",
+    "version": 1,
+    "param_name": "area_ratio",
+    "param_unit": "ratio"
+  },
+  "phase": null,
+  "training": null
+}

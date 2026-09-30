@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "run_id": "4a4f70f8-d55b-5a27-a7a3-ccf7771ceeef",
+  "experiment_id": "9ec0fa7e-1626-56f2-a9e4-db3a427d1173",
+  "attack_spec_id": "e3edcb22-e3bc-505a-92f4-9e30186fe26f",
+  "level": 0.9,
+  "status": "completed",
+  "status_reason": null,
+  "progress": {
+    "images_done": 300,
+    "images_total": 300
+  },
+  "metrics": {
+    "clean": {
+      "map50": 0.512,
+      "map50_95": 0.298
+    },
+    "attacked": {
+      "map50": 0.1485,
+      "map50_95": 0.0864
+    },
+    "relative_drop": 0.71,
+    "absolute_drop": 0.3635,
+    "attack_success_rate": 0.724,
+    "per_class": null,
+    "partial": false
+  },
+  "gpu_seconds": 38.2,
+  "cost": null,
+  "failure_case_ids": [],
+  "manifest_uri": "s3://artifacts/runs/4a4f70f8-d55b-5a27-a7a3-ccf7771ceeef/manifest.json",
+  "cached_from_run_id": null,
+  "fingerprint": "790ff1af4ed2c9d502c122d04f8370d4574cb519bb2e8127a28b384dd03b4889",
+  "attack_spec": {
+    "name": "bbox_occlusion",
+    "version": 1,
+    "param_name": "occlusion_ratio",
+    "param_unit": "ratio"
+  },
+  "phase": null,
+  "training": null
+}

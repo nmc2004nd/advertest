@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "run_id": "70c32085-5e8e-5a3a-81cf-2345781a6c11",
+  "experiment_id": "9ec0fa7e-1626-56f2-a9e4-db3a427d1173",
+  "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+  "level": 4.0,
+  "status": "completed",
+  "status_reason": null,
+  "progress": {
+    "images_done": 300,
+    "images_total": 300
+  },
+  "metrics": {
+    "clean": {
+      "map50": 0.512,
+      "map50_95": 0.298
+    },
+    "attacked": {
+      "map50": 0.021,
+      "map50_95": 0.0122
+    },
+    "relative_drop": 0.959,
+    "absolute_drop": 0.491,
+    "attack_success_rate": 0.978,
+    "per_class": null,
+    "partial": false
+  },
+  "gpu_seconds": 180.0,
+  "cost": null,
+  "failure_case_ids": [],
+  "manifest_uri": "s3://artifacts/runs/70c32085-5e8e-5a3a-81cf-2345781a6c11/manifest.json",
+  "cached_from_run_id": null,
+  "fingerprint": "c16dac0acf5bf76a184be0e533d428abb4272417e488c3c1cd0803cf6d57a27d",
+  "attack_spec": {
+    "name": "pgd_linf",
+    "version": 1,
+    "param_name": "eps",
+    "param_unit": "1/255"
+  },
+  "phase": null,
+  "training": null
+}

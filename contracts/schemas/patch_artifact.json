@@ -1,0 +1,110 @@
+{
+  "additionalProperties": false,
+  "description": "Patch đã train, lưu trong MinIO dưới `patches/<key>/`, dùng lại giữa các experiment.",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "key": {
+      "description": "compute_patch_key của năm trường bên dưới",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Key",
+      "type": "string"
+    },
+    "spec_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Spec Sha256",
+      "type": "string"
+    },
+    "weights_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Weights Sha256",
+      "type": "string"
+    },
+    "training_slice_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Training Slice Sha256",
+      "type": "string"
+    },
+    "area_ratio": {
+      "exclusiveMinimum": 0,
+      "maximum": 1,
+      "title": "Area Ratio",
+      "type": "number"
+    },
+    "seed": {
+      "minimum": 0,
+      "title": "Seed",
+      "type": "integer"
+    },
+    "side_px": {
+      "description": "Cạnh patch vuông, pixel trong không gian letterbox",
+      "exclusiveMinimum": 0,
+      "title": "Side Px",
+      "type": "integer"
+    },
+    "patch_sha256": {
+      "description": "sha256 của file .npy",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Patch Sha256",
+      "type": "string"
+    },
+    "png_key": {
+      "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]*(/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$",
+      "title": "Png Key",
+      "type": "string"
+    },
+    "npy_key": {
+      "description": "Mảng float32 (C, H, W) trong [0, 1]",
+      "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]*(/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$",
+      "title": "Npy Key",
+      "type": "string"
+    },
+    "iterations": {
+      "description": "Số vòng lặp đã train (bằng training.max_iter)",
+      "exclusiveMinimum": 0,
+      "title": "Iterations",
+      "type": "integer"
+    },
+    "training_seconds": {
+      "description": "Cộng dồn qua các lần chạy tiếp",
+      "minimum": 0,
+      "title": "Training Seconds",
+      "type": "number"
+    },
+    "objective_history": {
+      "description": "Giá trị mục tiêu sau mỗi vòng lặp (loss của detector trên ảnh đã dán patch; attack untargeted làm giá trị này tăng)",
+      "items": {
+        "type": "number"
+      },
+      "title": "Objective History",
+      "type": "array"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "key",
+    "spec_sha256",
+    "weights_sha256",
+    "training_slice_sha256",
+    "area_ratio",
+    "seed",
+    "side_px",
+    "patch_sha256",
+    "png_key",
+    "npy_key",
+    "iterations",
+    "training_seconds",
+    "objective_history",
+    "created_at"
+  ],
+  "title": "PatchArtifact",
+  "type": "object"
+}

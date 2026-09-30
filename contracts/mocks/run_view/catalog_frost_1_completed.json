@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "run_id": "f48089ad-08c9-5f90-87b4-aa70bcb44251",
+  "experiment_id": "9ec0fa7e-1626-56f2-a9e4-db3a427d1173",
+  "attack_spec_id": "033c8c5b-1f02-538d-9477-974ef9416cde",
+  "level": 1.0,
+  "status": "completed",
+  "status_reason": null,
+  "progress": {
+    "images_done": 300,
+    "images_total": 300
+  },
+  "metrics": {
+    "clean": {
+      "map50": 0.512,
+      "map50_95": 0.298
+    },
+    "attacked": {
+      "map50": 0.4659,
+      "map50_95": 0.2712
+    },
+    "relative_drop": 0.09,
+    "absolute_drop": 0.0461,
+    "attack_success_rate": 0.092,
+    "per_class": null,
+    "partial": false
+  },
+  "gpu_seconds": 41.5,
+  "cost": null,
+  "failure_case_ids": [],
+  "manifest_uri": "s3://artifacts/runs/f48089ad-08c9-5f90-87b4-aa70bcb44251/manifest.json",
+  "cached_from_run_id": null,
+  "fingerprint": "a2a2d74443a83c6d2c82277bec18f2415c161807da7332a9023a321d7c6cfded",
+  "attack_spec": {
+    "name": "frost",
+    "version": 1,
+    "param_name": "severity",
+    "param_unit": "severity"
+  },
+  "phase": null,
+  "training": null
+}

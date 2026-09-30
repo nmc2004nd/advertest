@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "run_id": "c26db3bf-446f-529f-9983-73e81bcaf087",
+  "experiment_id": "9ec0fa7e-1626-56f2-a9e4-db3a427d1173",
+  "attack_spec_id": "9b1a8ccf-9447-5e5c-b4d3-1fa5cf5de7b8",
+  "level": 2.0,
+  "status": "failed",
+  "status_reason": {
+    "code": "error",
+    "message": "CUDA out of memory"
+  },
+  "progress": {
+    "images_done": 64,
+    "images_total": 300
+  },
+  "metrics": null,
+  "gpu_seconds": 51.0,
+  "cost": null,
+  "failure_case_ids": [],
+  "manifest_uri": null,
+  "cached_from_run_id": null,
+  "fingerprint": "51913577656505712143524e4c328ca1251340ee1fac64717134ba8c2260ed51",
+  "attack_spec": {
+    "name": "pgd_l2",
+    "version": 1,
+    "param_name": "eps",
+    "param_unit": "L2"
+  },
+  "phase": null,
+  "training": null
+}

@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "run_id": "431a36d5-3484-5773-aaa7-ffc2baccda38",
+  "experiment_id": "9ec0fa7e-1626-56f2-a9e4-db3a427d1173",
+  "attack_spec_id": "9da1d4ea-78da-5d61-8b5c-981884d5b010",
+  "level": 3.0,
+  "status": "completed",
+  "status_reason": null,
+  "progress": {
+    "images_done": 300,
+    "images_total": 300
+  },
+  "metrics": {
+    "clean": {
+      "map50": 0.512,
+      "map50_95": 0.298
+    },
+    "attacked": {
+      "map50": 0.2765,
+      "map50_95": 0.1609
+    },
+    "relative_drop": 0.46,
+    "absolute_drop": 0.2355,
+    "attack_success_rate": 0.469,
+    "per_class": null,
+    "partial": false
+  },
+  "gpu_seconds": 41.5,
+  "cost": null,
+  "failure_case_ids": [],
+  "manifest_uri": "s3://artifacts/runs/431a36d5-3484-5773-aaa7-ffc2baccda38/manifest.json",
+  "cached_from_run_id": null,
+  "fingerprint": "9cdac43762b9fbfa9c7516114463f95ed44cb362fb89fcca6e2f1ffcf5d01b7f",
+  "attack_spec": {
+    "name": "snow",
+    "version": 1,
+    "param_name": "severity",
+    "param_unit": "severity"
+  },
+  "phase": null,
+  "training": null
+}

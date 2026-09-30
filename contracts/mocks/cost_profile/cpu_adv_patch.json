@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "compute_target_id": "8679be42-13ce-51fb-876b-ca6d4d3f3c74",
+  "model_version_id": "81686f0e-32b6-5806-819c-3b0e37072342",
+  "attack_spec_id": "f8b22364-fcde-5b6c-a6e3-23f9e8f2a67c",
+  "sec_per_image": 0.162,
+  "sec_per_image_iteration": 0.43,
+  "peak_vram_mb": 0,
+  "batch_size": 2,
+  "measured_at": "2026-09-29T08:00:00Z",
+  "environment": {
+    "compute_target_id": "8679be42-13ce-51fb-876b-ca6d4d3f3c74",
+    "gpu_model": null,
+    "cuda_version": null,
+    "driver_version": null
+  }
+}

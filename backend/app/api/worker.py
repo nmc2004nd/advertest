@@ -16,8 +16,11 @@ from advertest_contracts.models import (
     ArtifactUrlResponse,
     CostProfile,
     HeartbeatRequest,
+    PatchArtifact,
+    PatchRegistration,
     ProgressReport,
     RunCompletion,
+    RunSkipRequest,
     RunStartRequest,
     RunStartResponse,
     SearchResult,
@@ -149,6 +152,20 @@ def complete_run(
     with transaction(sessions) as session:
         target = authenticate_worker(session, credentials)
         runs.complete(session, target, run_id, body, stores.buckets.artifacts.exists, clock)
+
+
+@router.post("/runs/{run_id}/skip", status_code=status.HTTP_204_NO_CONTENT)
+def skip_run(run_id: UUID, body: RunSkipRequest) -> None:
+    """Bỏ run `queued` do dừng sớm (Phase 6); `trigger_run_id` là run cùng attack đã làm model
+    sụp."""
+    not_implemented()
+
+
+@router.post("/runs/{run_id}/patch")
+def register_patch(run_id: UUID, body: PatchRegistration) -> PatchArtifact:
+    """Đăng ký patch vừa train xong cho run patch (Phase 6). Khóa đã có thì giữ bản cũ và trả bản
+    đó."""
+    not_implemented()
 
 
 @router.post("/cost-profiles", status_code=status.HTTP_204_NO_CONTENT)

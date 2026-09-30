@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "attack_spec_id": "f8b22364-fcde-5b6c-a6e3-23f9e8f2a67c",
+  "spec_sha256": "a515b489685021d67eda3c5c841c2a37b87676bd576baed7b306f1a6d922a141",
+  "mode": "grid",
+  "grid": {
+    "levels": [
+      0.1,
+      0.25
+    ],
+    "early_stop": false
+  },
+  "search": null,
+  "seed": 0,
+  "training_slice_id": "5c1a9daf-ceca-535c-b717-f1ca1357834a"
+}

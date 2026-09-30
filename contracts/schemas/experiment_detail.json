@@ -50,6 +50,19 @@
           "minimum": 0,
           "title": "Seed",
           "type": "integer"
+        },
+        "training_slice_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Phase 6: bắt buộc khi spec có requires_training; không giao với slice đánh giá",
+          "title": "Training Slice Id"
         }
       },
       "required": [
@@ -59,6 +72,101 @@
         "seed"
       ],
       "title": "AttackConfig",
+      "type": "object"
+    },
+    "AttackKind": {
+      "enum": [
+        "attack",
+        "corruption",
+        "occlusion"
+      ],
+      "title": "AttackKind",
+      "type": "string"
+    },
+    "AttackRankingEntry": {
+      "additionalProperties": false,
+      "description": "Một attack trong bảng xếp hạng (Phase 6, `ml_core/metrics/ranking.py`).\n\nĐiểm của đường cong: (level / primary_param.max, relative_drop), thêm (0, 0) ở đầu; level bị\n`early_stop` lấy relative_drop của run kích hoạt. Diện tích tính đến `coverage`, không ngoại\nsuy.",
+      "properties": {
+        "attack_spec_id": {
+          "format": "uuid",
+          "title": "Attack Spec Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/AttackKind"
+        },
+        "auc_drop": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Diện tích hình thang; null khi ít hơn 2 điểm (không đủ dữ liệu)",
+          "title": "Auc Drop"
+        },
+        "max_relative_drop": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null khi không có level nào có metric",
+          "title": "Max Relative Drop"
+        },
+        "levels_evaluated": {
+          "description": "Số level có metric",
+          "minimum": 0,
+          "title": "Levels Evaluated",
+          "type": "integer"
+        },
+        "levels_early_stopped": {
+          "description": "Số level bị bỏ qua do dừng sớm",
+          "minimum": 0,
+          "title": "Levels Early Stopped",
+          "type": "integer"
+        },
+        "coverage": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "level / max lớn nhất được tính (có metric hoặc early_stop); null khi không có",
+          "title": "Coverage"
+        },
+        "partial": {
+          "description": "Có run stopped_limit hoặc metrics.partial",
+          "title": "Partial",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "attack_spec_id",
+        "name",
+        "kind",
+        "auc_drop",
+        "max_relative_drop",
+        "levels_evaluated",
+        "levels_early_stopped",
+        "coverage",
+        "partial"
+      ],
+      "title": "AttackRankingEntry",
       "type": "object"
     },
     "ComputeKind": {
@@ -177,6 +285,11 @@
           "minItems": 1,
           "title": "Levels",
           "type": "array"
+        },
+        "early_stop": {
+          "description": "Phase 6: bỏ level lớn hơn khi model đã sụp (mAP@0.5 <= 5% mAP sạch)",
+          "title": "Early Stop",
+          "type": "boolean"
         }
       },
       "required": [
@@ -603,6 +716,14 @@
         }
       ],
       "description": "mAP ảnh sạch; null khi chưa run nào có metric"
+    },
+    "attack_ranking": {
+      "description": "Phase 6: mỗi attack của config một dòng, giảm dần theo auc_drop, null xếp cuối",
+      "items": {
+        "$ref": "#/$defs/AttackRankingEntry"
+      },
+      "title": "Attack Ranking",
+      "type": "array"
     }
   },
   "required": [

@@ -91,6 +91,20 @@
       "title": "Sec Per Image",
       "type": "number"
     },
+    "sec_per_image_iteration": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Phase 6: giây cho một ảnh trong một vòng lặp huấn luyện; chỉ có với spec requires_training",
+      "title": "Sec Per Image Iteration"
+    },
     "peak_vram_mb": {
       "description": "0 khi chạy trên CPU",
       "minimum": 0,

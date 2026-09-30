@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "run_id": "da88b8f1-2bd8-5706-93bc-23847b427e34",
+  "experiment_id": "9ec0fa7e-1626-56f2-a9e4-db3a427d1173",
+  "attack_spec_id": "8d15422d-f111-5c7e-96eb-e704767e6218",
+  "level": 32.0,
+  "status": "skipped",
+  "status_reason": {
+    "code": "early_stop",
+    "message": "Bỏ qua: model đã sụp ở level 8",
+    "trigger_run_id": "ac30b06f-1864-5c5e-8e47-c940fb3a812b"
+  },
+  "progress": {
+    "images_done": 0,
+    "images_total": 300
+  },
+  "metrics": null,
+  "gpu_seconds": 0.0,
+  "cost": null,
+  "failure_case_ids": [],
+  "manifest_uri": null,
+  "cached_from_run_id": null,
+  "fingerprint": null,
+  "attack_spec": {
+    "name": "fgsm",
+    "version": 1,
+    "param_name": "eps",
+    "param_unit": "1/255"
+  },
+  "phase": null,
+  "training": null
+}

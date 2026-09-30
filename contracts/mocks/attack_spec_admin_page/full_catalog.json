@@ -1,0 +1,331 @@
+{
+  "items": [
+    {
+      "schema_version": 1,
+      "name": "fgsm",
+      "version": 1,
+      "kind": "attack",
+      "access": "white_box",
+      "art_class": "FastGradientMethod",
+      "primary_param": {
+        "name": "eps",
+        "type": "continuous",
+        "min": 0.0,
+        "max": 32.0,
+        "values": null,
+        "unit": "1/255"
+      },
+      "fixed_params": {
+        "norm": "inf"
+      },
+      "cost_model": {
+        "passes_per_image": 1,
+        "cpu_only": false
+      },
+      "requires_gradients": true,
+      "id": "8d15422d-f111-5c7e-96eb-e704767e6218",
+      "spec_sha256": "a6d81b6643af13e1d2f7983ce51340f54c26629304f1fdd98b954c236c1e735f",
+      "is_active": true
+    },
+    {
+      "schema_version": 1,
+      "name": "pgd_linf",
+      "version": 1,
+      "kind": "attack",
+      "access": "white_box",
+      "art_class": "ProjectedGradientDescent",
+      "primary_param": {
+        "name": "eps",
+        "type": "continuous",
+        "min": 0.0,
+        "max": 32.0,
+        "values": null,
+        "unit": "1/255"
+      },
+      "fixed_params": {
+        "norm": "inf",
+        "max_iter": 10,
+        "eps_step_ratio": 0.25,
+        "num_random_init": 0
+      },
+      "cost_model": {
+        "passes_per_image": 10,
+        "cpu_only": false
+      },
+      "requires_gradients": true,
+      "id": "449774ff-ded0-5909-b549-90a1e410bd62",
+      "spec_sha256": "68fe8f72f176fe27981eadfe8b5e98bb36b8e85fc41c97b5702e2e149f52d72c",
+      "is_active": true
+    },
+    {
+      "schema_version": 1,
+      "name": "pgd_l2",
+      "version": 1,
+      "kind": "attack",
+      "access": "white_box",
+      "art_class": "ProjectedGradientDescent",
+      "primary_param": {
+        "name": "eps",
+        "type": "continuous",
+        "min": 0.0,
+        "max": 16.0,
+        "values": null,
+        "unit": "L2"
+      },
+      "fixed_params": {
+        "norm": 2,
+        "max_iter": 10,
+        "eps_step_ratio": 0.25,
+        "num_random_init": 0
+      },
+      "cost_model": {
+        "passes_per_image": 10,
+        "cpu_only": false
+      },
+      "requires_gradients": true,
+      "id": "9b1a8ccf-9447-5e5c-b4d3-1fa5cf5de7b8",
+      "spec_sha256": "fb54ce834934be1340423f2fb4283b37766e2c1ca74a8fceea9b762e64f7351e",
+      "is_active": true
+    },
+    {
+      "schema_version": 1,
+      "name": "fog",
+      "version": 1,
+      "kind": "corruption",
+      "access": "not_applicable",
+      "art_class": null,
+      "primary_param": {
+        "name": "severity",
+        "type": "discrete",
+        "min": 1.0,
+        "max": 5.0,
+        "values": [
+          1.0,
+          2.0,
+          3.0,
+          4.0,
+          5.0
+        ],
+        "unit": "severity"
+      },
+      "fixed_params": {
+        "corruption": "fog",
+        "applied_to": "image_region"
+      },
+      "cost_model": {
+        "passes_per_image": null,
+        "cpu_only": true
+      },
+      "requires_gradients": false,
+      "id": "9603bf27-ab9b-5086-be38-f60a4e6ebe74",
+      "spec_sha256": "1c0a2e649d9b01f4a900bbe7592adcf02134a8c8525ee76b9c60e4cb466a44e7",
+      "is_active": true
+    },
+    {
+      "schema_version": 1,
+      "name": "snow",
+      "version": 1,
+      "kind": "corruption",
+      "access": "not_applicable",
+      "art_class": null,
+      "primary_param": {
+        "name": "severity",
+        "type": "discrete",
+        "min": 1.0,
+        "max": 5.0,
+        "values": [
+          1.0,
+          2.0,
+          3.0,
+          4.0,
+          5.0
+        ],
+        "unit": "severity"
+      },
+      "fixed_params": {
+        "corruption": "snow",
+        "applied_to": "image_region"
+      },
+      "cost_model": {
+        "passes_per_image": null,
+        "cpu_only": true
+      },
+      "requires_gradients": false,
+      "id": "9da1d4ea-78da-5d61-8b5c-981884d5b010",
+      "spec_sha256": "76c4d0938fcde338ff496a4c9e29ef4b3949a16ae410f1e2d409eab3b6ae7d9d",
+      "is_active": true
+    },
+    {
+      "schema_version": 1,
+      "name": "frost",
+      "version": 1,
+      "kind": "corruption",
+      "access": "not_applicable",
+      "art_class": null,
+      "primary_param": {
+        "name": "severity",
+        "type": "discrete",
+        "min": 1.0,
+        "max": 5.0,
+        "values": [
+          1.0,
+          2.0,
+          3.0,
+          4.0,
+          5.0
+        ],
+        "unit": "severity"
+      },
+      "fixed_params": {
+        "corruption": "frost",
+        "applied_to": "image_region"
+      },
+      "cost_model": {
+        "passes_per_image": null,
+        "cpu_only": true
+      },
+      "requires_gradients": false,
+      "id": "033c8c5b-1f02-538d-9477-974ef9416cde",
+      "spec_sha256": "74736d1cc4065bf991282efb6f677f54f33fcabba9858b9532a1dac1b0b378fd",
+      "is_active": true
+    },
+    {
+      "schema_version": 1,
+      "name": "motion_blur",
+      "version": 1,
+      "kind": "corruption",
+      "access": "not_applicable",
+      "art_class": null,
+      "primary_param": {
+        "name": "severity",
+        "type": "discrete",
+        "min": 1.0,
+        "max": 5.0,
+        "values": [
+          1.0,
+          2.0,
+          3.0,
+          4.0,
+          5.0
+        ],
+        "unit": "severity"
+      },
+      "fixed_params": {
+        "corruption": "motion_blur",
+        "applied_to": "image_region"
+      },
+      "cost_model": {
+        "passes_per_image": null,
+        "cpu_only": true
+      },
+      "requires_gradients": false,
+      "id": "3ba0f2f1-9f16-5631-a8d7-149df6f9d043",
+      "spec_sha256": "e935e0e29f06a4769d71805ba639ea9ecee51651e4a017c8fe95d54d8f9e1b7a",
+      "is_active": true
+    },
+    {
+      "schema_version": 1,
+      "name": "contrast",
+      "version": 1,
+      "kind": "corruption",
+      "access": "not_applicable",
+      "art_class": null,
+      "primary_param": {
+        "name": "severity",
+        "type": "discrete",
+        "min": 1.0,
+        "max": 5.0,
+        "values": [
+          1.0,
+          2.0,
+          3.0,
+          4.0,
+          5.0
+        ],
+        "unit": "severity"
+      },
+      "fixed_params": {
+        "corruption": "contrast",
+        "applied_to": "image_region"
+      },
+      "cost_model": {
+        "passes_per_image": null,
+        "cpu_only": true
+      },
+      "requires_gradients": false,
+      "id": "ad2a3de0-f7ae-539f-9273-38b4f005c191",
+      "spec_sha256": "6c55690eaa596356ebd446ee9eb2ab45dac81dc2cd7e459e9871266b64876952",
+      "is_active": true
+    },
+    {
+      "schema_version": 1,
+      "name": "bbox_occlusion",
+      "version": 1,
+      "kind": "occlusion",
+      "access": "not_applicable",
+      "art_class": null,
+      "primary_param": {
+        "name": "occlusion_ratio",
+        "type": "continuous",
+        "min": 0.0,
+        "max": 0.9,
+        "values": null,
+        "unit": "ratio"
+      },
+      "fixed_params": {
+        "shape": "box_aspect_rectangle",
+        "placement": "random_inside_box",
+        "fill_255": 114
+      },
+      "cost_model": {
+        "passes_per_image": null,
+        "cpu_only": true
+      },
+      "requires_gradients": false,
+      "id": "e3edcb22-e3bc-505a-92f4-9e30186fe26f",
+      "spec_sha256": "2aca8c91a3318d2a8084f592019b6c44d3cb983e395ed6cd12f48c9337b753ad",
+      "is_active": true
+    },
+    {
+      "schema_version": 1,
+      "name": "adv_patch",
+      "version": 1,
+      "kind": "attack",
+      "access": "white_box",
+      "art_class": "RobustDPatch",
+      "primary_param": {
+        "name": "area_ratio",
+        "type": "continuous",
+        "min": 0.02,
+        "max": 0.25,
+        "values": null,
+        "unit": "ratio"
+      },
+      "fixed_params": {
+        "shape": "square",
+        "placement": "image_region_center",
+        "brightness_range": [
+          0.8,
+          1.2
+        ]
+      },
+      "cost_model": {
+        "passes_per_image": null,
+        "cpu_only": true
+      },
+      "requires_gradients": true,
+      "requires_training": true,
+      "training": {
+        "max_iter": 200,
+        "learning_rate": 0.02,
+        "sample_size": 1,
+        "checkpoint_every": 50,
+        "max_training_images": 50
+      },
+      "id": "f8b22364-fcde-5b6c-a6e3-23f9e8f2a67c",
+      "spec_sha256": "a515b489685021d67eda3c5c841c2a37b87676bd576baed7b306f1a6d922a141",
+      "is_active": true
+    }
+  ],
+  "next_cursor": null
+}

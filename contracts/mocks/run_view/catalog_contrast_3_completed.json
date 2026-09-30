@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "run_id": "c4b9fa5e-4953-55e3-9aca-1b2b4520061a",
+  "experiment_id": "9ec0fa7e-1626-56f2-a9e4-db3a427d1173",
+  "attack_spec_id": "ad2a3de0-f7ae-539f-9273-38b4f005c191",
+  "level": 3.0,
+  "status": "completed",
+  "status_reason": null,
+  "progress": {
+    "images_done": 300,
+    "images_total": 300
+  },
+  "metrics": {
+    "clean": {
+      "map50": 0.512,
+      "map50_95": 0.298
+    },
+    "attacked": {
+      "map50": 0.4813,
+      "map50_95": 0.2801
+    },
+    "relative_drop": 0.06,
+    "absolute_drop": 0.0307,
+    "attack_success_rate": 0.061,
+    "per_class": null,
+    "partial": false
+  },
+  "gpu_seconds": 41.5,
+  "cost": null,
+  "failure_case_ids": [],
+  "manifest_uri": "s3://artifacts/runs/c4b9fa5e-4953-55e3-9aca-1b2b4520061a/manifest.json",
+  "cached_from_run_id": null,
+  "fingerprint": "53fb27dec6f877d44f7125b2bf0a2c5fe0fe066f31acc62851b5b427e3e3eb51",
+  "attack_spec": {
+    "name": "contrast",
+    "version": 1,
+    "param_name": "severity",
+    "param_unit": "severity"
+  },
+  "phase": null,
+  "training": null
+}

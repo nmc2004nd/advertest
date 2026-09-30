@@ -364,6 +364,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/attack-specs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Attack Specs Admin
+         * @description Mọi spec, mọi version, kể cả spec đã tắt (Phase 6, trang `/admin/attacks`).
+         */
+        get: operations["list_attack_specs_admin_admin_attack_specs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/protocols": {
         parameters: {
             query?: never;
@@ -838,6 +858,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/worker/runs/{run_id}/skip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Skip Run
+         * @description Bỏ run `queued` do dừng sớm (Phase 6); `trigger_run_id` là run cùng attack đã làm model
+         *     sụp.
+         */
+        post: operations["skip_run_internal_worker_runs__run_id__skip_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/worker/runs/{run_id}/patch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register Patch
+         * @description Đăng ký patch vừa train xong cho run patch (Phase 6). Khóa đã có thì giữ bản cũ và trả bản
+         *     đó.
+         */
+        post: operations["register_patch_internal_worker_runs__run_id__patch_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/worker/cost-profiles": {
         parameters: {
             query?: never;
@@ -907,7 +969,7 @@ export interface components {
             lease_id: string;
             /**
              * Key
-             * @description Khóa đầy đủ, phải nằm trong runs/<run_id>/
+             * @description Khóa đầy đủ, phải nằm trong runs/<run_id>/, hoặc trong patches/<patch_key>/ với patch_key của run (Phase 6)
              */
             key: string;
             /**
@@ -937,7 +999,7 @@ export interface components {
          * AttackAccess
          * @enum {string}
          */
-        AttackAccess: "white_box" | "black_box";
+        AttackAccess: "white_box" | "black_box" | "not_applicable";
         /**
          * AttackConfig
          * @description Một attack trong experiment.
@@ -964,12 +1026,65 @@ export interface components {
             search?: components["schemas"]["SearchConfig"] | null;
             /** Seed */
             seed: number;
+            /**
+             * Training Slice Id
+             * @description Phase 6: bắt buộc khi spec có requires_training; không giao với slice đánh giá
+             */
+            training_slice_id?: string | null;
         };
         /**
          * AttackKind
          * @enum {string}
          */
         AttackKind: "attack" | "corruption" | "occlusion";
+        /**
+         * AttackRankingEntry
+         * @description Một attack trong bảng xếp hạng (Phase 6, `ml_core/metrics/ranking.py`).
+         *
+         *     Điểm của đường cong: (level / primary_param.max, relative_drop), thêm (0, 0) ở đầu; level bị
+         *     `early_stop` lấy relative_drop của run kích hoạt. Diện tích tính đến `coverage`, không ngoại
+         *     suy.
+         */
+        AttackRankingEntry: {
+            /**
+             * Attack Spec Id
+             * Format: uuid
+             */
+            attack_spec_id: string;
+            /** Name */
+            name: string;
+            kind: components["schemas"]["AttackKind"];
+            /**
+             * Auc Drop
+             * @description Diện tích hình thang; null khi ít hơn 2 điểm (không đủ dữ liệu)
+             */
+            auc_drop: number | null;
+            /**
+             * Max Relative Drop
+             * @description null khi không có level nào có metric
+             */
+            max_relative_drop: number | null;
+            /**
+             * Levels Evaluated
+             * @description Số level có metric
+             */
+            levels_evaluated: number;
+            /**
+             * Levels Early Stopped
+             * @description Số level bị bỏ qua do dừng sớm
+             */
+            levels_early_stopped: number;
+            /**
+             * Coverage
+             * @description level / max lớn nhất được tính (có metric hoặc early_stop); null khi không có
+             */
+            coverage: number | null;
+            /**
+             * Partial
+             * @description Có run stopped_limit hoặc metrics.partial
+             */
+            partial: boolean;
+        };
         /**
          * AttackSpec
          * @description Một attack trong catalog. Đổi bất kỳ trường nào phải tăng `version`.
@@ -986,6 +1101,7 @@ export interface components {
             /** Version */
             version: number;
             kind: components["schemas"]["AttackKind"];
+            /** @description Corruption và occlusion dùng not_applicable; attack không dùng giá trị này */
             access: components["schemas"]["AttackAccess"];
             /**
              * Art Class
@@ -1001,6 +1117,13 @@ export interface components {
             /** Requires Gradients */
             requires_gradients: boolean;
             /**
+             * Requires Training
+             * @description Phase 6: phải train (patch) trên slice huấn luyện trước khi đánh giá
+             */
+            requires_training?: boolean;
+            /** @description Có khi và chỉ khi requires_training = true */
+            training?: components["schemas"]["TrainingParams"] | null;
+            /**
              * Id
              * Format: uuid
              */
@@ -1010,6 +1133,64 @@ export interface components {
              * @description Hash của mọi trường trừ id và chính nó
              */
             spec_sha256: string;
+        };
+        /** AttackSpecAdminPage */
+        AttackSpecAdminPage: {
+            /** Items */
+            items: components["schemas"]["AttackSpecAdminView"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /**
+         * AttackSpecAdminView
+         * @description Spec trong trang `/admin/attacks`: mọi version, kể cả spec đã tắt.
+         */
+        AttackSpecAdminView: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /** Name */
+            name: string;
+            /** Version */
+            version: number;
+            kind: components["schemas"]["AttackKind"];
+            /** @description Corruption và occlusion dùng not_applicable; attack không dùng giá trị này */
+            access: components["schemas"]["AttackAccess"];
+            /**
+             * Art Class
+             * @description Null với corruption và occlusion
+             */
+            art_class?: string | null;
+            primary_param: components["schemas"]["PrimaryParam"];
+            /** Fixed Params */
+            fixed_params: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            cost_model: components["schemas"]["CostModel"];
+            /** Requires Gradients */
+            requires_gradients: boolean;
+            /**
+             * Requires Training
+             * @description Phase 6: phải train (patch) trên slice huấn luyện trước khi đánh giá
+             */
+            requires_training?: boolean;
+            /** @description Có khi và chỉ khi requires_training = true */
+            training?: components["schemas"]["TrainingParams"] | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Spec Sha256
+             * @description Hash của mọi trường trừ id và chính nó
+             */
+            spec_sha256: string;
+            /** Is Active */
+            is_active: boolean;
         };
         /** AuditActor */
         AuditActor: {
@@ -1111,6 +1292,33 @@ export interface components {
              */
             used: string;
         };
+        /**
+         * BundlePatch
+         * @description Patch mà một run của experiment cần (Phase 6).
+         */
+        BundlePatch: {
+            /** Key */
+            key: string;
+            /**
+             * Attack Spec Id
+             * Format: uuid
+             */
+            attack_spec_id: string;
+            /** Area Ratio */
+            area_ratio: number;
+            /**
+             * Training Slice Id
+             * Format: uuid
+             */
+            training_slice_id: string;
+            /** @description null khi chưa train xong */
+            artifact: components["schemas"]["PatchArtifact"] | null;
+            /**
+             * Checkpoint Key
+             * @description Checkpoint train mới nhất trong patches/<key>/ khi đang train dở; file checkpoint tự ghi số vòng lặp đã xong
+             */
+            checkpoint_key: string | null;
+        };
         /** BundleRun */
         BundleRun: {
             /**
@@ -1134,6 +1342,36 @@ export interface components {
             images_total: number;
             /** @description Checkpoint mới nhất khi đang chạy dở */
             checkpoint: components["schemas"]["BundleCheckpoint"] | null;
+            /** @description Phase 6: metric của run đã có kết quả, để worker tính lại dừng sớm khi chạy tiếp sau gián đoạn */
+            metrics?: components["schemas"]["RunMetrics"] | null;
+            /**
+             * Patch Key
+             * @description Phase 6: khóa patch với run patch (có trong bundle.patches)
+             */
+            patch_key?: string | null;
+        };
+        /**
+         * CaseAnonymization
+         * @description Làm mờ mặt người và biển số trên ảnh hiển thị của failure case (Phase 6).
+         */
+        CaseAnonymization: {
+            /** Applied */
+            applied: boolean;
+            /**
+             * Method
+             * @example rule_v1
+             */
+            method: string;
+            /**
+             * Version
+             * @description Version cài đặt của method
+             */
+            version: number;
+            /**
+             * Regions Count
+             * @description Số vùng đã làm mờ trên ảnh
+             */
+            regions_count: number;
         };
         /**
          * CaseArtifacts
@@ -1146,7 +1384,7 @@ export interface components {
             adversarial_png: string;
             /**
              * Perturbation Png
-             * @description Ảnh nhiễu khuếch đại
+             * @description Ảnh thứ ba; nội dung theo FailureCaseRecord.perturbation_kind
              */
             perturbation_png: string;
             /**
@@ -1407,6 +1645,11 @@ export interface components {
             /** Sec Per Image */
             sec_per_image: number;
             /**
+             * Sec Per Image Iteration
+             * @description Phase 6: giây cho một ảnh trong một vòng lặp huấn luyện; chỉ có với spec requires_training
+             */
+            sec_per_image_iteration?: number | null;
+            /**
              * Peak Vram Mb
              * @description 0 khi chạy trên CPU
              */
@@ -1498,7 +1741,7 @@ export interface components {
         };
         /**
          * DisplayMode
-         * @description Cách hiển thị ảnh failure case (Phase 5, tạm thời đến khi có làm mờ ở Phase 10).
+         * @description Cách hiển thị ảnh failure case (Phase 5; Phase 6 thêm làm mờ theo từng case).
          * @enum {string}
          */
         DisplayMode: "normal" | "hidden_unanonymized" | "dev_unblurred";
@@ -1557,7 +1800,7 @@ export interface components {
             runs: components["schemas"]["EstimateRun"][];
             /**
              * Total Seconds
-             * @description null khi có run thiếu profile
+             * @description Tổng est_seconds và training_seconds; null khi có run thiếu profile
              */
             total_seconds: number | null;
             /**
@@ -1598,6 +1841,11 @@ export interface components {
              * @description Run sẽ bị `skipped`: attack cần gradient, model không hỗ trợ
              */
             skip_reason: "incompatible" | null;
+            /**
+             * Training Seconds
+             * @description Phase 6: max_iter * số ảnh slice huấn luyện * sec_per_image_iteration khi patch chưa có; null khi patch đã có, spec không cần train, thiếu profile hoặc run bị bỏ qua. Không gồm trong est_seconds, nhưng cộng vào total_seconds và exceeds_limit
+             */
+            training_seconds?: number | null;
         };
         /**
          * ExperimentClone
@@ -1788,6 +2036,11 @@ export interface components {
             cloned_from: string | null;
             /** @description mAP ảnh sạch; null khi chưa run nào có metric */
             clean_metrics: components["schemas"]["MapPair"] | null;
+            /**
+             * Attack Ranking
+             * @description Phase 6: mỗi attack của config một dòng, giảm dần theo auc_drop, null xếp cuối
+             */
+            attack_ranking?: components["schemas"]["AttackRankingEntry"][];
         };
         /** ExperimentPage */
         ExperimentPage: {
@@ -1875,6 +2128,13 @@ export interface components {
             severity_score: number;
             detections: components["schemas"]["CaseDetections"];
             artifacts: components["schemas"]["CaseArtifacts"];
+            /**
+             * @description Phase 6: nhiễu khuếch đại (FGSM, PGD), vùng khác biệt (corruption, occlusion) hoặc vị trí patch
+             * @default amplified_noise
+             */
+            perturbation_kind: components["schemas"]["PerturbationImageKind"];
+            /** @description null với case tạo trước Phase 6 (ảnh chưa làm mờ); case mới luôn có */
+            anonymization?: components["schemas"]["CaseAnonymization"] | null;
         };
         /**
          * FailureCaseUrls
@@ -1936,6 +2196,13 @@ export interface components {
             severity_score: number;
             detections: components["schemas"]["CaseDetections"];
             artifacts: components["schemas"]["CaseArtifacts"];
+            /**
+             * @description Phase 6: nhiễu khuếch đại (FGSM, PGD), vùng khác biệt (corruption, occlusion) hoặc vị trí patch
+             * @default amplified_noise
+             */
+            perturbation_kind: components["schemas"]["PerturbationImageKind"];
+            /** @description null với case tạo trước Phase 6 (ảnh chưa làm mờ); case mới luôn có */
+            anonymization?: components["schemas"]["CaseAnonymization"] | null;
             urls: components["schemas"]["FailureCaseUrls"];
             /**
              * Urls Expire At
@@ -1991,6 +2258,11 @@ export interface components {
             lib_versions: components["schemas"]["LibVersions"];
             /** Docker Image Digest */
             docker_image_digest: string;
+            /**
+             * Patch Key
+             * @description Phase 6: khóa patch (compute_patch_key) với run patch; bỏ khỏi JSON khi null nên fingerprint của run khác không đổi
+             */
+            patch_key?: string | null;
         };
         /** GradientCheck */
         GradientCheck: {
@@ -2011,6 +2283,11 @@ export interface components {
         GridConfig: {
             /** Levels */
             levels: number[];
+            /**
+             * Early Stop
+             * @description Phase 6: bỏ level lớn hơn khi model đã sụp (mAP@0.5 <= 5% mAP sạch)
+             */
+            early_stop?: boolean;
         };
         /** HealthResponse */
         HealthResponse: {
@@ -2061,6 +2338,13 @@ export interface components {
             operating_conf: number;
             /** Input Size */
             input_size: number;
+        };
+        /** IterationProgress */
+        IterationProgress: {
+            /** Done */
+            done: number;
+            /** Total */
+            total: number;
         };
         JsonValue: unknown;
         /** LibVersions */
@@ -2274,10 +2558,95 @@ export interface components {
             expires_at: string;
         };
         /**
+         * PatchArtifact
+         * @description Patch đã train, lưu trong MinIO dưới `patches/<key>/`, dùng lại giữa các experiment.
+         */
+        PatchArtifact: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /**
+             * Key
+             * @description compute_patch_key của năm trường bên dưới
+             */
+            key: string;
+            /** Spec Sha256 */
+            spec_sha256: string;
+            /** Weights Sha256 */
+            weights_sha256: string;
+            /** Training Slice Sha256 */
+            training_slice_sha256: string;
+            /** Area Ratio */
+            area_ratio: number;
+            /** Seed */
+            seed: number;
+            /**
+             * Side Px
+             * @description Cạnh patch vuông, pixel trong không gian letterbox
+             */
+            side_px: number;
+            /**
+             * Patch Sha256
+             * @description sha256 của file .npy
+             */
+            patch_sha256: string;
+            /** Png Key */
+            png_key: string;
+            /**
+             * Npy Key
+             * @description Mảng float32 (C, H, W) trong [0, 1]
+             */
+            npy_key: string;
+            /**
+             * Iterations
+             * @description Số vòng lặp đã train (bằng training.max_iter)
+             */
+            iterations: number;
+            /**
+             * Training Seconds
+             * @description Cộng dồn qua các lần chạy tiếp
+             */
+            training_seconds: number;
+            /**
+             * Objective History
+             * @description Giá trị mục tiêu sau mỗi vòng lặp (loss của detector trên ảnh đã dán patch; attack untargeted làm giá trị này tăng)
+             */
+            objective_history: number[];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * PatchRegistration
+         * @description Body của `POST /runs/{id}/patch` (Phase 6): đăng ký patch vừa train xong.
+         *
+         *     Khóa đã có (worker khác đăng ký trước) thì API giữ bản cũ và trả bản đó; worker dùng bản trả
+         *     về để đánh giá.
+         */
+        PatchRegistration: {
+            /**
+             * Lease Id
+             * Format: uuid
+             */
+            lease_id: string;
+            artifact: components["schemas"]["PatchArtifact"];
+        };
+        /**
          * Permission
          * @enum {string}
          */
         Permission: "experiment.read" | "experiment.create" | "experiment.cancel_own" | "experiment.submit_review" | "dataset.read" | "dataset.upload" | "slice.create" | "model.read" | "model.manage" | "attack_catalog.read" | "attack_catalog.manage" | "protocol.read" | "protocol.manage" | "review.decide" | "report.export" | "report.read" | "user.manage" | "compute_target.read" | "compute_target.manage" | "budget.manage" | "audit.read";
+        /**
+         * PerturbationImageKind
+         * @description Nội dung ảnh thứ ba của failure case (Phase 6).
+         * @enum {string}
+         */
+        PerturbationImageKind: "amplified_noise" | "difference" | "patch_location";
         /** PrimaryParam */
         PrimaryParam: {
             /** Name */
@@ -2306,7 +2675,10 @@ export interface components {
             /** Images Total */
             images_total: number;
         };
-        /** ProgressReport */
+        /**
+         * ProgressReport
+         * @description Tiến độ sau mỗi batch (đánh giá) hoặc sau mỗi vòng lặp train patch (Phase 6).
+         */
         ProgressReport: {
             /**
              * Lease Id
@@ -2315,18 +2687,36 @@ export interface components {
             lease_id: string;
             /**
              * Images Done
-             * @description Tổng số ảnh đã xử lý của run
+             * @description Tổng số ảnh đã xử lý của run; 0 khi phase = training
              */
             images_done: number;
-            /** Batch Index */
+            /**
+             * Batch Index
+             * @description 0 khi phase = training
+             */
             batch_index: number;
-            /** Checkpoint Key */
+            /**
+             * Checkpoint Key
+             * @description evaluating: trong runs/<run_id>/; training: checkpoint patch mới nhất trong patches/<patch_key>/ (worker ghi checkpoint ở vòng 0 trước khi báo)
+             */
             checkpoint_key: string;
             /**
              * Processing Seconds Delta
-             * @description Thời gian xử lý từ lần báo trước; API cộng dồn
+             * @description Thời gian xử lý từ lần báo trước (gồm thời gian train); API cộng dồn
              */
             processing_seconds_delta: number;
+            /** @default evaluating */
+            phase: components["schemas"]["RunPhase"];
+            /**
+             * Iterations Done
+             * @description Chỉ có khi phase = training
+             */
+            iterations_done?: number | null;
+            /**
+             * Iterations Total
+             * @description Chỉ có khi phase = training (training.max_iter)
+             */
+            iterations_total?: number | null;
         };
         /** ProtocolBody */
         ProtocolBody: {
@@ -2511,6 +2901,12 @@ export interface components {
          * @enum {string}
          */
         RunMode: "grid" | "search";
+        /**
+         * RunPhase
+         * @description Giai đoạn của run đang chạy (Phase 6): run patch train trước khi đánh giá.
+         * @enum {string}
+         */
+        RunPhase: "training" | "evaluating";
         /** RunResult */
         "RunResult-Input": {
             /**
@@ -2601,6 +2997,30 @@ export interface components {
             /** Fingerprint */
             fingerprint: string;
         };
+        /**
+         * RunSkipRequest
+         * @description Body của `POST /runs/{id}/skip` (Phase 6): bỏ run chưa start do dừng sớm.
+         */
+        RunSkipRequest: {
+            /**
+             * Lease Id
+             * Format: uuid
+             */
+            lease_id: string;
+            /**
+             * Code
+             * @constant
+             */
+            code: "early_stop";
+            /**
+             * Trigger Run Id
+             * Format: uuid
+             * @description Run của cùng attack đã làm model sụp
+             */
+            trigger_run_id: string;
+            /** Message */
+            message: string;
+        };
         /** RunStartRequest */
         RunStartRequest: {
             /**
@@ -2681,10 +3101,14 @@ export interface components {
             cached_from_run_id?: string | null;
             /**
              * Fingerprint
-             * @description null khi run chưa bắt đầu (queued, hoặc bị hủy/dừng trước khi chạy)
+             * @description null khi run chưa bắt đầu (queued, bị hủy/dừng trước khi chạy, hoặc bị bỏ qua do early_stop)
              */
             fingerprint: string | null;
             attack_spec: components["schemas"]["RunAttackSpec"];
+            /** @description Phase 6: giai đoạn khi status = running; null khi khác */
+            phase?: components["schemas"]["RunPhase"] | null;
+            /** @description Phase 6: tiến độ train patch; có khi và chỉ khi phase = training */
+            training?: components["schemas"]["IterationProgress"] | null;
         };
         /** SearchConfig */
         SearchConfig: {
@@ -2761,7 +3185,7 @@ export interface components {
          * SkipReason
          * @enum {string}
          */
-        SkipReason: "cached" | "incompatible";
+        SkipReason: "cached" | "incompatible" | "early_stop";
         /**
          * SliceFilter
          * @description Bộ lọc tự mô tả, không phụ thuộc model hay mapping.
@@ -2859,6 +3283,11 @@ export interface components {
             code: components["schemas"]["StopReason"] | components["schemas"]["SkipReason"] | ("error" | "cancelled");
             /** Message */
             message: string;
+            /**
+             * Trigger Run Id
+             * @description Phase 6: run đã kích hoạt dừng sớm; có khi và chỉ khi code = early_stop
+             */
+            trigger_run_id?: string | null;
         };
         /**
          * StopReason
@@ -2870,6 +3299,37 @@ export interface components {
          * @enum {string}
          */
         ThresholdKind: "relative_drop" | "absolute_drop" | "attack_success_rate";
+        /**
+         * TrainingParams
+         * @description Tham số huấn luyện của spec cần train trước khi đánh giá (patch, Phase 6).
+         */
+        TrainingParams: {
+            /**
+             * Max Iter
+             * @description Số vòng lặp; mỗi vòng đi qua toàn bộ slice huấn luyện
+             */
+            max_iter: number;
+            /**
+             * Learning Rate
+             * @description Trong thang ảnh [0, 1]
+             */
+            learning_rate: number;
+            /**
+             * Sample Size
+             * @description Số biến đổi ngẫu nhiên mỗi ảnh mỗi vòng (EOT)
+             */
+            sample_size: number;
+            /**
+             * Checkpoint Every
+             * @description Lưu checkpoint sau mỗi số vòng lặp này
+             */
+            checkpoint_every: number;
+            /**
+             * Max Training Images
+             * @description Kích thước tối đa của slice huấn luyện
+             */
+            max_training_images: number;
+        };
         /** TrajectoryPoint */
         TrajectoryPoint: {
             /** Order */
@@ -2996,6 +3456,16 @@ export interface components {
              * @description Theo thứ tự chạy
              */
             runs: components["schemas"]["BundleRun"][];
+            /**
+             * Training Slices
+             * @description Phase 6: slice huấn luyện của các attack có training_slice_id
+             */
+            training_slices?: components["schemas"]["SliceSpec"][];
+            /**
+             * Patches
+             * @description Phase 6: patch mà các run patch cần, không trùng key
+             */
+            patches?: components["schemas"]["BundlePatch"][];
         };
         /**
          * WorkerLease
@@ -3039,14 +3509,19 @@ export type ArtifactUrlResponse = components['schemas']['ArtifactUrlResponse'];
 export type AttackAccess = components['schemas']['AttackAccess'];
 export type AttackConfig = components['schemas']['AttackConfig'];
 export type AttackKind = components['schemas']['AttackKind'];
+export type AttackRankingEntry = components['schemas']['AttackRankingEntry'];
 export type AttackSpec = components['schemas']['AttackSpec'];
+export type AttackSpecAdminPage = components['schemas']['AttackSpecAdminPage'];
+export type AttackSpecAdminView = components['schemas']['AttackSpecAdminView'];
 export type AuditActor = components['schemas']['AuditActor'];
 export type AuditLogEntry = components['schemas']['AuditLogEntry'];
 export type AuditLogPage = components['schemas']['AuditLogPage'];
 export type BundleCheckpoint = components['schemas']['BundleCheckpoint'];
 export type BundleDownloads = components['schemas']['BundleDownloads'];
 export type BundleLimit = components['schemas']['BundleLimit'];
+export type BundlePatch = components['schemas']['BundlePatch'];
 export type BundleRun = components['schemas']['BundleRun'];
+export type CaseAnonymization = components['schemas']['CaseAnonymization'];
 export type CaseArtifacts = components['schemas']['CaseArtifacts'];
 export type CaseBox = components['schemas']['CaseBox'];
 export type CaseDetections = components['schemas']['CaseDetections'];
@@ -3092,6 +3567,7 @@ export type GridConfig = components['schemas']['GridConfig'];
 export type HealthResponse = components['schemas']['HealthResponse'];
 export type HeartbeatRequest = components['schemas']['HeartbeatRequest'];
 export type InferenceParams = components['schemas']['InferenceParams'];
+export type IterationProgress = components['schemas']['IterationProgress'];
 export type JsonValue = components['schemas']['JsonValue'];
 export type LibVersions = components['schemas']['LibVersions'];
 export type LimitInput = components['schemas']['Limit-Input'];
@@ -3108,7 +3584,10 @@ export type PassCriterion = components['schemas']['PassCriterion'];
 export type PasswordChange = components['schemas']['PasswordChange'];
 export type PasswordResetConsume = components['schemas']['PasswordResetConsume'];
 export type PasswordResetLink = components['schemas']['PasswordResetLink'];
+export type PatchArtifact = components['schemas']['PatchArtifact'];
+export type PatchRegistration = components['schemas']['PatchRegistration'];
 export type Permission = components['schemas']['Permission'];
+export type PerturbationImageKind = components['schemas']['PerturbationImageKind'];
 export type PrimaryParam = components['schemas']['PrimaryParam'];
 export type Progress = components['schemas']['Progress'];
 export type ProgressReport = components['schemas']['ProgressReport'];
@@ -3126,8 +3605,10 @@ export type RunCompletion = components['schemas']['RunCompletion'];
 export type RunCounts = components['schemas']['RunCounts'];
 export type RunMetrics = components['schemas']['RunMetrics'];
 export type RunMode = components['schemas']['RunMode'];
+export type RunPhase = components['schemas']['RunPhase'];
 export type RunResultInput = components['schemas']['RunResult-Input'];
 export type RunResultOutput = components['schemas']['RunResult-Output'];
+export type RunSkipRequest = components['schemas']['RunSkipRequest'];
 export type RunStartRequest = components['schemas']['RunStartRequest'];
 export type RunStartResponse = components['schemas']['RunStartResponse'];
 export type RunStatus = components['schemas']['RunStatus'];
@@ -3143,6 +3624,7 @@ export type SliceSummary = components['schemas']['SliceSummary'];
 export type StatusReason = components['schemas']['StatusReason'];
 export type StopReason = components['schemas']['StopReason'];
 export type ThresholdKind = components['schemas']['ThresholdKind'];
+export type TrainingParams = components['schemas']['TrainingParams'];
 export type TrajectoryPoint = components['schemas']['TrajectoryPoint'];
 export type UserAdminPage = components['schemas']['UserAdminPage'];
 export type UserAdminView = components['schemas']['UserAdminView'];
@@ -4292,6 +4774,66 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AttackSpec"][];
+                };
+            };
+            /** @description Thiếu phiên hợp lệ */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Thiếu permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Chưa cài đặt */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_attack_specs_admin_admin_attack_specs_get: {
+        parameters: {
+            query?: {
+                /** @description next_cursor của trang trước */
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttackSpecAdminPage"];
                 };
             };
             /** @description Thiếu phiên hợp lệ */
@@ -5867,6 +6409,92 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Chưa cài đặt */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    skip_run_internal_worker_runs__run_id__skip_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunSkipRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Chưa cài đặt */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    register_patch_internal_worker_runs__run_id__patch_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchRegistration"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PatchArtifact"];
+                };
             };
             /** @description validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ) */
             422: {

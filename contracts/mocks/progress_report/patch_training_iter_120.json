@@ -1,0 +1,10 @@
+{
+  "lease_id": "5b0c6f7e-2d1a-4c3b-9e8f-7a6b5c4d3e2f",
+  "images_done": 0,
+  "batch_index": 0,
+  "checkpoint_key": "patches/77b046f592609b70cf3990c6458225f7c92a91186353cea2c6859e4f0594edeb/checkpoints/100.npz",
+  "processing_seconds_delta": 10.8,
+  "phase": "training",
+  "iterations_done": 120,
+  "iterations_total": 200
+}

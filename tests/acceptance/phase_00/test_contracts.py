@@ -37,12 +37,12 @@ ENUMS = {
     },
     "SearchStatus": {"found", "not_reached", "below_min", "stopped_limit", "non_monotonic"},
     "StopReason": {"budget", "time"},
-    "SkipReason": {"cached", "incompatible"},
+    "SkipReason": {"cached", "incompatible", "early_stop"},  # Phase 6: early_stop
     "ComputeKind": {"local", "rented"},
     "BillingMode": {"none", "hourly"},
     "LimitKind": {"budget", "time"},
     "AttackKind": {"attack", "corruption", "occlusion"},
-    "AttackAccess": {"white_box", "black_box"},
+    "AttackAccess": {"white_box", "black_box", "not_applicable"},  # Phase 6: not_applicable
     "RunMode": {"grid", "search"},
     "ThresholdKind": {"relative_drop", "absolute_drop", "attack_success_rate"},
     "ReviewDecision": {"approve", "changes_requested", "reject"},
@@ -59,6 +59,9 @@ ENUMS = {
     "ProtocolStatus": {"active", "retired", "dev"},
     # Phase 5: cách hiển thị ảnh failure case.
     "DisplayMode": {"normal", "hidden_unanonymized", "dev_unblurred"},
+    # Phase 6: giai đoạn của run patch, nội dung ảnh thứ ba của failure case.
+    "RunPhase": {"training", "evaluating"},
+    "PerturbationImageKind": {"amplified_noise", "difference", "patch_location"},
 }  # fmt: skip
 
 
