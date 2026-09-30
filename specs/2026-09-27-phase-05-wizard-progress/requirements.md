@@ -155,7 +155,7 @@ Worker được coi là `online` nếu có heartbeat trong 60 giây gần nhất
 - `/experiments`: bộ lọc (của tôi / tất cả, trạng thái, model); bảng trên desktop, thẻ trên điện thoại (tên, `StatusBadge`, thanh tiến độ, thời gian).
 - `/experiments/:id` gồm các tab:
   - **Tổng quan:** trạng thái tổng hợp dạng câu, thanh tiến độ, vị trí hàng đợi khi `queued`, bảng run (attack, level, trạng thái, lý do, tiến độ, thời gian), nút Hủy (chỉ chủ sở hữu, khi `queued`/`running`) và Nhân bản.
-  - **Kết quả:** biểu đồ mAP@0.5 theo level cho từng attack, có đường ngang mAP sạch; biểu đồ tỷ lệ tấn công thành công; bảng số liệu tương ứng (thay thế cho biểu đồ về khả năng tiếp cận). Run có `metrics.partial` được đánh dấu. Trên điện thoại hiển thị từng biểu đồ một, chuyển bằng tab.
+  - **Kết quả:** biểu đồ mAP@0.5 theo level cho từng attack, có đường ngang mAP sạch; biểu đồ tỷ lệ tấn công thành công; bảng số liệu tương ứng (thay thế cho biểu đồ về khả năng tiếp cận). Run có `metrics.partial` được đánh dấu. Trên điện thoại hiển thị từng biểu đồ một, chuyển bằng tab. Mỗi attack một khối (biểu đồ mAP@0.5 và biểu đồ tỷ lệ tấn công thành công, trục x theo đơn vị tham số của attack, vì các attack khác đơn vị); run `partial` là hình thoi rỗng kèm chú thích; attack không có run nào có metric thì báo bằng chữ thay cho khung trống (Group 4).
   - **Failure case:** lưới thumbnail theo run, sắp theo `severity_score`, có watermark "BẢN NHÁP – CHƯA DUYỆT".
   - **Chi phí:** thời gian xử lý đã dùng so với giới hạn, thời gian từng run.
   - **Tái lập:** với mỗi run: fingerprint (rút gọn giữa, có nút copy), git commit, cảnh báo nếu `git_dirty`, phiên bản thư viện, Docker image, môi trường; nút tải `manifest.json`.
@@ -167,7 +167,9 @@ Worker được coi là `online` nếu có heartbeat trong 60 giây gần nhất
 - Hiển thị ảnh nhiễu khuếch đại.
 - Box vẽ trên canvas, scale theo `devicePixelRatio`; nhãn box ẩn trên màn hình nhỏ, chạm vào box để hiện.
 - Watermark "BẢN NHÁP – CHƯA DUYỆT" luôn hiển thị trong phase này.
-- Component được thiết kế để Phase 8 thêm form verdict và phím tắt mà không viết lại.
+- Component được thiết kế để Phase 8 thêm form verdict và phím tắt mà không viết lại (prop `aside`; cột bên phải chỉ có khi truyền `aside`).
+- Chi tiết (Group 4): "object bị mất" = ground truth được phát hiện đúng trên ảnh sạch (IoU ≥ 0.5, đúng class) nhưng không còn sau tấn công, chỉ tô đỏ trên ảnh sau tấn công; nhãn box hiện sẵn khi màn hình từ 768px (breakpoint md), nhỏ hơn thì chạm để hiện; màu box cố định (không theo theme); vuốt ngang tối thiểu 60px và chỉ khi không zoom; desktop zoom đồng bộ hai khung.
+- URL ảnh: trang xin lại case trước khi URL hết hạn 60 giây; ảnh tải lỗi thì xin lại một lần cho mỗi bộ URL (Group 4).
 
 ### Trang chủ
 - Khối engineer: experiment đang chạy của tôi (thanh tiến độ), 5 experiment kết thúc gần nhất, nút "Tạo experiment".

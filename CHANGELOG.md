@@ -6,7 +6,27 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 5 — Wizard tạo experiment và theo dõi tiến độ
 
-**Trạng thái:** đang làm. Group 0–3 đã merge.
+**Trạng thái:** đang làm. Group 0–4 đã merge.
+
+### Phase 5 — Group 4 (frontend) — 2026-09-30
+#### Thêm
+- `features/experiments/api.ts`: hook experiment, danh sách (Tải thêm), run, manifest, failure case; polling 2 giây khi `queued`/`running`, dừng ở trạng thái cuối, tạm dừng khi tab ẩn; xin lại URL ảnh trước khi hết hạn 60 giây và khi ảnh tải lỗi (một lần mỗi bộ URL); `artifactSrc` thêm `VITE_API_BASE_URL`.
+- `statusSentence` và `ExperimentStatusSummary` (cùng cách viết với email).
+- `components/charts/MetricCurves`: mỗi attack một khối (mAP@0.5 có đường mAP sạch, tỷ lệ tấn công thành công), run `partial` đánh dấu, bảng số liệu, tab trên điện thoại.
+- `components/case-viewer/CaseViewer`: cạnh nhau có zoom đồng bộ (desktop), slider + pinch-zoom + vuốt (điện thoại), 4 lớp box trên canvas theo `devicePixelRatio`, object bị mất tô đỏ, ảnh nhiễu, watermark, khung giữ chỗ `hidden_unanonymized`, dải cảnh báo `dev_unblurred`, slot `aside` cho Phase 8.
+- Mock mọi GET của Phase 5 (`src/api/mocks.ts`); `useRun` dừng polling khi run kết thúc (từ Phase 0).
+- Dependency: `recharts` 3.10.1, `react-is` 19.2.8 (peer của Recharts), `react-zoom-pan-pinch` 4.2.0. Vitest 103 → 151.
+#### Kiểm tra
+- Chromium 3 viewport với mock (trang thử tạm, không commit): không cuộn ngang, không lỗi console, Recharts render, slider chỉ ở 390px, canvas theo DPR.
+#### Quyết định (đã ghi vào `requirements.md`, `tech-stack.md`)
+- Người dùng chốt: sửa `src/api/mocks.ts`, `queries.ts`; bố cục biểu đồ mỗi attack một khối.
+- Agent chọn, người duyệt chấp nhận ở review: định nghĩa object bị mất; ngưỡng nhãn; xin lại URL; vuốt; màu box cố định.
+#### Review
+- Phát hiện #1 (sửa trước merge): cột `aside` chiếm chỗ khi không có form, khung ảnh desktop ~450px nên nhãn box bị ẩn → cột chỉ có khi có `aside`, nhãn theo màn hình từ 768px (khung 618px ở 1440px). Ghi nhận: tương tác zoom/pinch/vuốt chưa thử thật (E2E Group 7, manual); box trên canvas không đọc được bằng trình đọc màn hình (xem lại ở Phase 11).
+#### Số liệu
+- `make check`: 804 test Python, 209 test nghiệm thu không cần DB, 151 Vitest; `verify:build` pass.
+#### Lưu ý
+- Code, review, sửa sau review và ghi spec do cùng một agent làm (không độc lập).
 
 ### Phase 5 — Group 3 (backend) — 2026-09-30
 #### Thêm
