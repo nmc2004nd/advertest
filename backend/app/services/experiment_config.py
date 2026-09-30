@@ -8,8 +8,9 @@ nằm ở đây: chỉ kiểm tra khi tạo.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
+from uuid import UUID
 
 from sqlalchemy.orm import Session
 
@@ -34,6 +35,8 @@ class CheckedConfig:
     protocol: m.Protocol
     target: m.ComputeTarget
     specs: list[AttackSpec]  # theo thứ tự `body.attacks`
+    # Phase 6: slice huấn luyện của attack cần train, theo id.
+    training_slices: dict[UUID, m.Slice] = field(default_factory=dict)
 
     @property
     def images(self) -> int:
@@ -91,6 +94,8 @@ def check(session: Session, body: ExperimentCreate) -> CheckedConfig:
 
     # ------------------------------------------------------------ attack
     specs: list[AttackSpec] = []
+    # Phase 6: (đường dẫn trường, spec, slice huấn luyện) kiểm tra sau khi có slice đánh giá.
+    training: list[tuple[str, AttackSpec, m.Slice]] = []
     seen: dict[object, int] = {}
     total_runs = 0
     for i, attack in enumerate(body.attacks):
@@ -125,6 +130,18 @@ def check(session: Session, body: ExperimentCreate) -> CheckedConfig:
         levels = attack.grid.levels
         errors.extend(_level_errors(spec.primary_param, levels, f"{prefix}.grid.levels"))
         total_runs += len(levels)
+        path = f"{prefix}.training_slice_id"
+        if spec.requires_training:
+            if attack.training_slice_id is None:
+                error(path, f"{spec.name} cần slice huấn luyện (không giao với slice đánh giá)")
+            else:
+                training_row = session.get(m.Slice, attack.training_slice_id)
+                if training_row is None:
+                    error(path, "Không có slice huấn luyện này")
+                else:
+                    training.append((path, spec, training_row))
+        elif attack.training_slice_id is not None:
+            error(path, f"{spec.name} không cần slice huấn luyện")
     if total_runs > MAX_RUNS:
         error("attacks", f"Tối đa {MAX_RUNS} run mỗi experiment (đang có {total_runs})")
 
@@ -166,6 +183,25 @@ def check(session: Session, body: ExperimentCreate) -> CheckedConfig:
                 f"Giới hạn tối đa của {target.name} là {target.max_time_limit_s} giây",
             )
 
+    # ------------------------------------------------------------ slice huấn luyện (Phase 6)
+    if slice_row is not None:
+        evaluation = set(slice_row.image_ids)
+        for path, spec, training_row in training:
+            if training_row.dataset_version_id != slice_row.dataset_version_id:
+                error(path, "Slice huấn luyện phải cùng dataset version với slice đánh giá")
+            common = evaluation.intersection(training_row.image_ids)
+            if common:
+                error(path, f"Slice huấn luyện giao với slice đánh giá ({len(common)} ảnh chung)")
+            assert spec.training is not None  # requires_training ⇒ có training (contract)
+            limit = spec.training.max_training_images
+            if len(training_row.image_ids) > limit:
+                error(
+                    path,
+                    f"Slice huấn luyện có {len(training_row.image_ids)} ảnh, tối đa {limit}",
+                )
+            if training_row.slice_sha256 is None:
+                error(path, "Slice huấn luyện chưa được đăng ký qua import-local")
+
     if body.cloned_from is not None and session.get(m.Experiment, body.cloned_from) is None:
         error("cloned_from", "Không có experiment gốc này")
 
@@ -174,4 +210,13 @@ def check(session: Session, body: ExperimentCreate) -> CheckedConfig:
         raise InvalidConfig(f"Cấu hình experiment không hợp lệ ({len(errors)} lỗi)", errors, code)
     assert model is not None and slice_row is not None and mapping is not None
     assert protocol is not None and target is not None
-    return CheckedConfig(body, model, slice_row, mapping, protocol, target, specs)
+    return CheckedConfig(
+        body,
+        model,
+        slice_row,
+        mapping,
+        protocol,
+        target,
+        specs,
+        {row.id: row for _, _, row in training},
+    )
