@@ -225,12 +225,15 @@ def test_training_progress_urls_and_registration(
     assert PatchArtifact.model_validate(second.json()) == artifact  # giữ bản đăng ký trước
     patch = _bundle(client, setup).patches[0]
     assert patch.artifact == artifact and patch.checkpoint_key is None
-    # Review Group 5 #1: patch đã đăng ký chỉ đọc được.
-    for method in ("PUT", "DELETE"):
-        for object_key in (artifact.npy_key, f"patches/{key}/checkpoints/0.npz"):
-            denied = url(object_key, method)
-            assert denied.status_code == 403 and _error(denied) == "forbidden"
+    # Review Group 5 #1: patch đã đăng ký chỉ đọc được; checkpoint cũ vẫn xóa được.
+    for object_key, method in (
+        (artifact.npy_key, "PUT"), (artifact.png_key, "DELETE"),
+        (artifact.npy_key, "DELETE"), (checkpoint, "PUT"),
+    ):  # fmt: skip
+        denied = url(object_key, method)
+        assert denied.status_code == 403 and _error(denied) == "forbidden"
     assert url(artifact.npy_key, "GET").status_code == 200
+    assert url(checkpoint, "DELETE").status_code == 200
 
 
 def _artifact(world: World, setup: Setup, key: str, *, sha: str) -> PatchArtifact:

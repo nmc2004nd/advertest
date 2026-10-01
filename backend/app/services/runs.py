@@ -263,6 +263,9 @@ def _training_progress(
 
 # ---------------------------------------------------------------- skip, patch (Phase 6)
 
+# Thư mục checkpoint trong `patches/<key>/` (worker ghi `checkpoints/<vòng>.npz`).
+PATCH_CHECKPOINTS = "checkpoints/"
+
 
 def skip(
     session: Session,
@@ -497,9 +500,14 @@ def artifact_url(
         patch = run_patch(session, experiment, run, _spec(session, run))
         if patch is None or not request.key.startswith(patch_prefix(patch.key)):
             raise Forbidden(f"Chỉ cấp URL trong runs/{run.id}/ hoặc thư mục patch của run")
-        # Patch đã đăng ký là bất biến và được run khác dùng lại: chỉ đọc (review Group 5 #1).
+        # Patch đã đăng ký là bất biến và được run khác dùng lại (review Group 5 #1): chỉ đọc,
+        # trừ xóa checkpoint (worker xóa checkpoint cuối sau khi đăng ký).
         if request.method != "GET" and is_registered(session, patch.key):
-            raise Forbidden("Patch đã đăng ký: thư mục patch chỉ cấp URL GET")
+            checkpoints = patch_prefix(patch.key) + PATCH_CHECKPOINTS
+            if not (request.method == "DELETE" and request.key.startswith(checkpoints)):
+                raise Forbidden(
+                    f"Patch đã đăng ký: chỉ cấp URL GET, hoặc DELETE checkpoint trong {checkpoints}"
+                )
     signed = presigner.url(storage.BUCKET_ARTIFACTS, request.key, request.method, clock())
     return ArtifactUrlResponse(
         key=request.key, method=request.method, url=signed.url, expires_at=signed.expires_at

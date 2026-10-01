@@ -36,7 +36,7 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 - `training_seconds` null (không tính vào tổng) khi profile chưa có `sec_per_image_iteration`.
 - `skip` sai trạng thái → 409; run kích hoạt không hợp lệ → 422.
 #### Review (phase-review, 2026-10-01)
-- #1 (chặn): patch đã đăng ký thì `artifact-url` chỉ cấp `GET` trong `patches/<key>/` (`PUT`, `DELETE` → 403), để run khác cùng khóa không ghi đè hay xóa được file của patch.
+- #1 (chặn): patch đã đăng ký thì `artifact-url` chỉ cấp `GET` trong `patches/<key>/`, trừ `DELETE` trong `checkpoints/` (worker xóa checkpoint cuối sau khi đăng ký); `PUT` và xóa file patch → 403, để run khác cùng khóa không ghi đè hay xóa được patch.
 - #3 (người dùng chọn sửa): `skip` tính lại bằng `ml_core.runner.grid.early_stop`: attack tắt `grid.early_stop` → 422; `trigger_run_id` phải là run kích hoạt (level nhỏ nhất đã sụp, metric đầy đủ: `completed` hoặc `skipped` do cache, không `partial`) và run bị bỏ phải nằm trong danh sách cần bỏ.
 - #4 (người dùng chọn sửa): patch cần train mà profile chưa đo `sec_per_image_iteration` → run đó coi như thiếu profile (`sec_per_image`, `est_seconds` null), `total_seconds = null`, attack vào `missing_profiles` (đúng luật của `EstimateResponse`, không đổi contract).
 - Test mới: `test_skip_rejected_when_early_stop_off`, trigger có metric một phần, URL sau khi đăng ký, view ẩn không có `artifacts`; `test_estimate_without_training_cost` viết lại theo #4.
