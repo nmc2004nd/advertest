@@ -16,7 +16,7 @@ from uuid import UUID
 from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
 
-from advertest_contracts.enums import ExperimentStatus, RunPhase, RunStatus
+from advertest_contracts.enums import EvalScope, ExperimentStatus, RunPhase, RunStatus
 from advertest_contracts.models import (
     AttackRankingEntry,
     AttackSpec,
@@ -45,6 +45,7 @@ from advertest_contracts.models import (
 from backend.app import storage
 from backend.app.api import pagination
 from backend.app.db import models as m
+from backend.app.services import searches
 from backend.app.services.errors import NotFound
 from backend.app.services.estimate import queue_position
 from backend.app.services.experiment_config import spec_of
@@ -201,16 +202,19 @@ def detail(session: Session, experiment_id: UUID) -> ExperimentDetail:
         cloned_from=experiment.cloned_from,
         clean_metrics=MapPair.model_validate(clean) if clean is not None else None,
         attack_ranking=_ranking(session, config, runs),
+        search_results=searches.results(session, experiment.id),
     )
 
 
 def _ranking(
     session: Session, config: ExperimentConfig, runs: list[m.Run]
 ) -> list[AttackRankingEntry]:
-    """Phase 6 (plan task 27): cùng hàm với report ở Phase 8 (`ml_core.metrics.ranking`)."""
-    specs = _specs(session, {attack.attack_spec_id for attack in config.attacks})
+    """Phase 6 (plan task 27): cùng hàm với report ở Phase 8 (`ml_core.metrics.ranking`). Phase 7
+    (plan task 22a): chỉ attack quét lưới; attack tìm ngưỡng nằm ở `search_results`."""
+    grid = [attack for attack in config.attacks if attack.grid is not None]
+    specs = _specs(session, {attack.attack_spec_id for attack in grid})
     attacks = []
-    for attack in config.attacks:
+    for attack in grid:
         spec = specs[attack.attack_spec_id]
         attacks.append(
             RankingAttack(
@@ -283,6 +287,9 @@ def _run_view(session: Session, run: m.Run, spec: AttackSpec) -> RunView:
         ),
         phase=phase,
         training=training,
+        scope=EvalScope(run.scope),
+        search_order=run.search_order,
+        predictions_key=run.predictions_key,
     )
 
 

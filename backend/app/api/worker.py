@@ -43,10 +43,9 @@ from backend.app.api.deps import (
 from backend.app.api.errors import (
     NOT_IMPLEMENTED_RESPONSE,
     VALIDATION_ERROR_RESPONSE,
-    not_implemented,
 )
 from backend.app.api.security import worker_token
-from backend.app.services import bundle, leasing, runs
+from backend.app.services import bundle, leasing, runs, searches
 from backend.app.services.clock import Clock
 
 router = APIRouter(
@@ -104,13 +103,27 @@ def heartbeat(
 
 @router.post("/runs/{run_id}/start")
 def start_run(
-    run_id: UUID, body: RunStartRequest, credentials: Credentials, sessions: Sessions, clock: Now
+    run_id: UUID,
+    body: RunStartRequest,
+    credentials: Credentials,
+    sessions: Sessions,
+    stores: Stores,
+    clock: Now,
 ) -> RunStartResponse:
     """Chạy run, hoặc bỏ qua khi đã có run `completed` cùng fingerprint."""
+    # Phase 7 (đề xuất contract 001): trúng cache thì sao chép file prediction của run gốc.
+    artifacts = stores.buckets.artifacts
+
+    def copy(source: str, target_key: str) -> bool:
+        if not artifacts.exists(source):
+            return False
+        artifacts.put(target_key, artifacts.get(source))
+        return True
+
     with transaction(sessions) as session:
         target = authenticate_worker(session, credentials)
         try:
-            return runs.start(session, target, run_id, body, clock)
+            return runs.start(session, target, run_id, body, clock, copy)
         except runs.RunInvalidated as exc:
             invalidated = exc  # commit trạng thái failed rồi mới trả 409
     raise invalidated
@@ -194,13 +207,34 @@ def submit_cost_profile(body: CostProfile, credentials: Credentials, sessions: S
 
 
 @router.post("/experiments/{experiment_id}/runs", status_code=status.HTTP_201_CREATED)
-def create_search_run(experiment_id: UUID, body: SearchRunCreate) -> BundleRun:
+def create_search_run(
+    experiment_id: UUID,
+    body: SearchRunCreate,
+    credentials: Credentials,
+    sessions: Sessions,
+    clock: Now,
+) -> BundleRun:
     """Tạo run `queued` cho điểm tìm ngưỡng kế tiếp (Phase 7). Vi phạm (attack không ở chế độ tìm
     ngưỡng, level ngoài `[lo, hi]`, vượt `max_points`) trả `422`, không `409`."""
-    not_implemented()
+    # Hết thời gian: API chốt kết quả tìm ngưỡng, experiment kết thúc, trả 409 (quyết định Group 4).
+    with transaction(sessions) as session:
+        target = authenticate_worker(session, credentials)
+        try:
+            return searches.create_run(session, target, experiment_id, body, clock)
+        except searches.SearchStopped as exc:
+            stopped = exc  # commit kết quả đã chốt rồi mới trả 409
+    raise stopped
 
 
 @router.post("/experiments/{experiment_id}/search-result", status_code=status.HTTP_204_NO_CONTENT)
-def submit_search_result(experiment_id: UUID, body: SearchResultReport) -> None:
+def submit_search_result(
+    experiment_id: UUID,
+    body: SearchResultReport,
+    credentials: Credentials,
+    sessions: Sessions,
+    clock: Now,
+) -> None:
     """SearchResult tạm thời sau mỗi điểm, hoặc kết quả cuối (Phase 7)."""
-    not_implemented()
+    with transaction(sessions) as session:
+        target = authenticate_worker(session, credentials)
+        searches.submit_result(session, target, experiment_id, body, clock)
