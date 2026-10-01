@@ -153,7 +153,7 @@
         0.5
       ],
       "near_threshold": false,
-      "max_points": 20,
+      "max_points": 23,
       "points_used": 12,
       "message": null,
       "trajectory": [
@@ -302,7 +302,7 @@
         3.0
       ],
       "near_threshold": true,
-      "max_points": 8,
+      "max_points": 11,
       "points_used": 7,
       "message": null,
       "trajectory": [

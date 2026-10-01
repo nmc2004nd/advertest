@@ -15,7 +15,7 @@
   ],
   "confidence_interval": null,
   "near_threshold": false,
-  "max_points": 20,
+  "max_points": 23,
   "points_used": 1,
   "message": "AP@0.5 sạch của class truck trên tập con bằng 0: không tính được mức sụt tương đối",
   "trajectory": [

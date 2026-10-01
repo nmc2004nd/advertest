@@ -386,7 +386,7 @@
       ],
       "confidence_interval": null,
       "near_threshold": false,
-      "max_points": 10,
+      "max_points": 13,
       "points_used": 2,
       "message": null,
       "trajectory": [

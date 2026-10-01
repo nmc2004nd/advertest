@@ -37,16 +37,16 @@
   "searches": [
     {
       "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
-      "max_points": 20,
+      "max_points": 23,
       "max_subset_points": 11,
-      "max_full_points": 9,
-      "max_seconds": 5604.24
+      "max_full_points": 12,
+      "max_seconds": 6931.56
     },
     {
       "attack_spec_id": "9603bf27-ab9b-5086-be38-f60a4e6ebe74",
-      "max_points": 8,
+      "max_points": 11,
       "max_subset_points": 5,
-      "max_full_points": 3,
+      "max_full_points": 6,
       "max_seconds": null
     }
   ],
