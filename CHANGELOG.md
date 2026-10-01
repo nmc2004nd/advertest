@@ -6,7 +6,29 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 7 — Tự tìm ngưỡng
 
-**Trạng thái:** đang làm. Kickoff và Group 0 trên nhánh `phase07-reviewer-g0`.
+**Trạng thái:** ✅ hoàn thành 2026-10-02, còn tồn đọng (manual check trên KITTI và hai câu hỏi mở; người dùng cho phép đóng phase). Group 0–7 đã merge.
+
+### Phase 7 — Group 7 (người duyệt) — 2026-10-02
+#### Test nghiệm thu (task 32)
+- `tests/acceptance/phase_07/`, viết độc lập với test của agent, chỉ dùng API công khai:
+  - không cần DB (67 test): thuật toán lái bằng hàm mức sụt tổng hợp đúng như worker gọi `ThresholdSearch.progress` (cả dịch khoảng lên/xuống, rời rạc, `synthetic`, chạy tiếp từ `SearchResult` tuần tự hóa sau mỗi điểm, 40 tình huống ngẫu nhiên không vượt `max_points`); tập con và fingerprint (manifest mốc Phase 5 và Phase 6 giữ nguyên fingerprint); đại lượng ngưỡng; bootstrap trên dữ liệu dựng sẵn 40 ảnh;
+  - `db` (39 test, worker CPU thật, fixture 5 ảnh, tập con 3): PGD L∞ tìm ngưỡng chạy một lần cho cả phiên; FGSM ngưỡng 0.5 cho các tình huống (chạm giới hạn, worker chết hai lần rồi chạy tiếp, hủy, lỗi một điểm, trúng cache quét lưới); API (đường dẫn trường của mọi luật, công thức ước lượng, trần 50 run, `images_total`, hàng đợi, run động `422`/`403`, `artifact-url`, skip, migration 0008 và quyền `advertest_app`); bootstrap không gọi model (đếm `UltralyticsDetector.forward` trong lúc bootstrap: 0).
+- Số đo trên slice fixture (CPU, seed 0) để chọn ngưỡng: mức sụt tương đối của FGSM ở eps 1/2/4/8/16 là 0.26/0.34/0.57/0.60/0.64 (khoảng 0.8 giây mỗi run 5 ảnh); PGD L∞ 0.49 ở eps 1, từ 0.97 ở eps 2 (khoảng 6 giây mỗi run). FGSM trên tập con 3 ảnh gần bão hòa từ eps 8 nên ra `non_monotonic` (vẫn có điểm gãy).
+- `frontend/e2e/phase_07/search.spec.ts` (3 viewport, backend và worker thật): wizard (tol mặc định 0.125, đi theo dải, cảnh báo tập con dưới 20, công tắc `adv_patch` khóa kèm giải thích), bước 5 và 6 hiển thị "tối đa", dòng tiến độ tăng khi chạy, thẻ tóm tắt và quỹ đạo khi xong, 390px chỉ thẻ và dialog toàn màn hình, nháp `v2` dạng Phase 6 mở được. Mỗi viewport một cận trên khác nhau để worker chạy thật (không trúng cache). Các mục chỉ có trong mock (câu kết luận theo trạng thái, nhãn so sánh, thẻ `failed`/`stopped_limit`) do Vitest của Group 6 phủ.
+- `validation.md`: đánh dấu Automated Tests; câu "> 100%" sửa theo quyết định Group 6; mục hàng đợi ghi rõ chỉ tính experiment `queued` (xem phát hiện 2).
+#### Phát hiện khi viết test
+1. **Migration 0006 không downgrade được khi có dữ liệu Phase 6:** `downgrade` xóa spec `not_applicable` nhưng `cost_profiles` còn trỏ tới (khóa ngoại). Test nghiệm thu Phase 5/6 dựng DB bằng `downgrade base`, nên chạy chung phiên sau Phase 6 thì Phase 7 lỗi; Phase 7 dùng `DROP OWNED BY advertest_owner` thay thế. Cần agent backend sửa 0006 (xóa `cost_profiles` của các spec đó trước).
+2. **`queue.ahead_seconds` "trừ thời gian đã dùng":** `ahead_seconds` (Phase 5) chỉ tính experiment `queued`; experiment có lease hết hạn vẫn `running`, nên experiment đứng trước chưa dùng giây nào và vế "trừ thời gian xử lý đã dùng cho attack đó" trong `requirements.md` không bao giờ có tác dụng. Test nghiệm thu kiểm theo nghĩa Phase 5.
+3. Bảng `search_results` có từ trước 0008 (0008 thêm `updated_at` và ràng buộc); `RunView.scope` bị bỏ khỏi JSON khi bằng `full` (contract): ghi nhận, không phải lỗi.
+#### Manual check (task 33, 34): chưa làm
+Máy phát triển không có KITTI đầy đủ (chỉ fixture 5 ảnh) và không có GPU. Hướng dẫn cho người duyệt:
+1. Chuẩn bị như manual check Phase 5: KITTI đầy đủ, `make up`, slice 300 ảnh (`advertest slice create --size 300`), `advertest-admin import-local`, worker (`docker/worker/up.sh cpu` hoặc `gpu`).
+2. Wizard: PGD L∞ tự tìm ngưỡng, `relative_drop` 20%, dải 0–32, `tol` mặc định 0.125, tập con 100, bootstrap 200. Ghi `status`, điểm gãy, KTC 95%, `points_used`/`max_points`, thời gian thực so với "tối đa" ở bước 6. So với đường cong quét lưới PGD L∞ Phase 5/6 (hoặc chạy lưới 0.25/0.5/1/2): điểm gãy phải nằm trong đoạn mà đường cong cắt mức sụt 20%.
+3. `fog` (rời rạc) ngưỡng 20%, so với quét lưới severity 1–5.
+4. PGD L∞ với `class_filter = person` so với mọi class; ghi khác biệt.
+5. Câu hỏi mở `subset_size`: trong quỹ đạo, so khoảng cuối trên tập con (điểm rỗng ruột) với kết quả cuối; ghi mức lệch theo eps.
+6. Câu hỏi mở bootstrap: thời gian từ khi run toàn slice cuối kết thúc tới `finished_at` của experiment (gồm bootstrap 200 mẫu) trên worker.
+7. Thẻ tóm tắt và quỹ đạo trên điện thoại thật (Android, iPhone), chế độ tối; trường hợp điểm gãy rất nhỏ so với dải (số thứ tự sát trục tung).
 
 ### Phase 7 — Group 6 (frontend: kết quả) — 2026-10-02
 - Tab Kết quả, mục "Điểm gãy": thẻ tóm tắt mỗi attack tìm ngưỡng (câu kết luận theo 6 trạng thái, cảnh báo sát ngưỡng và không đơn điệu, dòng tiến độ khi đang chạy); biểu đồ quỹ đạo kèm bảng; biểu đồ so sánh điểm gãy chuẩn hóa kèm bảng. Điện thoại chỉ hiện thẻ, chạm thẻ mở quỹ đạo toàn màn hình.
