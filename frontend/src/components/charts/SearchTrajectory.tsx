@@ -91,8 +91,12 @@ function TrajectoryChart({ attack }: { attack: SearchAttack }) {
             width={40}
           />
           <Tooltip
-            formatter={(value) => formatPercent(typeof value === 'number' ? value : null)}
-            labelFormatter={(x) => `${param} = ${formatLevel(Number(x), unit)}`}
+            formatter={(value, name) =>
+              name === 'drop'
+                ? [formatPercent(typeof value === 'number' ? value : null), dropLabel(result)]
+                : [formatLevel(Number(value), unit), param]
+            }
+            labelFormatter={() => ''}
           />
           <ReferenceArea x1={a} x2={b} fill={MUTED} fillOpacity={0.15} />
           {ci && (

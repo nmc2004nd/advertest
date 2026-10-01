@@ -35,7 +35,7 @@ export function BreakingPoints({
         {attacks.map((attack) => (
           <li
             key={attack.attackSpecId}
-            className="relative flex min-w-0 items-center gap-2 rounded-xl border p-3"
+            className="relative flex min-w-0 items-center gap-2 rounded-xl border p-3 md:items-start"
           >
             <BreakpointCard attack={attack} />
             {attack.result && (
