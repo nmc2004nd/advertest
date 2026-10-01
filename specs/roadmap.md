@@ -28,7 +28,7 @@
 | 3 ✅ | Job chạy qua API trên máy local | backend, attack | 2 | 4 |
 | 4 ✅ | Yêu cầu truy cập, duyệt, RBAC | backend, frontend | 0 | 2, 3 |
 | 5 ✅ | Wizard tạo experiment, theo dõi tiến độ | frontend, backend | 3, 4 | 6 |
-| 6 | Đủ catalog, quét lưới, làm mờ ảnh | attack, ml-core, backend, frontend | 3, 5 | — |
+| 6 ✅ | Đủ catalog, quét lưới, làm mờ ảnh | attack, ml-core, backend, frontend | 3, 5 | — |
 | 7 | Tự tìm ngưỡng | attack, frontend | 5, 6 | 8 |
 | 8 | Protocol, review, report | backend, frontend | 5 | 7 |
 | 9 | Máy thuê và ngân sách | backend | 3, 5 | 10 |
@@ -136,9 +136,11 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 
 **Demo:** engineer tạo experiment trên web, theo dõi tiến độ trên điện thoại, xem đường cong khi xong.
 
-## Phase 6 — Đủ attack catalog, quét lưới và làm mờ ảnh
+## Phase 6 — Đủ attack catalog, quét lưới và làm mờ ảnh ✅ Hoàn thành (2026-10-01), còn tồn đọng
 
 **Mục tiêu:** bộ attack và biến đổi đầy đủ cho MVP; ảnh failure case được làm mờ để report ở Phase 8 có ảnh.
+
+> Tồn đọng (người dùng cho phép đóng phase, cập nhật sau): manual check đã làm và đạt (người dùng xác nhận), nhưng số liệu chưa ghi vào `CHANGELOG.md`: thời gian train patch, thời gian mỗi attack và bảng xếp hạng trên KITTI 300 ảnh; `learning_rate` và `max_iter` sau hiệu chỉnh (câu hỏi mở 1 của Phase 6, nếu khác seed thì cần đề xuất contract nâng `version` của `adv_patch`). Ba mục "(Từ Phase 2/5)" bên dưới chưa làm. CI xanh trên `main` (người dùng xác nhận, 2026-10-01).
 
 - [x] Patch attack: train một lần, lưu MinIO, quét theo kích thước.
 - [x] Corruption: fog, snow, frost, motion blur, contrast (severity 1–5).
@@ -146,10 +148,10 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 - [x] Quét lưới thô trước, mịn sau; dừng sớm khi mAP gần 0.
 - [x] Trang admin xem attack catalog.
 - [x] Xếp hạng attack gây hại nhất (`auc_drop`).
-- [x] Làm mờ mặt và biển số ở tầng hiển thị (với dataset chưa ẩn danh); chuyển từ Phase 10 (report ở Phase 8 cần ảnh failure case, `mission.md` nguyên tắc 9). Kiểm tra bằng mắt trên KITTI còn mở (manual check, cần dữ liệu KITTI đầy đủ).
-- [ ] (Từ Phase 2) Lưới mịn ở eps nhỏ: trên KITTI, PGD L∞ eps 2/255 đã sụt 98%, PGD L2 eps 1 sụt 90% (vùng hữu ích dưới 2/255 và dưới 1).
+- [x] Làm mờ mặt và biển số ở tầng hiển thị (với dataset chưa ẩn danh); chuyển từ Phase 10 (report ở Phase 8 cần ảnh failure case, `mission.md` nguyên tắc 9). Đã kiểm tra bằng mắt ≥ 20 case trên KITTI: `rule_v1` đủ (người dùng xác nhận).
+- [ ] (Từ Phase 2) Lưới mịn ở eps nhỏ: trên KITTI, PGD L∞ eps 2/255 đã sụt 98%, PGD L2 eps 1 sụt 90% (vùng hữu ích dưới 2/255 và dưới 1). Chưa làm, chuyển sang Phase 7 (replan sau Phase 6).
 - [ ] (Từ Phase 5) Đo sai số ước lượng: PGD eps 2/4/8/16 trên KITTI 300 ảnh qua wizard (tồn đọng Phase 5), làm cùng lúc với manual check hiệu chỉnh patch.
-- [ ] (Từ Phase 5) CLI `advertest` in JSON ra stdout, nhưng Ultralytics lần đầu import in thông báo settings vào stdout (`scripts/e2e.sh` đang né bằng `YOLO_CONFIG_DIR` và import trước một lần).
+- [ ] (Từ Phase 5) CLI `advertest` in JSON ra stdout, nhưng Ultralytics lần đầu import in thông báo settings vào stdout (`scripts/e2e.sh` đang né bằng `YOLO_CONFIG_DIR` và import trước một lần). Chưa làm, chuyển sang Phase 11 (replan sau Phase 6).
 
 **Demo:** một experiment quét toàn bộ catalog, ra bảng xếp hạng attack gây hại nhất; failure case hiển thị với ảnh đã làm mờ.
 
@@ -163,7 +165,7 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 - [ ] Các trạng thái kết quả tìm kiếm.
 - [ ] Wizard: chế độ "Tự tìm ngưỡng".
 - [ ] Biểu đồ điểm gãy và so sánh điểm gãy giữa các attack.
-- [ ] (Từ Phase 2) Khoảng tìm kiếm mặc định cho PGD phải bắt đầu dưới 1/255; ngưỡng sụt 20% nằm dưới mức eps nhỏ nhất đã đo.
+- [ ] (Từ Phase 2, 6) Khoảng tìm kiếm mặc định cho PGD phải bắt đầu dưới 1/255; ngưỡng sụt 20% nằm dưới mức eps nhỏ nhất đã đo. Thay cho mục "lưới mịn ở eps nhỏ" chưa làm ở Phase 6.
 
 **Demo:** chọn ngưỡng sụt 20% cho PGD, hệ thống trả về điểm gãy kèm khoảng tin cậy.
 
@@ -174,7 +176,7 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 - [ ] Reviewer tạo protocol (có version); experiment bắt buộc gắn protocol.
 - [ ] Khóa experiment khi gửi duyệt.
 - [ ] Hàng đợi review, loại experiment do chính reviewer tạo.
-- [ ] Trang xem failure case: so sánh trước/sau, heatmap nhiễu, bật tắt lớp box, phím tắt, cử chỉ chạm.
+- [ ] Trang xem failure case: so sánh trước/sau, ảnh thứ ba theo loại biến đổi (Phase 6), bật tắt lớp box, phím tắt, cử chỉ chạm.
 - [ ] Verdict có version; kết luận tổng thể và mitigation.
 - [ ] Kiểm tra điều kiện trước khi approve.
 - [ ] Report PDF/JSON sinh ở server, lưu sha256; trang `/verify/:id`.
@@ -224,6 +226,7 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 - [ ] Tài liệu cài đặt và vận hành.
 - [ ] (Từ Phase 4) `/docs`, `/redoc`, `/openapi.json` đang công khai; compose tin cả mạng Docker trong `TRUSTED_PROXIES` (chỉ hợp cho dev; bản triển khai đặt IP reverse proxy); ô chọn người thực hiện trên trang audit tối đa 100 người dùng.
 - [ ] (Từ Phase 5) Box trên canvas của trình xem case chưa đọc được bằng trình đọc màn hình; nháp wizard có model/slice đã xóa chỉ được báo qua `422`.
+- [ ] (Từ Phase 5, 6) CLI `advertest` lẫn thông báo của Ultralytics vào stdout ở lần import đầu (`scripts/e2e.sh` đang né).
 - [ ] (Từ Phase 0) Pin image nền và GitHub Action theo digest/SHA; tài liệu cài đặt nhắc đổi mật khẩu `change-me-*` và việc `make check` cần mạng ở lần đầu.
 
 **Demo:** trọn luồng từ yêu cầu truy cập đến report đã xác minh, trên desktop và điện thoại.

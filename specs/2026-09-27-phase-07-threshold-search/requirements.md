@@ -135,6 +135,14 @@ Ký hiệu `d(x, S)` là mức sụt ở level `x` trên tập ảnh `S`.
 - `tech-stack.md` mục 2.3 (metric, bootstrap), 3.3 (tự tìm ngưỡng).
 - Phase 2: metric theo class, ASR. Phase 3: executor, checkpoint, API nội bộ. Phase 5: wizard, ước lượng, tab Kết quả. Phase 6: seed theo ảnh, xếp hạng AUC, điểm "không biến đổi" của spec.
 - Phase 5: `mode = search` hiện trả `422 not_supported_yet` cho mọi spec (`experiment_config.py`); Phase 7 thu hẹp lại chỉ còn `adv_patch`. `EstimateResponse` đang có `total_seconds` (null khi thiếu profile) và `exceeds_limit` (cận dưới); `max_seconds` "tối đa" của chế độ tìm cần định nghĩa rõ cách ghép với hai trường này (contract).
+- Phase 6 (ảnh hưởng thiết kế, kiểm trong code):
+  - Xếp hạng (`backend/app/services/experiment_views.py::_ranking`, `rank_attacks`) gom mọi run theo `attack_spec_id`, không lọc `mode`: phải loại attack `mode = search` (và run `scope = subset`) khỏi `attack_ranking`.
+  - Trường mới của fingerprint theo mẫu `patch_key`: null và bỏ khỏi JSON khi null để hash cũ không đổi. `eval_image_ids_sha256` phải null với run toàn slice; nếu không, điểm toàn slice sẽ không trúng cache của run quét lưới (trái với "Dùng lại kết quả").
+  - Worker client coi mọi `409` là mất lease và dừng cả experiment (`advertest_worker/client.py`). Endpoint tạo run động phải trả `422` khi vượt `max_points` hoặc sai level, không trả `409`.
+  - Thứ tự thô → mịn (`ordinal`) và `grid.early_stop` chỉ áp cho attack quét lưới. Run động của tìm kiếm có `ordinal` sau mọi run quét lưới. Công tắc dừng sớm của wizard không áp cho attack tìm ngưỡng.
+  - Trần `MAX_RUNS = 50` (`experiment_config.py`): preset toàn catalog đã dùng 43 run. Cần chốt run động có đếm vào trần không; nếu có, kiểm tra khi tạo experiment phải tính `max_points`.
+  - `fog` mức 3 và 4 cùng cường độ nên tìm ngưỡng trên `fog` dễ ra `non_monotonic`. Corruption (severity 1–5) không có level "không biến đổi", nên không có điểm tổng hợp.
+  - Nháp wizard khóa `advertest.wizard.v2`: thêm `search` thì điền mặc định cho nháp cũ (như Phase 6) hoặc đổi sang `v3`.
 
 ## Open Questions
 

@@ -6,7 +6,23 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 6 — Đủ attack catalog, quét lưới và làm mờ ảnh
 
-**Trạng thái:** đang làm. Group 0 xong (chờ merge).
+**Trạng thái:** ✅ hoàn thành 2026-10-01, còn tồn đọng. Group 0–7 đã merge.
+
+### Replan sau Phase 6 — 2026-10-01
+- Phase 6 `requirements.md`: câu hỏi mở `rule_v1` đã trả lời (đủ, không cần `rule_v2`).
+- Phase 7 `requirements.md` mục Context: loại attack tìm ngưỡng khỏi `attack_ranking`; `eval_image_ids_sha256` null với run toàn slice (giữ cache quét lưới); endpoint tạo run động trả `422`, không `409` (worker coi `409` là mất lease); `ordinal` và dừng sớm chỉ cho quét lưới; chốt run động có đếm vào `MAX_RUNS = 50`; `fog` dễ `non_monotonic`; nháp wizard `v2`.
+- Phase 8 `requirements.md`: Context về case cũ bị ẩn trong report và case bắt buộc review, phương pháp làm mờ trong report, ảnh thứ ba theo `perturbation_kind`; câu hỏi mở mới về `max_drop_at_level` khi level bị `early_stop`.
+- `roadmap.md`: lưới mịn eps nhỏ chuyển sang Phase 7 (gộp vào khoảng tìm kiếm PGD); stdout của CLI chuyển sang Phase 11; Phase 8 "heatmap nhiễu" đổi thành ảnh thứ ba theo loại biến đổi.
+- Người dùng chấp nhận toàn bộ đề xuất.
+
+### Phase 6 — Tổng kết (phase-close) — 2026-10-01
+- **Giao được:** 7 spec mới (5 corruption severity 1–5 bằng bản vá imagecorruptions, `bbox_occlusion`, `adv_patch` train một lần bằng `RobustDPatch` trên slice huấn luyện không giao, lưu MinIO, dùng lại theo khóa patch, chạy tiếp từ checkpoint); seed theo ảnh; quét lưới thô → mịn, dừng sớm (`early_stop`, `POST /runs/{id}/skip`); xếp hạng `auc_drop`; làm mờ `rule_v1` cho mọi ảnh hiển thị và thumbnail trước khi upload; ước lượng có `training_seconds`; wizard ba nhóm attack, preset "Toàn bộ catalog", slice huấn luyện, công tắc dừng sớm; tab Kết quả có bảng xếp hạng, biểu đồ cột, trục chuẩn hóa; tiến độ hai giai đoạn của patch; trang `/admin/attacks`.
+- **Contract:** Group 0 (trường Phase 6, `PatchArtifact`, endpoint nội bộ, 7 seed), đề xuất 001 (`TrainingParams.batch_size`, `adv_patch` version 2), 002 (`FailureCaseView.artifacts` null khi ẩn), 003 (`RunAttackSpec.param_max`). Người dùng chấp nhận roadmap, contract và seed catalog.
+- **Số liệu cuối:** `make check` trên `72b7cb3` (lint, type check sạch; 1125 test Python, 231 Vitest, 264 test nghiệm thu không cần DB). Group 7: `make test-db` gồm 69 test nghiệm thu Phase 6 với worker CPU thật; `make test-e2e` 72 test, 4,5 phút. CI xanh trên `main` (người dùng xác nhận).
+- **`validation.md`:** Automated Tests đủ; Manual Checks 7/7 (người dùng xác nhận đã làm và đạt); Definition of Done 5/6 (câu hỏi mở về `learning_rate` và `max_iter` của patch chưa ghi giá trị).
+- **Câu hỏi mở:** `rule_v1` đủ che mặt và biển số trên KITTI (người dùng kiểm ≥ 20 case, không cần `rule_v2`). `learning_rate`, `max_iter` của patch: người dùng đã hiệu chỉnh, giá trị chưa ghi.
+- **Tồn đọng (người dùng cho phép đóng phase, cập nhật sau):** số liệu của manual check chưa ghi (thời gian train patch, thời gian mỗi attack, bảng xếp hạng trên KITTI 300 ảnh; bất thường của mức sụt theo severity); giá trị `learning_rate`, `max_iter` sau hiệu chỉnh (nếu khác seed: đề xuất contract nâng `version` của `adv_patch`); ba mục chuyển tiếp chưa làm: lưới mịn ở eps nhỏ (Phase 2), sai số ước lượng PGD 300 ảnh (Phase 5), stdout của CLI khi Ultralytics import lần đầu (Phase 5). Mục "nên sửa" ở `ml_core/metrics/tests/test_ranking.py` vẫn mở.
+- **Lưu ý:** Group 0, 7, việc review, merge và phase-close do agent làm thay người duyệt theo ủy quyền của người dùng; review và test nghiệm thu do chính agent đã viết code thực hiện nên không độc lập.
 
 ### Phase 6 — Group 7 (người duyệt) — 2026-10-01
 #### Thêm

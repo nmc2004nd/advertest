@@ -224,8 +224,14 @@ Ghi các action: `protocol.created`, `protocol.versioned`, `protocol.retired`, `
 - `mission.md` nguyên tắc 1 (tách quyền), 2 (tiêu chí chốt trước), 3 (bất biến, truy vết), 7 (con người quyết định), 8 (chỉ là kiểm thử), 9 (riêng tư).
 - `tech-stack.md` mục 4 (WeasyPrint, email), 4.1 (quyền), 4.4 (tái lập).
 - Phase 0: trigger người review ≠ người tạo, quyền DB. Phase 3: protocol `dev`. Phase 4: phiên, ma trận quyền. Phase 5: wizard, `CaseViewer`, email outbox. Phase 6: xếp hạng AUC, làm mờ. Phase 7: kết quả tìm ngưỡng, khoảng tin cậy.
+- Phase 6 (ảnh hưởng thiết kế):
+  - Case tạo trước Phase 6 không có `anonymization`, nên `display_mode = hidden_unanonymized` và `artifacts = null`. Report chỉ nhúng thumbnail của case có `anonymization.applied`; case bắt buộc review cần quy tắc riêng cho case bị ẩn.
+  - Mục "phương pháp làm mờ" của report lấy từ `anonymization.method`/`version` (`rule_v1`: theo box, không dùng model phát hiện mặt).
+  - Ảnh thứ ba của case theo `perturbation_kind` (nhiễu khuếch đại / vùng khác biệt / vị trí patch); "heatmap nhiễu" ở roadmap chính là ảnh này.
 
 ## Open Questions
+
+- [ ] `max_drop_at_level` với level bị `skipped` (`early_stop`): hiện rơi vào `inconclusive` (không có run `completed`). Có dùng `relative_drop` của run kích hoạt như xếp hạng Phase 6 (thường thành `fail`), hoặc bắt protocol tắt dừng sớm cho attack bắt buộc?
 
 - [ ] `cases_to_review_per_attack` mặc định 5 có phù hợp không.
 - [ ] Có cần thêm matplotlib vào `tech-stack.md` hay vẽ biểu đồ report bằng SVG tự sinh (mặc định: matplotlib, ghi vào `tech-stack.md` ở Group 0).

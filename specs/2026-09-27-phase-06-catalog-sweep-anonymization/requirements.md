@@ -201,4 +201,4 @@ Mọi spec corruption và occlusion có `requires_gradients = false`, `access = 
 ## Open Questions
 
 - [ ] `learning_rate` và `max_iter` của patch: hiệu chỉnh sau khi đo trên laptop (thời gian train có chấp nhận được không).
-- [ ] Quy tắc `rule_v1` có đủ che mặt và biển số trên KITTI không (trả lời ở manual check).
+- [x] Quy tắc `rule_v1` có đủ che mặt và biển số trên KITTI không: đủ (người dùng kiểm ≥ 20 case có người và xe, 2026-10-01; không cần `rule_v2`).
