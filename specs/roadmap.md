@@ -140,13 +140,13 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 
 **Mục tiêu:** bộ attack và biến đổi đầy đủ cho MVP; ảnh failure case được làm mờ để report ở Phase 8 có ảnh.
 
-- [ ] Patch attack: train một lần, lưu MinIO, quét theo kích thước.
-- [ ] Corruption: fog, snow, frost, motion blur, contrast (severity 1–5).
-- [ ] Occlusion theo tỷ lệ bounding box.
-- [ ] Quét lưới thô trước, mịn sau; dừng sớm khi mAP gần 0.
-- [ ] Trang admin xem attack catalog.
-- [ ] Xếp hạng attack gây hại nhất (`auc_drop`).
-- [ ] Làm mờ mặt và biển số ở tầng hiển thị (với dataset chưa ẩn danh); chuyển từ Phase 10 (report ở Phase 8 cần ảnh failure case, `mission.md` nguyên tắc 9).
+- [x] Patch attack: train một lần, lưu MinIO, quét theo kích thước.
+- [x] Corruption: fog, snow, frost, motion blur, contrast (severity 1–5).
+- [x] Occlusion theo tỷ lệ bounding box.
+- [x] Quét lưới thô trước, mịn sau; dừng sớm khi mAP gần 0.
+- [x] Trang admin xem attack catalog.
+- [x] Xếp hạng attack gây hại nhất (`auc_drop`).
+- [x] Làm mờ mặt và biển số ở tầng hiển thị (với dataset chưa ẩn danh); chuyển từ Phase 10 (report ở Phase 8 cần ảnh failure case, `mission.md` nguyên tắc 9). Kiểm tra bằng mắt trên KITTI còn mở (manual check, cần dữ liệu KITTI đầy đủ).
 - [ ] (Từ Phase 2) Lưới mịn ở eps nhỏ: trên KITTI, PGD L∞ eps 2/255 đã sụt 98%, PGD L2 eps 1 sụt 90% (vùng hữu ích dưới 2/255 và dưới 1).
 - [ ] (Từ Phase 5) Đo sai số ước lượng: PGD eps 2/4/8/16 trên KITTI 300 ảnh qua wizard (tồn đọng Phase 5), làm cùng lúc với manual check hiệu chỉnh patch.
 - [ ] (Từ Phase 5) CLI `advertest` in JSON ra stdout, nhưng Ultralytics lần đầu import in thông báo settings vào stdout (`scripts/e2e.sh` đang né bằng `YOLO_CONFIG_DIR` và import trước một lần).

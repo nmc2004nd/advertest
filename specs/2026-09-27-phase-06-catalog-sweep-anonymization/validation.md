@@ -18,7 +18,7 @@
 - [ ] Cả 5 corruption chạy được ở cả 5 severity trên ảnh letterbox của KITTI (vùng ảnh thật khoảng 640×193) và của fixture.
 - [ ] Vùng pad không đổi (so sánh chính xác).
 - [ ] Ảnh kết quả nằm trong [0, 1], đúng shape và dtype.
-- [ ] Mức khác biệt trung bình so với ảnh gốc tăng theo severity với `fog` và `contrast`.
+- [ ] Mức khác biệt trung bình so với ảnh gốc tăng theo severity với `contrast` (mọi cặp mức) và `fog` (1 < 2 < 3, 4 < 5, 2 < 4, 1 < 5; mức 3 và 4 của tham số gốc imagecorruptions cùng cường độ 2.5, chỉ khác độ nhám, nên không so; chốt ở Group 7).
 
 ### Occlusion — `test_occlusion.py`
 - [ ] `occlusion_ratio = 0` → ảnh không đổi.
@@ -29,7 +29,7 @@
 - [ ] Slice huấn luyện giao với slice đánh giá, khác dataset version, hoặc nhiều hơn 50 ảnh → tạo experiment bị `422`; thiếu `training_slice_id` với patch → `422`.
 - [ ] Chạm giới hạn thời gian giữa lúc train → run `stopped_limit`; thời gian train đã được cộng vào thời gian đã dùng của experiment.
 - [ ] Train patch với `max_iter` nhỏ tạo `PatchArtifact` hợp lệ; giá trị mục tiêu cuối tốt hơn giá trị đầu.
-- [ ] Diện tích patch bằng `area_ratio` × diện tích vùng ảnh thật (sai số ±1%); patch nằm hoàn toàn trong vùng ảnh thật.
+- [ ] Diện tích patch bằng `area_ratio` × diện tích vùng ảnh thật (sai số ±1% diện tích vùng ảnh thật: patch vuông cạnh nguyên không đạt ±1% tương đối ở tỉ lệ nhỏ; chốt ở Group 2); patch nằm hoàn toàn trong vùng ảnh thật.
 - [ ] Chạy experiment thứ hai cùng khóa patch → không train lại (spy), dùng patch có cùng `patch_sha256`.
 - [ ] Ngắt worker giữa lúc train; worker mới train tiếp từ checkpoint, tổng số vòng lặp đúng `max_iter`.
 - [ ] `fingerprint_inputs.patch_key` có mặt với run patch, null với run khác.
@@ -56,6 +56,7 @@
 ### Ước lượng — `test_estimate_phase06.py`
 - [ ] Patch chưa có → `training_seconds = max_iter × số ảnh slice huấn luyện × sec_per_image_iteration`, đã cộng vào `total_seconds` và `exceeds_limit`; patch đã có → `null`.
 - [ ] Calibration cho `adv_patch` tạo cost profile có `sec_per_image_iteration`.
+- [ ] Calibration cho corruption và occlusion chạy được trên máy chưa có cost profile (batch đo có `image_id` như khi chạy run; lỗi phát hiện ở Group 7 làm experiment kẹt ở `running`).
 
 ### Làm mờ — `test_anonymization.py`
 - [ ] Vùng làm mờ `rule_v1` đúng quy tắc trên dữ liệu dựng sẵn: 1/3 trên của `person`, 40% dưới của `car`/`truck`, toàn bộ ignore region; lấy từ hợp ground truth và prediction (score ≥ 0.25).
@@ -74,9 +75,9 @@
 - [ ] Preset "Toàn bộ catalog" chọn đủ 10 attack với level mặc định; `adv_patch` có 2 level (0.1, 0.25).
 - [ ] Nháp wizard cũ (`advertest.wizard.v1`) không làm hỏng wizard (khóa mới `v2`).
 - [ ] Ước lượng hiển thị `training_seconds` khi patch cần train; công tắc dừng sớm bật mặc định.
-- [ ] Engineer chạy experiment toàn catalog (level rút gọn) trên fixture → `completed`; tab Kết quả có bảng xếp hạng và biểu đồ cột; run `early_stop` hiển thị đúng lý do.
+- [ ] Engineer chạy experiment toàn catalog (level rút gọn) trên fixture → `completed`; tab Kết quả có bảng xếp hạng và biểu đồ cột. Run `early_stop` hiển thị đúng lý do: kiểm bằng Vitest (giao diện) và test nghiệm thu backend với worker thật; trên fixture 3 ảnh chỉ `bbox_occlusion` 0.9 (level lớn nhất) làm model sụp nên E2E không dựng được run bị bỏ (chốt ở Group 7).
 - [ ] Chuyển trục hoành chuẩn hóa → mọi attack hiển thị trên dải 0–100%.
-- [ ] Run patch hiển thị "Đang train patch" trước "Đang đánh giá" (E2E dùng seed `adv_patch` với `max_iter = 4`).
+- [ ] Run patch hiển thị "Đang train patch" trước "Đang đánh giá" (E2E dùng seed `adv_patch` với `max_iter = 4` và kiểm "Đang train patch (x/4)"; giai đoạn đánh giá 3 ảnh ngắn hơn chu kỳ cập nhật 2 giây nên "Đang đánh giá" kiểm bằng Vitest và thứ tự giai đoạn kiểm ở test nghiệm thu backend; chốt ở Group 7).
 - [ ] Trình xem case hiển thị dải "Đã làm mờ mặt và biển số" và nhãn ảnh thứ ba đúng theo loại.
 - [ ] Admin mở `/admin/attacks` thấy đủ 10 spec; engineer bị chuyển tới `/forbidden`.
 - [ ] Ở viewport 390px: bảng xếp hạng và `/admin/attacks` hiển thị dạng thẻ, không cuộn ngang.

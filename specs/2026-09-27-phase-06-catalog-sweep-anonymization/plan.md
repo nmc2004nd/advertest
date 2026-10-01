@@ -4,7 +4,7 @@
 > `attacks/corruptions/`, `attacks/occlusion/` (agent `attack-transform`); `attacks/patch/` (agent `attack-patch`);
 > `ml_core/runner/`, `ml_core/metrics/ranking.py` (agent `ml-core`); `ml_core/privacy/` (agent `ml-privacy`);
 > `backend/app/`, `backend/migrations/` (agent `backend`); `backend/worker/` (agent `worker`); `frontend/` (agent `frontend`).
-> Agent `ml-privacy` được sửa thêm `ml_core/runner/candidates.py` ở task 23.
+> Agent `ml-privacy` được sửa thêm `ml_core/runner/candidates.py` ở task 23, và tối thiểu `ml_core/runner/executor.py` (`_offer`, `_record`; chốt ở Group 4).
 >
 > Thứ tự: Group 0 → (Group 1, 2, 4 song song) → Group 3 → (Group 5, 6 song song; frontend bắt đầu với mock ngay sau Group 0) → Group 7.
 
