@@ -121,6 +121,13 @@ Ký hiệu `d(x, S)` là mức sụt ở level `x` trên tập ảnh `S`.
 - Với mỗi điểm: gọi `POST /internal/worker/experiments/{id}/runs` để tạo run (`attack_spec_id`, `level`, `scope`, `search_order`), sau đó chạy như mọi run.
 - Sau mỗi điểm gửi `SearchResult` tạm thời để giao diện cập nhật quỹ đạo; khi xong gửi kết quả cuối kèm bootstrap.
 - Trạng thái tìm kiếm (các điểm đã có, `a`, `b`, giai đoạn) dựng lại từ `SearchResult` tạm thời mới nhất (`bundle.search_results`, xem "Chi tiết chốt ở Group 0"); bị gián đoạn thì tiếp tục đúng giai đoạn, không đánh giá lại điểm đã có.
+- **Chốt ở Group 3** (review):
+  - Run đã tạo cho một điểm nhưng chưa báo kết quả (worker chết giữa chừng) được chạy tiếp theo đúng `search_order` của nó, không tạo run mới; run đã có metric thì dùng metric đó.
+  - Run lỗi, bị bỏ qua (attack không dùng được với model) hoặc kết thúc không có metric làm cả lần tìm kết thúc `failed`, không thử lại; `message` gồm trạng thái và lý do của run.
+  - API từ chối (lỗi khác mất lease, ví dụ `422` khi vượt `max_points`) khi tạo run, chạy run hoặc nhận `SearchResult` tạm thời → lần tìm kết thúc `failed`, `message` gồm mã lỗi; experiment chạy tiếp attack sau. API từ chối kết quả cuối thì worker chỉ ghi log. Mất lease (`409`) vẫn dừng experiment.
+  - Attack tìm ngưỡng chưa có run nào thì calibration đo ở `search.hi` (level 0 của PGD cho bước nhảy 0).
+  - Mọi run có metric (cả quét lưới) ghi `runs/<run_id>/predictions.json` và điền `predictions_key`; run `stopped_limit` có metric một phần cũng ghi.
+  - Bootstrap dùng prediction của run hoàn tất trong phiên; đọc prediction của run đã kết thúc ở phiên trước hoặc trúng cache chờ đề xuất contract 001 (`contract-proposals/001-read-finished-run-predictions.md`). Điểm không có prediction bị bỏ khỏi bootstrap (ghi cảnh báo).
 
 ### API và kiểm tra khi tạo experiment
 - `mode = search` được chấp nhận cho mọi spec không cần huấn luyện; với `adv_patch` → `422 not_supported_yet`.
