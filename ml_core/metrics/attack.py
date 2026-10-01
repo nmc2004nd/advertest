@@ -7,8 +7,9 @@ ignore region. Ghép một-một được dùng cho cả ảnh sạch lẫn ản
 
 from __future__ import annotations
 
-from collections.abc import Collection, Iterable, Mapping
-from dataclasses import dataclass
+from collections import Counter
+from collections.abc import Collection, Iterable, Mapping, Sequence
+from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
@@ -86,6 +87,10 @@ class ImageAttackStats:
     lost: int  # object trong C không còn được detect đúng sau tấn công
     clean_fp: int
     attacked_fp: int
+    # Phase 7: `correct`, `lost` theo label (chỉ số class trong model) để tính ASR theo class
+    # (`ClassRunMetrics.attack_success_rate`); rỗng khi không tính theo class.
+    class_correct: Mapping[int, int] = field(default_factory=dict)
+    class_lost: Mapping[int, int] = field(default_factory=dict)
 
     @property
     def new_false_positives(self) -> int:
@@ -113,11 +118,15 @@ def image_attack_stats(
     after = match_predictions(
         _prepare(attacked, target_labels, ignore_boxes), target, operating_conf
     )
+    lost = before.gt_matched & ~after.gt_matched
+    gt_labels = np.asarray(target["labels"]).reshape(-1)
     return ImageAttackStats(
         correct=int(before.gt_matched.sum()),
-        lost=int((before.gt_matched & ~after.gt_matched).sum()),
+        lost=int(lost.sum()),
         clean_fp=int((before.pred_confident & ~before.pred_matched).sum()),
         attacked_fp=int((after.pred_confident & ~after.pred_matched).sum()),
+        class_correct=dict(Counter(int(label) for label in gt_labels[before.gt_matched])),
+        class_lost=dict(Counter(int(label) for label in gt_labels[lost])),
     )
 
 
@@ -130,6 +139,16 @@ def attack_success_rate(stats: Iterable[ImageAttackStats]) -> float | None:
     return sum(s.lost for s in items) / correct
 
 
+def class_attack_success_rate(stats: Iterable[ImageAttackStats], label: int) -> float | None:
+    """ASR chỉ tính object của class `label` (Phase 7); `None` khi không có object nào của class
+    được detect đúng trên ảnh sạch."""
+    items = list(stats)
+    correct = sum(s.class_correct.get(label, 0) for s in items)
+    if correct == 0:
+        return None
+    return sum(s.class_lost.get(label, 0) for s in items) / correct
+
+
 def compute_drops(clean_map50: float, attacked_map50: float) -> tuple[float, float | None]:
     """(absolute_drop, relative_drop); relative_drop là `None` khi mAP@0.5 sạch bằng 0."""
     absolute = clean_map50 - attacked_map50
@@ -138,21 +157,35 @@ def compute_drops(clean_map50: float, attacked_map50: float) -> tuple[float, flo
 
 
 def build_run_metrics(
-    clean: EvalMetrics, attacked: EvalMetrics, stats: Iterable[ImageAttackStats]
+    clean: EvalMetrics,
+    attacked: EvalMetrics,
+    stats: Iterable[ImageAttackStats],
+    class_names: Sequence[str] | None = None,
 ) -> RunMetrics:
-    """`RunMetrics` của contract từ mAP sạch, mAP sau tấn công và thống kê từng ảnh."""
+    """`RunMetrics` của contract từ mAP sạch, mAP sau tấn công và thống kê từng ảnh.
+
+    `class_names` (`ModelCard.class_names`, Phase 7): có thì điền `per_class[*].attack_success_rate`
+    từ `class_correct`, `class_lost` của thống kê."""
     if set(clean.per_class) != set(attacked.per_class):
         raise ValueError("clean và attacked phải cùng tập class đích")
+    items = list(stats)
     absolute, relative = compute_drops(clean.map50, attacked.map50)
+    labels = {name: i for i, name in enumerate(class_names)} if class_names is not None else None
+    if labels is not None and set(clean.per_class) - set(labels):
+        raise ValueError("class đích không có trong class_names của model")
     return RunMetrics(
         clean=MapPair(map50=clean.map50, map50_95=clean.map50_95),
         attacked=MapPair(map50=attacked.map50, map50_95=attacked.map50_95),
         relative_drop=relative,
         absolute_drop=absolute,
-        attack_success_rate=attack_success_rate(stats),
+        attack_success_rate=attack_success_rate(items),
         per_class={
             name: ClassRunMetrics(
-                clean_ap50=clean.per_class[name].ap50, attacked_ap50=attacked.per_class[name].ap50
+                clean_ap50=clean.per_class[name].ap50,
+                attacked_ap50=attacked.per_class[name].ap50,
+                attack_success_rate=(
+                    None if labels is None else class_attack_success_rate(items, labels[name])
+                ),
             )
             for name in sorted(clean.per_class)
         },
