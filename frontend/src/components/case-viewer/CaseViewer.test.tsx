@@ -5,11 +5,14 @@ import { listMocks } from '@/api/mocks'
 import type { DisplayMode, FailureCaseView } from '@/contracts/api'
 
 import { boxesOf } from './boxes'
-import { CaseViewer, DEV_WARNING, HIDDEN_TEXT, WATERMARK } from './CaseViewer'
+import { BLURRED_TEXT, CaseViewer, DEV_WARNING, HIDDEN_TEXT, WATERMARK } from './CaseViewer'
+import { THIRD_IMAGE_LABEL } from './labels'
 
+/** Case kiểu Phase 5 (chưa làm mờ, ảnh thứ ba là nhiễu khuếch đại) theo display_mode. */
 function view(mode: DisplayMode): FailureCaseView {
   const found = listMocks<FailureCaseView>('failure_case_view').find(
-    (v) => v.display_mode === mode && (mode !== 'normal' || v.urls.clean !== null),
+    (v) =>
+      v.display_mode === mode && !v.anonymization && (mode !== 'normal' || v.urls.clean !== null),
   )
   if (!found) throw new Error(`Thiếu mock ${mode}`)
   return found
@@ -87,5 +90,34 @@ describe('CaseViewer (validation.md Frontend unit)', () => {
     expect(html).toContain('data-verdict="phase8"')
     expect(html).toContain('lg:grid-cols-')
     expect(render('normal')).not.toContain('lg:grid-cols-')
+  })
+})
+
+describe('CaseViewer Phase 6 (task 34)', () => {
+  const views = listMocks<FailureCaseView>('failure_case_view')
+
+  it('case đã làm mờ: dải "Đã làm mờ mặt và biển số"; case cũ thì không', () => {
+    const blurred = views.filter((v) => v.anonymization?.applied)
+    expect(blurred.length).toBeGreaterThan(0)
+    for (const v of blurred) {
+      expect(renderToStaticMarkup(<CaseViewer caseView={v} />)).toContain(BLURRED_TEXT)
+    }
+    const old = views.find((v) => !v.anonymization)
+    if (!old) throw new Error('Thiếu mock case cũ')
+    expect(renderToStaticMarkup(<CaseViewer caseView={old} />)).not.toContain(BLURRED_TEXT)
+  })
+
+  it('nhãn ảnh thứ ba theo loại', () => {
+    for (const kind of ['amplified_noise', 'difference', 'patch_location'] as const) {
+      const v = views.find((x) => (x.perturbation_kind ?? 'amplified_noise') === kind)
+      if (!v) throw new Error(`Thiếu mock ${kind}`)
+      const html = renderToStaticMarkup(<CaseViewer caseView={v} />)
+      expect(html).toContain(
+        `<figcaption class="text-sm font-medium">${THIRD_IMAGE_LABEL[kind]}</figcaption>`,
+      )
+      for (const other of Object.values(THIRD_IMAGE_LABEL)) {
+        if (other !== THIRD_IMAGE_LABEL[kind]) expect(html).not.toContain(other)
+      }
+    }
   })
 })

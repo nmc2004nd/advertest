@@ -188,7 +188,9 @@ export function DatasetStep({ draft, dispatch, errors }: StepProps) {
                   <span className="text-sm text-muted-foreground">
                     {version.num_images} ảnh · {version.manifest_sha256.slice(0, 12)}
                   </span>
-                  {!dataset.anonymized && <Badge>Chưa làm mờ: ảnh failure case bị ẩn</Badge>}
+                  {!dataset.anonymized && (
+                    <Badge>Chưa ẩn danh: ảnh failure case được làm mờ mặt và biển số</Badge>
+                  )}
                 </ChoiceCard>
               )),
             )}
