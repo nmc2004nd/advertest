@@ -166,10 +166,16 @@ Ký hiệu `d(x, S)` là mức sụt ở level `x` trên tập ảnh `S`.
 - **Tab Kết quả**, mục "Điểm gãy":
   - mỗi attack một thẻ tóm tắt: trạng thái (`StatusBadge`), câu kết luận (ví dụ "Gãy tại eps ≈ 6.5/255, KTC 95%: 5.8–7.1"; "Không gãy trong dải 0–32/255"; "Gãy ngay ở mức nhỏ nhất"), cảnh báo "Sát ngưỡng" khi `near_threshold`, cảnh báo "Không đơn điệu, cần xem kỹ" khi `non_monotonic`;
   - biểu đồ quỹ đạo: mức sụt theo level; điểm trên tập con rỗng ruột, trên toàn slice đặc; số thứ tự theo `search_order`; đường ngang ngưỡng; vùng tô khoảng `bracket`; dải khoảng tin cậy của điểm gãy; kèm bảng số liệu;
-  - biểu đồ so sánh điểm gãy giữa các attack, chuẩn hóa về % dải của spec (càng nhỏ càng dễ gãy); `not_reached` hiển thị "> 100%", `below_min` hiển thị "≤ mức nhỏ nhất".
-- **Tiến độ khi đang chạy:** "Điểm 5 / tối đa 13 · khoảng hiện tại [4, 8] · giai đoạn: chia đôi trên tập con".
+    - bảng số liệu hiện level chính xác (level chia đôi như 1.0625 giữ nguyên); câu kết luận, tooltip, dòng tiến độ làm tròn 4 chữ số có nghĩa;
+    - điểm tổng hợp (`synthetic`) vẽ theo phạm vi của nó, bảng ghi "Tổng hợp (không chạy)";
+  - biểu đồ so sánh điểm gãy giữa các attack, chuẩn hóa về % dải của spec theo `level / max` (cùng quy ước trục chuẩn hóa Phase 6; càng nhỏ càng dễ gãy);
+    - `not_reached` hiển thị "> {hi / max}%", cột dài tới `hi` (bằng "> 100%" khi tìm trên toàn dải của spec; dải hẹp hơn thì "không gãy" chỉ nói điểm gãy nằm sau `hi`);
+    - `below_min` hiển thị "≤ mức nhỏ nhất", cột tới `lo`;
+    - `stopped_limit`, `failed`, đang chạy, chưa có điểm: không có cột, chỉ có nhãn trong bảng, xếp cuối.
+  - Tên, tham số, đơn vị, `max` của attack lấy từ `RunView.attack_spec` (phiên bản đã chạy); attack chưa có run lấy từ `GET /attack-specs`. Đơn vị trùng tên tham số thì không lặp (fog: "severity ≈ 3").
+- **Tiến độ khi đang chạy:** "Điểm 5 / tối đa 13 · khoảng hiện tại [4, 8] · giai đoạn: chia đôi trên tập con". Dòng này nằm trong thẻ tóm tắt ở tab Kết quả.
 - **Điện thoại:** chỉ hiển thị thẻ tóm tắt; chạm vào thẻ để mở biểu đồ quỹ đạo toàn màn hình.
-- Xếp hạng AUC của Phase 6 chỉ gồm attack quét lưới; attack tìm ngưỡng nằm ở biểu đồ so sánh điểm gãy.
+- Xếp hạng AUC và đường cong metric của Phase 6 chỉ gồm attack quét lưới (run tập con của tìm ngưỡng không vẽ vào đường cong); attack tìm ngưỡng nằm ở mục "Điểm gãy".
 - Nháp wizard đã lưu trước Phase 7 vẫn mở được: attack không có `mode`/`search` là quét lưới, không mất dữ liệu nháp (agent frontend chọn giữ khóa `v2`, điền mặc định khi đọc).
 
 ## Decisions
