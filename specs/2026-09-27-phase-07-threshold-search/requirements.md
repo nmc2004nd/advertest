@@ -127,7 +127,8 @@ Ký hiệu `d(x, S)` là mức sụt ở level `x` trên tập ảnh `S`.
   - API từ chối (lỗi khác mất lease, ví dụ `422` khi vượt `max_points`) khi tạo run, chạy run hoặc nhận `SearchResult` tạm thời → lần tìm kết thúc `failed`, `message` gồm mã lỗi; experiment chạy tiếp attack sau. API từ chối kết quả cuối thì worker chỉ ghi log. Mất lease (`409`) vẫn dừng experiment.
   - Attack tìm ngưỡng chưa có run nào thì calibration đo ở `search.hi` (level 0 của PGD cho bước nhảy 0).
   - Mọi run có metric (cả quét lưới) ghi `runs/<run_id>/predictions.json` và điền `predictions_key`; run `stopped_limit` có metric một phần cũng ghi.
-  - Bootstrap dùng prediction trong bộ nhớ với run hoàn tất trong phiên; run đã kết thúc ở phiên trước hoặc trúng cache thì đọc `runs/<run_id>/predictions.json` qua `artifact-url` của chính run đó (đề xuất contract 001, đã duyệt). File không có (404) → điểm bị bỏ khỏi bootstrap (ghi cảnh báo).
+  - Bootstrap dùng prediction trong bộ nhớ với run hoàn tất trong phiên; run đã kết thúc ở phiên trước hoặc trúng cache thì đọc `runs/<run_id>/predictions.json` qua `artifact-url` của chính run đó (đề xuất contract 001, đã duyệt). File không có (404), lỗi đọc (MinIO lỗi, API từ chối cấp URL bằng lỗi khác mất lease) hoặc file hỏng → điểm bị bỏ khỏi bootstrap kèm cảnh báo, không làm dừng job; mất lease (`409`) vẫn dừng experiment (task 18b, review).
+  - Bản sao prediction do API tạo khi trúng cache giữ khóa của run gốc trong trường `key`; worker đọc file theo đúng run ghi trong khóa (khóa phải có dạng `runs/<uuid>/predictions.json`).
 
 ### API và kiểm tra khi tạo experiment
 - `mode = search` được chấp nhận cho mọi spec không cần huấn luyện; với `adv_patch` → `422 not_supported_yet`.

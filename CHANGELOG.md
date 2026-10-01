@@ -8,6 +8,12 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 **Trạng thái:** đang làm. Kickoff và Group 0 trên nhánh `phase07-reviewer-g0`.
 
+### Phase 7 — Task 18b (worker) — 2026-10-01
+- Hook `predictions` của `JobRunner`: run hoàn tất trong phiên dùng bộ nhớ; run đã kết thúc ở phiên trước hoặc trúng cache đọc `runs/<run_id>/predictions.json` qua `artifact-url` (đề xuất contract 001). `read_predictions_file` đọc bản sao theo khóa của run gốc ghi trong file.
+- Test: chạy tiếp sau gián đoạn cho `drop_ci` và khoảng tin cậy giống hệt chạy liền mạch; không có file → điểm bỏ khỏi bootstrap; đọc bản sao khi trúng cache.
+- Review (phase-review): #1 (người dùng chọn sửa) lỗi đọc khác 404 (MinIO `5xx`/`403`, API từ chối, file hỏng) làm sập bootstrap, experiment lặp mãi → bỏ điểm khỏi bootstrap kèm cảnh báo, mất lease vẫn dừng; test file hỏng, MinIO `500`, mất lease. #2 (ghi vào `requirements.md` mục Worker): bản sao giữ khóa của run gốc.
+- Review và phần sửa do cùng một agent làm (không độc lập).
+
 ### Phase 7 — Group 4 (backend) — 2026-10-01
 #### Thêm
 - Migration `0008` (task 18a): `runs.scope` (mặc định `full`, ràng buộc giá trị), `runs.search_order` (bắt buộc khi `subset`, không trùng trong một attack), `runs.predictions_key`; `search_results` mỗi (experiment, attack) một dòng, `updated_at`.
