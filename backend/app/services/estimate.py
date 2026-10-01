@@ -19,12 +19,15 @@ from advertest_contracts.models import (
     AttackSpec,
     EstimateResponse,
     EstimateRun,
+    ExperimentConfig,
     QueueEstimate,
+    SearchEstimate,
 )
 from backend.app.db import models as m
-from backend.app.services.experiment_config import CheckedConfig
+from backend.app.services.experiment_config import CheckedConfig, spec_of
 from backend.app.services.experiments import runs_of
 from backend.app.services.patches import is_registered, patch_key_for
+from ml_core.search.bounds import search_bounds
 
 SAFETY_FACTOR = 1.2
 
@@ -71,9 +74,79 @@ def _incompatible(spec_requires_gradients: bool, model: m.ModelVersion) -> bool:
     return spec_requires_gradients and not model.supports_gradients
 
 
+def search_estimate(
+    attack: AttackConfig,
+    spec: AttackSpec,
+    images: int,
+    profile: m.CostProfile | None,
+    incompatible: bool,
+) -> SearchEstimate:
+    """Phase 7 (plan task 20): `max_seconds = (max_subset_points * subset_size + max_full_points
+    * số ảnh slice) * sec_per_image * 1.2`; 0 khi attack không dùng được với model (run bị bỏ
+    qua); `None` khi thiếu profile."""
+    search = attack.search
+    assert search is not None
+    bounds = search_bounds(search, spec.primary_param, images)
+    seconds: float | None
+    if incompatible:
+        seconds = 0.0
+    elif profile is None:
+        seconds = None
+    else:
+        images_max = bounds.max_subset_points * search.subset_size + bounds.max_full_points * images
+        seconds = images_max * profile.sec_per_image * SAFETY_FACTOR
+    return SearchEstimate(
+        attack_spec_id=spec.id,
+        max_points=bounds.max_points,
+        max_subset_points=bounds.max_subset_points,
+        max_full_points=bounds.max_full_points,
+        max_seconds=seconds,
+    )
+
+
+def _search_remaining(
+    session: Session,
+    experiment: m.Experiment,
+    model: m.ModelVersion,
+    profiles: dict[UUID, m.CostProfile],
+    runs: list[m.Run],
+) -> float:
+    """Phần tìm ngưỡng của `queue.ahead_seconds` (review Group 0): `max_seconds` trừ thời gian
+    đã dùng cho run của attack đó, không âm; bỏ attack thiếu profile."""
+    config = ExperimentConfig.model_validate(experiment.config)
+    searching = [a for a in config.attacks if a.search is not None]
+    if not searching:
+        return 0.0
+    slice_row = session.get(m.Slice, experiment.slice_id)
+    if slice_row is None:
+        return 0.0
+    rows = session.scalars(
+        select(m.AttackSpecRow).where(m.AttackSpecRow.id.in_([a.attack_spec_id for a in searching]))
+    )
+    specs = {row.id: spec_of(row) for row in rows}
+    total = 0.0
+    for attack in searching:
+        spec = specs.get(attack.attack_spec_id)
+        if spec is None:
+            continue
+        estimate = search_estimate(
+            attack,
+            spec,
+            len(slice_row.image_ids),
+            profiles.get(spec.id),
+            _incompatible(spec.requires_gradients, model),
+        )
+        if estimate.max_seconds is None:
+            continue
+        used = sum(r.gpu_seconds for r in runs if r.attack_spec_id == spec.id)
+        total += max(0.0, estimate.max_seconds - used)
+    return total
+
+
 def remaining_seconds(session: Session, experiment: m.Experiment) -> float:
     """Ước lượng còn lại của các run `queued` của experiment; bỏ run không ước lượng được (thiếu
-    profile) và run sẽ bị bỏ qua (requirements.md Phase 5, `queue.ahead_seconds`)."""
+    profile) và run sẽ bị bỏ qua (requirements.md Phase 5, `queue.ahead_seconds`). Phase 7: cộng
+    phần tìm ngưỡng còn lại tính theo `max_seconds`."""
     model = session.get(m.ModelVersion, experiment.model_version_id)
     if model is None:
         return 0.0
@@ -90,10 +163,12 @@ def remaining_seconds(session: Session, experiment: m.Experiment) -> float:
             bool(requires.get(run.attack_spec_id)), model
         ):
             continue
+        if run.search_order is not None:
+            continue  # tính theo `max_seconds` ở `_search_remaining`
         profile = profiles.get(run.attack_spec_id)
         if profile is not None:
             total += run.images_total * profile.sec_per_image * SAFETY_FACTOR
-    return total
+    return total + _search_remaining(session, experiment, model, profiles, runs)
 
 
 def queued_ahead(
@@ -155,10 +230,14 @@ def estimate_config(session: Session, checked: CheckedConfig) -> EstimateRespons
     """`EstimateResponse` cho cấu hình đã kiểm tra (requirements.md Phase 5, Ước lượng)."""
     profiles = latest_profiles(session, checked.target.id, checked.model.id)
     runs: list[EstimateRun] = []
+    searches: list[SearchEstimate] = []
     for attack, spec in zip(checked.body.attacks, checked.specs, strict=True):
-        assert attack.grid is not None
         skip = _incompatible(spec.requires_gradients, checked.model)
         profile = profiles.get(spec.id)
+        if attack.search is not None:
+            searches.append(search_estimate(attack, spec, checked.images, profile, skip))
+            continue
+        assert attack.grid is not None
         for level in attack.grid.levels:
             spp = profile.sec_per_image if profile is not None else None
             training = (
@@ -193,15 +272,28 @@ def estimate_config(session: Session, checked: CheckedConfig) -> EstimateRespons
     known = sum(r.est_seconds for r in runs if r.est_seconds is not None) + sum(
         r.training_seconds for r in runs if r.training_seconds is not None
     )
+    # Phase 7: chi phí tối đa của tìm ngưỡng là trường riêng, chỉ cảnh báo (kickoff).
+    unknown_searches = [s for s in searches if s.max_seconds is None]
+    known_max = known + sum(s.max_seconds for s in searches if s.max_seconds is not None)
+    limit = float(checked.limit_seconds)
     ahead = queued_ahead(session, checked.target.id)
     return EstimateResponse(
         runs=runs,
         total_seconds=None if unknown else known,
-        missing_profiles=list(dict.fromkeys(r.attack_spec_id for r in unknown)),
+        missing_profiles=list(
+            dict.fromkeys(
+                [r.attack_spec_id for r in unknown] + [s.attack_spec_id for s in unknown_searches]
+            )
+        ),
         # Cận dưới khi thiếu profile: phần đã biết vượt giới hạn thì vẫn cảnh báo.
-        exceeds_limit=known > float(checked.limit_seconds),
+        exceeds_limit=known > limit,
         queue=QueueEstimate(
             position=len(ahead) + 1,
             ahead_seconds=sum(remaining_seconds(session, e) for e in ahead),
         ),
+        searches=searches,
+        max_total_seconds=(
+            known_max if searches and not unknown and not unknown_searches else None
+        ),
+        max_exceeds_limit=bool(searches) and known_max > limit,
     )

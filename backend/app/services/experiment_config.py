@@ -12,12 +12,29 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from advertest_contracts.enums import ComputeKind, ErrorCode, LimitKind, ProtocolStatus, RunMode
-from advertest_contracts.models import AttackSpec, ExperimentCreate, FieldError, PrimaryParam
+from advertest_contracts.enums import (
+    ComputeKind,
+    ErrorCode,
+    LimitKind,
+    ProtocolStatus,
+    RunMode,
+    RunStatus,
+    ThresholdKind,
+)
+from advertest_contracts.models import (
+    AttackConfig,
+    AttackSpec,
+    ExperimentCreate,
+    FieldError,
+    PrimaryParam,
+    RunMetrics,
+)
 from backend.app.db import models as m
 from backend.app.services.errors import InvalidConfig
+from ml_core.search.bounds import search_bounds
 
 MAX_LEVELS_PER_ATTACK = 12
 MAX_RUNS = 50
@@ -37,6 +54,8 @@ class CheckedConfig:
     specs: list[AttackSpec]  # theo thứ tự `body.attacks`
     # Phase 6: slice huấn luyện của attack cần train, theo id.
     training_slices: dict[UUID, m.Slice] = field(default_factory=dict)
+    # Phase 7: giới hạn số điểm của attack tìm ngưỡng, theo attack_spec_id.
+    max_points: dict[UUID, int] = field(default_factory=dict)
 
     @property
     def images(self) -> int:
@@ -98,12 +117,10 @@ def check(session: Session, body: ExperimentCreate) -> CheckedConfig:
     training: list[tuple[str, AttackSpec, m.Slice]] = []
     seen: dict[object, int] = {}
     total_runs = 0
+    # Phase 7: (đường dẫn trường, attack, spec) tìm ngưỡng, kiểm tra tiếp sau khi có slice.
+    searches: list[tuple[str, AttackConfig, AttackSpec]] = []
     for i, attack in enumerate(body.attacks):
         prefix = f"attacks.{i}"
-        if attack.mode == RunMode.SEARCH:
-            not_supported = True
-            error(f"{prefix}.mode", "Chế độ tự tìm ngưỡng chưa có; hãy dùng quét lưới")
-            continue
         if attack.attack_spec_id in seen:
             error(
                 f"{prefix}.attack_spec_id",
@@ -126,6 +143,18 @@ def check(session: Session, body: ExperimentCreate) -> CheckedConfig:
             )
         spec = spec_of(row)
         specs.append(spec)
+        if attack.mode == RunMode.SEARCH:
+            if spec.requires_training:
+                not_supported = True
+                error(
+                    f"{prefix}.mode",
+                    f"{spec.name} cần train patch cho mỗi điểm nên chưa hỗ trợ tự tìm ngưỡng;"
+                    " hãy dùng quét lưới",
+                )
+                continue
+            errors.extend(_search_errors(spec, attack, prefix))
+            searches.append((prefix, attack, spec))
+            continue
         assert attack.grid is not None  # mode = grid: schema bắt buộc có grid
         levels = attack.grid.levels
         errors.extend(_level_errors(spec.primary_param, levels, f"{prefix}.grid.levels"))
@@ -142,9 +171,6 @@ def check(session: Session, body: ExperimentCreate) -> CheckedConfig:
                     training.append((path, spec, training_row))
         elif attack.training_slice_id is not None:
             error(path, f"{spec.name} không cần slice huấn luyện")
-    if total_runs > MAX_RUNS:
-        error("attacks", f"Tối đa {MAX_RUNS} run mỗi experiment (đang có {total_runs})")
-
     # ------------------------------------------------------------ model, slice, mapping
     model = session.get(m.ModelVersion, body.model_version_id)
     if model is None:
@@ -202,6 +228,53 @@ def check(session: Session, body: ExperimentCreate) -> CheckedConfig:
             if training_row.slice_sha256 is None:
                 error(path, "Slice huấn luyện chưa được đăng ký qua import-local")
 
+    # ------------------------------------------------------------ tìm ngưỡng (Phase 7)
+    max_points: dict[UUID, int] = {}
+    if slice_row is not None:
+        images = len(slice_row.image_ids)
+        targets = _target_classes(mapping) if mapping is not None else None
+        clean = (
+            _known_clean_metrics(session, model.id, slice_row.id, mapping.id)
+            if model is not None and mapping is not None
+            else None
+        )
+        for prefix, attack, spec in searches:
+            search = attack.search
+            assert search is not None  # mode = search: schema bắt buộc có search
+            if search.subset_size > images:
+                error(
+                    f"{prefix}.search.subset_size",
+                    f"Tập con tối đa bằng số ảnh của slice ({images})",
+                )
+            if (
+                targets is not None
+                and search.class_filter is not None
+                and search.class_filter not in targets
+            ):
+                error(
+                    f"{prefix}.search.class_filter",
+                    f"{search.class_filter} không phải class đích của mapping",
+                )
+            if search.threshold_kind == ThresholdKind.ABSOLUTE_DROP and clean is not None:
+                bound = _clean_ap(clean, search.class_filter)
+                if bound is not None and search.threshold > bound:
+                    error(
+                        f"{prefix}.search.threshold",
+                        f"Mức sụt tuyệt đối tối đa bằng mAP@0.5 sạch ({bound:.3f})",
+                    )
+            try:
+                max_points[spec.id] = search_bounds(search, spec.primary_param, images).max_points
+            except ValueError as exc:  # dải không hợp lệ đã báo ở `_search_errors`
+                if not any(e.path.startswith(f"{prefix}.search") for e in errors):
+                    error(f"{prefix}.search", str(exc))
+    total_runs += sum(max_points.values())
+    if total_runs > MAX_RUNS:
+        error(
+            "attacks",
+            f"Tối đa {MAX_RUNS} run mỗi experiment, tính cả số điểm tối đa của tự tìm ngưỡng"
+            f" (đang có {total_runs})",
+        )
+
     if body.cloned_from is not None and session.get(m.Experiment, body.cloned_from) is None:
         error("cloned_from", "Không có experiment gốc này")
 
@@ -219,4 +292,65 @@ def check(session: Session, body: ExperimentCreate) -> CheckedConfig:
         target,
         specs,
         {row.id: row for _, _, row in training},
+        max_points,
     )
+
+
+def _search_errors(spec: AttackSpec, attack: AttackConfig, prefix: str) -> list[FieldError]:
+    """Phase 7: dải tìm kiếm trong dải của spec; tham số rời rạc thì `lo`, `hi` là giá trị của
+    spec. Miền của `threshold`, `tol`, `coarse_n`, `subset_size` tối thiểu đã kiểm ở contract."""
+    search = attack.search
+    assert search is not None
+    param = spec.primary_param
+    errors: list[FieldError] = []
+    unit = f" {param.unit}" if param.unit else ""
+    rule = f"dải [{_format_level(param.min)}, {_format_level(param.max)}]{unit}"
+    for name, value in (("lo", search.lo), ("hi", search.hi)):
+        path = f"{prefix}.search.{name}"
+        if not param.min <= value <= param.max:
+            errors.append(FieldError(path=path, message=f"{_format_level(value)} ngoài {rule}"))
+        elif param.type == "discrete" and param.values is not None and value not in param.values:
+            allowed = ", ".join(_format_level(v) for v in param.values)
+            errors.append(FieldError(path=path, message=f"Chỉ nhận {allowed}"))
+    if attack.training_slice_id is not None:
+        errors.append(
+            FieldError(
+                path=f"{prefix}.training_slice_id",
+                message=f"{spec.name} không cần slice huấn luyện",
+            )
+        )
+    return errors
+
+
+def _target_classes(mapping: m.ClassMapping) -> set[str]:
+    classes = mapping.mapping.get("classes", {})
+    return {c for c in classes.values() if c is not None}
+
+
+def _known_clean_metrics(
+    session: Session, model_id: UUID, slice_id: UUID, mapping_id: UUID
+) -> RunMetrics | None:
+    """Metric sạch đã biết của (model, slice, mapping) từ một run đã có metric đầy đủ (quyết
+    định Group 4: chỉ kiểm cận của `absolute_drop` khi đã biết mAP sạch)."""
+    row = session.scalar(
+        select(m.Run.metrics)
+        .join(m.Experiment, m.Experiment.id == m.Run.experiment_id)
+        .where(
+            m.Experiment.model_version_id == model_id,
+            m.Experiment.slice_id == slice_id,
+            m.Experiment.class_mapping_id == mapping_id,
+            m.Run.status == RunStatus.COMPLETED,
+            m.Run.scope == "full",
+            m.Run.metrics.is_not(None),
+        )
+        .limit(1)
+    )
+    return RunMetrics.model_validate(row) if row is not None else None
+
+
+def _clean_ap(metrics: RunMetrics, class_filter: str | None) -> float | None:
+    if class_filter is None:
+        return metrics.clean.map50
+    per_class = metrics.per_class or {}
+    found = per_class.get(class_filter)
+    return found.clean_ap50 if found is not None else None

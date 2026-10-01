@@ -207,10 +207,12 @@ def detail(session: Session, experiment_id: UUID) -> ExperimentDetail:
 def _ranking(
     session: Session, config: ExperimentConfig, runs: list[m.Run]
 ) -> list[AttackRankingEntry]:
-    """Phase 6 (plan task 27): cùng hàm với report ở Phase 8 (`ml_core.metrics.ranking`)."""
-    specs = _specs(session, {attack.attack_spec_id for attack in config.attacks})
+    """Phase 6 (plan task 27): cùng hàm với report ở Phase 8 (`ml_core.metrics.ranking`). Phase 7
+    (plan task 22a): chỉ attack quét lưới; attack tìm ngưỡng nằm ở `search_results`."""
+    grid = [attack for attack in config.attacks if attack.grid is not None]
+    specs = _specs(session, {attack.attack_spec_id for attack in grid})
     attacks = []
-    for attack in config.attacks:
+    for attack in grid:
         spec = specs[attack.attack_spec_id]
         attacks.append(
             RankingAttack(
