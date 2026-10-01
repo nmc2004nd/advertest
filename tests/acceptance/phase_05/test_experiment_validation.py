@@ -85,13 +85,16 @@ def test_more_than_50_runs(api: Api, app_engine: Engine) -> None:
 
 
 def test_search_mode_not_supported_yet(api: Api) -> None:
+    # Phase 7 thu hẹp `not_supported_yet` của `mode = search` lại chỉ còn spec cần train patch
+    # (requirements.md Phase 7, mục Context); kiểm tra theo `adv_patch`.
     _, _, client = api.user("engineer")
     search = {
-        "threshold_kind": "relative_drop", "threshold": 0.2, "lo": 0, "hi": 16, "tol": 0.5,
-        "coarse_n": 4, "subset_size": 100,
+        "threshold_kind": "relative_drop", "threshold": 0.2, "lo": 0.02, "hi": 0.25, "tol": 0.01,
+        "coarse_n": 4, "subset_size": 2,
     }  # fmt: skip
     body = api.body(
-        api.target(), [{**attack("fgsm", [4]), "mode": "search", "grid": None, "search": search}]
+        api.target(),
+        [{**attack("adv_patch", [0.1]), "mode": "search", "grid": None, "search": search}],
     )
     assert error(post(client, "/experiments", body))[:2] == (422, "not_supported_yet")
 
