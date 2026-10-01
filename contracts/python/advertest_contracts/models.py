@@ -1889,6 +1889,12 @@ class FailureCaseUrls(_Model):
 
 
 class FailureCaseView(FailureCaseRecord):
+    # Nới kiểu của lớp cha (record của worker luôn có khóa); mypy báo gán không tương thích nên
+    # cần ignore. Luật null khi và chỉ khi bị ẩn kiểm ở `_check_display`.
+    artifacts: CaseArtifacts | None = Field(  # type: ignore[assignment]
+        description="Khóa lưu trữ của ảnh; null khi và chỉ khi display_mode = hidden_unanonymized"
+        " (không lộ khóa MinIO của ảnh bị ẩn; đề xuất contract 002, Phase 6)"
+    )
     urls: FailureCaseUrls
     urls_expire_at: UtcDatetime | None = Field(
         description="null khi display_mode = hidden_unanonymized"
@@ -1898,6 +1904,8 @@ class FailureCaseView(FailureCaseRecord):
     @model_validator(mode="after")
     def _check_display(self) -> FailureCaseView:
         hidden = self.display_mode == DisplayMode.HIDDEN_UNANONYMIZED
+        if hidden != (self.artifacts is None):
+            raise ValueError("artifacts là null khi và chỉ khi display_mode = hidden_unanonymized")
         any_url = any(value is not None for value in self.urls.model_dump().values())
         if hidden and (any_url or self.urls_expire_at is not None):
             raise ValueError("hidden_unanonymized không có URL ảnh nào và không có urls_expire_at")

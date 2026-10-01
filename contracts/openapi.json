@@ -6968,7 +6968,15 @@
             "$ref": "#/components/schemas/CaseDetections"
           },
           "artifacts": {
-            "$ref": "#/components/schemas/CaseArtifacts"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CaseArtifacts"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Khóa lưu trữ của ảnh; null khi và chỉ khi display_mode = hidden_unanonymized (không lộ khóa MinIO của ảnh bị ẩn; đề xuất contract 002, Phase 6)"
           },
           "perturbation_kind": {
             "$ref": "#/components/schemas/PerturbationImageKind",

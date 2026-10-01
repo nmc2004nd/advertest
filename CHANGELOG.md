@@ -8,6 +8,12 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 **Trạng thái:** đang làm. Group 0 xong (chờ merge).
 
+### Phase 6 — Đề xuất contract 002 (người duyệt, người dùng duyệt) — 2026-10-01
+- Nguồn: Group 5 (backend), mục validation "`FailureCaseView` có `display_mode = hidden_unanonymized` không chứa khóa MinIO": `artifacts` của view kế thừa `CaseArtifacts` bắt buộc nên backend không bỏ khóa được.
+- `FailureCaseView.artifacts: CaseArtifacts | None`, null khi và chỉ khi `display_mode = hidden_unanonymized` (validator kiểm). `FailureCaseRecord`, DB và dữ liệu worker gửi không đổi; `schema_version` không đổi.
+- Mock `failure_case_view/hidden_unanonymized.json`: `artifacts = null`. Test `test_artifacts_null_iff_hidden`. Sinh lại JSON Schema, OpenAPI, type TypeScript (frontend không đọc `artifacts`).
+- Việc tiếp theo: backend (nhánh `phase06-backend`) trả `artifacts = None` khi ảnh bị ẩn; Group 7 kiểm `artifacts is None` trong test nghiệm thu.
+
 ### Phase 6 — Group 3, phần worker — 2026-10-01
 #### Thêm
 - Worker dựng perturbation bằng `attacks/factory.py`; `StoreCandidates` nhận `perturbation_kind(spec)`; fingerprint có `patch_key` của run patch (task 17).
