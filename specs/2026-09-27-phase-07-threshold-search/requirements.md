@@ -127,12 +127,13 @@ Ký hiệu `d(x, S)` là mức sụt ở level `x` trên tập ảnh `S`.
   - API từ chối (lỗi khác mất lease, ví dụ `422` khi vượt `max_points`) khi tạo run, chạy run hoặc nhận `SearchResult` tạm thời → lần tìm kết thúc `failed`, `message` gồm mã lỗi; experiment chạy tiếp attack sau. API từ chối kết quả cuối thì worker chỉ ghi log. Mất lease (`409`) vẫn dừng experiment.
   - Attack tìm ngưỡng chưa có run nào thì calibration đo ở `search.hi` (level 0 của PGD cho bước nhảy 0).
   - Mọi run có metric (cả quét lưới) ghi `runs/<run_id>/predictions.json` và điền `predictions_key`; run `stopped_limit` có metric một phần cũng ghi.
-  - Bootstrap dùng prediction của run hoàn tất trong phiên; đọc prediction của run đã kết thúc ở phiên trước hoặc trúng cache chờ đề xuất contract 001 (`contract-proposals/001-read-finished-run-predictions.md`). Điểm không có prediction bị bỏ khỏi bootstrap (ghi cảnh báo).
+  - Bootstrap dùng prediction trong bộ nhớ với run hoàn tất trong phiên; run đã kết thúc ở phiên trước hoặc trúng cache thì đọc `runs/<run_id>/predictions.json` qua `artifact-url` của chính run đó (đề xuất contract 001, đã duyệt). File không có (404) → điểm bị bỏ khỏi bootstrap (ghi cảnh báo).
 
 ### API và kiểm tra khi tạo experiment
 - `mode = search` được chấp nhận cho mọi spec không cần huấn luyện; với `adv_patch` → `422 not_supported_yet`.
 - `lo < hi`, cả hai nằm trong dải của spec; `tol > 0` và `tol < hi − lo`; `coarse_n` trong 3–8; `subset_size` từ 2 đến số ảnh của slice (wizard cảnh báo khi dưới 20); ngưỡng đúng miền của `threshold_kind`; `class_filter` là class đích của mapping.
 - Trần `MAX_RUNS = 50`: số run quét lưới cộng tổng `max_points` của mọi attack tìm ngưỡng không vượt 50; vượt → `422` ở `attacks`.
+- **Đọc prediction của run đã kết thúc** (đề xuất contract 001): `artifact-url` cấp URL `GET` cho `runs/<run_id>/predictions.json` của run đã kết thúc thuộc experiment đang lease (lease đúng); mọi yêu cầu khác với run không `running` giữ `409` như Phase 3. Khi `start` trả `skip_cached` và run gốc có `predictions_key`, API sao chép đối tượng sang `runs/<run_id>/predictions.json` (copy phía server trong MinIO) và ghi `predictions_key` của run mới; run gốc không có file thì để null.
 - Endpoint tạo run động kiểm tra: run thuộc attack ở chế độ tìm kiếm của experiment, level trong `[lo, hi]`, tổng số run chưa vượt `max_points`. Mọi vi phạm trả `422`, không trả `409` (worker coi `409` là mất lease).
 - **Ước lượng:** `max_seconds = (max_subset_points × subset_size + max_full_points × số ảnh slice) × sec_per_image × 1.2`. Hiển thị như "tối đa", vì thực tế thường ít hơn.
   `total_seconds` và `exceeds_limit` giữ nghĩa của Phase 5–6 (chỉ run quét lưới). `max_total_seconds` = `total_seconds` + Σ `max_seconds`; `max_exceeds_limit` = `max_total_seconds` > giới hạn thời gian: chỉ cảnh báo, không chặn tạo experiment (worker vẫn dừng ở trần, `stopped_limit`).

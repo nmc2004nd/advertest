@@ -38,7 +38,7 @@ export interface components {
             lease_id: string;
             /**
              * Key
-             * @description Khóa đầy đủ, phải nằm trong runs/<run_id>/, hoặc trong patches/<patch_key>/ với patch_key của run (Phase 6)
+             * @description Khóa đầy đủ, phải nằm trong runs/<run_id>/, hoặc trong patches/<patch_key>/ với patch_key của run (Phase 6). Run phải đang running, trừ GET runs/<run_id>/predictions.json của run đã kết thúc thuộc experiment đang lease (Phase 7, bootstrap; đề xuất contract 001)
              */
             key: string;
             /**
@@ -2270,7 +2270,7 @@ export interface components {
             search_order?: number | null;
             /**
              * Predictions Key
-             * @description Phase 7: khóa file prediction theo ảnh trong runs/<run_id>/ (bootstrap); null khi chưa có metric hoặc run trước Phase 7
+             * @description Phase 7: khóa file prediction theo ảnh trong runs/<run_id>/ (bootstrap); run trúng cache có bản sao file của run gốc (đề xuất contract 001); null khi chưa có metric, run trước Phase 7, hoặc run gốc không có file
              */
             predictions_key?: string | null;
             /** Fingerprint */
@@ -2400,7 +2400,7 @@ export interface components {
             search_order?: number | null;
             /**
              * Predictions Key
-             * @description Phase 7: khóa file prediction theo ảnh trong runs/<run_id>/ (bootstrap); null khi chưa có metric hoặc run trước Phase 7
+             * @description Phase 7: khóa file prediction theo ảnh trong runs/<run_id>/ (bootstrap); run trúng cache có bản sao file của run gốc (đề xuất contract 001); null khi chưa có metric, run trước Phase 7, hoặc run gốc không có file
              */
             predictions_key?: string | null;
             /**

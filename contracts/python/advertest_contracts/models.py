@@ -426,7 +426,8 @@ class _RunCommon(_Model):
         default=None,
         exclude_if=lambda v: v is None,
         description="Phase 7: khóa file prediction theo ảnh trong runs/<run_id>/ (bootstrap);"
-        " null khi chưa có metric hoặc run trước Phase 7",
+        " run trúng cache có bản sao file của run gốc (đề xuất contract 001); null khi chưa có"
+        " metric, run trước Phase 7, hoặc run gốc không có file",
     )
 
     @model_validator(mode="after")
@@ -1451,7 +1452,9 @@ class ArtifactUrlRequest(_Model):
     lease_id: UUID
     key: ObjectKey = Field(
         description="Khóa đầy đủ, phải nằm trong runs/<run_id>/, hoặc trong patches/<patch_key>/"
-        " với patch_key của run (Phase 6)"
+        " với patch_key của run (Phase 6). Run phải đang running, trừ GET"
+        " runs/<run_id>/predictions.json của run đã kết thúc thuộc experiment đang lease (Phase 7,"
+        " bootstrap; đề xuất contract 001)"
     )
     method: Literal["PUT", "GET", "DELETE"]
 
