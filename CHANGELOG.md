@@ -8,6 +8,22 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 **Trạng thái:** đang làm. Kickoff và Group 0 trên nhánh `phase07-reviewer-g0`.
 
+### Phase 7 — Group 3 (worker) — 2026-10-01
+#### Thêm
+- `ml_core/runner/` (task 13, 13a, 13b): `RunContext.restricted` (run trên tập con, mAP sạch tính lại trên tập con); `build_fingerprint_inputs(..., eval_image_ids_sha256=)`; checkpoint lưu `class_correct`, `class_lost` (checkpoint cũ vẫn nạp); `finalize` truyền `class_names` (ASR theo class).
+- `advertest_worker/search.py` (task 14-17): `SearchDriver` dựng lại trạng thái từ `SearchResult`, dùng lại run đã tạo theo `search_order`, gửi kết quả tạm thời sau mỗi điểm, `stopped_limit` khi hủy hoặc chạm giới hạn, `failed` khi run lỗi hoặc API từ chối, bootstrap khi kết thúc.
+- `job.py` (task 13a, 14-18): quét lưới trước, rồi từng attack tìm ngưỡng; run động qua `POST /experiments/{id}/runs`; tập ảnh theo `scope`; mọi run có metric upload prediction theo ảnh; `RunResult` có `scope`, `search_order`, `predictions_key`. Client: `create_search_run`, `search_result` (`422` không phải mất lease).
+- Test: `test_search_driver.py` (21, hook giả), `test_search_job.py` (6, `JobRunner` với executor thật, API và MinIO giả trong bộ nhớ), test executor, fingerprint, client.
+#### Đề xuất contract
+- 001 (chờ duyệt): API cho worker đọc `runs/<run_id>/predictions.json` của run đã kết thúc, sao chép file khi trúng cache. Cho tới khi duyệt, bootstrap chỉ dùng prediction của run hoàn tất trong phiên.
+#### Review (phase-review, 2026-10-01)
+- #1 (chặn, người dùng chọn sửa): `ApiError` (`422`) khi tạo run động hoặc gửi kết quả tạm thời làm sập job, experiment kẹt `running` và bị lease lại lặp mãi → lần tìm kết thúc `failed`, experiment chạy tiếp attack sau; test mới fail trên code cũ.
+- #3, #4 (người dùng chấp nhận, ghi vào `requirements.md` mục Worker): calibration đo ở `search.hi`; run lỗi/bị bỏ qua làm lần tìm `failed`; run đã tạo chạy tiếp theo `search_order`.
+- Ghi nhận: `make test-db` có `tests/acceptance/phase_05/test_email.py::test_smtp_failure_retried_then_failed_without_touching_experiment` fail cả trên `main` (test phụ thuộc ngày: `email_outbox.next_attempt_at` mặc định `now()` của Postgres, test dùng đồng hồ giả từ 2026-09-30; hỏng từ khoảng 09:40 UTC 2026-10-01). Cần giao sửa riêng.
+- Review và phần sửa do cùng một agent làm (không độc lập).
+#### Chưa kiểm
+- Luồng với API thật (endpoint tìm ngưỡng còn trả `501` tới Group 4); điểm toàn slice trúng cache của run quét lưới. Group 7.
+
 ### Phase 7 — Group 2 (ml-metric) — 2026-10-01
 #### Thêm
 - `ml_core/metrics/attack.py` (task 10, người dùng cho phép): `ImageAttackStats.class_correct`, `class_lost` (theo label, mặc định rỗng); `class_attack_success_rate`; `build_run_metrics(..., class_names=)` điền `per_class[*].attack_success_rate` (không truyền thì JSON như cũ).
