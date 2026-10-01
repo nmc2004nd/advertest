@@ -34,6 +34,7 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 - #4 (người dùng chọn sửa): `PassCriterion.class_filter` đổi thành `str | None` cùng kiểu `SearchConfig`.
 - #5 (người dùng chọn ghi vào spec): `progress.images_total` chỉ tính run đã tạo; `queue.ahead_seconds` tính phần `max_seconds` còn lại của attack tìm ngưỡng (`requirements.md`, plan task 23, `validation.md`).
 - Ghi nhận: sửa backend và test nghiệm thu Phase 0 theo tiền lệ Group 0 Phase 6; `tol` bắt buộc với tham số rời rạc; script sinh mock không commit.
+- Sau khi sửa: `make check` (1191 test Python, 232 Vitest, 264 test nghiệm thu), `make test-e2e` (72 test, 6,8 phút) pass.
 - Review và phần sửa do cùng một agent làm (không độc lập).
 #### Lưu ý
 - Group 0 do agent làm thay người duyệt theo ủy quyền của người dùng; không độc lập.
