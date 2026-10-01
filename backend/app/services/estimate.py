@@ -7,6 +7,7 @@ bất kỳ run nào → `None` ("chưa có ước lượng").
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from uuid import UUID
 
 from sqlalchemy import select, tuple_
@@ -116,29 +117,38 @@ def queue_position(session: Session, experiment: m.Experiment) -> int:
     return len(queued_ahead(session, experiment.compute_target_id, experiment)) + 1
 
 
-def _training_seconds(
+@dataclass(frozen=True)
+class _Training:
+    """Phần train patch của một run: `needed` khi patch chưa đăng ký."""
+
+    needed: bool
+    seconds: float | None = None
+
+
+def _training(
     session: Session,
     checked: CheckedConfig,
     attack: AttackConfig,
     spec: AttackSpec,
     level: float,
     profile: m.CostProfile | None,
-) -> float | None:
+) -> _Training:
     """Phase 6 (plan task 25): `max_iter * số ảnh slice huấn luyện * sec_per_image_iteration` khi
-    patch chưa đăng ký; `None` khi không cần train, patch đã có, hoặc profile thiếu số đo train."""
+    patch chưa đăng ký. Cần train mà profile chưa đo `sec_per_image_iteration` thì `seconds` là
+    `None` và run tính là thiếu profile (review Group 5 #4)."""
     if spec.training is None or attack.training_slice_id is None:
-        return None
+        return _Training(needed=False)
     training = checked.training_slices[attack.training_slice_id]
     assert training.slice_sha256 is not None  # đã kiểm tra ở experiment_config
     key = patch_key_for(
         spec, checked.model.weights_sha256, training.slice_sha256, level, attack.seed
     )
     if is_registered(session, key):
-        return None
+        return _Training(needed=False)
     if profile is None or profile.sec_per_image_iteration is None:
-        return None
+        return _Training(needed=True)
     iterations = spec.training.max_iter * len(training.image_ids)
-    return iterations * profile.sec_per_image_iteration
+    return _Training(needed=True, seconds=iterations * profile.sec_per_image_iteration)
 
 
 def estimate_config(session: Session, checked: CheckedConfig) -> EstimateResponse:
@@ -149,8 +159,17 @@ def estimate_config(session: Session, checked: CheckedConfig) -> EstimateRespons
         assert attack.grid is not None
         skip = _incompatible(spec.requires_gradients, checked.model)
         profile = profiles.get(spec.id)
-        spp = profile.sec_per_image if profile is not None else None
         for level in attack.grid.levels:
+            spp = profile.sec_per_image if profile is not None else None
+            training = (
+                _Training(needed=False)
+                if skip
+                else _training(session, checked, attack, spec, level, profile)
+            )
+            if training.needed and training.seconds is None:
+                # Cần train mà profile chưa đo thời gian train: run coi như thiếu profile
+                # (tổng null, attack vào `missing_profiles`; review Group 5 #4).
+                spp = None
             est: float | None
             if skip:
                 est = 0.0
@@ -166,11 +185,7 @@ def estimate_config(session: Session, checked: CheckedConfig) -> EstimateRespons
                     sec_per_image=spp,
                     est_seconds=est,
                     skip_reason="incompatible" if skip else None,
-                    training_seconds=(
-                        None
-                        if skip or est is None
-                        else _training_seconds(session, checked, attack, spec, level, profile)
-                    ),
+                    training_seconds=training.seconds,
                 )
             )
     unknown = [r for r in runs if r.skip_reason is None and r.est_seconds is None]

@@ -27,6 +27,7 @@ from advertest_contracts.models import (
     ArtifactUrlResponse,
     AttackSpec,
     CostProfile,
+    ExperimentConfig,
     FailureCaseRecord,
     PatchArtifact,
     PatchRegistration,
@@ -50,8 +51,8 @@ from backend.app.services.clock import Clock, utcnow
 from backend.app.services.errors import Conflict, Forbidden, Invalid, NotFound
 from backend.app.services.experiment_config import spec_of
 from backend.app.services.experiments import TERMINAL_RUN, reason, runs_of
-from backend.app.services.patches import RunPatch, run_patch
-from ml_core.runner.grid import collapsed
+from backend.app.services.patches import RunPatch, is_registered, run_patch
+from ml_core.runner.grid import GridRun, early_stop
 from ml_core.store import validate_key
 
 
@@ -270,29 +271,40 @@ def skip(
     request: RunSkipRequest,
     clock: Clock = utcnow,
 ) -> None:
-    """Bỏ run `queued` do dừng sớm (plan task 26a). Run kích hoạt phải cùng experiment, cùng
-    attack, level nhỏ hơn và đã làm model sụp."""
+    """Bỏ run `queued` do dừng sớm (plan task 26a). API tính lại bằng cùng hàm với worker
+    (`ml_core.runner.grid.early_stop`): attack phải bật `grid.early_stop`, `trigger_run_id` phải
+    là run kích hoạt (level nhỏ nhất đã làm model sụp, metric đầy đủ) và run này phải nằm trong
+    danh sách cần bỏ (review Group 5 #3)."""
     run, experiment = _run_for_worker(session, target, run_id, request.lease_id)
     if experiment.status != ExperimentStatus.RUNNING:
         raise Conflict(f"Experiment đang ở trạng thái {experiment.status}")
     if run.status != RunStatus.QUEUED:
         raise Conflict(f"Run đang ở trạng thái {run.status}, chỉ bỏ được run queued")
-    trigger = session.get(m.Run, request.trigger_run_id)
-    if (
-        trigger is None
-        or trigger.experiment_id != run.experiment_id
-        or trigger.attack_spec_id != run.attack_spec_id
-        or trigger.level >= run.level
-        or trigger.metrics is None
-        or not collapsed(RunMetrics.model_validate(trigger.metrics))
-    ):
-        raise Invalid(
-            "trigger_run_id phải là run cùng attack, level nhỏ hơn, đã làm model sụp"
-            " (mAP@0.5 ≤ 5% mAP sạch)"
+    config = ExperimentConfig.model_validate(experiment.config)
+    attack = next(a for a in config.attacks if a.attack_spec_id == run.attack_spec_id)
+    if attack.grid is None or not attack.grid.early_stop:
+        raise Invalid("Attack này tắt dừng sớm (grid.early_stop = false)")
+    same_attack = [
+        GridRun(
+            run_id=other.id,
+            level=other.level,
+            status=RunStatus(other.status),
+            metrics=RunMetrics.model_validate(other.metrics) if other.metrics else None,
         )
+        for other in runs_of(session, experiment.id)
+        if other.attack_spec_id == run.attack_spec_id
+    ]
+    stop = early_stop(same_attack)
+    if stop is None or stop.trigger_run_id != request.trigger_run_id:
+        raise Invalid(
+            "trigger_run_id phải là run cùng attack có level nhỏ nhất đã làm model sụp"
+            " (mAP@0.5 ≤ 5% mAP sạch, metric đầy đủ)"
+        )
+    if run.id not in stop.skip_run_ids:
+        raise Invalid("Run này không có level lớn hơn level của run kích hoạt")
     run.status = RunStatus.SKIPPED
     run.status_reason = StatusReason(
-        code=SkipReason.EARLY_STOP, message=request.message, trigger_run_id=trigger.id
+        code=SkipReason.EARLY_STOP, message=request.message, trigger_run_id=stop.trigger_run_id
     ).model_dump(mode="json")
     run.finished_at = clock()
     leasing.extend(experiment, target, clock)
@@ -485,6 +497,9 @@ def artifact_url(
         patch = run_patch(session, experiment, run, _spec(session, run))
         if patch is None or not request.key.startswith(patch_prefix(patch.key)):
             raise Forbidden(f"Chỉ cấp URL trong runs/{run.id}/ hoặc thư mục patch của run")
+        # Patch đã đăng ký là bất biến và được run khác dùng lại: chỉ đọc (review Group 5 #1).
+        if request.method != "GET" and is_registered(session, patch.key):
+            raise Forbidden("Patch đã đăng ký: thư mục patch chỉ cấp URL GET")
     signed = presigner.url(storage.BUCKET_ARTIFACTS, request.key, request.method, clock())
     return ArtifactUrlResponse(
         key=request.key, method=request.method, url=signed.url, expires_at=signed.expires_at

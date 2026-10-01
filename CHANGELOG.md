@@ -27,7 +27,7 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 #### Sửa test cũ (thư mục backend)
 - `test_migration_0004.py` chèn attack spec có body hợp lệ thay vì `{}`: endpoint admin liệt kê cả spec đã tắt nên spec rỗng làm hỏng test khác dùng chung DB.
 #### Đề xuất contract
-- 002 (`FailureCaseView.artifacts` null khi `hidden_unanonymized`): chờ duyệt. Phần "bỏ khóa MinIO khi ảnh bị ẩn" của task 28 chưa làm; view ẩn vẫn trả khóa trong `artifacts` như Phase 5 (không có URL ký).
+- 002 (người dùng duyệt, người duyệt áp dụng ở `phase06-reviewer-p002`, merge vào nhánh này): `_view` trả `artifacts = None` khi `display_mode = hidden_unanonymized`.
 #### Ghi nhận
 - `make test-db` còn 2 test nghiệm thu Phase 5 fail: `test_failure_case_access.py::test_unanonymized_dataset_hides_every_image_but_keeps_boxes` và `::test_dev_flag_serves_unblurred_with_mode`. Worker Phase 6 làm mờ mọi case mới nên case có `anonymization.applied` → `normal` (`requirements.md` mục Làm mờ); hai test vẫn mong `hidden_unanonymized`, `dev_unblurred`. Người dùng chọn giữ code theo spec, người duyệt cập nhật test ở Group 7 (ví dụ kiểm trên case cũ không có `anonymization`).
 - Chưa chạy worker end-to-end với luồng patch và `skip` trên API thật (Group 7, e2e `adv_patch` với `max_iter = 4`).
@@ -35,6 +35,12 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 - Cờ `DEV_ALLOW_UNBLURRED` không đổi `display_mode` của case đã làm mờ (vẫn `normal`).
 - `training_seconds` null (không tính vào tổng) khi profile chưa có `sec_per_image_iteration`.
 - `skip` sai trạng thái → 409; run kích hoạt không hợp lệ → 422.
+#### Review (phase-review, 2026-10-01)
+- #1 (chặn): patch đã đăng ký thì `artifact-url` chỉ cấp `GET` trong `patches/<key>/` (`PUT`, `DELETE` → 403), để run khác cùng khóa không ghi đè hay xóa được file của patch.
+- #3 (người dùng chọn sửa): `skip` tính lại bằng `ml_core.runner.grid.early_stop`: attack tắt `grid.early_stop` → 422; `trigger_run_id` phải là run kích hoạt (level nhỏ nhất đã sụp, metric đầy đủ: `completed` hoặc `skipped` do cache, không `partial`) và run bị bỏ phải nằm trong danh sách cần bỏ.
+- #4 (người dùng chọn sửa): patch cần train mà profile chưa đo `sec_per_image_iteration` → run đó coi như thiếu profile (`sec_per_image`, `est_seconds` null), `total_seconds = null`, attack vào `missing_profiles` (đúng luật của `EstimateResponse`, không đổi contract).
+- Test mới: `test_skip_rejected_when_early_stop_off`, trigger có metric một phần, URL sau khi đăng ký, view ẩn không có `artifacts`; `test_estimate_without_training_cost` viết lại theo #4.
+- Review và phần sửa do cùng một agent làm (không độc lập).
 
 ### Phase 6 — Group 3, phần worker — 2026-10-01
 #### Thêm

@@ -171,7 +171,8 @@ def _view(case: m.FailureCase, mode: DisplayMode, full: bool, now: datetime) -> 
             "new_false_positives": case.new_false_positives,
             "severity_score": case.severity_score,
             "detections": case.detections,
-            "artifacts": case.artifacts,
+            # Đề xuất contract 002: ảnh bị ẩn thì không trả khóa MinIO.
+            "artifacts": None if mode == DisplayMode.HIDDEN_UNANONYMIZED else case.artifacts,
             "anonymization": case.anonymization,
             "perturbation_kind": case.perturbation_kind or "amplified_noise",
             "urls": issued.urls,

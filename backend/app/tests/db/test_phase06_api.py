@@ -161,12 +161,29 @@ def test_estimate_training_seconds(api: Api, fx: Fx, owner_engine: Engine) -> No
 
 
 def test_estimate_without_training_cost(api: Api, fx: Fx, owner_engine: Engine) -> None:
+    """Review Group 5 #4: patch cần train mà profile chưa đo `sec_per_image_iteration` → run coi
+    như thiếu profile (tổng null, spec trong `missing_profiles`)."""
     target = _new_target(owner_engine)
     _patch_profile(owner_engine, fx, target, None)
     training = _training_slice(owner_engine, fx, ["n-1"])
     _, client = api.client()
-    result = _estimate(client, _body(fx, [_patch([0.1], training)], compute_target_id=str(target)))
-    assert result.runs[0].training_seconds is None and result.total_seconds is not None
+    body = _body(fx, [_patch([0.1], training)], compute_target_id=str(target))
+    result = _estimate(client, body)
+    spec = get_spec(load_catalog(), name="adv_patch")
+    (run,) = result.runs
+    assert (run.sec_per_image, run.est_seconds, run.training_seconds) == (None, None, None)
+    assert result.total_seconds is None and result.missing_profiles == [spec.id]
+
+    # Patch đã đăng ký thì không cần train: ước lượng bình thường từ `sec_per_image`.
+    with Session(owner_engine) as s, s.begin():
+        slice_row = s.get(m.Slice, training)
+        model = s.get(m.ModelVersion, fx.model)
+        assert slice_row is not None and slice_row.slice_sha256 and model is not None
+        key = patch_key_for(spec, model.weights_sha256, slice_row.slice_sha256, 0.1, 0)
+        s.add(m.Patch(key=key, attack_spec_id=spec.id, area_ratio=0.1, artifact={"key": key}))
+    again = _estimate(client, body)
+    assert again.runs[0].est_seconds is not None and again.total_seconds is not None
+    assert again.missing_profiles == []
 
 
 def test_admin_attack_catalog(api: Api, owner_engine: Engine) -> None:

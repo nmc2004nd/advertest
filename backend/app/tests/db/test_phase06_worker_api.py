@@ -74,7 +74,12 @@ def training(
 
 
 def _setup(
-    app_engine: Engine, world: World, clock: FakeClock, training: tuple[UUID, str, list[str]]
+    app_engine: Engine,
+    world: World,
+    clock: FakeClock,
+    training: tuple[UUID, str, list[str]],
+    *,
+    early_stop: bool = True,
 ) -> Setup:
     slice_id, slice_sha, ids = training
     catalog = load_catalog()
@@ -82,7 +87,7 @@ def _setup(
     patch = get_spec(catalog, name="adv_patch")
     attacks: list[dict[str, Any]] = [
         {"attack_spec_id": str(fgsm.id), "spec_sha256": fgsm.spec_sha256, "mode": "grid",
-         "grid": {"levels": [2, 4]}, "seed": 0},
+         "grid": {"levels": [2, 4], "early_stop": early_stop}, "seed": 0},
         {"attack_spec_id": str(patch.id), "spec_sha256": patch.spec_sha256, "mode": "grid",
          "grid": {"levels": [0.1]}, "seed": 0, "training_slice_id": str(slice_id)},
     ]  # fmt: skip
@@ -167,8 +172,8 @@ def test_training_progress_urls_and_registration(
     )
     assert started.status_code == 200
 
-    def url(object_key: str) -> httpx.Response:
-        body = {"lease_id": str(lease.lease_id), "key": object_key, "method": "PUT"}
+    def url(object_key: str, method: str = "PUT") -> httpx.Response:
+        body = {"lease_id": str(lease.lease_id), "key": object_key, "method": method}
         response: httpx.Response = client.post(f"{base}/artifact-url", json=body, headers=auth)
         return response
 
@@ -220,6 +225,12 @@ def test_training_progress_urls_and_registration(
     assert PatchArtifact.model_validate(second.json()) == artifact  # giữ bản đăng ký trước
     patch = _bundle(client, setup).patches[0]
     assert patch.artifact == artifact and patch.checkpoint_key is None
+    # Review Group 5 #1: patch đã đăng ký chỉ đọc được.
+    for method in ("PUT", "DELETE"):
+        for object_key in (artifact.npy_key, f"patches/{key}/checkpoints/0.npz"):
+            denied = url(object_key, method)
+            assert denied.status_code == 403 and _error(denied) == "forbidden"
+    assert url(artifact.npy_key, "GET").status_code == 200
 
 
 def _artifact(world: World, setup: Setup, key: str, *, sha: str) -> PatchArtifact:
@@ -277,7 +288,13 @@ def test_skip_early_stop(
         row.status, row.metrics = RunStatus.COMPLETED, _metrics(0.3)  # chưa sụp
     assert skip(low.run_id).status_code == 422
     with Session(app_engine) as session, session.begin():
-        session.get_one(m.Run, low.run_id).metrics = _metrics(0.01)
+        row = session.get_one(m.Run, low.run_id)
+        row.status, row.metrics = RunStatus.STOPPED_LIMIT, {**_metrics(0.01), "partial": True}
+        row.status_reason = {"code": "time", "message": "Hết thời gian"}
+    assert skip(low.run_id).status_code == 422  # metric một phần không kích hoạt dừng sớm
+    with Session(app_engine) as session, session.begin():
+        row = session.get_one(m.Run, low.run_id)
+        row.status, row.metrics, row.status_reason = RunStatus.COMPLETED, _metrics(0.01), None
     assert skip(high.run_id).status_code == 422  # tự kích hoạt chính nó
     assert skip(low.run_id).status_code == 204
     with Session(app_engine) as session:
@@ -291,6 +308,30 @@ def test_skip_early_stop(
     again = skip(low.run_id)
     assert again.status_code == 409 and _error(again) == "conflict"
     assert _bundle(client, setup).runs[0].metrics is not None  # metric trong bundle
+
+
+def test_skip_rejected_when_early_stop_off(
+    client: TestClient, app_engine: Engine, world: World, clock: FakeClock, training: Any
+) -> None:
+    """Review Group 5 #3: attack tắt `grid.early_stop` thì API không cho bỏ run."""
+    setup = _setup(app_engine, world, clock, training, early_stop=False)
+    lease = _lease(client, setup.token)
+    low, high = sorted(
+        (r for r in _bundle(client, setup).runs if r.patch_key is None), key=lambda r: r.level
+    )
+    with Session(app_engine) as session, session.begin():
+        row = session.get_one(m.Run, low.run_id)
+        row.status, row.metrics = RunStatus.COMPLETED, _metrics(0.01)
+    body = {
+        "lease_id": str(lease.lease_id), "code": "early_stop",
+        "trigger_run_id": str(low.run_id), "message": "Bỏ qua",
+    }  # fmt: skip
+    response = client.post(
+        f"/internal/worker/runs/{high.run_id}/skip", json=body, headers=_auth(setup.token)
+    )
+    assert response.status_code == 422 and _error(response) == "invalid_request"
+    with Session(app_engine) as session:
+        assert session.get_one(m.Run, high.run_id).status == RunStatus.QUEUED
 
 
 def test_complete_stores_anonymization_and_kind(
@@ -383,5 +424,9 @@ def test_user_views_ranking_phase_and_display_mode(
             artifacts.case_mode(old, DisplayMode.HIDDEN_UNANONYMIZED)
             == DisplayMode.HIDDEN_UNANONYMIZED
         )
-        assert artifacts._view(blurred, DisplayMode.HIDDEN_UNANONYMIZED, True, now).urls.clean
+        shown = artifacts._view(blurred, DisplayMode.HIDDEN_UNANONYMIZED, True, now)
+        assert shown.urls.clean and shown.artifacts is not None
+        # Đề xuất contract 002: case bị ẩn không trả khóa MinIO.
+        hidden = artifacts._view(old, DisplayMode.HIDDEN_UNANONYMIZED, True, now)
+        assert hidden.display_mode == DisplayMode.HIDDEN_UNANONYMIZED and hidden.artifacts is None
         session.rollback()
