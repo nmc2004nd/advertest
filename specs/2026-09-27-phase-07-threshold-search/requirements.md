@@ -152,9 +152,17 @@ Ký hiệu `d(x, S)` là mức sụt ở level `x` trên tập ảnh `S`.
 - **Wizard bước 4:** mỗi attack có công tắc "Quét lưới / Tự tìm ngưỡng". Chế độ tìm ngưỡng gồm:
   - loại ngưỡng (ba lựa chọn, có giải thích một dòng), giá trị ngưỡng (thanh trượt và ô nhập, hiển thị %), class áp dụng (tùy chọn);
   - dải tìm kiếm (mặc định bằng dải của spec, nên PGD bắt đầu từ eps 0) và độ chính xác (mặc định `tol = (hi − lo) / 256`: PGD L∞ 0.125/255, PGD L2 0.0625; tham số rời rạc không dùng `tol`);
+    - `tol` tự tính lại theo dải mỗi khi đổi `lo`/`hi`, cho tới khi người dùng tự sửa ô độ chính xác; sau đó giữ giá trị của người dùng (nhân bản: `tol` khác mặc định theo dải coi là đã sửa);
+    - tham số rời rạc không có ô `tol`; body vẫn gửi `(hi − lo) / 256` vì contract bắt buộc, và schema `zod` vẫn kiểm `tol < hi − lo` như contract;
   - phần "Nâng cao" thu gọn: số điểm quét thô, kích thước tập con, số mẫu bootstrap.
+  - Mặc định khi bật: `relative_drop` 20%, mọi class; `subset_size` = min(100, số ảnh slice), tối thiểu 2 (API từ chối tập con lớn hơn slice).
+  - Chuyển về quét lưới vẫn giữ cấu hình tìm ngưỡng (bật lại không mất). Preset "Toàn bộ catalog" giữ chế độ và cấu hình tìm ngưỡng của attack đã chọn; attack mới thêm là quét lưới.
+  - Công tắc "Dừng sớm" chỉ áp cho attack quét lưới.
+  - Form tìm ngưỡng còn lỗi (ô trống hoặc sai luật) thì không sang bước sau và chưa gọi ước lượng.
   - `adv_patch`: công tắc bị khóa, kèm giải thích lý do.
 - **Bước 5 và 6:** chi phí của attack tìm ngưỡng hiển thị dạng "tối đa ~X phút (tối đa N điểm)".
+  - Có attack tìm ngưỡng thì ước lượng tổng (thẻ máy chạy, tóm tắt, thanh dưới) là "tối đa ~X (tối đa N điểm)" từ `max_total_seconds`; bước 6 liệt kê chi phí tối đa từng attack; `max_exceeds_limit` hiện cảnh báo.
+  - Hộp xác nhận ghi "N run quét lưới · tìm ngưỡng tối đa M điểm".
 - **Tab Kết quả**, mục "Điểm gãy":
   - mỗi attack một thẻ tóm tắt: trạng thái (`StatusBadge`), câu kết luận (ví dụ "Gãy tại eps ≈ 6.5/255, KTC 95%: 5.8–7.1"; "Không gãy trong dải 0–32/255"; "Gãy ngay ở mức nhỏ nhất"), cảnh báo "Sát ngưỡng" khi `near_threshold`, cảnh báo "Không đơn điệu, cần xem kỹ" khi `non_monotonic`;
   - biểu đồ quỹ đạo: mức sụt theo level; điểm trên tập con rỗng ruột, trên toàn slice đặc; số thứ tự theo `search_order`; đường ngang ngưỡng; vùng tô khoảng `bracket`; dải khoảng tin cậy của điểm gãy; kèm bảng số liệu;
@@ -162,7 +170,7 @@ Ký hiệu `d(x, S)` là mức sụt ở level `x` trên tập ảnh `S`.
 - **Tiến độ khi đang chạy:** "Điểm 5 / tối đa 13 · khoảng hiện tại [4, 8] · giai đoạn: chia đôi trên tập con".
 - **Điện thoại:** chỉ hiển thị thẻ tóm tắt; chạm vào thẻ để mở biểu đồ quỹ đạo toàn màn hình.
 - Xếp hạng AUC của Phase 6 chỉ gồm attack quét lưới; attack tìm ngưỡng nằm ở biểu đồ so sánh điểm gãy.
-- Nháp wizard đã lưu trước Phase 7 vẫn mở được: attack không có `mode`/`search` là quét lưới, không mất dữ liệu nháp (giữ khóa `v2` hay đổi `v3` do agent frontend chọn, miễn đúng hành vi này).
+- Nháp wizard đã lưu trước Phase 7 vẫn mở được: attack không có `mode`/`search` là quét lưới, không mất dữ liệu nháp (agent frontend chọn giữ khóa `v2`, điền mặc định khi đọc).
 
 ## Decisions
 

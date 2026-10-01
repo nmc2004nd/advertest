@@ -8,6 +8,13 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 **Trạng thái:** đang làm. Kickoff và Group 0 trên nhánh `phase07-reviewer-g0`.
 
+### Phase 7 — Group 5 (frontend: wizard) — 2026-10-01
+- Bước 4: công tắc "Quét lưới / Tự tìm ngưỡng" theo attack (bỏ ô chế độ chung "Sắp có"); form tìm ngưỡng (3 loại ngưỡng có giải thích, ngưỡng %, class đích, dải, độ chính xác, "Nâng cao" thu gọn) với schema `zod` cùng luật backend; `adv_patch` bị khóa kèm giải thích.
+- Bước 5 và 6: chi phí tối đa "tối đa ~X (tối đa N điểm)", cảnh báo `max_exceeds_limit`; nhân bản experiment tìm ngưỡng giữ cấu hình.
+- Nháp giữ khóa `advertest.wizard.v2`; attack thiếu `mode`/`search` là quét lưới.
+- Review (phase-review), người dùng chọn sửa cả 5 điểm: #1 không ước lượng khi form tìm ngưỡng lỗi; #2 tên truy cập theo attack; #3 `tol` theo dải tới khi người dùng sửa; #4 kiểm `tol` cho tham số rời rạc; #5 preset giữ cấu hình tìm ngưỡng. Quyết định ghi vào `requirements.md` mục Frontend.
+- Review và phần sửa do cùng một agent làm (không độc lập).
+
 ### Phase 7 — Task 18b (worker) — 2026-10-01
 - Hook `predictions` của `JobRunner`: run hoàn tất trong phiên dùng bộ nhớ; run đã kết thúc ở phiên trước hoặc trúng cache đọc `runs/<run_id>/predictions.json` qua `artifact-url` (đề xuất contract 001). `read_predictions_file` đọc bản sao theo khóa của run gốc ghi trong file.
 - Test: chạy tiếp sau gián đoạn cho `drop_ci` và khoảng tin cậy giống hệt chạy liền mạch; không có file → điểm bỏ khỏi bootstrap; đọc bản sao khi trúng cache.
