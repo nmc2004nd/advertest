@@ -7,7 +7,7 @@ Tìm **điểm gãy** của model với từng attack: mức cường độ nh�
 1. **Thuật toán tìm kiếm**: quét thô trên tập con → chia đôi → xác nhận trên toàn slice.
 2. **Giới hạn trên số điểm đánh giá** tính trước, để hiển thị chi phí tối đa.
 3. **Khoảng tin cậy bootstrap** cho mức sụt và cho điểm gãy.
-4. **Năm loại ngưỡng**: sụt tương đối, sụt tuyệt đối, tỷ lệ tấn công thành công, mỗi loại có thể áp dụng cho một class cụ thể.
+4. **Ba loại ngưỡng**: sụt tương đối, sụt tuyệt đối, tỷ lệ tấn công thành công, mỗi loại có thể áp dụng cho một class cụ thể.
 5. **Trạng thái kết quả tìm kiếm** rõ ràng, kể cả khi dừng giữa chừng.
 6. **Wizard** có chế độ "Tự tìm ngưỡng" cho từng attack; **trang kết quả** hiển thị điểm gãy, quỹ đạo tìm kiếm và so sánh giữa các attack.
 
@@ -27,11 +27,11 @@ Cuối phase: chọn ngưỡng sụt 20% cho PGD, hệ thống trả về điể
 | Thay đổi | Nội dung |
 |---|---|
 | `SearchStatus` | Thêm `failed` |
-| `AttackConfig.search` | Đầy đủ các trường: `threshold_kind`, `threshold`, `class_filter` (tùy chọn), `lo`, `hi`, `tol`, `coarse_n` (3–8, mặc định 4), `subset_size` (mặc định 100), `bootstrap_samples` (0–1000, mặc định 200; 0 là tắt) |
+| `AttackConfig.search` | Đầy đủ các trường: `threshold_kind`, `threshold`, `class_filter` (tùy chọn, **một** class đích: `str | None`, thay cho `list[str]` hiện có), `lo`, `hi`, `tol`, `coarse_n` (3–8, mặc định 4), `subset_size` (≥ 2, mặc định 100), `bootstrap_samples` (0–1000, mặc định 200; 0 là tắt) |
 | `RunResult` | Thêm `scope` (`full` / `subset`), `search_order` (null với quét lưới), `predictions_key` (khóa lưu prediction theo ảnh) |
 | `Manifest.fingerprint_inputs` | Thêm `eval_image_ids_sha256` (tập ảnh thực sự được đánh giá) |
-| `SearchResult` | Thêm `metric_kind`, `max_points`, `points_used`, `message` (khi `failed`); mỗi phần tử `trajectory` thêm `drop_ci` (null nếu chưa tính) và `synthetic` (điểm không cần chạy, xem Behaviour) |
-| `EstimateResponse` | Thêm `searches[]`: `attack_spec_id`, `max_points`, `max_subset_points`, `max_full_points`, `max_seconds` |
+| `SearchResult` | Thêm `metric_kind`, `max_points`, `points_used`, `message` (khi `failed`); mỗi phần tử `trajectory` thêm `drop_ci` (null nếu chưa tính) và `synthetic` (điểm không cần chạy, xem Behaviour); validator: `breaking_point` có khi và chỉ khi `status` là `found` hoặc `non_monotonic` |
+| `EstimateResponse` | Thêm `searches[]`: `attack_spec_id`, `max_points`, `max_subset_points`, `max_full_points`, `max_seconds` (null khi thiếu profile); thêm `max_total_seconds` (null khi có run hoặc search thiếu ước lượng) và `max_exceeds_limit`; `runs` được phép rỗng khi `searches` không rỗng |
 | `ExperimentDetail` | Thêm `search_results[]` (cập nhật cả khi đang chạy) |
 | API nội bộ | `POST /internal/worker/experiments/{id}/runs`: worker tạo run động cho điểm tìm kiếm kế tiếp |
 
@@ -100,14 +100,16 @@ Ký hiệu `d(x, S)` là mức sụt ở level `x` trên tập ảnh `S`.
 
 ### API và kiểm tra khi tạo experiment
 - `mode = search` được chấp nhận cho mọi spec không cần huấn luyện; với `adv_patch` → `422 not_supported_yet`.
-- `lo < hi`, cả hai nằm trong dải của spec; `tol > 0` và `tol < hi − lo`; `coarse_n` trong 3–8; `subset_size` từ 20 đến số ảnh của slice; ngưỡng đúng miền của `threshold_kind`; `class_filter` là class đích của mapping.
-- Endpoint tạo run động kiểm tra: run thuộc attack ở chế độ tìm kiếm của experiment, level trong `[lo, hi]`, tổng số run chưa vượt `max_points`.
+- `lo < hi`, cả hai nằm trong dải của spec; `tol > 0` và `tol < hi − lo`; `coarse_n` trong 3–8; `subset_size` từ 2 đến số ảnh của slice (wizard cảnh báo khi dưới 20); ngưỡng đúng miền của `threshold_kind`; `class_filter` là class đích của mapping.
+- Trần `MAX_RUNS = 50`: số run quét lưới cộng tổng `max_points` của mọi attack tìm ngưỡng không vượt 50; vượt → `422` ở `attacks`.
+- Endpoint tạo run động kiểm tra: run thuộc attack ở chế độ tìm kiếm của experiment, level trong `[lo, hi]`, tổng số run chưa vượt `max_points`. Mọi vi phạm trả `422`, không trả `409` (worker coi `409` là mất lease).
 - **Ước lượng:** `max_seconds = (max_subset_points × subset_size + max_full_points × số ảnh slice) × sec_per_image × 1.2`. Hiển thị như "tối đa", vì thực tế thường ít hơn.
+  `total_seconds` và `exceeds_limit` giữ nghĩa của Phase 5–6 (chỉ run quét lưới). `max_total_seconds` = `total_seconds` + Σ `max_seconds`; `max_exceeds_limit` = `max_total_seconds` > giới hạn thời gian: chỉ cảnh báo, không chặn tạo experiment (worker vẫn dừng ở trần, `stopped_limit`).
 
 ### Frontend
 - **Wizard bước 4:** mỗi attack có công tắc "Quét lưới / Tự tìm ngưỡng". Chế độ tìm ngưỡng gồm:
   - loại ngưỡng (ba lựa chọn, có giải thích một dòng), giá trị ngưỡng (thanh trượt và ô nhập, hiển thị %), class áp dụng (tùy chọn);
-  - dải tìm kiếm (mặc định bằng dải của spec) và độ chính xác;
+  - dải tìm kiếm (mặc định bằng dải của spec, nên PGD bắt đầu từ eps 0) và độ chính xác (mặc định `tol = (hi − lo) / 256`: PGD L∞ 0.125/255, PGD L2 0.0625; tham số rời rạc không dùng `tol`);
   - phần "Nâng cao" thu gọn: số điểm quét thô, kích thước tập con, số mẫu bootstrap.
   - `adv_patch`: công tắc bị khóa, kèm giải thích lý do.
 - **Bước 5 và 6:** chi phí của attack tìm ngưỡng hiển thị dạng "tối đa ~X phút (tối đa N điểm)".
@@ -118,6 +120,7 @@ Ký hiệu `d(x, S)` là mức sụt ở level `x` trên tập ảnh `S`.
 - **Tiến độ khi đang chạy:** "Điểm 5 / tối đa 13 · khoảng hiện tại [4, 8] · giai đoạn: chia đôi trên tập con".
 - **Điện thoại:** chỉ hiển thị thẻ tóm tắt; chạm vào thẻ để mở biểu đồ quỹ đạo toàn màn hình.
 - Xếp hạng AUC của Phase 6 chỉ gồm attack quét lưới; attack tìm ngưỡng nằm ở biểu đồ so sánh điểm gãy.
+- Nháp wizard đã lưu trước Phase 7 vẫn mở được: attack không có `mode`/`search` là quét lưới, không mất dữ liệu nháp (giữ khóa `v2` hay đổi `v3` do agent frontend chọn, miễn đúng hành vi này).
 
 ## Decisions
 
@@ -127,6 +130,7 @@ Ký hiệu `d(x, S)` là mức sụt ở level `x` trên tập ảnh `S`.
 - **Chưa hỗ trợ tìm ngưỡng cho patch.** *Lý do:* mỗi điểm cần một lần train patch; chi phí không tương xứng trong MVP.
 - **Bootstrap trên prediction đã lưu.** *Lý do:* có khoảng tin cậy mà không tốn GPU; cho reviewer biết kết quả có chắc chắn hay chỉ sát ngưỡng.
 - **Không đơn điệu vẫn trả điểm gãy nhưng gắn trạng thái riêng.** *Lý do:* thông tin vẫn hữu ích, nhưng reviewer phải được báo rằng giả định của thuật toán có thể không đúng.
+- **`tol` mặc định bằng 1/256 dải; run động đếm vào `MAX_RUNS` qua `max_points`; chi phí tối đa là trường riêng, chỉ cảnh báo; vượt `max_points` trả `422`; `subset_size` ≥ 2; `class_filter` một class.** *Lý do:* chốt ở kickoff (2026-10-01). Trên KITTI, PGD L∞ eps 2/255 đã làm sụt 98% nên điểm gãy 20% có thể dưới 1/255 (thay mục "lưới mịn eps nhỏ" của Phase 2/6); trần run giữ chi phí biết trước (`mission.md` nguyên tắc 5); `409` làm worker dừng cả experiment; E2E trên fixture cần tập con 3 ảnh.
 - **Fingerprint gồm tập ảnh được đánh giá.** *Lý do:* kết quả trên tập con và trên toàn slice ở cùng level là hai kết quả khác nhau; còn điểm toàn slice trùng với quét lưới thì được dùng lại.
 
 ## Context
@@ -134,13 +138,13 @@ Ký hiệu `d(x, S)` là mức sụt ở level `x` trên tập ảnh `S`.
 - `mission.md` nguyên tắc 4 (tái lập), 5 (chi phí tối đa biết trước), 6 (trạng thái rõ).
 - `tech-stack.md` mục 2.3 (metric, bootstrap), 3.3 (tự tìm ngưỡng).
 - Phase 2: metric theo class, ASR. Phase 3: executor, checkpoint, API nội bộ. Phase 5: wizard, ước lượng, tab Kết quả. Phase 6: seed theo ảnh, xếp hạng AUC, điểm "không biến đổi" của spec.
-- Phase 5: `mode = search` hiện trả `422 not_supported_yet` cho mọi spec (`experiment_config.py`); Phase 7 thu hẹp lại chỉ còn `adv_patch`. `EstimateResponse` đang có `total_seconds` (null khi thiếu profile) và `exceeds_limit` (cận dưới); `max_seconds` "tối đa" của chế độ tìm cần định nghĩa rõ cách ghép với hai trường này (contract).
+- Phase 5: `mode = search` hiện trả `422 not_supported_yet` cho mọi spec (`experiment_config.py`); Phase 7 thu hẹp lại chỉ còn `adv_patch`. `EstimateResponse` đang có `total_seconds` (null khi thiếu profile) và `exceeds_limit` (cận dưới); Cách ghép `max_seconds` với hai trường này: xem "API và kiểm tra khi tạo experiment".
 - Phase 6 (ảnh hưởng thiết kế, kiểm trong code):
   - Xếp hạng (`backend/app/services/experiment_views.py::_ranking`, `rank_attacks`) gom mọi run theo `attack_spec_id`, không lọc `mode`: phải loại attack `mode = search` (và run `scope = subset`) khỏi `attack_ranking`.
   - Trường mới của fingerprint theo mẫu `patch_key`: null và bỏ khỏi JSON khi null để hash cũ không đổi. `eval_image_ids_sha256` phải null với run toàn slice; nếu không, điểm toàn slice sẽ không trúng cache của run quét lưới (trái với "Dùng lại kết quả").
   - Worker client coi mọi `409` là mất lease và dừng cả experiment (`advertest_worker/client.py`). Endpoint tạo run động phải trả `422` khi vượt `max_points` hoặc sai level, không trả `409`.
   - Thứ tự thô → mịn (`ordinal`) và `grid.early_stop` chỉ áp cho attack quét lưới. Run động của tìm kiếm có `ordinal` sau mọi run quét lưới. Công tắc dừng sớm của wizard không áp cho attack tìm ngưỡng.
-  - Trần `MAX_RUNS = 50` (`experiment_config.py`): preset toàn catalog đã dùng 43 run. Cần chốt run động có đếm vào trần không; nếu có, kiểm tra khi tạo experiment phải tính `max_points`.
+  - Trần `MAX_RUNS = 50` (`experiment_config.py`): preset toàn catalog đã dùng 43 run. Đã chốt: run động đếm vào trần qua `max_points`; toàn catalog cộng một lần tìm ngưỡng PGD (21 điểm với mặc định) sẽ bị từ chối.
   - `fog` mức 3 và 4 cùng cường độ nên tìm ngưỡng trên `fog` dễ ra `non_monotonic`. Corruption (severity 1–5) không có level "không biến đổi", nên không có điểm tổng hợp.
   - Nháp wizard khóa `advertest.wizard.v2`: thêm `search` thì điền mặc định cho nháp cũ (như Phase 6) hoặc đổi sang `v3`.
 
