@@ -1,7 +1,7 @@
 # Đề xuất contract 001: worker đọc prediction của run đã kết thúc
 
 - Người đề xuất: agent worker, Phase 7, Group 3
-- Trạng thái: chờ duyệt (người dùng đã chọn hướng này ở kế hoạch Group 3, 2026-10-01)
+- Trạng thái: đã duyệt và áp dụng (người duyệt, 2026-10-01; người dùng đã chọn hướng này ở kế hoạch Group 3)
 
 ## Vấn đề
 

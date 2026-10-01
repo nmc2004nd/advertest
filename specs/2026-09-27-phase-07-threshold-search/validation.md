@@ -41,7 +41,7 @@
 - [ ] Experiment có cả attack quét lưới và tìm ngưỡng: quét lưới chạy trước.
 - [ ] Đã có run quét lưới toàn slice ở một level; điểm tìm kiếm toàn slice cùng level được `skipped` (`cached`).
 - [ ] Giới hạn thời gian nhỏ → `SearchResult.status = stopped_limit` với `bracket` là khoảng hiện có.
-- [ ] Ngắt worker giữa giai đoạn chia đôi → worker mới tiếp tục đúng giai đoạn, không đánh giá lại điểm đã có.
+- [ ] Ngắt worker giữa giai đoạn chia đôi → worker mới tiếp tục đúng giai đoạn, không đánh giá lại điểm đã có; `drop_ci` của điểm toàn slice chạy ở phiên trước vẫn có (đề xuất contract 001).
 - [ ] `SearchResult` tạm thời được cập nhật sau mỗi điểm.
 - [ ] Hủy experiment giữa giai đoạn tìm kiếm → `SearchResult.status = stopped_limit`, experiment `cancelled`, `bracket` là khoảng hiện có.
 - [ ] Lỗi không phục hồi khi chạy một điểm (estimator giả ném lỗi) → `SearchResult.status = failed` kèm `message`; attack khác trong experiment vẫn có kết quả.
@@ -57,6 +57,7 @@
 - [ ] `class_filter` dạng danh sách → `422`.
 - [ ] Worker tạo run động với level ngoài `[lo, hi]` → `422`; vượt `max_points` → `422`; cho attack không ở chế độ tìm kiếm → `422`; worker không dừng experiment khi nhận các `422` này.
 - [ ] Token của target khác gọi endpoint tạo run động → `403`.
+- [ ] `artifact-url` `GET runs/<run_id>/predictions.json` của run đã kết thúc trong experiment đang lease → URL; `PUT`/`DELETE` hoặc khóa khác của run đã kết thúc → `409`; run trúng cache có `predictions_key` trỏ tới bản sao trong thư mục của chính nó (đề xuất contract 001).
 - [ ] `POST /runs/{id}/skip` cho run của attack tìm ngưỡng → `422`.
 - [ ] Migration `0008` lên và xuống được; bảng mới được `GRANT` cho `advertest_app` (`test_every_table_is_granted_to_app` pass).
 

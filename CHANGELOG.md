@@ -8,6 +8,12 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 **Trạng thái:** đang làm. Kickoff và Group 0 trên nhánh `phase07-reviewer-g0`.
 
+### Phase 7 — Đề xuất contract 001 (người duyệt, người dùng giao) — 2026-10-01
+- Nguồn: Group 3 (worker). Bootstrap cần prediction của mọi điểm toàn slice, nhưng `artifact-url` chỉ cấp URL cho run đang `running` (run đã xong → `409` = mất lease) và điểm trúng cache nằm ở thư mục run gốc.
+- Contract: mô tả `ArtifactUrlRequest.key` (run phải `running`, trừ `GET runs/<run_id>/predictions.json` của run đã kết thúc thuộc experiment đang lease) và `predictions_key` (run trúng cache có bản sao file của run gốc). Không đổi kiểu, route, `schema_version`; sinh lại JSON Schema, OpenAPI, type TypeScript.
+- Spec: `requirements.md` mục API (hành vi `artifact-url`, sao chép khi `skip_cached`) và mục Worker; `plan.md` task 22b (backend), 18b (worker, sau 22b); `validation.md` thêm mục API và mục chạy tiếp có `drop_ci`.
+- Test Phase 3 về "run đã kết thúc không xin được URL" (khóa `late.json`, `x.json`) vẫn đúng.
+
 ### Phase 7 — Group 3 (worker) — 2026-10-01
 #### Thêm
 - `ml_core/runner/` (task 13, 13a, 13b): `RunContext.restricted` (run trên tập con, mAP sạch tính lại trên tập con); `build_fingerprint_inputs(..., eval_image_ids_sha256=)`; checkpoint lưu `class_correct`, `class_lost` (checkpoint cũ vẫn nạp); `finalize` truyền `class_names` (ASR theo class).

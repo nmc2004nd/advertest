@@ -38,6 +38,7 @@
 16. Xử lý `stopped_limit`, hủy, và các trường hợp `failed` (mAP sạch bằng 0, không còn object cho ASR, lỗi không phục hồi).
 17. Chạy bootstrap khi kết thúc và gửi `SearchResult` cuối.
 18. Thứ tự: attack quét lưới trước, attack tìm ngưỡng sau; `early_stop` (`RunLedger`) không áp cho run của attack tìm ngưỡng.
+18b. (Đề xuất contract 001, sau Group 4 task 22b) Hook `predictions` của `JobRunner` đọc `runs/<run_id>/predictions.json` qua `artifact-url` của chính run khi không có trong bộ nhớ; 404 → bỏ điểm khỏi bootstrap.
 
 ## Group 4 — Backend `[agent: backend]`
 
@@ -46,6 +47,7 @@
 20. Ước lượng `searches[]`, `max_total_seconds`, `max_exceeds_limit` dùng `ml_core/search/bounds.py`.
 21. Endpoint tạo run động: kiểm tra attack, level, số run so với `max_points` (mọi vi phạm → `422`); ghi `scope`, `search_order`; `ordinal` của run động đứng sau mọi run quét lưới của experiment.
 22. Lưu `SearchResult` tạm thời và cuối cùng; `ExperimentDetail.search_results`.
+22b. (Đề xuất contract 001) `artifact-url` cấp `GET runs/<run_id>/predictions.json` cho run đã kết thúc của experiment đang lease; `start` trả `skip_cached` thì sao chép file prediction của run gốc và điền `predictions_key`; test.
 22a. `attack_ranking` loại attack `mode = search` và run `scope = subset` (`experiment_views.py::_ranking`); endpoint `skip` (dừng sớm) từ chối run của attack tìm ngưỡng (`422`).
 23. Tính trạng thái tiến độ tìm kiếm cho giao diện (điểm đã dùng, khoảng hiện tại, giai đoạn); `progress.images_total` chỉ gồm run đã tạo; `queue.ahead_seconds` cộng phần `max_seconds` còn lại của attack tìm ngưỡng.
 
