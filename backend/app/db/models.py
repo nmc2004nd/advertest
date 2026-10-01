@@ -353,6 +353,19 @@ class Run(Base):
             " OR status_reason IS NOT NULL",
             name="abnormal_status_has_reason",
         ),
+        # Phase 7 (migration 0008).
+        CheckConstraint("scope IN ('full', 'subset')", name="scope_value"),
+        CheckConstraint(
+            "scope = 'full' OR search_order IS NOT NULL", name="subset_has_search_order"
+        ),
+        Index(
+            "uq_runs_search_order",
+            "experiment_id",
+            "attack_spec_id",
+            "search_order",
+            unique=True,
+            postgresql_where=text("search_order IS NOT NULL"),
+        ),
     )
 
     id: Mapped[UUID] = _uuid_pk()
@@ -384,15 +397,28 @@ class Run(Base):
     phase: Mapped[str | None] = mapped_column(Text)
     iterations_done: Mapped[int | None]
     iterations_total: Mapped[int | None]
+    # Phase 7: tập ảnh (`full` / `subset`), thứ tự điểm của tìm ngưỡng, file prediction theo ảnh.
+    scope: Mapped[str] = mapped_column(Text, server_default=text("'full'"))
+    search_order: Mapped[int | None]
+    predictions_key: Mapped[str | None] = mapped_column(Text)
 
 
 class SearchResultRow(Base):
+    """`SearchResult` mới nhất của một attack tìm ngưỡng (Phase 7: mỗi experiment, attack một
+    dòng; bản tạm thời bị thay, bản cuối không đổi nữa)."""
+
     __tablename__ = "search_results"
+    __table_args__ = (
+        UniqueConstraint(
+            "experiment_id", "attack_spec_id", name="uq_search_results_experiment_attack"
+        ),
+    )
 
     id: Mapped[UUID] = _uuid_pk()
     experiment_id: Mapped[UUID] = mapped_column(ForeignKey("experiments.id"))
     attack_spec_id: Mapped[UUID] = mapped_column(ForeignKey("attack_specs.id"))
     result: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    updated_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
 
 class FailureCase(Base):
