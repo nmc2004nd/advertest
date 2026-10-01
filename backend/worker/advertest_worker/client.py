@@ -19,6 +19,7 @@ from pydantic import BaseModel
 from advertest_contracts.models import (
     ArtifactUrlRequest,
     ArtifactUrlResponse,
+    BundleRun,
     CostProfile,
     ErrorResponse,
     HeartbeatRequest,
@@ -29,6 +30,8 @@ from advertest_contracts.models import (
     RunSkipRequest,
     RunStartRequest,
     RunStartResponse,
+    SearchResultReport,
+    SearchRunCreate,
     WorkerDirective,
     WorkerJobBundle,
     WorkerLease,
@@ -144,3 +147,14 @@ class WorkerClient:
     def register_patch(self, run_id: UUID, body: PatchRegistration) -> PatchArtifact:
         """Đăng ký patch vừa train; khóa đã có thì API trả bản cũ (dùng bản trả về)."""
         return self._parse(PatchArtifact, self._request("POST", f"/runs/{run_id}/patch", body))
+
+    # Phase 7
+    def create_search_run(self, experiment_id: UUID, body: SearchRunCreate) -> BundleRun:
+        """Tạo run `queued` cho điểm tìm ngưỡng kế tiếp. Vi phạm (level, `max_points`) là `422`
+        (`ApiError`), không phải mất lease."""
+        response = self._request("POST", f"/experiments/{experiment_id}/runs", body)
+        return self._parse(BundleRun, response)
+
+    def search_result(self, experiment_id: UUID, body: SearchResultReport) -> None:
+        """`SearchResult` tạm thời sau mỗi điểm hoặc kết quả cuối."""
+        self._request("POST", f"/experiments/{experiment_id}/search-result", body)
