@@ -1809,9 +1809,10 @@ export interface components {
             threshold: number;
             /**
              * Class Filter
+             * @description Một class đích; cùng kiểu với SearchConfig.class_filter (Phase 7) để Phase 8 điền cấu hình tìm ngưỡng từ protocol
              * @default null
              */
-            class_filter: string[] | null;
+            class_filter: string | null;
         };
         /** PasswordChange */
         PasswordChange: {

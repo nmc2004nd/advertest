@@ -10,8 +10,8 @@
   "metric_kind": "map50",
   "breaking_point": null,
   "bracket": [
-    1,
-    2
+    0,
+    1
   ],
   "confidence_interval": null,
   "near_threshold": false,

@@ -1594,7 +1594,12 @@ class RequiredAttack(_Model):
 class PassCriterion(_Model):
     threshold_kind: ThresholdKind
     threshold: float
-    class_filter: list[str] | None = None
+    class_filter: str | None = Field(
+        default=None,
+        min_length=1,
+        description="Một class đích; cùng kiểu với SearchConfig.class_filter (Phase 7) để Phase 8"
+        " điền cấu hình tìm ngưỡng từ protocol",
+    )
 
 
 class ProtocolBody(_Model):

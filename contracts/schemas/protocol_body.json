@@ -46,16 +46,15 @@
         "class_filter": {
           "anyOf": [
             {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
+              "minLength": 1,
+              "type": "string"
             },
             {
               "type": "null"
             }
           ],
           "default": null,
+          "description": "Một class đích; cùng kiểu với SearchConfig.class_filter (Phase 7) để Phase 8 điền cấu hình tìm ngưỡng từ protocol",
           "title": "Class Filter"
         }
       },

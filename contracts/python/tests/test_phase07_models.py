@@ -20,6 +20,7 @@ from advertest_contracts.models import (
     ExperimentConfig,
     ExperimentDetail,
     Manifest,
+    PassCriterion,
     RunResult,
     RunView,
     SearchConfig,
@@ -261,3 +262,50 @@ def test_bundle_search_rules() -> None:
     runs[0]["search_order"] = 0
     invalid(WorkerJobBundle, {**data, "runs": runs}, "search_order có khi")
     invalid(WorkerJobBundle, {**data, "search_results": data["search_results"] * 2}, "tối đa một")
+
+
+# ---------------------------------------------------------------- bracket khớp quỹ đạo (review #2, #3)
+
+
+def _best_bracket(result: SearchResult, scope: EvalScope) -> tuple[float, float]:
+    """Khoảng hẹp nhất suy ra từ các điểm đã có (hàm đơn điệu): cận dưới là level lớn nhất chưa
+    gãy, cận trên là level nhỏ nhất đã gãy."""
+    points = [p for p in result.trajectory if p.scope == scope and p.drop is not None]
+    below = [p.level for p in points if p.drop is not None and p.drop < result.threshold]
+    above = [p.level for p in points if p.drop is not None and p.drop >= result.threshold]
+    return (max(below), min(above))
+
+
+@pytest.mark.parametrize(
+    ("schema", "name", "scope"),
+    [
+        ("search_result", "found", EvalScope.FULL),
+        ("search_result", "running_bisect_subset", EvalScope.SUBSET),
+        ("search_result", "stopped_limit", EvalScope.SUBSET),
+        ("search_result_report", "interim_bisect_subset", EvalScope.SUBSET),
+        ("experiment_detail", "search_running", EvalScope.SUBSET),
+        ("worker_job_bundle", "search_resume_coarse", EvalScope.SUBSET),
+    ],
+)
+def test_mock_bracket_is_best_known_interval(schema: str, name: str, scope: EvalScope) -> None:
+    data = mock(schema, name)
+    if schema == "search_result_report":
+        results = [data["result"]]
+    elif schema == "search_result":
+        results = [data]
+    else:
+        results = data["search_results"]
+    for raw in results:
+        result = SearchResult.model_validate(raw)
+        assert result.bracket == _best_bracket(result, scope)
+
+
+def test_pass_criterion_class_filter_is_single_class() -> None:
+    PassCriterion.model_validate(
+        {"threshold_kind": "relative_drop", "threshold": 0.2, "class_filter": "person"}
+    )
+    invalid(
+        PassCriterion,
+        {"threshold_kind": "relative_drop", "threshold": 0.2, "class_filter": ["person"]},
+        "string",
+    )

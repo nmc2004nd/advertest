@@ -382,7 +382,7 @@
       "breaking_point": null,
       "bracket": [
         0,
-        16
+        4
       ],
       "confidence_interval": null,
       "near_threshold": false,
