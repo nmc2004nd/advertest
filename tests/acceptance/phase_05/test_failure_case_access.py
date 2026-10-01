@@ -1,4 +1,8 @@
-"""validation.md Phase 5, Ảnh và quyền riêng tư (`test_failure_case_access.py`). Worker thật."""
+"""validation.md Phase 5, Ảnh và quyền riêng tư (`test_failure_case_access.py`). Worker thật.
+
+Từ Phase 6, worker làm mờ mọi case mới (`anonymization.applied`) nên case đó luôn `normal`
+(requirements.md Phase 6, mục Làm mờ). Quy tắc ẩn và cờ dev của Phase 5 vẫn áp cho case cũ chưa
+làm mờ: test dựng case cũ bằng cách bỏ `anonymization` trong DB (như dữ liệu trước Phase 6)."""
 
 from __future__ import annotations
 
@@ -18,8 +22,11 @@ from .conftest import Api, attack, error, ok, post
 pytestmark = pytest.mark.db
 
 
-def _run_with_cases(api: Api) -> tuple[TestClient, str, list[FailureCaseView]]:
-    """Experiment FGSM eps 16 chạy xong (đủ mạnh để có failure case); trả client, run, case."""
+def _run_with_cases(
+    api: Api, old_cases_engine: Engine | None = None
+) -> tuple[TestClient, str, list[FailureCaseView]]:
+    """Experiment FGSM eps 16 chạy xong (đủ mạnh để có failure case); trả client, run, case.
+    Có `old_cases_engine` (quyền owner) thì biến case của run thành case cũ chưa làm mờ."""
     target = api.target()
     api.profile(target, sec=0.05, batch=5, attacks=["fgsm"])
     _, _, client = api.user("engineer")
@@ -27,6 +34,13 @@ def _run_with_cases(api: Api) -> tuple[TestClient, str, list[FailureCaseView]]:
     api.work(target, created["id"])
     (run,) = client.get(f"/experiments/{created['id']}/runs").json()
     assert run["status"] == "completed" and run["failure_case_ids"], run
+    if old_cases_engine is not None:
+        with Session(old_cases_engine) as session, session.begin():
+            session.execute(
+                update(m.FailureCase)
+                .where(m.FailureCase.run_id == run["run_id"])
+                .values(anonymization=None)
+            )
     cases = [
         FailureCaseView.model_validate(c)
         for c in client.get(f"/runs/{run['run_id']}/failure-cases").json()
@@ -63,20 +77,25 @@ def test_anonymized_dataset_normal_with_urls_expiring_in_10_minutes(
     assert error(client.get(case.urls.clean))[:2] == (404, "not_found")
 
 
-def test_unanonymized_dataset_hides_every_image_but_keeps_boxes(api: Api) -> None:
-    client, run_id, cases = _run_with_cases(api)
+def test_unanonymized_dataset_hides_every_image_but_keeps_boxes(
+    api: Api, owner_engine: Engine
+) -> None:
+    client, run_id, cases = _run_with_cases(api, owner_engine)
     listed = cases[0]
     full = FailureCaseView.model_validate(client.get(f"/failure-cases/{listed.id}").json())
     for case in (listed, full):
         assert case.display_mode == "hidden_unanonymized"
         assert all(url is None for url in case.urls.model_dump().values())
         assert case.urls_expire_at is None
+        assert case.artifacts is None  # không lộ khóa MinIO (đề xuất contract 002)
         assert case.detections.ground_truth
     assert "/artifacts/" not in client.get(f"/runs/{run_id}/failure-cases").text
 
 
-def test_dev_flag_serves_unblurred_with_mode(api: Api, monkeypatch: pytest.MonkeyPatch) -> None:
-    client, _, cases = _run_with_cases(api)
+def test_dev_flag_serves_unblurred_with_mode(
+    api: Api, owner_engine: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client, _, cases = _run_with_cases(api, owner_engine)
     monkeypatch.setenv("DEV_ALLOW_UNBLURRED", "true")
     case = FailureCaseView.model_validate(client.get(f"/failure-cases/{cases[0].id}").json())
     assert case.display_mode == "dev_unblurred"
