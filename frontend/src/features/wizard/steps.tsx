@@ -27,11 +27,14 @@ import {
 } from './api'
 import { LevelChips } from './LevelChips'
 import { catalogPreset, suggestedLevels } from './levels'
+import { targetClassesOf } from './search'
+import { ModeSwitch, SearchFields } from './SearchFields'
 import {
   type Action,
   type AttackDraft,
   type Draft,
   formatDuration,
+  searchErrorKey,
   SEED,
   trainingSummary,
 } from './state'
@@ -265,7 +268,7 @@ export function DatasetStep({ draft, dispatch, errors }: StepProps) {
 
 export const EARLY_STOP_LABEL = 'Dừng sớm khi model đã sụp'
 export const EARLY_STOP_HINT =
-  'Bỏ các level lớn hơn của cùng attack khi mAP@0.5 sau biến đổi còn ≤ 5% mAP ảnh sạch.'
+  'Bỏ các level lớn hơn của cùng attack khi mAP@0.5 sau biến đổi còn ≤ 5% mAP ảnh sạch. Chỉ áp cho attack quét lưới.'
 
 function EarlyStopSwitch({ draft, dispatch }: Pick<StepProps, 'draft' | 'dispatch'>) {
   return (
@@ -368,19 +371,15 @@ export function AttackStep({
   estimate?: EstimateResponse
 }) {
   const specs = useAttackSpecs()
+  const slices = useSlices(draft.datasetVersionId)
+  const mappings = useClassMappings(draft.datasetVersionId, draft.modelId)
   const all = specs.data ?? []
+  // Kiểm tra tập con và class ngay trên form; chưa tải xong thì để backend kiểm tra.
+  const sliceSize = slices.data?.find((s) => s.id === draft.sliceId)?.size ?? null
+  const mapping = mappings.data?.find((m) => m.id === draft.mappingId)
+  const targetClasses = mapping ? targetClassesOf(mapping.classes) : null
   return (
     <div className="space-y-4">
-      <div role="radiogroup" aria-label="Chế độ chạy" className="grid gap-2 md:grid-cols-2">
-        <ChoiceCard selected onSelect={() => undefined}>
-          <span className="font-medium">Quét lưới</span>
-          <span className="text-sm text-muted-foreground">Chạy mọi level đã chọn.</span>
-        </ChoiceCard>
-        <ChoiceCard selected={false} onSelect={() => undefined} disabled>
-          <span className="font-medium">Tự tìm ngưỡng</span>
-          <Badge>Sắp có</Badge>
-        </ChoiceCard>
-      </div>
       <EarlyStopSwitch draft={draft} dispatch={dispatch} />
       <FieldErrorText message={errors.attacks} />
       <Loaded query={specs}>
@@ -436,6 +435,27 @@ export function AttackStep({
                       </p>
                     )}
                     {chosen && (
+                      <ModeSwitch
+                        spec={spec}
+                        chosen={chosen}
+                        sliceSize={sliceSize}
+                        dispatch={dispatch}
+                      />
+                    )}
+                    {chosen?.mode === 'search' && chosen.search && (
+                      <SearchFields
+                        spec={spec}
+                        index={index}
+                        search={chosen.search}
+                        sliceSize={sliceSize}
+                        targetClasses={targetClasses}
+                        serverErrors={errors}
+                        dispatch={dispatch}
+                        onInputError={(bad) => onLevelInputError(searchErrorKey(spec.id), bad)}
+                        estimate={estimate}
+                      />
+                    )}
+                    {chosen?.mode === 'grid' && (
                       <>
                         <LevelChips
                           param={spec.primary_param}
