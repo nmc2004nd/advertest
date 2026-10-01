@@ -9,6 +9,7 @@ import type {
 } from '@/contracts/api'
 
 import { catalogPreset, PATCH_PRESET_LEVELS } from './levels'
+import { defaultSearch } from './search'
 
 import {
   buildBody,
@@ -22,7 +23,10 @@ import {
   hasLevelInputError,
   loadDraft,
   reducer,
+  runCounts,
   saveDraft,
+  searchCostSummary,
+  searchErrorKey,
   SEED,
   type Step,
   stepOfField,
@@ -47,6 +51,8 @@ const FULL: Draft = {
       levels: [4],
       requiresTraining: false,
       trainingSliceId: null,
+      mode: 'grid',
+      search: null,
     },
   ],
 }
@@ -62,6 +68,8 @@ const WITH_PATCH: Draft = {
       levels: [0.1],
       requiresTraining: true,
       trainingSliceId: null,
+      mode: 'grid',
+      search: null,
     },
   ],
 }
@@ -354,5 +362,153 @@ describe('Phase 6: thời gian train trong ước lượng (task 31)', () => {
     expect(trainingSummary(ready, patchId)).toBe('Patch đã có sẵn: không cần train.')
     const missing: EstimateResponse = { ...ready, missing_profiles: [patchId] }
     expect(trainingSummary(missing, patchId)).toContain('Chưa đo được thời gian train')
+  })
+})
+
+const EPS = {
+  name: 'eps',
+  type: 'continuous' as const,
+  min: 0,
+  max: 32,
+  values: null,
+  unit: '1/255',
+}
+
+describe('Phase 7: tự tìm ngưỡng', () => {
+  const SEARCH = defaultSearch(EPS, 300)
+  const searching = reducer(FULL, {
+    type: 'mode',
+    attackSpecId: 'a',
+    mode: 'search',
+    defaults: SEARCH,
+  })
+
+  it('nháp lưu theo định dạng trước Phase 7 mở được: attack là quét lưới, không mất trường nào', () => {
+    const store = new MemoryStore()
+    const phase6 = {
+      ...FULL,
+      earlyStop: false,
+      attacks: [
+        {
+          attackSpecId: 'a',
+          specSha256: 'sha',
+          levels: [4, 8],
+          requiresTraining: true,
+          trainingSliceId: 'ts',
+        },
+      ],
+    }
+    store.setItem(STORAGE_KEY, JSON.stringify(phase6))
+    const loaded = loadDraft(store)
+    expect(loaded).toEqual({
+      ...phase6,
+      attacks: [{ ...phase6.attacks[0], mode: 'grid', search: null }],
+    })
+    expect(buildBody(loaded)?.attacks[0]).toMatchObject({
+      mode: 'grid',
+      grid: { levels: [4, 8], early_stop: false },
+      search: null,
+      training_slice_id: 'ts',
+    })
+  })
+
+  it('bật tìm ngưỡng điền mặc định; về quét lưới giữ cấu hình để bật lại không mất', () => {
+    expect(searching.attacks[0]).toMatchObject({ mode: 'search', search: SEARCH })
+    const edited = reducer(searching, { type: 'search', attackSpecId: 'a', patch: { coarseN: 6 } })
+    const grid = reducer(edited, {
+      type: 'mode',
+      attackSpecId: 'a',
+      mode: 'grid',
+      defaults: SEARCH,
+    })
+    expect(grid.attacks[0].mode).toBe('grid')
+    const back = reducer(grid, {
+      type: 'mode',
+      attackSpecId: 'a',
+      mode: 'search',
+      defaults: SEARCH,
+    })
+    expect(back.attacks[0].search?.coarseN).toBe(6)
+  })
+
+  it('attack cần train (patch) không chuyển được sang tìm ngưỡng', () => {
+    const patched = reducer(WITH_PATCH, {
+      type: 'mode',
+      attackSpecId: 'p',
+      mode: 'search',
+      defaults: SEARCH,
+    })
+    expect(patched.attacks[1].mode).toBe('grid')
+  })
+
+  it('body: mode search, grid null, search theo contract, không có slice huấn luyện', () => {
+    const attack = buildBody(searching)?.attacks[0]
+    expect(attack).toEqual({
+      schema_version: 1,
+      attack_spec_id: 'a',
+      spec_sha256: 'sha',
+      mode: 'search',
+      grid: null,
+      search: {
+        threshold_kind: 'relative_drop',
+        threshold: 0.2,
+        lo: 0,
+        hi: 32,
+        tol: 0.125,
+        coarse_n: 4,
+        subset_size: 100,
+        class_filter: null,
+        bootstrap_samples: 200,
+      },
+      seed: SEED,
+    })
+  })
+
+  it('tìm ngưỡng không cần level; lỗi nhập của form tìm ngưỡng chặn bước 4', () => {
+    const noLevels = { ...searching, attacks: [{ ...searching.attacks[0], levels: [] }] }
+    expect(canAdvance(noLevels)).toBe(true)
+    const bad = { [searchErrorKey('a')]: true }
+    expect(hasLevelInputError(noLevels.attacks, bad)).toBe(true)
+    // Lỗi của chế độ đang ẩn không chặn.
+    expect(hasLevelInputError(FULL.attacks, bad)).toBe(false)
+    expect(hasLevelInputError(noLevels.attacks, { a: true })).toBe(false)
+  })
+
+  it('nhân bản experiment tìm ngưỡng giữ cấu hình tìm ngưỡng', () => {
+    const detail = listMocks<ExperimentDetail>('experiment_detail').find((d) =>
+      d.config.attacks.some((a) => a.mode === 'search'),
+    )
+    if (!detail) throw new Error('Thiếu mock experiment tìm ngưỡng')
+    const draft = draftFromClone(detail.config, [], 'dv')
+    const body = buildBody(draft)
+    expect(body?.attacks.map((a) => [a.mode, a.search ?? null, a.grid?.levels ?? null])).toEqual(
+      detail.config.attacks.map((a) => [a.mode, a.search ?? null, a.grid?.levels ?? null]),
+    )
+  })
+
+  it('chi phí tối đa: "tối đa ~X (tối đa N điểm)"; thiếu số đo thì nói rõ', () => {
+    const [estimate] = listMocks<EstimateResponse>('estimate_response').filter(
+      (e) => (e.searches ?? []).length === 2,
+    )
+    const [first] = estimate.searches ?? []
+    expect(searchCostSummary(estimate, first.attack_spec_id)).toBe(
+      `Tối đa ~${formatDuration(first.max_seconds)} (tối đa ${first.max_points} điểm)`,
+    )
+    const missing = {
+      ...estimate,
+      searches: [{ ...first, max_seconds: null }],
+    }
+    expect(searchCostSummary(missing, first.attack_spec_id)).toContain('Chưa đo được')
+    expect(searchCostSummary(estimate, 'khac')).toBeNull()
+  })
+
+  it('đếm run quét lưới và điểm tối đa của tìm ngưỡng', () => {
+    const estimate = {
+      searches: [
+        { attack_spec_id: 'a', max_points: 23, max_subset_points: 11, max_full_points: 12 },
+      ],
+    } as EstimateResponse
+    expect(runCounts(WITH_PATCH, undefined)).toEqual({ grid: 2, maxPoints: 0 })
+    expect(runCounts(searching, estimate)).toEqual({ grid: 0, maxPoints: 23 })
   })
 })

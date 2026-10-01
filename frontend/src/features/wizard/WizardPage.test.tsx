@@ -161,6 +161,8 @@ describe('các bước', () => {
           levels: [4],
           requiresTraining: false,
           trainingSliceId: null,
+          mode: 'grid',
+          search: null,
         },
       ],
     }
@@ -197,6 +199,8 @@ describe('các bước', () => {
               levels: [1, 3],
               requiresTraining: false,
               trainingSliceId: null,
+              mode: 'grid',
+              search: null,
             },
           ],
         }}
@@ -251,6 +255,8 @@ describe('các bước', () => {
           levels: [0.1, 0.25],
           requiresTraining: true,
           trainingSliceId: null,
+          mode: 'grid',
+          search: null,
         },
       ],
     }

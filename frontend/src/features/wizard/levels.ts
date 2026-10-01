@@ -75,5 +75,7 @@ export function catalogPreset(specs: AttackSpec[]): AttackDraft[] {
     levels: suggestedLevels(spec),
     requiresTraining: spec.requires_training === true,
     trainingSliceId: null,
+    mode: 'grid' as const,
+    search: null,
   }))
 }

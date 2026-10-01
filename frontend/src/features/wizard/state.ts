@@ -1,7 +1,8 @@
 /**
  * Trạng thái nháp của wizard (requirements.md Phase 5, Frontend: wizard): thuần, lưu
  * sessionStorage để giữ qua lần tải lại trang, xóa sau khi tạo thành công. Phase 6 thêm slice huấn
- * luyện cho attack cần train (patch) và công tắc dừng sớm.
+ * luyện cho attack cần train (patch) và công tắc dừng sớm. Phase 7 thêm chế độ tự tìm ngưỡng theo
+ * từng attack; nháp cũ (khóa `v2`) thiếu chế độ thì coi là quét lưới.
  */
 import type {
   CloneWarning,
@@ -10,6 +11,8 @@ import type {
   ExperimentCreateOutput,
   FieldError,
 } from '@/contracts/api'
+
+import { fromSearchConfig, type SearchDraft, toSearchConfig } from './search'
 
 export const STEPS = [
   { step: 1, title: 'Protocol' },
@@ -24,8 +27,11 @@ export type Step = (typeof STEPS)[number]['step']
 
 /** Seed cố định của mọi attack (requirements.md Phase 5: tái lập được, trúng cache). */
 export const SEED = 0
-/** Phase 6: khóa `v2` vì nháp có thêm trường; nháp `v1` cũ bị bỏ qua (requirements.md Phase 6). */
+/** Phase 6: khóa `v2` vì nháp có thêm trường; nháp `v1` cũ bị bỏ qua (requirements.md Phase 6).
+ * Phase 7 giữ `v2`: nháp thiếu `mode`/`search` được điền mặc định (quét lưới), không mất trường nào. */
 export const STORAGE_KEY = 'advertest.wizard.v2'
+
+export type AttackMode = 'grid' | 'search'
 
 export interface AttackDraft {
   attackSpecId: string
@@ -34,6 +40,10 @@ export interface AttackDraft {
   /** Spec cần train trên slice huấn luyện trước khi đánh giá (patch, Phase 6). */
   requiresTraining: boolean
   trainingSliceId: string | null
+  /** Phase 7: quét lưới hoặc tự tìm ngưỡng (chỉ spec không cần train). */
+  mode: AttackMode
+  /** Cấu hình tìm ngưỡng; giữ lại khi chuyển về quét lưới để bật lại không mất giá trị. */
+  search: SearchDraft | null
 }
 
 export interface Draft {
@@ -83,6 +93,8 @@ export type Action =
   | { type: 'limit'; seconds: number | null }
   | { type: 'toggleAttack'; attackSpecId: string; specSha256: string; requiresTraining: boolean }
   | { type: 'levels'; attackSpecId: string; levels: number[] }
+  | { type: 'mode'; attackSpecId: string; mode: AttackMode; defaults: SearchDraft }
+  | { type: 'search'; attackSpecId: string; patch: Partial<SearchDraft> }
   | { type: 'trainingSlice'; attackSpecId: string; id: string }
   | { type: 'earlyStop'; on: boolean }
   | { type: 'preset'; attacks: AttackDraft[] }
@@ -133,6 +145,8 @@ export function reducer(draft: Draft, action: Action): Draft {
               levels: [],
               requiresTraining: action.requiresTraining,
               trainingSliceId: null,
+              mode: 'grid' as const,
+              search: null,
             },
           ]
       return { ...draft, attacks }
@@ -164,6 +178,28 @@ export function reducer(draft: Draft, action: Action): Draft {
           a.attackSpecId === action.attackSpecId ? { ...a, levels: action.levels } : a,
         ),
       }
+    case 'mode':
+      return {
+        ...draft,
+        attacks: draft.attacks.map((a) =>
+          a.attackSpecId === action.attackSpecId
+            ? {
+                ...a,
+                mode: a.requiresTraining ? 'grid' : action.mode,
+                search: a.search ?? action.defaults,
+              }
+            : a,
+        ),
+      }
+    case 'search':
+      return {
+        ...draft,
+        attacks: draft.attacks.map((a) =>
+          a.attackSpecId === action.attackSpecId && a.search !== null
+            ? { ...a, search: { ...a.search, ...action.patch } }
+            : a,
+        ),
+      }
     case 'name':
       return { ...draft, name: action.name }
     case 'load':
@@ -189,11 +225,7 @@ export function canAdvance(
       return draft.sliceId !== null && draft.mappingId !== null
     case 4:
       return (
-        !options.levelInputError &&
-        draft.attacks.length > 0 &&
-        draft.attacks.every(
-          (a) => a.levels.length > 0 && (!a.requiresTraining || a.trainingSliceId !== null),
-        )
+        !options.levelInputError && draft.attacks.length > 0 && draft.attacks.every(attackReady)
       )
     case 5:
       return (
@@ -207,20 +239,35 @@ export function canAdvance(
   }
 }
 
-/** Ô nhập level đang có giá trị sai ở một attack **đang chọn** (attack đã bỏ chọn không tính). */
+/** Attack đủ cấu hình: quét lưới có level (và slice huấn luyện khi cần train); tìm ngưỡng có cấu
+ * hình (tính hợp lệ của từng trường báo qua `inputErrors`). */
+function attackReady(a: AttackDraft): boolean {
+  if (a.mode === 'search') return a.search !== null
+  return a.levels.length > 0 && (!a.requiresTraining || a.trainingSliceId !== null)
+}
+
+/** Khóa lỗi nhập của form tìm ngưỡng trong `inputErrors` (ô level dùng `attackSpecId`). */
+export function searchErrorKey(attackSpecId: string): string {
+  return `search:${attackSpecId}`
+}
+
+/** Ô nhập đang có giá trị sai ở một attack **đang chọn**, theo chế độ hiện tại của attack (attack
+ * đã bỏ chọn hoặc chế độ đang ẩn không tính). */
 export function hasLevelInputError(
   attacks: AttackDraft[],
   inputErrors: Record<string, boolean>,
 ): boolean {
-  return attacks.some((a) => inputErrors[a.attackSpecId] === true)
+  return attacks.some(
+    (a) =>
+      inputErrors[a.mode === 'search' ? searchErrorKey(a.attackSpecId) : a.attackSpecId] === true,
+  )
 }
 
 /** Body gửi lên (`ExperimentCreate`); null khi cấu hình chưa đủ để ước lượng hay tạo. */
 export function buildBody(draft: Draft): ExperimentCreateInput | null {
   const { protocolId, modelId, sliceId, mappingId, targetId, limitSeconds } = draft
   if (!protocolId || !modelId || !sliceId || !mappingId || !targetId || !limitSeconds) return null
-  if (draft.attacks.length === 0 || draft.attacks.some((a) => a.levels.length === 0)) return null
-  if (draft.attacks.some((a) => a.requiresTraining && a.trainingSliceId === null)) return null
+  if (draft.attacks.length === 0 || !draft.attacks.every(attackReady)) return null
   return {
     schema_version: 1,
     protocol_id: protocolId,
@@ -228,17 +275,29 @@ export function buildBody(draft: Draft): ExperimentCreateInput | null {
     slice_id: sliceId,
     class_mapping_id: mappingId,
     compute_target_id: targetId,
-    attacks: draft.attacks.map((a) => ({
-      schema_version: 1,
-      attack_spec_id: a.attackSpecId,
-      spec_sha256: a.specSha256,
-      mode: 'grid' as const,
-      // `early_stop` chỉ gửi khi tắt: mặc định bật, body như Phase 5 (cùng config_sha256).
-      grid: draft.earlyStop ? { levels: a.levels } : { levels: a.levels, early_stop: false },
-      search: null,
-      seed: SEED,
-      ...(a.requiresTraining ? { training_slice_id: a.trainingSliceId } : {}),
-    })),
+    attacks: draft.attacks.map((a) =>
+      a.mode === 'search' && a.search !== null
+        ? {
+            schema_version: 1,
+            attack_spec_id: a.attackSpecId,
+            spec_sha256: a.specSha256,
+            mode: 'search' as const,
+            grid: null,
+            search: toSearchConfig(a.search),
+            seed: SEED,
+          }
+        : {
+            schema_version: 1,
+            attack_spec_id: a.attackSpecId,
+            spec_sha256: a.specSha256,
+            mode: 'grid' as const,
+            // `early_stop` chỉ gửi khi tắt: mặc định bật, body như Phase 5 (cùng config_sha256).
+            grid: draft.earlyStop ? { levels: a.levels } : { levels: a.levels, early_stop: false },
+            search: null,
+            seed: SEED,
+            ...(a.requiresTraining ? { training_slice_id: a.trainingSliceId } : {}),
+          },
+    ),
     limit: { kind: 'time' as const, value: String(limitSeconds) },
     name: draft.name.trim() || null,
     cloned_from: draft.clonedFrom,
@@ -279,7 +338,8 @@ export function draftFromClone(
   warnings: CloneWarning[],
   datasetVersionId: string | null,
 ): Draft {
-  const stops = config.attacks.map((a) => a.grid?.early_stop !== false)
+  // Dừng sớm chỉ áp cho attack quét lưới (Phase 7).
+  const stops = config.attacks.filter((a) => a.grid).map((a) => a.grid?.early_stop !== false)
   return {
     step: 6,
     protocolId: config.protocol_id,
@@ -295,6 +355,8 @@ export function draftFromClone(
       levels: [...(a.grid?.levels ?? [])],
       requiresTraining: (a.training_slice_id ?? null) !== null,
       trainingSliceId: a.training_slice_id ?? null,
+      mode: a.mode,
+      search: a.search ? fromSearchConfig(a.search) : null,
     })),
     earlyStop: stops.every(Boolean),
     earlyStopMixed: stops.some(Boolean) && !stops.every(Boolean),
@@ -329,6 +391,8 @@ export function loadDraft(store: Store | null = storage()): Draft {
         levels: [],
         requiresTraining: false,
         trainingSliceId: null,
+        mode: 'grid' as const,
+        search: null,
         ...a,
       })),
     }
@@ -378,4 +442,30 @@ export function trainingSummary(estimate: EstimateResponse, attackSpecId: string
   if (training.length === 0) return 'Patch đã có sẵn: không cần train.'
   const total = training.reduce((sum, r) => sum + (r.training_seconds ?? 0), 0)
   return `Thời gian train: ${formatDuration(total)} (${training.length} patch cần train)`
+}
+
+/**
+ * Chi phí tối đa của một attack tìm ngưỡng (Phase 7, plan task 26): "tối đa ~X (tối đa N điểm)".
+ * Thiếu số đo thì nói rõ.
+ */
+export function searchCostSummary(estimate: EstimateResponse, attackSpecId: string): string | null {
+  const row = estimate.searches?.find((s) => s.attack_spec_id === attackSpecId)
+  if (!row) return null
+  const points = `tối đa ${row.max_points} điểm`
+  if (row.max_seconds === null || row.max_seconds === undefined) {
+    return `Chưa đo được tốc độ trên máy này (${points}).`
+  }
+  return `Tối đa ~${formatDuration(row.max_seconds)} (${points})`
+}
+
+/** Số run quét lưới và số điểm tối đa của tìm ngưỡng (hộp xác nhận). */
+export function runCounts(
+  draft: Draft,
+  estimate: EstimateResponse | undefined,
+): { grid: number; maxPoints: number } {
+  const grid = draft.attacks
+    .filter((a) => a.mode === 'grid')
+    .reduce((n, a) => n + a.levels.length, 0)
+  const maxPoints = (estimate?.searches ?? []).reduce((n, s) => n + s.max_points, 0)
+  return { grid, maxPoints }
 }
