@@ -8,6 +8,12 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 **Trạng thái:** đang làm. Kickoff và Group 0 trên nhánh `phase07-reviewer-g0`.
 
+### Phase 7 — Group 6 (frontend: kết quả) — 2026-10-02
+- Tab Kết quả, mục "Điểm gãy": thẻ tóm tắt mỗi attack tìm ngưỡng (câu kết luận theo 6 trạng thái, cảnh báo sát ngưỡng và không đơn điệu, dòng tiến độ khi đang chạy); biểu đồ quỹ đạo kèm bảng; biểu đồ so sánh điểm gãy chuẩn hóa kèm bảng. Điện thoại chỉ hiện thẻ, chạm thẻ mở quỹ đạo toàn màn hình.
+- Đường cong metric Phase 6 chỉ gồm run của attack quét lưới.
+- Review (phase-review), người dùng chọn sửa: #1 `not_reached` hiện "> {hi/max}%" thay vì luôn "> 100%" (điều chỉnh câu trong `requirements.md`); #2 bảng quỹ đạo giữ level chính xác, câu kết luận làm tròn 4 chữ số có nghĩa. Quyết định ghi vào `requirements.md` mục Frontend.
+- Review và phần sửa do cùng một agent làm (không độc lập).
+
 ### Phase 7 — Group 5 (frontend: wizard) — 2026-10-01
 - Bước 4: công tắc "Quét lưới / Tự tìm ngưỡng" theo attack (bỏ ô chế độ chung "Sắp có"); form tìm ngưỡng (3 loại ngưỡng có giải thích, ngưỡng %, class đích, dải, độ chính xác, "Nâng cao" thu gọn) với schema `zod` cùng luật backend; `adv_patch` bị khóa kèm giải thích.
 - Bước 5 và 6: chi phí tối đa "tối đa ~X (tối đa N điểm)", cảnh báo `max_exceeds_limit`; nhân bản experiment tìm ngưỡng giữ cấu hình.
