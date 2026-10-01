@@ -8,19 +8,24 @@ import type {
   DatasetSummary,
   EstimateResponse,
   ExperimentClone,
+  ExperimentDetail,
   ModelSummary,
   ProtocolSummary,
   SliceSummary,
 } from '@/contracts/api'
 import { render } from '@/test-utils'
 
+import { defaultSearch, type SearchDraft, targetClassesOf, THRESHOLD_KINDS } from './search'
+import { PATCH_SEARCH_LOCKED } from './SearchFields'
 import { AttackStep, DatasetStep, EARLY_STOP_LABEL, TargetStep } from './steps'
 import {
   buildBody,
   type Draft,
   draftFromClone,
   EMPTY_DRAFT,
+  estimateText,
   formatDuration,
+  searchCostSummary,
   STORAGE_KEY,
 } from './state'
 import { WizardPage } from './WizardPage'
@@ -58,6 +63,10 @@ afterEach(() => {
 })
 
 const noop = () => undefined
+
+/** Văn bản như react-dom/server in ra (thoát `&`, `<`, `>`). */
+const escapeHtml = (text: string) =>
+  text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
 describe('WizardPage', () => {
   it('bước 1: protocol dev có nhãn, thanh bước, thanh dưới có ước lượng', () => {
@@ -111,6 +120,44 @@ describe('WizardPage', () => {
   })
 })
 
+describe('Phase 7: chi phí tối đa của tìm ngưỡng ở bước 5 và 6', () => {
+  const detail = listMocks<ExperimentDetail>('experiment_detail').find((d) =>
+    d.config.attacks.some((a) => a.mode === 'search'),
+  )
+  if (!detail) throw new Error('Thiếu mock experiment tìm ngưỡng')
+  const draft = { ...draftFromClone(detail.config, [], slices[0].dataset_version_id), name: '' }
+  const estimate = listMocks<EstimateResponse>('estimate_response').find(
+    (e) => (e.searches ?? []).length === 2 && e.max_exceeds_limit,
+  )
+  if (!estimate) throw new Error('Thiếu mock ước lượng tìm ngưỡng')
+  const cache: [readonly unknown[], unknown][] = [
+    ...BASE,
+    [['estimate', JSON.stringify(buildBody(draft))], estimate],
+  ]
+
+  it('bước 6: "tối đa" theo từng attack, tổng tối đa, cảnh báo vượt giới hạn', () => {
+    withDraft(draft)
+    const html = render(<WizardPage />, '/experiments/new', 'engineer', cache)
+    expect(html).toContain('Bước 6/6')
+    expect(html).toContain('data-testid="chi-phi-tim-nguong"')
+    for (const s of estimate.searches ?? []) {
+      expect(html).toContain(searchCostSummary(estimate, s.attack_spec_id))
+    }
+    expect(html).toContain(escapeHtml(estimateText(estimate)))
+    expect(html).toContain('Chi phí tối đa của tìm ngưỡng vượt giới hạn thời gian')
+  })
+
+  it('bước 5: thẻ máy chạy hiện ước lượng tối đa', () => {
+    const html = render(
+      <TargetStep draft={{ ...draft, step: 5 }} dispatch={noop} errors={{}} estimate={estimate} />,
+      '/',
+      'engineer',
+      BASE,
+    )
+    expect(html).toContain(escapeHtml(estimateText(estimate)))
+  })
+})
+
 describe('các bước', () => {
   const draft: Draft = {
     ...EMPTY_DRAFT,
@@ -148,7 +195,7 @@ describe('các bước', () => {
     expect(html).toContain('Tự chọn mapping duy nhất')
   })
 
-  it('bước 4: "Tự tìm ngưỡng" Sắp có; cảnh báo model không hỗ trợ gradient; lỗi server tại attack', () => {
+  it('bước 4: công tắc chế độ theo attack; cảnh báo model không hỗ trợ gradient; lỗi server tại attack', () => {
     const noGrad = models.find((m) => !m.supports_gradients)
     const spec = specs[0]
     const attackDraft: Draft = {
@@ -161,6 +208,8 @@ describe('các bước', () => {
           levels: [4],
           requiresTraining: false,
           trainingSliceId: null,
+          mode: 'grid',
+          search: null,
         },
       ],
     }
@@ -176,7 +225,11 @@ describe('các bước', () => {
       'engineer',
       BASE,
     )
-    expect(html).toContain('Sắp có')
+    // Phase 7: không còn "Sắp có"; mỗi attack có công tắc riêng, mặc định quét lưới.
+    expect(html).not.toContain('Sắp có')
+    expect(html).toContain(`aria-label="Chế độ của ${spec.name}"`)
+    expect(html).toMatch(/aria-checked="true"[^>]*>Quét lưới</)
+    expect(html).toMatch(/aria-checked="false"[^>]*>Tự tìm ngưỡng</)
     expect(html).toContain('các run sẽ bị bỏ qua')
     expect(html).toContain('Level 40 nằm ngoài dải')
     expect(html).toContain('Dùng bộ gợi ý')
@@ -197,6 +250,8 @@ describe('các bước', () => {
               levels: [1, 3],
               requiresTraining: false,
               trainingSliceId: null,
+              mode: 'grid',
+              search: null,
             },
           ],
         }}
@@ -251,6 +306,8 @@ describe('các bước', () => {
           levels: [0.1, 0.25],
           requiresTraining: true,
           trainingSliceId: null,
+          mode: 'grid',
+          search: null,
         },
       ],
     }
@@ -279,6 +336,132 @@ describe('các bước', () => {
     expect(html).toContain('Slice huấn luyện giao với slice đánh giá')
     expect(html).toContain('Dùng bộ gợi ý: 0.1, 0.25')
     expect(render4([])).toContain('Chưa có slice huấn luyện nào không giao')
+  })
+
+  describe('Phase 7 bước 4: tự tìm ngưỡng', () => {
+    const pgd = specs.find((s) => s.name === 'pgd_linf')
+    const fog = specs.find((s) => s.name === 'fog')
+    const patch = specs.find((s) => s.requires_training)
+    if (!pgd || !fog || !patch) throw new Error('Thiếu mock pgd_linf, fog hoặc adv_patch')
+    const slice = slices.find((s) => s.size === 300) ?? slices[0]
+    const mapping = mappings[0]
+    const searchDraft = (spec: AttackSpec, patchSearch: Partial<SearchDraft> = {}): Draft => ({
+      ...draft,
+      step: 4,
+      sliceId: slice.id,
+      mappingId: mapping.id,
+      attacks: [
+        {
+          attackSpecId: spec.id,
+          specSha256: spec.spec_sha256,
+          levels: [],
+          requiresTraining: false,
+          trainingSliceId: null,
+          mode: 'search',
+          search: { ...defaultSearch(spec.primary_param, slice.size), ...patchSearch },
+        },
+      ],
+    })
+    const render4 = (d: Draft, errors: Record<string, string> = {}, estimate?: EstimateResponse) =>
+      render(
+        <AttackStep
+          draft={d}
+          dispatch={noop}
+          errors={errors}
+          model={models[0]}
+          onLevelInputError={noop}
+          estimate={estimate}
+        />,
+        '/',
+        'engineer',
+        [
+          ...BASE,
+          [['slices', slice.dataset_version_id], [slice]],
+          [['class-mappings', d.datasetVersionId, d.modelId], [mapping]],
+        ],
+      )
+
+    it('form: 3 loại ngưỡng có giải thích, ngưỡng %, class đích, tol mặc định (hi − lo)/256, Nâng cao thu gọn', () => {
+      const html = render4(searchDraft(pgd))
+      for (const kind of THRESHOLD_KINDS) {
+        expect(html).toContain(kind.label)
+        expect(html).toContain(kind.hint)
+      }
+      expect(html).toMatch(/aria-checked="true"[^>]*>Tự tìm ngưỡng</)
+      expect(html).toContain('Ngưỡng (%)')
+      expect(html).toMatch(/type="range"[^>]*value="20"/)
+      for (const name of targetClassesOf(mapping.classes)) {
+        expect(html).toContain(`<option value="${name}">`)
+      }
+      const tol = (pgd.primary_param.max - pgd.primary_param.min) / 256
+      expect(html).toContain(`id="tim-nguong-${pgd.id}-tol"`)
+      expect(html).toMatch(new RegExp(`id="tim-nguong-${pgd.id}-tol"[^>]*value="${tol}"`))
+      // `<details>` không có `open`: phần Nâng cao thu gọn.
+      expect(html).toMatch(/<details class="[^"]*">\s*<summary[^>]*>Nâng cao</)
+      expect(html).toContain('Số điểm quét thô')
+      expect(html).toContain('Số mẫu bootstrap')
+      expect(html).not.toContain('Dùng bộ gợi ý')
+      expect(html).not.toContain('data-testid="tap-con-nho"')
+    })
+
+    it('tham số rời rạc: lo/hi chọn trong giá trị của spec, không có ô độ chính xác', () => {
+      const html = render4(searchDraft(fog))
+      expect(html).toContain(`<select id="tim-nguong-${fog.id}-lo"`)
+      expect(html).not.toContain(`id="tim-nguong-${fog.id}-tol"`)
+    })
+
+    it('cảnh báo tập con dưới 20 ảnh; lỗi zod và lỗi 422 hiện tại trường', () => {
+      const small = render4(searchDraft(pgd, { subsetSize: 10 }))
+      expect(small).toContain('data-testid="tap-con-nho"')
+      const bad = render4(searchDraft(pgd, { coarseN: 9, subsetSize: slice.size + 1 }))
+      expect(bad).toContain('Số điểm quét thô từ 3 đến 8')
+      expect(bad).toContain(`Tập con tối đa bằng số ảnh của slice (${slice.size})`)
+      const server = render4(searchDraft(pgd), {
+        'attacks.0.search.threshold': 'Ngưỡng lớn hơn mAP ảnh sạch',
+      })
+      expect(server).toContain('Ngưỡng lớn hơn mAP ảnh sạch')
+    })
+
+    it('hai attack tìm ngưỡng: tên truy cập không trùng (review Group 5 #2)', () => {
+      const two = searchDraft(pgd)
+      const fogAttack = searchDraft(fog).attacks[0]
+      const html = render4({ ...two, attacks: [...two.attacks, fogAttack] })
+      const labels = [...html.matchAll(/aria-label="([^"]+)"/g)].map((m) => m[1])
+      expect(labels).toContain(`Loại ngưỡng của ${pgd.name}`)
+      expect(labels).toContain(`Loại ngưỡng của ${fog.name}`)
+      expect(labels).toContain(`Ngưỡng của ${fog.name} (thanh trượt)`)
+      expect(new Set(labels).size).toBe(labels.length)
+    })
+
+    it('adv_patch: công tắc tìm ngưỡng bị khóa và có giải thích', () => {
+      const html = render4({
+        ...draft,
+        step: 4,
+        attacks: [
+          {
+            attackSpecId: patch.id,
+            specSha256: patch.spec_sha256,
+            levels: [0.1],
+            requiresTraining: true,
+            trainingSliceId: null,
+            mode: 'grid',
+            search: null,
+          },
+        ],
+      })
+      expect(html).toMatch(/aria-checked="false" disabled=""[^>]*>Tự tìm ngưỡng</)
+      expect(html).toContain(PATCH_SEARCH_LOCKED)
+    })
+
+    it('chi phí tối đa của attack tìm ngưỡng từ ước lượng', () => {
+      const estimate = listMocks<EstimateResponse>('estimate_response').find((e) =>
+        e.searches?.some((s) => s.attack_spec_id === pgd.id),
+      )
+      if (!estimate) throw new Error('Thiếu mock ước lượng tìm ngưỡng')
+      const html = render4(searchDraft(pgd), {}, estimate)
+      expect(html).toContain(`data-testid="chi-phi-toi-da-${pgd.id}"`)
+      expect(html).toContain(searchCostSummary(estimate, pgd.id))
+    })
   })
 
   it('bước 5: nhãn máy local, giới hạn vượt tối đa bị báo', () => {

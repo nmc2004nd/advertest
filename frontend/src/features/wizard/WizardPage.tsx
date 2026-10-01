@@ -27,12 +27,16 @@ import {
   clearDraft,
   type Draft,
   draftFromClone,
+  estimateText,
   formatDuration,
   groupFieldErrors,
   hasLevelInputError,
+  hasSearchInputError,
   loadDraft,
   reducer,
+  runCounts,
   saveDraft,
+  searchCostSummary,
   SEED,
   type Step,
   STEPS,
@@ -81,6 +85,13 @@ function EstimateWarnings({ estimate }: { estimate: EstimateResponse | undefined
           <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
           Ước lượng vượt giới hạn thời gian: experiment có thể dừng giữa chừng (giữ kết quả một
           phần).
+        </p>
+      )}
+      {estimate.max_exceeds_limit && (
+        <p role="alert" className="flex gap-2 text-sm text-amber-800 dark:text-amber-300">
+          <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+          Chi phí tối đa của tìm ngưỡng vượt giới hạn thời gian: nếu chạm giới hạn, kết quả tìm
+          ngưỡng dừng ở khoảng đã thu hẹp được.
         </p>
       )}
       {estimate.missing_profiles.length > 0 && (
@@ -139,7 +150,8 @@ function Summary({
           <ul>
             {draft.attacks.map((a) => (
               <li key={a.attackSpecId}>
-                {name(specs.data, a.attackSpecId)}: {a.levels.join(', ') || 'chưa có level'}
+                {name(specs.data, a.attackSpecId)}:{' '}
+                {a.mode === 'search' ? 'tự tìm ngưỡng' : a.levels.join(', ') || 'chưa có level'}
               </li>
             ))}
           </ul>
@@ -147,7 +159,7 @@ function Summary({
       </div>
       <div className="rounded-lg bg-muted p-3">
         <p>
-          Ước lượng: <strong>{formatDuration(estimate?.total_seconds)}</strong>
+          Ước lượng: <strong>{estimateText(estimate)}</strong>
           {estimating && <span className="text-muted-foreground"> (đang tính)</span>}
         </p>
         {estimate && (
@@ -211,7 +223,23 @@ function ConfirmStep({
       <div className="lg:hidden">
         <Summary draft={draft} estimate={estimate} estimating={estimating} />
       </div>
-      {estimate && (
+      {estimate && (estimate.searches ?? []).length > 0 && (
+        <div className="space-y-1 text-sm" data-testid="chi-phi-tim-nguong">
+          <p className="font-medium">Chi phí tối đa của tìm ngưỡng</p>
+          <ul>
+            {(estimate.searches ?? []).map((s) => (
+              <li key={s.attack_spec_id}>
+                {specs.data?.find((spec) => spec.id === s.attack_spec_id)?.name ?? '—'}:{' '}
+                {searchCostSummary(estimate, s.attack_spec_id)}
+              </li>
+            ))}
+          </ul>
+          <p className="text-muted-foreground">
+            Tìm ngưỡng thường dừng sớm hơn mức tối đa khi khoảng đã đủ hẹp.
+          </p>
+        </div>
+      )}
+      {estimate && estimate.runs.length > 0 && (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[22rem] text-sm">
             <caption className="text-left font-medium">Ước lượng từng run</caption>
@@ -325,10 +353,13 @@ export function WizardPage() {
   const body = useMemo(() => buildBody(draft), [draft])
   // Tên không ảnh hưởng ước lượng: bỏ khỏi body để gõ tên không gọi lại API.
   const estimateBody = useMemo(() => (body ? { ...body, name: null } : null), [body])
-  const estimate = useEstimate(draft.step >= 4 ? estimateBody : null)
+  // Form tìm ngưỡng còn lỗi thì chưa ước lượng: API chỉ trả 422 (review Group 5 #1).
+  const searchInputError = hasSearchInputError(draft.attacks, levelInputErrors)
+  const estimate = useEstimate(draft.step >= 4 && !searchInputError ? estimateBody : null)
   const target = targets.data?.find((t) => t.id === draft.targetId)
   const model = models.data?.find((m) => m.id === draft.modelId)
   const levelInputError = hasLevelInputError(draft.attacks, levelInputErrors)
+  const counts = runCounts(draft, estimate.data)
   const advance = canAdvance(draft, {
     maxLimitSeconds: target?.max_time_limit_s,
     levelInputError,
@@ -456,7 +487,7 @@ export function WizardPage() {
             <ChevronLeft aria-hidden="true" />
           </Button>
           <p className="min-w-0 flex-1 truncate text-sm" data-testid="uoc-luong-thanh-duoi">
-            Ước lượng: <strong>{formatDuration(estimate.data?.total_seconds)}</strong>
+            Ước lượng: <strong>{estimateText(estimate.data)}</strong>
           </p>
           {draft.step < 6 ? (
             <Button onClick={next} disabled={!advance}>
@@ -480,9 +511,9 @@ export function WizardPage() {
       >
         <div className="space-y-2 text-sm">
           <p>
-            {body?.attacks.reduce((n, a) => n + (a.grid?.levels.length ?? 0), 0) ?? 0} run · ước
-            lượng {formatDuration(estimate.data?.total_seconds)} · giới hạn{' '}
-            {formatDuration(draft.limitSeconds)}
+            {counts.grid} run quét lưới
+            {counts.maxPoints > 0 && ` · tìm ngưỡng tối đa ${counts.maxPoints} điểm`} · ước lượng{' '}
+            {estimateText(estimate.data)} · giới hạn {formatDuration(draft.limitSeconds)}
           </p>
           <EstimateWarnings estimate={estimate.data} />
         </div>
