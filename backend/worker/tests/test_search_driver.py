@@ -23,6 +23,7 @@ from advertest_contracts.models import (
     RunMetrics,
     SearchResult,
 )
+from advertest_worker.client import ApiError, LeaseLost
 from advertest_worker.search import KnownRun, PointOutcome, SearchDriver
 from ml_core.metrics.filters import Prediction
 from ml_core.runner.executor import RunContext
@@ -360,3 +361,59 @@ def test_known_run_with_mismatched_level_is_rejected() -> None:
     resumed = FakeHooks(_context(), crossing(6.3))
     with pytest.raises(ValueError, match="level/scope"):
         _driver(resumed, previous=straight.reports[0], known=known).run()
+
+
+# ---------------------------------------------------------------- API từ chối (review Group 3 #1)
+
+
+class RejectingHooks(FakeHooks):
+    def __init__(self, *args: Any, reject: str, at: int, error: Exception, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.reject, self.at, self.error = reject, at, error
+
+    def create_run(self, attack_spec_id: UUID, level: float, scope: EvalScope, order: int) -> UUID:
+        if self.reject == "create" and order >= self.at:
+            raise self.error
+        return super().create_run(attack_spec_id, level, scope, order)
+
+    def report(self, result: SearchResult) -> None:
+        is_final = result.status is not None
+        if self.reject == "interim" and not is_final and result.points_used >= self.at:
+            raise self.error
+        if self.reject == "final" and is_final:
+            raise self.error
+        super().report(result)
+
+
+def _api_error(status: int = 422) -> ApiError:
+    return ApiError(status, "invalid_request", "Vượt max_points")
+
+
+def test_rejected_run_creation_fails_search_without_stopping() -> None:
+    hooks = RejectingHooks(_context(), crossing(6.3), reject="create", at=4, error=_api_error())
+    assert _driver(hooks).run() is False
+    final = hooks.reports[-1]
+    assert final.status == SearchStatus.FAILED
+    assert final.message is not None and "422" in final.message
+    assert final.points_used == len(hooks.created) == 3
+
+
+def test_rejected_interim_report_fails_search_and_keeps_point() -> None:
+    hooks = RejectingHooks(_context(), crossing(6.3), reject="interim", at=2, error=_api_error())
+    assert _driver(hooks).run() is False
+    final = hooks.reports[-1]
+    assert final.status == SearchStatus.FAILED and "422" in (final.message or "")
+    assert final.points_used == 2 == len(hooks.created)
+
+
+def test_rejected_final_report_is_logged_only() -> None:
+    hooks = RejectingHooks(_context(), crossing(6.3), reject="final", at=0, error=_api_error())
+    assert _driver(hooks).run() is False
+    assert all(r.status is None for r in hooks.reports)
+
+
+def test_lease_lost_still_propagates() -> None:
+    lost = LeaseLost(409, "conflict", "lease")
+    hooks = RejectingHooks(_context(), crossing(6.3), reject="create", at=2, error=lost)
+    with pytest.raises(LeaseLost):
+        _driver(hooks).run()

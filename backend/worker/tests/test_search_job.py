@@ -40,6 +40,7 @@ from advertest_contracts.models import (
     WorkerLease,
 )
 from advertest_worker import job as job_module
+from advertest_worker.client import ApiError
 from advertest_worker.job import DirectiveBox, JobRunner
 from attacks.registry import get_spec, load_catalog
 from ml_core.metrics.bootstrap import load_run_predictions
@@ -149,6 +150,8 @@ class FakeApi:
     created: list[BundleRun] = field(default_factory=list)
     cancel_after_progress: int | None = None
     progress_calls: int = 0
+    others: list[AttackConfig] = field(default_factory=list)
+    reject_spec_id: UUID | None = None  # API trả 422 khi tạo run cho attack này
 
     def http(self) -> httpx.Client:
         def handler(request: httpx.Request) -> httpx.Response:
@@ -187,13 +190,18 @@ class FakeApi:
         self.events.append(("complete", run_id))
 
     def create_search_run(self, experiment_id: UUID, body: SearchRunCreate) -> BundleRun:
-        assert self.attack.search is not None
+        if body.attack_spec_id == self.reject_spec_id:
+            raise ApiError(422, "invalid_request", "Vượt max_points")
+        attack = next(
+            a for a in [self.attack, *self.others] if a.attack_spec_id == body.attack_spec_id
+        )
+        assert attack.search is not None
         total = SUBSET if body.scope == EvalScope.SUBSET else 3
         run = BundleRun(
             run_id=uuid5(NS, f"search/{body.search_order}/{len(self.created)}"),
             attack_spec_id=body.attack_spec_id,
             level=body.level,
-            seed=self.attack.seed,
+            seed=attack.seed,
             status=RunStatus.QUEUED,
             images_done=0,
             images_total=total,
@@ -439,3 +447,28 @@ def test_predictions_file_is_json(world: World, monkeypatch: pytest.MonkeyPatch)
     key = f"runs/{api.created[0].run_id}/predictions.json"
     assert json.loads(api.objects[key])["key"] == key
     assert api.reports[-1].confidence_interval is None
+
+
+def test_rejected_search_fails_and_next_attack_still_runs(
+    world: World, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Review Group 3 #1: API từ chối (422) không làm dừng experiment."""
+    fog = _search_attack(world)
+    assert fog.search is not None
+    contrast = AttackConfig.model_validate(
+        {
+            "attack_spec_id": str(world.contrast.id),
+            "spec_sha256": world.contrast.spec_sha256,
+            "mode": "search",
+            "search": {**fog.search.model_dump(mode="json"), "bootstrap_samples": 0},
+            "seed": 1,
+        }
+    )
+    api = FakeApi(attack=fog, others=[contrast], reject_spec_id=world.fog.id)
+    runner = _runner(world, api, monkeypatch)
+    _run(world, api, runner, _bundle(world, [fog, contrast], []))
+    finals = {r.attack_spec_id: r for r in api.reports if r.status is not None}
+    assert finals[world.fog.id].status == SearchStatus.FAILED
+    assert "422" in (finals[world.fog.id].message or "")
+    assert finals[world.contrast.id].status != SearchStatus.FAILED
+    assert {r.attack_spec_id for r in api.created} == {world.contrast.id}

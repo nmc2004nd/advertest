@@ -9,6 +9,9 @@ Với mỗi attack ở chế độ tìm ngưỡng:
    với ngưỡng (`threshold_quantity`) → gửi `SearchResult` tạm thời.
 3. Run bị hủy hoặc chạm giới hạn → `stopped_limit` với khoảng hiện có, dừng experiment. Run lỗi,
    bị bỏ qua (không dùng được với model) hoặc đại lượng không tính được → `failed` kèm thông điệp.
+   API từ chối (`ApiError` khác mất lease, ví dụ `422` khi vượt `max_points`) khi tạo run, chạy run
+   hoặc gửi kết quả tạm thời → `failed` kèm mã lỗi; experiment chạy tiếp attack sau (review Group 3
+   #1). Gửi kết quả cuối bị từ chối thì chỉ ghi log.
 4. Kết thúc: bootstrap trên prediction của các điểm toàn slice (`ml_core/metrics/bootstrap.py`),
    gửi kết quả cuối.
 
@@ -31,6 +34,7 @@ from advertest_contracts.models import (
     SearchConfig,
     SearchResult,
 )
+from advertest_worker.client import ApiError, LeaseLost
 from ml_core.metrics.bootstrap import (
     BootstrapPoint,
     BootstrapResult,
@@ -139,7 +143,15 @@ class SearchDriver:
                 break
             request = progress.next_point
             assert request is not None
-            run_id, outcome = self._point(request.order, request.level, request.scope)
+            try:
+                run_id, outcome = self._point(request.order, request.level, request.scope)
+            except LeaseLost:
+                raise
+            except ApiError as exc:
+                progress = self.search.progress(
+                    observations, failure=_rejected(exc, "tạo hoặc chạy run")
+                )
+                break
             self.run_ids[request.order] = run_id
             if outcome.stop:
                 progress = self.search.progress(observations, stop=True)
@@ -149,10 +161,23 @@ class SearchDriver:
             observations.append(Observation(request.level, request.scope, drop))
             progress = self.search.progress(observations, failure=failure)
             if not progress.done:
-                self.hooks.report(self._result(progress))
+                try:
+                    self.hooks.report(self._result(progress))
+                except LeaseLost:
+                    raise
+                except ApiError as exc:
+                    progress = self.search.progress(
+                        observations, failure=_rejected(exc, "nhận kết quả tạm thời")
+                    )
+                    break
         if self.previous is not None and self.previous.status is not None and not stop_experiment:
             return False  # đã gửi kết quả cuối ở phiên trước
-        self.hooks.report(self._final(progress))
+        try:
+            self.hooks.report(self._final(progress))
+        except LeaseLost:
+            raise
+        except ApiError:
+            logger.exception("API từ chối kết quả cuối của tìm ngưỡng %s", self.spec.name)
         return stop_experiment
 
     def _restore(self) -> list[Observation]:
@@ -281,3 +306,7 @@ class SearchDriver:
                 ctx.params.max_det,
             )
         return self._clean_evidence
+
+
+def _rejected(exc: ApiError, action: str) -> str:
+    return f"API từ chối {action} ({exc.status_code} {exc.code}): {exc}"
