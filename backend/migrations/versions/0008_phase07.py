@@ -58,6 +58,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # Dữ liệu SearchResult chỉ có từ Phase 7: xóa để downgrade xa hơn (0002 xóa experiment của
+    # protocol dev) không vướng khóa ngoại.
+    op.execute("DELETE FROM search_results")
     op.drop_constraint(
         op.f("uq_search_results_experiment_attack"), "search_results", type_="unique"
     )

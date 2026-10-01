@@ -264,13 +264,15 @@ def test_more_than_50_runs(api: Api, fx: Fx) -> None:
     )  # fmt: skip
 
 
-def test_search_mode_is_not_supported_yet(api: Api, fx: Fx) -> None:
+def test_search_mode_not_supported_only_for_patch(api: Api, fx: Fx) -> None:
+    """Phase 5 trả `not_supported_yet` cho mọi `mode = search`; Phase 7 thu hẹp lại chỉ còn spec
+    cần train (`adv_patch`), xem `test_phase07_api.py`."""
     _, client = api.client()
     search = {
-        "threshold_kind": "relative_drop", "threshold": 0.2, "lo": 0, "hi": 16, "tol": 0.5,
-        "coarse_n": 4, "subset_size": 100,
+        "threshold_kind": "relative_drop", "threshold": 0.2, "lo": 0.02, "hi": 0.25, "tol": 0.01,
+        "coarse_n": 4, "subset_size": 2,
     }  # fmt: skip
-    attack = {**_attack("fgsm", [4]), "mode": "search", "grid": None, "search": search}
+    attack = {**_attack("adv_patch", [0.1]), "mode": "search", "grid": None, "search": search}
     assert _error(_post(client, "/experiments", _body(fx, [attack]))) == (
         422, "not_supported_yet", ["attacks.0.mode"],
     )  # fmt: skip
