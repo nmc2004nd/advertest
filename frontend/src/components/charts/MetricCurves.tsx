@@ -163,6 +163,11 @@ export function CurveTable({ curve }: { curve: AttackCurve }) {
                   {point.partial && (
                     <span className="text-xs text-destructive">◇ một phần ảnh</span>
                   )}
+                  {point.earlyStop && (
+                    <span className="text-xs text-muted-foreground">
+                      dừng sớm: đã sụp ở level thấp hơn
+                    </span>
+                  )}
                 </span>
               </td>
             </tr>

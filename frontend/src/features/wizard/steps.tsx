@@ -4,12 +4,12 @@ import type { Dispatch, ReactNode } from 'react'
 import { LoadError } from '@/components/LoadError'
 import { PageLoading } from '@/components/PageLoading'
 import type {
-  AttackKind,
   AttackSpec,
   ComputeTargetPublic,
   EstimateResponse,
   ModelSummary,
 } from '@/contracts/api'
+import { ATTACK_KIND_LABEL, ATTACK_KINDS } from '@/lib/attack-kinds'
 import { cn } from '@/lib/utils'
 
 import { Button } from '@/components/ui/button'
@@ -261,13 +261,6 @@ export function DatasetStep({ draft, dispatch, errors }: StepProps) {
 
 // ---------------------------------------------------------------- bước 4: attack
 
-/** Ba nhóm theo thứ tự cố định (requirements.md Phase 6, Frontend: wizard bước 4). */
-const KIND_GROUPS: [AttackKind, string][] = [
-  ['attack', 'Tấn công'],
-  ['corruption', 'Biến đổi điều kiện'],
-  ['occlusion', 'Che khuất'],
-]
-
 export const EARLY_STOP_LABEL = 'Dừng sớm khi model đã sụp'
 export const EARLY_STOP_HINT =
   'Bỏ các level lớn hơn của cùng attack khi mAP@0.5 sau biến đổi còn ≤ 5% mAP ảnh sạch.'
@@ -402,7 +395,8 @@ export function AttackStep({
             {catalogPreset(all).reduce((n, a) => n + a.levels.length, 0)} run).
           </p>
         </div>
-        {KIND_GROUPS.map(([kind, title]) => {
+        {ATTACK_KINDS.map((kind) => {
+          const title = ATTACK_KIND_LABEL[kind]
           const list = all.filter((spec) => spec.kind === kind)
           if (list.length === 0) return null
           return (

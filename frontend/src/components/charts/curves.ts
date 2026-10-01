@@ -11,6 +11,8 @@ export interface CurvePoint {
   relativeDrop: number | null
   /** Metric chỉ tính trên phần ảnh đã xử lý (run `stopped_limit`). */
   partial: boolean
+  /** Bỏ qua do dừng sớm: model đã sụp ở level thấp hơn (Phase 6). */
+  earlyStop: boolean
 }
 
 export interface AttackCurve {
@@ -47,6 +49,7 @@ export function buildCurves(runs: RunView[]): AttackCurve[] {
       asr: run.metrics?.attack_success_rate ?? null,
       relativeDrop: run.metrics?.relative_drop ?? null,
       partial: run.metrics?.partial ?? false,
+      earlyStop: run.status_reason?.code === 'early_stop',
     })
   }
   for (const curve of curves.values()) curve.points.sort((a, b) => a.level - b.level)
