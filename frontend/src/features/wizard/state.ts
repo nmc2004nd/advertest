@@ -1,9 +1,11 @@
 /**
  * Trạng thái nháp của wizard (requirements.md Phase 5, Frontend: wizard): thuần, lưu
- * sessionStorage để giữ qua lần tải lại trang, xóa sau khi tạo thành công.
+ * sessionStorage để giữ qua lần tải lại trang, xóa sau khi tạo thành công. Phase 6 thêm slice huấn
+ * luyện cho attack cần train (patch) và công tắc dừng sớm.
  */
 import type {
   CloneWarning,
+  EstimateResponse,
   ExperimentCreateInput,
   ExperimentCreateOutput,
   FieldError,
@@ -22,12 +24,16 @@ export type Step = (typeof STEPS)[number]['step']
 
 /** Seed cố định của mọi attack (requirements.md Phase 5: tái lập được, trúng cache). */
 export const SEED = 0
-export const STORAGE_KEY = 'advertest.wizard.v1'
+/** Phase 6: khóa `v2` vì nháp có thêm trường; nháp `v1` cũ bị bỏ qua (requirements.md Phase 6). */
+export const STORAGE_KEY = 'advertest.wizard.v2'
 
 export interface AttackDraft {
   attackSpecId: string
   specSha256: string
   levels: number[]
+  /** Spec cần train trên slice huấn luyện trước khi đánh giá (patch, Phase 6). */
+  requiresTraining: boolean
+  trainingSliceId: string | null
 }
 
 export interface Draft {
@@ -40,6 +46,10 @@ export interface Draft {
   targetId: string | null
   limitSeconds: number | null
   attacks: AttackDraft[]
+  /** Dừng sớm khi model đã sụp, áp cho mọi attack (`grid.early_stop`; người dùng chốt ở Group 6). */
+  earlyStop: boolean
+  /** Cấu hình nhân bản có attack bật và attack tắt dừng sớm (chỉ tạo được qua API). */
+  earlyStopMixed: boolean
   name: string
   clonedFrom: string | null
   cloneWarnings: CloneWarning[]
@@ -55,6 +65,8 @@ export const EMPTY_DRAFT: Draft = {
   targetId: null,
   limitSeconds: null,
   attacks: [],
+  earlyStop: true,
+  earlyStopMixed: false,
   name: '',
   clonedFrom: null,
   cloneWarnings: [],
@@ -69,8 +81,11 @@ export type Action =
   | { type: 'mapping'; id: string | null }
   | { type: 'target'; id: string; defaultLimitSeconds: number }
   | { type: 'limit'; seconds: number | null }
-  | { type: 'toggleAttack'; attackSpecId: string; specSha256: string }
+  | { type: 'toggleAttack'; attackSpecId: string; specSha256: string; requiresTraining: boolean }
   | { type: 'levels'; attackSpecId: string; levels: number[] }
+  | { type: 'trainingSlice'; attackSpecId: string; id: string }
+  | { type: 'earlyStop'; on: boolean }
+  | { type: 'preset'; attacks: AttackDraft[] }
   | { type: 'name'; name: string }
   | { type: 'load'; draft: Draft }
 
@@ -86,9 +101,18 @@ export function reducer(draft: Draft, action: Action): Draft {
     case 'datasetVersion':
       return draft.datasetVersionId === action.id
         ? draft
-        : { ...draft, datasetVersionId: action.id, sliceId: null, mappingId: null }
+        : {
+            ...draft,
+            datasetVersionId: action.id,
+            sliceId: null,
+            mappingId: null,
+            attacks: withoutTrainingSlices(draft.attacks),
+          }
     case 'slice':
-      return { ...draft, sliceId: action.id }
+      // Slice huấn luyện phải không giao với slice đánh giá: đổi slice thì chọn lại.
+      return draft.sliceId === action.id
+        ? draft
+        : { ...draft, sliceId: action.id, attacks: withoutTrainingSlices(draft.attacks) }
     case 'mapping':
       return { ...draft, mappingId: action.id }
     case 'target':
@@ -103,9 +127,35 @@ export function reducer(draft: Draft, action: Action): Draft {
         ? draft.attacks.filter((a) => a.attackSpecId !== action.attackSpecId)
         : [
             ...draft.attacks,
-            { attackSpecId: action.attackSpecId, specSha256: action.specSha256, levels: [] },
+            {
+              attackSpecId: action.attackSpecId,
+              specSha256: action.specSha256,
+              levels: [],
+              requiresTraining: action.requiresTraining,
+              trainingSliceId: null,
+            },
           ]
       return { ...draft, attacks }
+    }
+    case 'trainingSlice':
+      return {
+        ...draft,
+        attacks: draft.attacks.map((a) =>
+          a.attackSpecId === action.attackSpecId ? { ...a, trainingSliceId: action.id } : a,
+        ),
+      }
+    case 'earlyStop':
+      return { ...draft, earlyStop: action.on, earlyStopMixed: false }
+    case 'preset': {
+      // Giữ slice huấn luyện đã chọn của attack đã có.
+      const chosen = new Map(draft.attacks.map((a) => [a.attackSpecId, a.trainingSliceId]))
+      return {
+        ...draft,
+        attacks: action.attacks.map((a) => ({
+          ...a,
+          trainingSliceId: chosen.get(a.attackSpecId) ?? a.trainingSliceId,
+        })),
+      }
     }
     case 'levels':
       return {
@@ -119,6 +169,10 @@ export function reducer(draft: Draft, action: Action): Draft {
     case 'load':
       return action.draft
   }
+}
+
+function withoutTrainingSlices(attacks: AttackDraft[]): AttackDraft[] {
+  return attacks.map((a) => (a.trainingSliceId === null ? a : { ...a, trainingSliceId: null }))
 }
 
 /** Bước hiện tại đủ dữ liệu để sang bước sau chưa. `maxLimitSeconds` của target đang chọn. */
@@ -137,7 +191,9 @@ export function canAdvance(
       return (
         !options.levelInputError &&
         draft.attacks.length > 0 &&
-        draft.attacks.every((a) => a.levels.length > 0)
+        draft.attacks.every(
+          (a) => a.levels.length > 0 && (!a.requiresTraining || a.trainingSliceId !== null),
+        )
       )
     case 5:
       return (
@@ -164,6 +220,7 @@ export function buildBody(draft: Draft): ExperimentCreateInput | null {
   const { protocolId, modelId, sliceId, mappingId, targetId, limitSeconds } = draft
   if (!protocolId || !modelId || !sliceId || !mappingId || !targetId || !limitSeconds) return null
   if (draft.attacks.length === 0 || draft.attacks.some((a) => a.levels.length === 0)) return null
+  if (draft.attacks.some((a) => a.requiresTraining && a.trainingSliceId === null)) return null
   return {
     schema_version: 1,
     protocol_id: protocolId,
@@ -176,9 +233,11 @@ export function buildBody(draft: Draft): ExperimentCreateInput | null {
       attack_spec_id: a.attackSpecId,
       spec_sha256: a.specSha256,
       mode: 'grid' as const,
-      grid: { levels: a.levels },
+      // `early_stop` chỉ gửi khi tắt: mặc định bật, body như Phase 5 (cùng config_sha256).
+      grid: draft.earlyStop ? { levels: a.levels } : { levels: a.levels, early_stop: false },
       search: null,
       seed: SEED,
+      ...(a.requiresTraining ? { training_slice_id: a.trainingSliceId } : {}),
     })),
     limit: { kind: 'time' as const, value: String(limitSeconds) },
     name: draft.name.trim() || null,
@@ -220,6 +279,7 @@ export function draftFromClone(
   warnings: CloneWarning[],
   datasetVersionId: string | null,
 ): Draft {
+  const stops = config.attacks.map((a) => a.grid?.early_stop !== false)
   return {
     step: 6,
     protocolId: config.protocol_id,
@@ -233,7 +293,11 @@ export function draftFromClone(
       attackSpecId: a.attack_spec_id,
       specSha256: a.spec_sha256,
       levels: [...(a.grid?.levels ?? [])],
+      requiresTraining: (a.training_slice_id ?? null) !== null,
+      trainingSliceId: a.training_slice_id ?? null,
     })),
+    earlyStop: stops.every(Boolean),
+    earlyStopMixed: stops.some(Boolean) && !stops.every(Boolean),
     name: config.name ?? '',
     clonedFrom: config.cloned_from ?? null,
     cloneWarnings: warnings,
@@ -254,7 +318,20 @@ export function loadDraft(store: Store | null = storage()): Draft {
   try {
     const raw = store?.getItem(STORAGE_KEY)
     if (!raw) return EMPTY_DRAFT
-    return { ...EMPTY_DRAFT, ...(JSON.parse(raw) as Partial<Draft>) }
+    const saved = JSON.parse(raw) as Partial<Omit<Draft, 'attacks'>> & {
+      attacks?: (Partial<AttackDraft> & Pick<AttackDraft, 'attackSpecId' | 'specSha256'>)[]
+    }
+    return {
+      ...EMPTY_DRAFT,
+      ...saved,
+      // Gộp sâu từng attack để nháp thiếu trường không làm hỏng wizard.
+      attacks: (saved.attacks ?? []).map((a) => ({
+        levels: [],
+        requiresTraining: false,
+        trainingSliceId: null,
+        ...a,
+      })),
+    }
   } catch {
     return EMPTY_DRAFT
   }
@@ -284,4 +361,21 @@ export function formatDuration(seconds: number | null | undefined): string {
   const hours = Math.floor(minutes / 60)
   const rest = minutes % 60
   return rest ? `${hours} giờ ${rest} phút` : `${hours} giờ`
+}
+
+/**
+ * Phần train patch của một attack trong ước lượng (Phase 6, plan task 31): `training_seconds`
+ * chỉ có khi patch chưa có; spec thiếu số đo thì nằm trong `missing_profiles`.
+ */
+export function trainingSummary(estimate: EstimateResponse, attackSpecId: string): string {
+  if (estimate.missing_profiles.includes(attackSpecId)) {
+    return 'Chưa đo được thời gian train trên máy này: worker sẽ tự đo.'
+  }
+  const runs = estimate.runs.filter((r) => r.attack_spec_id === attackSpecId)
+  const training = runs.filter(
+    (r) => r.training_seconds !== null && r.training_seconds !== undefined,
+  )
+  if (training.length === 0) return 'Patch đã có sẵn: không cần train.'
+  const total = training.reduce((sum, r) => sum + (r.training_seconds ?? 0), 0)
+  return `Thời gian train: ${formatDuration(total)} (${training.length} patch cần train)`
 }

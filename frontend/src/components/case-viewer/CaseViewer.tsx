@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, EyeOff, TriangleAlert } from 'lucide-react'
+import { ChevronLeft, ChevronRight, EyeOff, ShieldCheck, TriangleAlert } from 'lucide-react'
 import { type ReactNode, useRef, useState } from 'react'
 import {
   type ReactZoomPanPinchContentRef,
@@ -13,10 +13,13 @@ import { artifactSrc } from '@/features/experiments/api'
 import { BoxCanvas } from './BoxCanvas'
 import { BOX_COLORS, type BoxSet } from './boxes'
 import { ALL_LAYERS, type Layer, LAYERS, lostObjects } from './geometry'
+import { THIRD_IMAGE_LABEL } from './labels'
 
 export const WATERMARK = 'BẢN NHÁP – CHƯA DUYỆT'
 export const HIDDEN_TEXT = 'Ảnh bị ẩn: dataset chưa được làm mờ'
 export const DEV_WARNING = 'Chưa làm mờ – chỉ dùng cho phát triển'
+/** Phase 6: case có `anonymization.applied`. */
+export const BLURRED_TEXT = 'Đã làm mờ mặt và biển số'
 /** Vuốt ngang tối thiểu (px) để chuyển case trên điện thoại. */
 export const SWIPE_MIN_PX = 60
 
@@ -278,6 +281,7 @@ function Slider({
 export function CaseViewer({ caseView, onPrev, onNext, onImageError, aside }: CaseViewerProps) {
   const [layers, setLayers] = useState(ALL_LAYERS)
   const hidden = caseView.display_mode === 'hidden_unanonymized'
+  const third = THIRD_IMAGE_LABEL[caseView.perturbation_kind ?? 'amplified_noise']
   const { detections, urls } = caseView
   const lost = layers.ground_truth ? lostObjects(detections) : []
   const common = {
@@ -321,6 +325,12 @@ export function CaseViewer({ caseView, onPrev, onNext, onImageError, aside }: Ca
             {DEV_WARNING}
           </p>
         )}
+        {caseView.anonymization?.applied && (
+          <p className="flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-sm">
+            <ShieldCheck aria-hidden="true" className="size-4 shrink-0" />
+            {BLURRED_TEXT}
+          </p>
+        )}
         <p className="text-sm text-muted-foreground">
           Ảnh {caseView.image_id} · mất {caseView.lost_objects} object · thêm{' '}
           {caseView.new_false_positives} phát hiện sai · mức nghiêm trọng {caseView.severity_score}
@@ -334,10 +344,10 @@ export function CaseViewer({ caseView, onPrev, onNext, onImageError, aside }: Ca
           <Slider {...images} onPrev={onPrev} onNext={onNext} />
         </div>
         <figure className="max-w-xs space-y-1">
-          <figcaption className="text-sm font-medium">Nhiễu khuếch đại</figcaption>
+          <figcaption className="text-sm font-medium">{third}</figcaption>
           <Frame
             src={artifactSrc(urls.perturbation)}
-            alt="Nhiễu khuếch đại"
+            alt={third}
             hidden={hidden}
             boxes={null}
             onImageError={onImageError}

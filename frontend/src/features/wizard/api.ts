@@ -50,6 +50,24 @@ export function useSlices(datasetVersionId: string | null, all = false) {
   })
 }
 
+/** Phase 6: slice không có ảnh chung với slice đánh giá (ứng viên slice huấn luyện của patch). */
+export function useTrainingSlices(evaluationSliceId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: ['slices', 'disjoint-from', evaluationSliceId],
+    queryFn: list<SliceSummary>(`/slices?disjoint_from=${evaluationSliceId ?? ''}`),
+    enabled: enabled && evaluationSliceId !== null,
+  })
+}
+
+/** Slice huấn luyện dùng được: cùng dataset version, không quá `maxImages` ảnh. */
+export function usableTrainingSlices(
+  slices: SliceSummary[],
+  datasetVersionId: string | null,
+  maxImages: number,
+): SliceSummary[] {
+  return slices.filter((s) => s.dataset_version_id === datasetVersionId && s.size <= maxImages)
+}
+
 export function useClassMappings(datasetVersionId: string | null, modelId: string | null) {
   return useQuery({
     queryKey: ['class-mappings', datasetVersionId, modelId],

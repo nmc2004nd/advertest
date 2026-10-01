@@ -7,6 +7,7 @@ import { FailureCasePage } from './features/experiments/FailureCasePage'
 import { WizardPage } from './features/wizard/WizardPage'
 import { AppShell } from './layout/AppShell'
 import { AccountPage } from './pages/AccountPage'
+import { AttacksPage } from './pages/admin/AttacksPage'
 import { AuditPage } from './pages/admin/AuditPage'
 import { UsersPage } from './pages/admin/UsersPage'
 import { ForbiddenPage } from './pages/ForbiddenPage'
@@ -68,6 +69,14 @@ const routes: RouteObject[] = [
         element: (
           <RequirePermission requirement="user.manage">
             <UsersPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: '/admin/attacks',
+        element: (
+          <RequirePermission requirement="attack_catalog.manage">
+            <AttacksPage />
           </RequirePermission>
         ),
       },

@@ -57,6 +57,10 @@ function mockPhase5(pathname: string, query: URLSearchParams): unknown {
   }
   if (pathname in simple) return listMocks(simple[pathname])
   if (pathname === '/slices') {
+    // Phase 6: mock không có danh sách ảnh; coi mọi slice khác là không giao.
+    const disjointFrom = query.get('disjoint_from')
+    if (disjointFrom)
+      return listMocks<SliceSummary>('slice_summary').filter((s) => s.id !== disjointFrom)
     return where<SliceSummary>('slice_summary', 'dataset_version_id', query.get('dataset_version'))
   }
   if (pathname === '/class-mappings') {
@@ -68,6 +72,7 @@ function mockPhase5(pathname: string, query: URLSearchParams): unknown {
     const model = query.get('model')
     return model ? byVersion.filter((m) => m.model_version_id === model) : byVersion
   }
+  if (pathname === '/admin/attack-specs') return listMocks('attack_spec_admin_page')[0]
   if (pathname === '/experiments')
     return first(listMocks<ExperimentPage>('experiment_page'), pathname)
   let m = match(`/models/${id}`)

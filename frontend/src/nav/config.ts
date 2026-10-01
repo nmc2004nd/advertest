@@ -3,6 +3,7 @@ import {
   ClipboardCheck,
   FlaskConical,
   House,
+  Library,
   ScrollText,
   SquarePlus,
   Users,
@@ -67,6 +68,13 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: 'Audit log',
     icon: ScrollText,
     requirement: 'audit.read',
+    implemented: true,
+  },
+  {
+    path: '/admin/attacks',
+    label: 'Attack catalog',
+    icon: Library,
+    requirement: 'attack_catalog.manage',
     implemented: true,
   },
   {

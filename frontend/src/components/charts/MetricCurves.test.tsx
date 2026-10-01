@@ -4,8 +4,8 @@ import { describe, expect, it } from 'vitest'
 import { listMocks } from '@/api/mocks'
 import type { ExperimentDetail, RunView } from '@/contracts/api'
 
-import { buildCurves, plotted } from './curves'
-import { MetricCurves } from './MetricCurves'
+import { axisValue, buildCurves, plotted } from './curves'
+import { MetricCurves, NORMALIZED_LABEL } from './MetricCurves'
 
 const detail = listMocks<ExperimentDetail>('experiment_detail').find(
   (e) => e.status === 'completed',
@@ -64,5 +64,46 @@ describe('MetricCurves (validation.md: biểu đồ đánh dấu run partial, b�
     expect(renderToStaticMarkup(<MetricCurves runs={[]} cleanMap50={null} />)).toContain(
       'Chưa có run nào.',
     )
+  })
+})
+
+describe('trục hoành chuẩn hóa (Phase 6, task 32, đề xuất contract 003)', () => {
+  const full = listMocks<ExperimentDetail>('experiment_detail').find(
+    (e) => (e.attack_ranking ?? []).length >= 10,
+  )
+  if (!full) throw new Error('Thiếu mock experiment toàn catalog')
+  const catalog = listMocks<RunView>('run_view').filter((r) => r.experiment_id === full.id)
+  const curves = buildCurves(catalog)
+
+  it('level / max của spec: severity 1 → 20%, level lớn nhất của dải → 100%', () => {
+    const fog = curves.find((c) => c.name === 'fog')
+    if (!fog) throw new Error('Thiếu mock fog')
+    expect(fog.paramMax).toBe(5)
+    expect(axisValue(fog, 1, true)).toBeCloseTo(20)
+    expect(axisValue(fog, 5, true)).toBeCloseTo(100)
+    expect(axisValue(fog, 3, false)).toBe(3)
+  })
+
+  it('mọi attack nằm trong 0–100% khi bật', () => {
+    for (const curve of curves) {
+      for (const point of curve.points) {
+        const x = axisValue(curve, point.level, true)
+        expect(x).toBeGreaterThanOrEqual(0)
+        expect(x).toBeLessThanOrEqual(100)
+      }
+    }
+  })
+
+  it('công tắc: tắt mặc định; bật thì bảng số liệu có cột % dải', () => {
+    const off = renderToStaticMarkup(<MetricCurves runs={catalog} cleanMap50={0.5} />)
+    expect(off).toContain(NORMALIZED_LABEL)
+    expect(off).not.toMatch(/role="switch"[^>]*checked=""/)
+    expect(off).not.toContain('% dải</th>')
+    const on = renderToStaticMarkup(
+      <MetricCurves runs={catalog} cleanMap50={0.5} initialNormalized />,
+    )
+    expect(on).toMatch(/role="switch"[^>]*checked=""/)
+    expect(on.split('% dải</th>')).toHaveLength(curves.length + 1)
+    expect(on).toContain('20.0%') // severity 1 của corruption
   })
 })

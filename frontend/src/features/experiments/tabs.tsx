@@ -2,6 +2,7 @@ import { Download, EyeOff, TriangleAlert } from 'lucide-react'
 import { Link } from 'react-router'
 
 import { middleTruncate } from '@/admin/format'
+import { AttackRanking } from '@/components/charts/AttackRanking'
 import { MetricCurves } from '@/components/charts/MetricCurves'
 import { CopyButton } from '@/components/CopyButton'
 import { WATERMARK } from '@/components/case-viewer/CaseViewer'
@@ -11,8 +12,9 @@ import { StatusBadge } from '@/components/status/StatusBadge'
 import type { ExperimentDetail, FailureCaseView, Manifest, RunView } from '@/contracts/api'
 
 import { artifactSrc, useFailureCases, useManifest } from './api'
-import { downloadJson, formatDuration, runLabel } from './format'
+import { downloadJson, formatDuration, reasonText, runLabel } from './format'
 import { ProgressBar } from './ProgressBar'
+import { RunProgress } from './RunProgress'
 
 // ---------------------------------------------------------------- Tổng quan
 
@@ -40,11 +42,9 @@ export function RunsTable({ runs }: { runs: RunView[] }) {
               <td className="px-3 py-2">
                 <StatusBadge kind="run" status={run.status} />
               </td>
-              <td className="px-3 py-2 text-muted-foreground">
-                {run.status_reason?.message ?? '—'}
-              </td>
+              <td className="px-3 py-2 text-muted-foreground">{reasonText(run, runs) ?? '—'}</td>
               <td className="px-3 py-2">
-                <ProgressBar progress={run.progress} />
+                <RunProgress run={run} />
               </td>
               <td className="px-3 py-2 tabular-nums">
                 {run.gpu_seconds > 0 ? formatDuration(run.gpu_seconds) : '—'}
@@ -66,7 +66,12 @@ export function ResultsTab({
   experiment: ExperimentDetail
   runs: RunView[]
 }) {
-  return <MetricCurves runs={runs} cleanMap50={experiment.clean_metrics?.map50 ?? null} />
+  return (
+    <div className="space-y-6">
+      <AttackRanking ranking={experiment.attack_ranking ?? []} />
+      <MetricCurves runs={runs} cleanMap50={experiment.clean_metrics?.map50 ?? null} />
+    </div>
+  )
 }
 
 // ---------------------------------------------------------------- Failure case

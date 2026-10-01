@@ -4,15 +4,18 @@ import type { Dispatch, ReactNode } from 'react'
 import { LoadError } from '@/components/LoadError'
 import { PageLoading } from '@/components/PageLoading'
 import type {
-  AttackKind,
   AttackSpec,
   ComputeTargetPublic,
   EstimateResponse,
   ModelSummary,
 } from '@/contracts/api'
+import { ATTACK_KIND_LABEL, ATTACK_KINDS } from '@/lib/attack-kinds'
 import { cn } from '@/lib/utils'
 
+import { Button } from '@/components/ui/button'
+
 import {
+  usableTrainingSlices,
   useAttackSpecs,
   useClassMappings,
   useComputeTargets,
@@ -20,9 +23,18 @@ import {
   useModels,
   useProtocols,
   useSlices,
+  useTrainingSlices,
 } from './api'
 import { LevelChips } from './LevelChips'
-import { type Action, type Draft, formatDuration, SEED } from './state'
+import { catalogPreset, suggestedLevels } from './levels'
+import {
+  type Action,
+  type AttackDraft,
+  type Draft,
+  formatDuration,
+  SEED,
+  trainingSummary,
+} from './state'
 
 export interface StepProps {
   draft: Draft
@@ -176,7 +188,9 @@ export function DatasetStep({ draft, dispatch, errors }: StepProps) {
                   <span className="text-sm text-muted-foreground">
                     {version.num_images} ảnh · {version.manifest_sha256.slice(0, 12)}
                   </span>
-                  {!dataset.anonymized && <Badge>Chưa làm mờ: ảnh failure case bị ẩn</Badge>}
+                  {!dataset.anonymized && (
+                    <Badge>Chưa ẩn danh: ảnh failure case được làm mờ mặt và biển số</Badge>
+                  )}
                 </ChoiceCard>
               )),
             )}
@@ -249,10 +263,95 @@ export function DatasetStep({ draft, dispatch, errors }: StepProps) {
 
 // ---------------------------------------------------------------- bước 4: attack
 
-const KIND_LABEL: Record<AttackKind, string> = {
-  attack: 'Tấn công white-box',
-  corruption: 'Biến đổi mô phỏng',
-  occlusion: 'Che khuất',
+export const EARLY_STOP_LABEL = 'Dừng sớm khi model đã sụp'
+export const EARLY_STOP_HINT =
+  'Bỏ các level lớn hơn của cùng attack khi mAP@0.5 sau biến đổi còn ≤ 5% mAP ảnh sạch.'
+
+function EarlyStopSwitch({ draft, dispatch }: Pick<StepProps, 'draft' | 'dispatch'>) {
+  return (
+    <div className="space-y-1">
+      <label className="flex min-h-11 cursor-pointer items-center gap-3">
+        <input
+          type="checkbox"
+          role="switch"
+          className="size-5"
+          checked={draft.earlyStop}
+          onChange={(event) => dispatch({ type: 'earlyStop', on: event.target.checked })}
+        />
+        <span className="font-medium">{EARLY_STOP_LABEL}</span>
+      </label>
+      <p className="text-sm text-muted-foreground">{EARLY_STOP_HINT}</p>
+      {draft.earlyStopMixed && (
+        <p className="text-sm text-amber-800 dark:text-amber-300">
+          Cấu hình gốc có attack tắt dừng sớm: công tắc đang tắt cho mọi attack.
+        </p>
+      )}
+    </div>
+  )
+}
+
+/** Chọn slice huấn luyện cho attack cần train (patch): không giao slice đánh giá, cùng dataset
+ * version, không quá `max_training_images` ảnh. */
+function TrainingSliceField({
+  draft,
+  dispatch,
+  spec,
+  chosen,
+  error,
+  estimate,
+}: Pick<StepProps, 'draft' | 'dispatch'> & {
+  spec: AttackSpec
+  chosen: AttackDraft
+  error?: string
+  estimate: EstimateResponse | undefined
+}) {
+  const slices = useTrainingSlices(draft.sliceId)
+  const maxImages = spec.training?.max_training_images ?? 0
+  const usable = usableTrainingSlices(slices.data ?? [], draft.datasetVersionId, maxImages)
+  return (
+    <section className="space-y-2">
+      <h4 className="text-sm font-medium">Slice huấn luyện (bắt buộc)</h4>
+      <Loaded query={slices}>
+        {usable.length === 0 ? (
+          <p role="alert" className="text-sm text-destructive">
+            Chưa có slice huấn luyện nào không giao với slice đánh giá, cùng dataset version và tối
+            đa {maxImages} ảnh. Tạo bằng advertest slice create --exclude-slice rồi đăng ký qua
+            advertest-admin import-local.
+          </p>
+        ) : (
+          <div
+            role="radiogroup"
+            aria-label={`Slice huấn luyện của ${spec.name}`}
+            className="grid gap-2 md:grid-cols-2"
+          >
+            {usable.map((slice) => (
+              <ChoiceCard
+                key={slice.id}
+                selected={chosen.trainingSliceId === slice.id}
+                onSelect={() =>
+                  dispatch({ type: 'trainingSlice', attackSpecId: spec.id, id: slice.id })
+                }
+              >
+                <span className="font-medium break-all">{slice.name}</span>
+                <span className="text-sm text-muted-foreground">
+                  {slice.size} ảnh · seed {slice.seed}
+                </span>
+              </ChoiceCard>
+            ))}
+          </div>
+        )}
+      </Loaded>
+      <p className="text-sm text-muted-foreground">
+        Mỗi level (tỉ lệ diện tích) train một patch trên slice này; patch đã có thì dùng lại.
+      </p>
+      {estimate && chosen.trainingSliceId && (
+        <p className="text-sm" data-testid="thoi-gian-train">
+          {trainingSummary(estimate, spec.id)}
+        </p>
+      )}
+      <FieldErrorText message={error} />
+    </section>
+  )
 }
 
 export function AttackStep({
@@ -261,14 +360,15 @@ export function AttackStep({
   errors,
   model,
   onLevelInputError,
+  estimate,
 }: StepProps & {
   model: ModelSummary | undefined
   onLevelInputError: (id: string, bad: boolean) => void
+  /** Ước lượng hiện tại (để hiện thời gian train patch, Phase 6). */
+  estimate?: EstimateResponse
 }) {
   const specs = useAttackSpecs()
-  const groups = new Map<AttackKind, AttackSpec[]>()
-  for (const spec of specs.data ?? [])
-    groups.set(spec.kind, [...(groups.get(spec.kind) ?? []), spec])
+  const all = specs.data ?? []
   return (
     <div className="space-y-4">
       <div role="radiogroup" aria-label="Chế độ chạy" className="grid gap-2 md:grid-cols-2">
@@ -281,69 +381,100 @@ export function AttackStep({
           <Badge>Sắp có</Badge>
         </ChoiceCard>
       </div>
+      <EarlyStopSwitch draft={draft} dispatch={dispatch} />
       <FieldErrorText message={errors.attacks} />
       <Loaded query={specs}>
-        {[...groups.entries()].map(([kind, list]) => (
-          <section key={kind} className="space-y-2">
-            <h3 className="font-medium">{KIND_LABEL[kind]}</h3>
-            {list.map((spec) => {
-              const index = draft.attacks.findIndex((a) => a.attackSpecId === spec.id)
-              const chosen = index >= 0 ? draft.attacks[index] : undefined
-              const incompatible = spec.requires_gradients && model?.supports_gradients === false
-              return (
-                <div key={spec.id} className="space-y-3 rounded-lg border p-3">
-                  <label className="flex min-h-11 cursor-pointer items-center gap-3">
-                    <input
-                      type="checkbox"
-                      className="size-5"
-                      checked={chosen !== undefined}
-                      onChange={() =>
-                        dispatch({
-                          type: 'toggleAttack',
-                          attackSpecId: spec.id,
-                          specSha256: spec.spec_sha256,
-                        })
-                      }
-                    />
-                    <span className="font-medium">
-                      {spec.name}{' '}
-                      <span className="text-sm text-muted-foreground">v{spec.version}</span>
-                    </span>
-                  </label>
-                  {incompatible && (
-                    <p className="flex items-center gap-2 text-sm text-amber-800 dark:text-amber-300">
-                      <TriangleAlert aria-hidden="true" className="size-4 shrink-0" />
-                      Attack cần gradient, model không hỗ trợ: các run sẽ bị bỏ qua.
-                    </p>
-                  )}
-                  {chosen && (
-                    <>
-                      <LevelChips
-                        param={spec.primary_param}
-                        levels={chosen.levels}
-                        onChange={(levels) =>
-                          dispatch({ type: 'levels', attackSpecId: spec.id, levels })
+        <div className="space-y-1">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => dispatch({ type: 'preset', attacks: catalogPreset(all) })}
+          >
+            Toàn bộ catalog
+          </Button>
+          <p className="text-sm text-muted-foreground">
+            Chọn mọi attack với bộ level gợi ý (
+            {catalogPreset(all).reduce((n, a) => n + a.levels.length, 0)} run).
+          </p>
+        </div>
+        {ATTACK_KINDS.map((kind) => {
+          const title = ATTACK_KIND_LABEL[kind]
+          const list = all.filter((spec) => spec.kind === kind)
+          if (list.length === 0) return null
+          return (
+            <section key={kind} className="space-y-2">
+              <h3 className="font-medium">{title}</h3>
+              {list.map((spec) => {
+                const index = draft.attacks.findIndex((a) => a.attackSpecId === spec.id)
+                const chosen = index >= 0 ? draft.attacks[index] : undefined
+                const incompatible = spec.requires_gradients && model?.supports_gradients === false
+                return (
+                  <div key={spec.id} className="space-y-3 rounded-lg border p-3">
+                    <label className="flex min-h-11 cursor-pointer items-center gap-3">
+                      <input
+                        type="checkbox"
+                        className="size-5"
+                        checked={chosen !== undefined}
+                        onChange={() =>
+                          dispatch({
+                            type: 'toggleAttack',
+                            attackSpecId: spec.id,
+                            specSha256: spec.spec_sha256,
+                            requiresTraining: spec.requires_training === true,
+                          })
                         }
-                        serverError={
-                          [
-                            errors[`attacks.${index}.grid.levels`],
-                            errors[`attacks.${index}.attack_spec_id`],
-                            errors[`attacks.${index}.spec_sha256`],
-                            errors[`attacks.${index}.mode`],
-                          ]
-                            .filter(Boolean)
-                            .join('; ') || undefined
-                        }
-                        onInputError={(bad) => onLevelInputError(spec.id, bad)}
                       />
-                      <p className="text-xs text-muted-foreground">Seed cố định: {SEED}</p>
-                    </>
-                  )}
-                </div>
-              )
-            })}
-          </section>
-        ))}
+                      <span className="font-medium">
+                        {spec.name}{' '}
+                        <span className="text-sm text-muted-foreground">v{spec.version}</span>
+                      </span>
+                    </label>
+                    {incompatible && (
+                      <p className="flex items-center gap-2 text-sm text-amber-800 dark:text-amber-300">
+                        <TriangleAlert aria-hidden="true" className="size-4 shrink-0" />
+                        Attack cần gradient, model không hỗ trợ: các run sẽ bị bỏ qua.
+                      </p>
+                    )}
+                    {chosen && (
+                      <>
+                        <LevelChips
+                          param={spec.primary_param}
+                          levels={chosen.levels}
+                          suggested={suggestedLevels(spec)}
+                          onChange={(levels) =>
+                            dispatch({ type: 'levels', attackSpecId: spec.id, levels })
+                          }
+                          serverError={
+                            [
+                              errors[`attacks.${index}.grid.levels`],
+                              errors[`attacks.${index}.attack_spec_id`],
+                              errors[`attacks.${index}.spec_sha256`],
+                              errors[`attacks.${index}.mode`],
+                            ]
+                              .filter(Boolean)
+                              .join('; ') || undefined
+                          }
+                          onInputError={(bad) => onLevelInputError(spec.id, bad)}
+                        />
+                        {chosen.requiresTraining && (
+                          <TrainingSliceField
+                            draft={draft}
+                            dispatch={dispatch}
+                            spec={spec}
+                            chosen={chosen}
+                            error={errors[`attacks.${index}.training_slice_id`]}
+                            estimate={estimate}
+                          />
+                        )}
+                        <p className="text-xs text-muted-foreground">Seed cố định: {SEED}</p>
+                      </>
+                    )}
+                  </div>
+                )
+              })}
+            </section>
+          )
+        })}
       </Loaded>
     </div>
   )

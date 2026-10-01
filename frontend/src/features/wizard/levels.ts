@@ -1,4 +1,6 @@
-import type { PrimaryParam } from '@/contracts/api'
+import type { AttackSpec, PrimaryParam } from '@/contracts/api'
+
+import type { AttackDraft } from './state'
 
 /** Tối đa 12 level mỗi attack (requirements.md Phase 5, Kiểm tra khi tạo). */
 export const MAX_LEVELS = 12
@@ -51,4 +53,27 @@ export function presetLevels(param: PrimaryParam): number[] {
   const powers = [1, 2, 4, 8, 16, 32, 64].filter((v) => v > param.min && v <= param.max).slice(-4)
   if (powers.length >= 2) return powers
   return [1, 2, 3, 4].map((k) => Number((param.min + ((param.max - param.min) * k) / 4).toFixed(3)))
+}
+
+/** Phase 6: patch chọn 2 `area_ratio` 0.1 và 0.25, mỗi giá trị train một patch (kickoff). */
+export const PATCH_PRESET_LEVELS = [0.1, 0.25]
+
+/** Bộ level gợi ý của một spec: spec cần train dùng `PATCH_PRESET_LEVELS` (trong dải). */
+export function suggestedLevels(spec: Pick<AttackSpec, 'primary_param' | 'requires_training'>) {
+  const param = spec.primary_param
+  if (spec.requires_training) {
+    return PATCH_PRESET_LEVELS.filter((v) => v >= param.min && v <= param.max)
+  }
+  return presetLevels(param)
+}
+
+/** Preset "Toàn bộ catalog" (requirements.md Phase 6, Frontend): mọi spec với level gợi ý. */
+export function catalogPreset(specs: AttackSpec[]): AttackDraft[] {
+  return specs.map((spec) => ({
+    attackSpecId: spec.id,
+    specSha256: spec.spec_sha256,
+    levels: suggestedLevels(spec),
+    requiresTraining: spec.requires_training === true,
+    trainingSliceId: null,
+  }))
 }

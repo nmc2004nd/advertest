@@ -11,6 +11,8 @@ export interface CurvePoint {
   relativeDrop: number | null
   /** Metric chỉ tính trên phần ảnh đã xử lý (run `stopped_limit`). */
   partial: boolean
+  /** Bỏ qua do dừng sớm: model đã sụp ở level thấp hơn (Phase 6). */
+  earlyStop: boolean
 }
 
 export interface AttackCurve {
@@ -19,6 +21,8 @@ export interface AttackCurve {
   version: number
   paramName: string
   paramUnit: string
+  /** `primary_param.max` của spec (đề xuất contract 003): trục chuẩn hóa `level / paramMax`. */
+  paramMax: number
   points: CurvePoint[]
 }
 
@@ -35,6 +39,7 @@ export function buildCurves(runs: RunView[]): AttackCurve[] {
         version: run.attack_spec.version,
         paramName: run.attack_spec.param_name,
         paramUnit: run.attack_spec.param_unit,
+        paramMax: run.attack_spec.param_max,
         points: [],
       }
       curves.set(run.attack_spec_id, curve)
@@ -47,6 +52,7 @@ export function buildCurves(runs: RunView[]): AttackCurve[] {
       asr: run.metrics?.attack_success_rate ?? null,
       relativeDrop: run.metrics?.relative_drop ?? null,
       partial: run.metrics?.partial ?? false,
+      earlyStop: run.status_reason?.code === 'early_stop',
     })
   }
   for (const curve of curves.values()) curve.points.sort((a, b) => a.level - b.level)
@@ -64,4 +70,9 @@ export function formatMetric(value: number | null): string {
 
 export function formatPercent(value: number | null): string {
   return value === null ? '—' : `${(value * 100).toFixed(1)}%`
+}
+
+/** Vị trí trên trục hoành: level gốc, hoặc % dải cho phép (`level / max`, như bảng xếp hạng). */
+export function axisValue(curve: AttackCurve, level: number, normalized: boolean): number {
+  return normalized ? (level / curve.paramMax) * 100 : level
 }
