@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from itertools import pairwise
 
 from advertest_contracts.models import PrimaryParam, SearchConfig
 
@@ -75,9 +76,9 @@ def bisect_steps(grid: SearchGrid) -> int:
     """`s`: số bước chia đôi tối đa trong một ô thô."""
     if grid.values is not None:
         index = {v: i for i, v in enumerate(grid.values)}
-        gap = max(index[b] - index[a] for a, b in zip(grid.coarse, grid.coarse[1:], strict=False))
+        gap = max(index[b] - index[a] for a, b in pairwise(grid.coarse))
         return math.ceil(math.log2(gap)) if gap > 1 else 0
-    width = max(b - a for a, b in zip(grid.coarse, grid.coarse[1:], strict=False))
+    width = max(b - a for a, b in pairwise(grid.coarse))
     if width <= grid.tol * (1 + WIDTH_SLACK):
         return 0
     return max(0, math.ceil(math.log2(width / grid.tol) - WIDTH_SLACK))
