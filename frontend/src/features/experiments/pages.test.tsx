@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import { listMocks } from '@/api/mocks'
 import type {
+  AttackSpec,
   ExperimentDetail,
   ExperimentPage,
   FailureCaseView,
@@ -98,6 +99,48 @@ describe('/experiments/:id', () => {
 
   it('Kết quả: biểu đồ và bảng số liệu', () => {
     expect(detailPage(completed, 'results')).toContain('Số liệu của fgsm')
+  })
+
+  describe('Phase 7: mục Điểm gãy', () => {
+    const catalog = listMocks<AttackSpec>('attack_spec')
+    const searchDone = details.find(
+      (d) => d.status === 'completed' && (d.search_results ?? []).length > 0,
+    )
+    const searchRunning = details.find(
+      (d) => d.status === 'running' && (d.search_results ?? []).length > 0,
+    )
+    if (!searchDone || !searchRunning) throw new Error('Thiếu mock experiment tìm ngưỡng')
+    const page = (detail: ExperimentDetail) =>
+      detailPage(detail, 'results', 'engineer', [
+        [[...experimentKey(detail.id), 'runs'], runsOf(detail.id)],
+        [['attack-specs'], catalog],
+      ])
+
+    it('thẻ mỗi attack tìm ngưỡng, so sánh và quỹ đạo (ẩn trên điện thoại), chạm thẻ để mở', () => {
+      const html = page(searchDone)
+      expect(html).toContain('Điểm gãy')
+      const conclusions = html.match(/data-testid="ket-luan-diem-gay"/g) ?? []
+      expect(conclusions).toHaveLength(
+        searchDone.config.attacks.filter((a) => a.mode === 'search').length,
+      )
+      expect(html).toContain('Gãy tại eps ≈ 0.5/255')
+      expect(html).toMatch(/class="hidden space-y-6 md:block" data-testid="diem-gay-chi-tiet"/)
+      expect(html).toContain('aria-label="Mở quỹ đạo của pgd_linf"')
+      expect(html).toMatch(/<button[^>]*class="absolute inset-0[^"]*md:hidden"/)
+    })
+
+    it('đường cong Phase 6 chỉ gồm attack quét lưới (không vẽ run tập con của tìm ngưỡng)', () => {
+      expect(runsOf(searchDone.id).some((r) => r.scope === 'subset')).toBe(true)
+      expect(page(searchDone)).not.toContain('Số liệu của pgd_linf')
+    })
+
+    it('đang chạy: dòng tiến độ tìm kiếm', () => {
+      expect(page(searchRunning)).toMatch(/Điểm \d+ \/ tối đa \d+ · khoảng hiện tại/)
+    })
+
+    it('experiment chỉ quét lưới: không có mục Điểm gãy', () => {
+      expect(detailPage(completed, 'results')).not.toContain('id="diem-gay"')
+    })
   })
 
   it('Failure case: thumbnail có watermark, link tới trình xem', () => {
