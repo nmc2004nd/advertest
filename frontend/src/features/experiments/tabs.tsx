@@ -14,6 +14,7 @@ import type { ExperimentDetail, FailureCaseView, Manifest, RunView } from '@/con
 import { artifactSrc, useFailureCases, useManifest } from './api'
 import { downloadJson, formatDuration, reasonText, runLabel } from './format'
 import { ProgressBar } from './ProgressBar'
+import { RunProgress } from './RunProgress'
 
 // ---------------------------------------------------------------- Tổng quan
 
@@ -43,7 +44,7 @@ export function RunsTable({ runs }: { runs: RunView[] }) {
               </td>
               <td className="px-3 py-2 text-muted-foreground">{reasonText(run, runs) ?? '—'}</td>
               <td className="px-3 py-2">
-                <ProgressBar progress={run.progress} />
+                <RunProgress run={run} />
               </td>
               <td className="px-3 py-2 tabular-nums">
                 {run.gpu_seconds > 0 ? formatDuration(run.gpu_seconds) : '—'}
