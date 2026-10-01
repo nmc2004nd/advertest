@@ -11,7 +11,6 @@ import {
   conclusion,
   NEAR_THRESHOLD,
   NON_MONOTONIC,
-  NOT_REACHED_LABEL,
   progressText,
   type SearchAttack,
   specInfoMap,
@@ -95,6 +94,16 @@ describe('thẻ tóm tắt điểm gãy (task 27)', () => {
 })
 
 describe('quỹ đạo (task 28)', () => {
+  it('bảng hiện level chính xác của phép chia đôi (review Group 6 #2)', () => {
+    const r = byStatus('found')
+    const bisect = {
+      ...r,
+      trajectory: [{ ...r.trajectory[1], order: 0, level: 1.0625 }],
+    }
+    const html = render(<SearchTrajectory attack={attack(bisect)} />)
+    expect(html).toContain('>1.0625<')
+  })
+
   it('bảng số liệu: thứ tự, phạm vi, mức sụt, KTC, điểm tổng hợp; chú giải ký hiệu', () => {
     const r = byStatus('found')
     const html = render(<SearchTrajectory attack={attack(r)} />)
@@ -126,7 +135,7 @@ describe('so sánh điểm gãy (task 29)', () => {
         ].map(attack)}
       />,
     )
-    expect(html).toContain(escape(NOT_REACHED_LABEL))
+    expect(html).toContain(escape('> 100%'))
     expect(html).toContain(BELOW_MIN_LABEL)
     expect(html).toContain('So sánh điểm gãy')
     expect(html).toContain('data-status="failed"')

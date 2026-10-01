@@ -18,7 +18,7 @@ import {
   displayUnit,
   dropLabel,
   formatLevel,
-  formatNumber,
+  formatExact,
   type SearchAttack,
   trajectoryRows,
 } from './breakpoints'
@@ -164,7 +164,7 @@ export function TrajectoryTable({ attack }: { attack: SearchAttack }) {
           {trajectoryRows(result).map((point) => (
             <tr key={point.order} className="border-t" data-scope={point.scope}>
               <td className="py-1 pr-3 tabular-nums">{point.order}</td>
-              <td className="py-1 pr-3 tabular-nums">{formatNumber(point.level)}</td>
+              <td className="py-1 pr-3 tabular-nums">{formatExact(point.level)}</td>
               <td className="py-1 pr-3">{point.scope === 'full' ? 'Toàn slice' : 'Tập con'}</td>
               <td className="py-1 pr-3 tabular-nums">{formatPercent(point.drop)}</td>
               <td className="py-1 pr-3 tabular-nums">

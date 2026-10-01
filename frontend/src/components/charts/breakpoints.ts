@@ -47,7 +47,11 @@ export const THRESHOLD_KIND_LABEL: Record<ThresholdKind, string> = {
 
 export const NEAR_THRESHOLD = 'Sát ngưỡng'
 export const NON_MONOTONIC = 'Không đơn điệu, cần xem kỹ'
-export const NOT_REACHED_LABEL = '> 100%'
+/** Nhãn `not_reached`: "> {hi/max}%" (bằng "> 100%" khi tìm trên toàn dải của spec; review Group 6
+ * #1). Không biết `max` của spec thì nói theo dải tìm kiếm. */
+export function notReachedLabel(hi: number, max: number | undefined): string {
+  return max ? `> ${formatPercentValue((hi / max) * 100)}` : 'Không gãy trong dải tìm kiếm'
+}
 export const BELOW_MIN_LABEL = '≤ mức nhỏ nhất'
 
 /** Spec theo id: ưu tiên `RunView.attack_spec` (đúng phiên bản đã chạy), không có run thì lấy từ
@@ -104,9 +108,20 @@ export function attackName(attack: Pick<SearchAttack, 'attackSpecId' | 'spec'>):
   return attack.spec?.name ?? `Attack ${attack.attackSpecId.slice(0, 8)}`
 }
 
-/** Số gọn: tối đa 3 chữ số thập phân, bỏ số 0 thừa. */
+/** Số gọn cho câu kết luận, tooltip, tiến độ: 4 chữ số có nghĩa, bỏ số 0 thừa (review Group 6 #2). */
 export function formatNumber(value: number): string {
-  return String(Number(value.toFixed(3)))
+  return String(Number(value.toPrecision(4)))
+}
+
+/** Giá trị chính xác cho bảng số liệu (level chia đôi như 1.0625 giữ nguyên); chỉ bỏ nhiễu dấu
+ * phẩy động. */
+export function formatExact(value: number): string {
+  return String(Number(value.toPrecision(12)))
+}
+
+/** Phần trăm (giá trị đã nhân 100), 1 chữ số thập phân, bỏ số 0 thừa: 100 → "100%", 1.5625 → "1.6%". */
+function formatPercentValue(value: number): string {
+  return `${String(Number(value.toFixed(1)))}%`
 }
 
 /** Đơn vị hiển thị; bỏ khi trùng tên tham số (fog: `severity ≈ 3`, không lặp "severity"). */
@@ -211,7 +226,7 @@ export function comparisonRows(attacks: SearchAttack[]): ComparisonRow[] {
     const { result, spec, config } = attack
     const status = result?.status ?? null
     const row = { attackSpecId: attack.attackSpecId, name: attackName(attack), status }
-    const label = (value: number | null) => (value === null ? '—' : `${value.toFixed(1)}%`)
+    const label = (value: number | null) => (value === null ? '—' : formatPercentValue(value))
     const max = spec?.paramMax
     const scaled = (level: number) => (max ? (level / max) * 100 : null)
     switch (status) {
@@ -221,8 +236,9 @@ export function comparisonRows(attacks: SearchAttack[]): ComparisonRow[] {
         return [{ ...row, value, label: label(value) }, value ?? Number.POSITIVE_INFINITY]
       }
       case 'not_reached':
+        // Cột dài tới cận trên của dải tìm kiếm: điểm gãy (nếu có) nằm sau đó.
         return [
-          { ...row, value: max ? 100 : null, label: NOT_REACHED_LABEL },
+          { ...row, value: scaled(config.hi), label: notReachedLabel(config.hi, max) },
           Number.POSITIVE_INFINITY,
         ]
       case 'below_min':

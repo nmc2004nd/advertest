@@ -10,7 +10,9 @@ import {
   formatLevel,
   formatRange,
   gridAttackIds,
-  NOT_REACHED_LABEL,
+  formatExact,
+  formatNumber,
+  notReachedLabel,
   progressText,
   type SearchAttack,
   searchAttacks,
@@ -66,10 +68,18 @@ const withSpec = (r: SearchResult, range?: [number, number]) =>
 describe('định dạng', () => {
   it('đơn vị 1/255 viết liền, đơn vị khác sau dấu cách, bỏ số 0 thừa', () => {
     expect(formatLevel(6.5, '1/255')).toBe('6.5/255')
-    expect(formatLevel(0.0625, 'L2')).toBe('0.063 L2')
+    expect(formatLevel(0.0625, 'L2')).toBe('0.0625 L2')
     expect(formatLevel(3, '')).toBe('3')
     expect(formatRange(0, 32, '1/255')).toBe('0–32/255')
     expect(formatRange(0.1, 0.9, 'ratio')).toBe('0.1–0.9 ratio')
+  })
+
+  it('làm tròn 4 chữ số có nghĩa cho câu kết luận; bảng giữ giá trị chính xác (review Group 6 #2)', () => {
+    expect(formatNumber(1.0625)).toBe('1.063')
+    expect(formatNumber(16.5)).toBe('16.5')
+    expect(formatNumber(0.375)).toBe('0.375')
+    expect(formatExact(1.0625)).toBe('1.0625')
+    expect(formatExact(0.1 + 0.2)).toBe('0.3')
   })
 
   it('ngưỡng: loại, %, class', () => {
@@ -167,11 +177,19 @@ describe('so sánh điểm gãy (task 29)', () => {
     expect(rows.map((r) => [r.name, r.value, r.label])).toEqual([
       ['ngay', 6.25, BELOW_MIN_LABEL],
       ['gay', (0.5 / 32) * 100, '1.6%'],
-      ['chua', 100, NOT_REACHED_LABEL],
+      ['chua', 100, '> 100%'],
       ['fgsm', null, 'Thất bại'],
       ['dung', null, 'Dừng do giới hạn: chưa có điểm gãy'],
       ['cho', null, 'Chưa có điểm'],
     ])
+  })
+
+  it('not_reached trên dải tìm kiếm hẹp: "> hi/max", cột tới hi (review Group 6 #1)', () => {
+    const narrow = attack(result('not_reached'), FGSM, [0, 8])
+    const [row] = comparisonRows([narrow])
+    expect(row).toMatchObject({ value: 25, label: '> 25%' })
+    expect(notReachedLabel(32, 32)).toBe('> 100%')
+    expect(notReachedLabel(8, undefined)).toBe('Không gãy trong dải tìm kiếm')
   })
 
   it('không biết spec thì không vẽ cột', () => {
