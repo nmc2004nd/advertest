@@ -41,9 +41,9 @@ from advertest_contracts.models import (
 )
 from advertest_worker import job as job_module
 from advertest_worker.client import ApiError
-from advertest_worker.job import DirectiveBox, JobRunner
+from advertest_worker.job import DirectiveBox, JobRunner, read_predictions_file
 from attacks.registry import get_spec, load_catalog
-from ml_core.metrics.bootstrap import load_run_predictions
+from ml_core.metrics.bootstrap import dump_run_predictions, load_run_predictions
 from ml_core.metrics.filters import Prediction
 from ml_core.runner.run import Runner
 from ml_core.runner.tests.test_run import Base, _attack, _build, _config
@@ -472,3 +472,77 @@ def test_rejected_search_fails_and_next_attack_still_runs(
     assert "422" in (finals[world.fog.id].message or "")
     assert finals[world.contrast.id].status != SearchStatus.FAILED
     assert {r.attack_spec_id for r in api.created} == {world.contrast.id}
+
+
+# ------------------------------------------------ prediction của phiên trước (task 18b)
+
+
+def _resume_after_full_point(
+    world: World, monkeypatch: pytest.MonkeyPatch, *, keep_files: bool
+) -> tuple[SearchResult, SearchResult, set[UUID]]:
+    straight = FakeApi(attack=_search_attack(world))
+    _run(
+        world,
+        straight,
+        _runner(world, straight, monkeypatch),
+        _bundle(world, [straight.attack], []),
+    )
+    expected = straight.reports[-1]
+    full = [i for i, r in enumerate(straight.created) if r.scope == EvalScope.FULL]
+    cut = full[0] + 1  # phiên trước đã chạy xong ít nhất một điểm toàn slice
+    previous = straight.reports[cut - 1]
+    done = [
+        r.model_copy(
+            update={
+                "status": RunStatus.COMPLETED,
+                "images_done": r.images_total,
+                "metrics": straight.completions[r.run_id].run_result.metrics,
+            }
+        )
+        for r in straight.created[:cut]
+    ]
+    resumed = FakeApi(attack=straight.attack)
+    if keep_files:
+        resumed.objects.update(straight.objects)  # file trong MinIO còn từ phiên trước
+    runner = _runner(world, resumed, monkeypatch)
+    _run(world, resumed, runner, _bundle(world, [straight.attack], done, [previous]))
+    earlier = {r.run_id for r in straight.created[:cut] if r.scope == EvalScope.FULL}
+    return expected, resumed.reports[-1], earlier
+
+
+def test_resume_bootstrap_reads_previous_session_predictions(
+    world: World, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    expected, final, earlier = _resume_after_full_point(world, monkeypatch, keep_files=True)
+    assert earlier
+    assert (final.status, final.bracket) == (expected.status, expected.bracket)
+    for point in final.trajectory:
+        if point.scope == EvalScope.FULL and not point.synthetic:
+            assert point.drop_ci is not None, point.run_id
+    assert [p.drop_ci for p in final.trajectory] == [p.drop_ci for p in expected.trajectory]
+    assert final.confidence_interval == expected.confidence_interval
+
+
+def test_resume_without_previous_files_leaves_points_out(
+    world: World, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    expected, final, earlier = _resume_after_full_point(world, monkeypatch, keep_files=False)
+    assert (final.status, final.bracket) == (expected.status, expected.bracket)
+    missing = [p for p in final.trajectory if p.run_id in earlier]
+    assert missing and all(p.drop_ci is None for p in missing)
+
+
+def test_read_copied_predictions_file_uses_key_inside() -> None:
+    origin, copy = uuid5(NS, "origin"), uuid5(NS, "copy")
+    preds: dict[str, Prediction] = {
+        "000001": {
+            "boxes": np.zeros((1, 4), np.float32),
+            "labels": np.zeros(1, np.int64),
+            "scores": np.full(1, 0.9, np.float32),
+        }
+    }
+    data = dump_run_predictions(origin, preds, "cpu")  # bản sao giữ khóa của run gốc
+    loaded = read_predictions_file(data)
+    assert set(loaded) == {"000001"}
+    with pytest.raises(ValueError):
+        read_predictions_file(json.dumps({"key": f"x/{copy}", "predictions": {}}).encode())
