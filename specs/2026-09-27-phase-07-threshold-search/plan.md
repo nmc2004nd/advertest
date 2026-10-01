@@ -1,7 +1,7 @@
 # Plan: Phase 7 — Tự tìm ngưỡng
 
 > Phân chia thư mục:
-> `ml_core/search/` (agent `ml-search`); `ml_core/metrics/bootstrap.py`, `ml_core/metrics/threshold.py` (agent `ml-metric`);
+> `ml_core/search/` (agent `ml-search`); `ml_core/metrics/bootstrap.py`, `ml_core/metrics/threshold.py`, `ml_core/metrics/attack.py` (agent `ml-metric`; `attack.py` cho ASR theo class, người dùng cho phép ở kế hoạch Group 2);
 > `ml_core/runner/`, `backend/worker/` (agent `worker`); `backend/app/`, `backend/migrations/` (agent `backend`); `frontend/` (agent `frontend`).
 >
 > Thứ tự: Group 0 → (Group 1, 2 song song; Group 4 backend và Group 5–6 frontend bắt đầu với mock) → Group 3 → Group 7.
@@ -25,11 +25,13 @@
 ## Group 2 — Đại lượng ngưỡng và bootstrap `[agent: ml-metric]`
 
 10. `ml_core/metrics/threshold.py`: tính đại lượng so với ngưỡng cho 3 loại, có và không có `class_filter`, từ `RunResult` và metric sạch; metric của run điền `per_class[*].attack_success_rate` (Group 0).
-11. Lưu prediction theo ảnh cho mọi run (`predictions_key`) nếu Phase 2–3 chưa lưu đủ.
+11. Định dạng file prediction theo ảnh của run (`runs/<run_id>/predictions.json`, cùng định dạng `cache/predictions`): `run_predictions_key`, `dump_run_predictions`, `load_run_predictions` trong `bootstrap.py`. Phần ghi file khi chạy run chuyển sang Group 3 (task 13a).
 12. `ml_core/metrics/bootstrap.py`: lấy mẫu lại theo ảnh với seed; tính `drop_ci` từng điểm; khoảng tin cậy của điểm gãy bằng nội suy; `near_threshold`.
 
 ## Group 3 — Worker `[agent: worker]`
 
+13a. (Chuyển từ task 11, review Group 2) Mọi run ghi `executor.predictions` bằng `dump_run_predictions`, upload, điền `RunResult.predictions_key`; truyền `ModelCard.class_names` cho `build_run_metrics` để điền ASR theo class.
+13b. (Review Group 2, #1) Checkpoint của run (`_stats_to_json` trong `executor.py`) lưu và khôi phục `class_correct`, `class_lost` của `ImageAttackStats`; test chạy tiếp sau gián đoạn cho cùng ASR theo class như chạy liền mạch.
 13. Thêm `eval_image_ids_sha256` vào `fingerprint_inputs` (null và bỏ khỏi JSON với run toàn slice, theo mẫu `patch_key`); runner hỗ trợ đánh giá trên tập con.
 14. Vòng lặp tìm kiếm trong worker: hỏi thuật toán điểm kế tiếp → tạo run qua API → chạy run → đưa kết quả vào thuật toán → gửi `SearchResult` tạm thời.
 15. Khôi phục đúng giai đoạn sau gián đoạn bằng cách nạp lại `trajectory` của `bundle.search_results` vào thuật toán (Group 0: không có checkpoint riêng cho trạng thái tìm kiếm); run đang dở tiếp tục từ checkpoint của run.

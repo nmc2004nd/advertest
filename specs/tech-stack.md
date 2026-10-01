@@ -60,7 +60,7 @@ Quy tắc kiến trúc:
 - **Metric chính:** mAP@0.5. Metric phụ: mAP@0.5:0.95.
 - **Mức sụt tương đối** (mặc định cho ngưỡng): `(mAP_sạch − mAP_tấn_công) / mAP_sạch`.
 - **Tỷ lệ tấn công thành công:** trong số object được detect đúng trên ảnh sạch (IoU ≥ 0.5, đúng class), tỷ lệ bị mất hoặc sai class sau tấn công.
-- Khoảng tin cậy: bootstrap trên prediction đã lưu, không tốn thêm GPU.
+- Khoảng tin cậy: bootstrap trên prediction đã lưu, không tốn thêm GPU. AP@0.5 của mẫu bootstrap tính bằng cài đặt riêng (`ml_core/metrics/bootstrap.py`, ghép COCO ở IoU 0.5 theo ảnh, trọng số theo ảnh) và phải khớp `CleanMetric`, kể cả dãy 101 ngưỡng recall float32 mà torchmetrics truyền cho pycocotools (ghi cứng theo torch 2.14; test so với `torch.linspace` báo khi nâng torch làm đổi dãy) (Phase 7).
 - Prediction trên ảnh sạch được cache theo (model version, slice).
 
 ## 3. Attack

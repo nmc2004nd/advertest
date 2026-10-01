@@ -8,6 +8,20 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 **Trạng thái:** đang làm. Kickoff và Group 0 trên nhánh `phase07-reviewer-g0`.
 
+### Phase 7 — Group 2 (ml-metric) — 2026-10-01
+#### Thêm
+- `ml_core/metrics/attack.py` (task 10, người dùng cho phép): `ImageAttackStats.class_correct`, `class_lost` (theo label, mặc định rỗng); `class_attack_success_rate`; `build_run_metrics(..., class_names=)` điền `per_class[*].attack_success_rate` (không truyền thì JSON như cũ).
+- `ml_core/metrics/threshold.py` (task 10): `threshold_quantity(metrics, kind, class_filter)` cho 3 loại ngưỡng, có và không có class; `None` khi không tính được.
+- `ml_core/metrics/bootstrap.py` (task 11, 12): định dạng file `runs/<run_id>/predictions.json`; `evaluation_evidence` (ghép COCO ở IoU 0.5 theo ảnh, box suy biến bị bỏ qua như pycocotools), `attack_evidence`; `average_precision_50` theo trọng số ảnh; `bootstrap_search` (`drop_ci`, KTC điểm gãy bằng nội suy, `near_threshold`).
+- Test: 89 test trong `ml_core/metrics` (AP@0.5 khớp `CleanMetric` tới 1e-15 trên dữ liệu ngẫu nhiên và trên ảnh lặp lại; bootstrap không nạp torch).
+#### Số liệu
+- Bootstrap 200 mẫu × 12 điểm × 300 ảnh (dữ liệu tổng hợp, CPU máy phát triển): 0,3 s; dựng dữ liệu ghép trước 1,9 s.
+- Lệch ban đầu với `CleanMetric` do torchmetrics truyền ngưỡng recall `torch.linspace` float32 (khác `np.linspace`): ghi cứng 101 giá trị, test so với torch.
+#### Quyết định (đã ghi vào `requirements.md`, `plan.md`, `tech-stack.md`)
+- Kế hoạch: Group 2 sửa `attack.py`; ghi file prediction khi chạy run chuyển sang Group 3 (task 13a); mẫu không cắt ngưỡng cắt về biên; `near_threshold` theo vế có nghĩa với `not_reached`, `below_min`.
+- Review: #1 checkpoint của run phải lưu số đếm theo class (Group 3 task 13b); #2 mẫu NaN bị bỏ khỏi KTC; #3 ngưỡng recall ghi cứng (tech-stack 2.3); #4 KTC điểm gãy chỉ cho `found`/`non_monotonic`. Ghi nhận: `ImageAttackStats` không hash được (không chỗ nào hash).
+- Review do cùng một agent làm (không độc lập).
+
 ### Phase 7 — Group 1 (ml-search) — 2026-10-01
 #### Thêm
 - `ml_core/search/subset.py` (task 5): `select_subset` (sắp theo `sha256({"purpose": "search_subset", "seed", "image_id"})`, slice không lớn hơn `subset_size` thì lấy cả slice), `eval_image_ids_sha256`.
