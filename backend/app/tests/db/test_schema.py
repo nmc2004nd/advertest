@@ -25,13 +25,15 @@ EXPECTED_TABLES = {
     "sessions", "password_reset_tokens", "auth_events",
     # Phase 5
     "email_outbox",
+    # Phase 6
+    "patches",
 }  # fmt: skip
 APPEND_ONLY = [
     "audit_log", "case_verdicts", "reviews", "reports", "ledger_entries", "auth_events",
 ]  # fmt: skip
 # Phase 4: thu hồi phiên, đánh dấu token đã dùng bằng UPDATE; không bao giờ xóa.
 # Phase 5: email trong outbox chỉ được đánh dấu đã gửi hoặc lỗi.
-NO_DELETE_AUTH = ["sessions", "password_reset_tokens", "email_outbox"]
+NO_DELETE_AUTH = ["sessions", "password_reset_tokens", "email_outbox", "patches"]
 
 # Enum Postgres ↔ enum contract (giá trị trong migration được ghi cứng, phải khớp contract).
 PG_ENUMS = {

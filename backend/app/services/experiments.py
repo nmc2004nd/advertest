@@ -28,6 +28,7 @@ from backend.app.services.clock import Clock, utcnow
 from backend.app.services.errors import Conflict, Forbidden, Invalid, NotFound, QueueLimitReached
 from ml_core.models.wrapper import DEFAULT_INFERENCE_PARAMS
 from ml_core.runner.config import DEFAULT_FAILURE_CASES, LocalRunConfig
+from ml_core.runner.grid import coarse_to_fine
 
 # Seed trong migration 0002 (`content_id(sha256_of({"protocol": "dev-open"}))`).
 DEV_OPEN_PROTOCOL_ID = UUID("2edcdef5-0d3a-5d5f-98ac-b02637fa6718")
@@ -146,7 +147,8 @@ def create_experiment(
     ordinal = 0
     for attack, spec in zip(config.attacks, specs, strict=True):
         assert attack.grid is not None  # chỉ mode = grid (Phase 5)
-        for level in attack.grid.levels:
+        # Phase 6 (plan task 24a): trong mỗi attack, level thô trước, mịn sau.
+        for level in coarse_to_fine(attack.grid.levels):
             session.add(
                 m.Run(
                     experiment_id=experiment.id,

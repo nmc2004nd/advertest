@@ -320,9 +320,16 @@ def get_dataset_version(dataset_version_id: UUID, factory: Sessions) -> DatasetV
 
 
 @router.get("/slices", tags=["slices"], **guard(P.DATASET_READ))
-def list_slices(factory: Sessions, dataset_version: UUID | None = None) -> list[SliceSummary]:
+def list_slices(
+    factory: Sessions,
+    dataset_version: UUID | None = None,
+    disjoint_from: Annotated[
+        UUID | None,
+        Query(description="Chỉ slice không có ảnh chung với slice này (slice huấn luyện, Phase 6)"),
+    ] = None,
+) -> list[SliceSummary]:
     with transaction(factory) as session:
-        return catalog.list_slices(session, dataset_version)
+        return catalog.list_slices(session, dataset_version, disjoint_from)
 
 
 @router.get("/class-mappings", tags=["datasets"], **guard(P.DATASET_READ))
@@ -345,7 +352,8 @@ def list_attack_specs_admin(
     factory: Sessions, cursor: Cursor = None, limit: Limit = 50
 ) -> AttackSpecAdminPage:
     """Mọi spec, mọi version, kể cả spec đã tắt (Phase 6, trang `/admin/attacks`)."""
-    not_implemented()
+    with transaction(factory) as session:
+        return catalog.list_attack_specs_admin(session, cursor, limit)
 
 
 @router.get("/protocols", tags=["protocols"], **guard(P.PROTOCOL_READ))

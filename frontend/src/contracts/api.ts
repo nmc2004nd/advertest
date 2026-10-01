@@ -2195,7 +2195,8 @@ export interface components {
              */
             severity_score: number;
             detections: components["schemas"]["CaseDetections"];
-            artifacts: components["schemas"]["CaseArtifacts"];
+            /** @description Khóa lưu trữ của ảnh; null khi và chỉ khi display_mode = hidden_unanonymized (không lộ khóa MinIO của ảnh bị ẩn; đề xuất contract 002, Phase 6) */
+            artifacts: components["schemas"]["CaseArtifacts"] | null;
             /**
              * @description Phase 6: nhiễu khuếch đại (FGSM, PGD), vùng khác biệt (corruption, occlusion) hoặc vị trí patch
              * @default amplified_noise
@@ -4650,6 +4651,8 @@ export interface operations {
         parameters: {
             query?: {
                 dataset_version?: string | null;
+                /** @description Chỉ slice không có ảnh chung với slice này (slice huấn luyện, Phase 6) */
+                disjoint_from?: string | null;
             };
             header?: never;
             path?: never;

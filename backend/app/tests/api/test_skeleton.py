@@ -55,10 +55,6 @@ SAMPLE_CALLS = [
     ("get", "/verify/" + RUN_ID),
     # Endpoint worker còn là khung (Phase 7).
     ("post", "/internal/worker/experiments/" + RUN_ID + "/search-result"),
-    # Phase 6 Group 0: khung, Group 5 cài đặt.
-    ("get", "/admin/attack-specs"),
-    ("post", "/internal/worker/runs/" + RUN_ID + "/skip"),
-    ("post", "/internal/worker/runs/" + RUN_ID + "/patch"),
 ]
 # Endpoint có body bắt buộc: gửi body hợp lệ lấy từ contracts/mocks.
 MOCKS = Path(__file__).resolve().parents[4] / "contracts" / "mocks"
@@ -84,6 +80,9 @@ IMPLEMENTED_WORKER_CALLS = [
     ("post", "/internal/worker/runs/" + RUN_ID + "/artifact-url"),
     ("post", "/internal/worker/runs/" + RUN_ID + "/complete"),
     ("post", "/internal/worker/cost-profiles"),
+    # Phase 6 Group 5.
+    ("post", "/internal/worker/runs/" + RUN_ID + "/skip"),
+    ("post", "/internal/worker/runs/" + RUN_ID + "/patch"),
 ]
 
 

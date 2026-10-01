@@ -12,23 +12,36 @@ from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from advertest_contracts.enums import ExperimentStatus, RunStatus, SkipReason, StopReason
+from advertest_contracts.enums import (
+    ExperimentStatus,
+    RunPhase,
+    RunStatus,
+    SkipReason,
+    StopReason,
+)
 from advertest_contracts.models import (
     ArtifactUrlRequest,
     ArtifactUrlResponse,
+    AttackSpec,
     CostProfile,
+    ExperimentConfig,
     FailureCaseRecord,
+    PatchArtifact,
+    PatchRegistration,
     Progress,
     ProgressReport,
     RunCompletion,
     RunMetrics,
     RunResult,
+    RunSkipRequest,
     RunStartRequest,
     RunStartResponse,
     StatusReason,
     WorkerDirective,
+    patch_prefix,
 )
 from backend.app import storage
 from backend.app.db import models as m
@@ -36,7 +49,10 @@ from backend.app.presign import Presigner
 from backend.app.services import leasing, notifications
 from backend.app.services.clock import Clock, utcnow
 from backend.app.services.errors import Conflict, Forbidden, Invalid, NotFound
+from backend.app.services.experiment_config import spec_of
 from backend.app.services.experiments import TERMINAL_RUN, reason, runs_of
+from backend.app.services.patches import RunPatch, is_registered, run_patch
+from ml_core.runner.grid import GridRun, early_stop
 from ml_core.store import validate_key
 
 
@@ -183,21 +199,150 @@ def progress(
     run, experiment = _run_for_worker(session, target, run_id, report.lease_id)
     if run.status != RunStatus.RUNNING:
         raise Conflict(f"Run đang ở trạng thái {run.status}, không nhận tiến độ")
-    if not report.images_done >= run.images_done or report.images_done > run.images_total:
-        raise Invalid(
-            f"images_done = {report.images_done} không hợp lệ (đã có {run.images_done},"
-            f" tổng {run.images_total})"
-        )
-    if not report.checkpoint_key.startswith(storage.run_prefix(run.id)):
-        raise Invalid("checkpoint_key phải nằm trong runs/<run_id>/")
-    run.images_done = report.images_done
-    run.checkpoint_key = report.checkpoint_key
-    run.checkpoint_batch_index = report.batch_index
+    if report.phase == RunPhase.TRAINING:
+        _training_progress(session, experiment, run, report)
+    else:
+        if not report.images_done >= run.images_done or report.images_done > run.images_total:
+            raise Invalid(
+                f"images_done = {report.images_done} không hợp lệ (đã có {run.images_done},"
+                f" tổng {run.images_total})"
+            )
+        if not report.checkpoint_key.startswith(storage.run_prefix(run.id)):
+            raise Invalid("checkpoint_key phải nằm trong runs/<run_id>/")
+        run.images_done = report.images_done
+        run.checkpoint_key = report.checkpoint_key
+        run.checkpoint_batch_index = report.batch_index
+        run.phase = RunPhase.EVALUATING.value
     run.gpu_seconds += report.processing_seconds_delta
     experiment.processing_seconds_used += Decimal(str(report.processing_seconds_delta))
     leasing.extend(experiment, target, clock)
     session.flush()
     return leasing.directive(experiment)
+
+
+def _spec(session: Session, run: m.Run) -> AttackSpec:
+    row = session.get(m.AttackSpecRow, run.attack_spec_id)
+    if row is None:
+        raise NotFound(f"Không có attack spec {run.attack_spec_id}")
+    return spec_of(row)
+
+
+def _patch_of(session: Session, experiment: m.Experiment, run: m.Run) -> RunPatch:
+    found = run_patch(session, experiment, run, _spec(session, run))
+    if found is None:
+        raise Invalid(f"Run {run.id} không phải run patch")
+    return found
+
+
+def _patch_row(session: Session, key: str, run: m.Run) -> m.Patch:
+    """Dòng của khóa patch, tạo nếu chưa có (hai worker cùng khóa không xung đột)."""
+    session.execute(
+        insert(m.Patch)
+        .values(key=key, attack_spec_id=run.attack_spec_id, area_ratio=run.level)
+        .on_conflict_do_nothing(index_elements=["key"])
+    )
+    row = session.get(m.Patch, key, with_for_update=True, populate_existing=True)
+    assert row is not None
+    return row
+
+
+def _training_progress(
+    session: Session, experiment: m.Experiment, run: m.Run, report: ProgressReport
+) -> None:
+    """Phase 6: tiến độ train patch; checkpoint lưu theo khóa patch (dùng lại giữa các run)."""
+    patch = _patch_of(session, experiment, run)
+    if not report.checkpoint_key.startswith(patch_prefix(patch.key)):
+        raise Invalid(f"checkpoint_key phải nằm trong {patch_prefix(patch.key)}")
+    row = _patch_row(session, patch.key, run)
+    if row.artifact is None:
+        row.checkpoint_key = report.checkpoint_key
+    run.phase = RunPhase.TRAINING.value
+    run.iterations_done = report.iterations_done
+    run.iterations_total = report.iterations_total
+
+
+# ---------------------------------------------------------------- skip, patch (Phase 6)
+
+# Thư mục checkpoint trong `patches/<key>/` (worker ghi `checkpoints/<vòng>.npz`).
+PATCH_CHECKPOINTS = "checkpoints/"
+
+
+def skip(
+    session: Session,
+    target: m.ComputeTarget,
+    run_id: UUID,
+    request: RunSkipRequest,
+    clock: Clock = utcnow,
+) -> None:
+    """Bỏ run `queued` do dừng sớm (plan task 26a). API tính lại bằng cùng hàm với worker
+    (`ml_core.runner.grid.early_stop`): attack phải bật `grid.early_stop`, `trigger_run_id` phải
+    là run kích hoạt (level nhỏ nhất đã làm model sụp, metric đầy đủ) và run này phải nằm trong
+    danh sách cần bỏ (review Group 5 #3)."""
+    run, experiment = _run_for_worker(session, target, run_id, request.lease_id)
+    if experiment.status != ExperimentStatus.RUNNING:
+        raise Conflict(f"Experiment đang ở trạng thái {experiment.status}")
+    if run.status != RunStatus.QUEUED:
+        raise Conflict(f"Run đang ở trạng thái {run.status}, chỉ bỏ được run queued")
+    config = ExperimentConfig.model_validate(experiment.config)
+    attack = next(a for a in config.attacks if a.attack_spec_id == run.attack_spec_id)
+    if attack.grid is None or not attack.grid.early_stop:
+        raise Invalid("Attack này tắt dừng sớm (grid.early_stop = false)")
+    same_attack = [
+        GridRun(
+            run_id=other.id,
+            level=other.level,
+            status=RunStatus(other.status),
+            metrics=RunMetrics.model_validate(other.metrics) if other.metrics else None,
+        )
+        for other in runs_of(session, experiment.id)
+        if other.attack_spec_id == run.attack_spec_id
+    ]
+    stop = early_stop(same_attack)
+    if stop is None or stop.trigger_run_id != request.trigger_run_id:
+        raise Invalid(
+            "trigger_run_id phải là run cùng attack có level nhỏ nhất đã làm model sụp"
+            " (mAP@0.5 ≤ 5% mAP sạch, metric đầy đủ)"
+        )
+    if run.id not in stop.skip_run_ids:
+        raise Invalid("Run này không có level lớn hơn level của run kích hoạt")
+    run.status = RunStatus.SKIPPED
+    run.status_reason = StatusReason(
+        code=SkipReason.EARLY_STOP, message=request.message, trigger_run_id=stop.trigger_run_id
+    ).model_dump(mode="json")
+    run.finished_at = clock()
+    leasing.extend(experiment, target, clock)
+    session.flush()
+    _after_run(session, experiment, run, clock)
+
+
+def register_patch(
+    session: Session,
+    target: m.ComputeTarget,
+    run_id: UUID,
+    body: PatchRegistration,
+    exists: ExistsFn,
+    clock: Clock = utcnow,
+) -> PatchArtifact:
+    """Đăng ký patch vừa train của run patch đang chạy (plan task 26). Khóa phải khớp run và
+    file phải có trong MinIO. Khóa đã có patch thì giữ bản cũ và trả bản đó."""
+    run, experiment = _run_for_worker(session, target, run_id, body.lease_id)
+    if run.status != RunStatus.RUNNING:
+        raise Conflict(f"Run đang ở trạng thái {run.status}, không đăng ký patch")
+    patch = _patch_of(session, experiment, run)
+    artifact = body.artifact
+    if artifact.key != patch.key:
+        raise Invalid(f"Khóa patch {artifact.key} không khớp run (cần {patch.key})")
+    for key in (artifact.npy_key, artifact.png_key):
+        if not exists(key):
+            raise Invalid(f"{key} chưa có trong MinIO")
+    row = _patch_row(session, patch.key, run)
+    if row.artifact is not None:
+        return PatchArtifact.model_validate(row.artifact)
+    row.artifact = artifact.model_dump(mode="json")
+    row.checkpoint_key = None
+    row.updated_at = clock()
+    session.flush()
+    return artifact
 
 
 # ---------------------------------------------------------------- complete
@@ -292,6 +437,10 @@ def complete(
                 new_false_positives=case.new_false_positives,
                 detections=case.detections.model_dump(mode="json"),
                 artifacts=case.artifacts.model_dump(mode="json"),
+                anonymization=(
+                    case.anonymization.model_dump(mode="json") if case.anonymization else None
+                ),
+                perturbation_kind=case.perturbation_kind.value,
             )
         )
     leasing.extend(experiment, target, clock)
@@ -343,11 +492,22 @@ def artifact_url(
 ) -> ArtifactUrlResponse:
     """Presigned URL cho một khóa nằm trong `runs/<run_id>/` của run đang `running` (worker giữ
     đúng lease). Run đã kết thúc không xin được URL nữa: artifact của nó là bất biến."""
-    run, _ = _run_for_worker(session, target, run_id, request.lease_id)
+    run, experiment = _run_for_worker(session, target, run_id, request.lease_id)
     if run.status != RunStatus.RUNNING:
         raise Conflict(f"Run đang ở trạng thái {run.status}, không cấp URL")
     if not request.key.startswith(storage.run_prefix(run.id)):
-        raise Forbidden(f"Chỉ cấp URL trong runs/{run.id}/")
+        # Phase 6: run patch được đọc/ghi thư mục của khóa patch của mình.
+        patch = run_patch(session, experiment, run, _spec(session, run))
+        if patch is None or not request.key.startswith(patch_prefix(patch.key)):
+            raise Forbidden(f"Chỉ cấp URL trong runs/{run.id}/ hoặc thư mục patch của run")
+        # Patch đã đăng ký là bất biến và được run khác dùng lại (review Group 5 #1): chỉ đọc,
+        # trừ xóa checkpoint (worker xóa checkpoint cuối sau khi đăng ký).
+        if request.method != "GET" and is_registered(session, patch.key):
+            checkpoints = patch_prefix(patch.key) + PATCH_CHECKPOINTS
+            if not (request.method == "DELETE" and request.key.startswith(checkpoints)):
+                raise Forbidden(
+                    f"Patch đã đăng ký: chỉ cấp URL GET, hoặc DELETE checkpoint trong {checkpoints}"
+                )
     signed = presigner.url(storage.BUCKET_ARTIFACTS, request.key, request.method, clock())
     return ArtifactUrlResponse(
         key=request.key, method=request.method, url=signed.url, expires_at=signed.expires_at
@@ -376,6 +536,7 @@ def record_cost_profile(
         batch_size=profile.batch_size,
         measured_at=profile.measured_at,
         environment=profile.environment.model_dump(mode="json"),
+        sec_per_image_iteration=profile.sec_per_image_iteration,
     )
     session.add(row)
     session.flush()

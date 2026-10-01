@@ -19,6 +19,7 @@ from advertest_contracts.models import (
     BundleCheckpoint,
     BundleDownloads,
     BundleLimit,
+    BundlePatch,
     BundleRun,
     ClassMapping,
     CostProfile,
@@ -27,6 +28,7 @@ from advertest_contracts.models import (
     ExperimentConfig,
     InferenceParams,
     ModelCard,
+    RunMetrics,
     SliceSpec,
     WorkerJobBundle,
 )
@@ -37,6 +39,7 @@ from backend.app.services.clock import Clock, utcnow
 from backend.app.services.errors import Conflict, Forbidden, NotFound
 from backend.app.services.estimate import latest_profiles
 from backend.app.services.experiments import runs_of
+from backend.app.services.patches import registered, run_patch
 
 
 def build(
@@ -92,6 +95,7 @@ def build(
             batch_size=row.batch_size,
             measured_at=row.measured_at,
             environment=Environment.model_validate(row.environment),
+            sec_per_image_iteration=row.sec_per_image_iteration,
         )
         for attack_id, row in latest_profiles(session, target.id, version.id).items()
         if attack_id in spec_rows and row.environment is not None
@@ -100,10 +104,39 @@ def build(
     def get_url(bucket: str, key: str) -> str:
         return presigner.url(bucket, key, "GET", now).url
 
+    specs_by_id = {spec.id: spec for spec in attack_specs}
+    training_slices: dict[UUID, SliceSpec] = {}
+    patches: dict[str, BundlePatch] = {}
     runs = []
     for run in runs_of(session, experiment.id):
+        # Phase 6: khóa patch của run patch, patch đã đăng ký hoặc checkpoint train dở.
+        patch = run_patch(session, experiment, run, specs_by_id[run.attack_spec_id])
+        if patch is not None:
+            training = patch.training_slice
+            if training.id not in training_slices:
+                assert training.slice_sha256 is not None  # run_patch đã kiểm tra
+                training_slices[training.id] = SliceSpec.model_validate_json(
+                    buckets.datasets.get(storage.slice_key(training.slice_sha256))
+                )
+            if patch.key not in patches:
+                artifact = registered(session, patch.key)
+                row = session.get(m.Patch, patch.key)
+                patches[patch.key] = BundlePatch(
+                    key=patch.key,
+                    attack_spec_id=run.attack_spec_id,
+                    area_ratio=run.level,
+                    training_slice_id=training.id,
+                    artifact=artifact,
+                    checkpoint_key=(
+                        row.checkpoint_key if artifact is None and row is not None else None
+                    ),
+                )
         checkpoint = None
-        if run.status == RunStatus.RUNNING and run.checkpoint_key is not None:
+        if (
+            run.status == RunStatus.RUNNING
+            and run.checkpoint_key is not None
+            and run.checkpoint_key.startswith(storage.run_prefix(run.id))
+        ):
             checkpoint = BundleCheckpoint(
                 batch_index=run.checkpoint_batch_index or 0,
                 key=run.checkpoint_key,
@@ -119,8 +152,15 @@ def build(
                 images_done=run.images_done,
                 images_total=run.images_total,
                 checkpoint=checkpoint,
+                metrics=RunMetrics.model_validate(run.metrics) if run.metrics else None,
+                patch_key=patch.key if patch is not None else None,
             )
         )
+    image_ids = list(
+        dict.fromkeys(
+            [*slice_spec.image_ids, *(i for s in training_slices.values() for i in s.image_ids)]
+        )
+    )
 
     return WorkerJobBundle(
         experiment_id=experiment.id,
@@ -139,7 +179,7 @@ def build(
                 image_id: get_url(
                     storage.BUCKET_DATASETS, storage.image_key(dataset_sha, image_sha[image_id])
                 )
-                for image_id in slice_spec.image_ids
+                for image_id in image_ids
             },
             expires_at=now + timedelta(seconds=presigner.expires_s),
         ),
@@ -149,4 +189,6 @@ def build(
             used=experiment.processing_seconds_used,
         ),
         runs=runs,
+        training_slices=list(training_slices.values()),
+        patches=list(patches.values()),
     )

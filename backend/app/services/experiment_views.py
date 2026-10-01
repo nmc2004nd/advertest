@@ -16,8 +16,9 @@ from uuid import UUID
 from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
 
-from advertest_contracts.enums import ExperimentStatus, RunStatus
+from advertest_contracts.enums import ExperimentStatus, RunPhase, RunStatus
 from advertest_contracts.models import (
+    AttackRankingEntry,
     AttackSpec,
     CloneWarning,
     ComputeTargetRef,
@@ -27,6 +28,7 @@ from advertest_contracts.models import (
     ExperimentDetail,
     ExperimentPage,
     ExperimentSummary,
+    IterationProgress,
     Manifest,
     MapPair,
     ModelRef,
@@ -48,6 +50,7 @@ from backend.app.services.estimate import queue_position
 from backend.app.services.experiment_config import spec_of
 from backend.app.services.experiments import runs_of
 from backend.app.services.runs import failure_case_ids
+from ml_core.metrics.ranking import RankingAttack, RankingRun, rank_attacks
 
 Owner = Literal["me", "all"]
 ARTIFACTS_URI = f"s3://{storage.BUCKET_ARTIFACTS}/"
@@ -181,10 +184,8 @@ def detail(session: Session, experiment_id: UUID) -> ExperimentDetail:
     protocol = session.get(m.Protocol, experiment.protocol_id)
     if protocol is None:
         raise NotFound("Protocol của experiment không còn")
-    clean = next(
-        (run.metrics["clean"] for run in runs_of(session, experiment.id) if run.metrics),
-        None,
-    )
+    runs = runs_of(session, experiment.id)
+    clean = next((run.metrics["clean"] for run in runs if run.metrics), None)
     return ExperimentDetail(
         **base.model_dump(),
         config=config,
@@ -199,15 +200,63 @@ def detail(session: Session, experiment_id: UUID) -> ExperimentDetail:
         ),
         cloned_from=experiment.cloned_from,
         clean_metrics=MapPair.model_validate(clean) if clean is not None else None,
+        attack_ranking=_ranking(session, config, runs),
     )
+
+
+def _ranking(
+    session: Session, config: ExperimentConfig, runs: list[m.Run]
+) -> list[AttackRankingEntry]:
+    """Phase 6 (plan task 27): cùng hàm với report ở Phase 8 (`ml_core.metrics.ranking`)."""
+    specs = _specs(session, {attack.attack_spec_id for attack in config.attacks})
+    attacks = []
+    for attack in config.attacks:
+        spec = specs[attack.attack_spec_id]
+        attacks.append(
+            RankingAttack(
+                attack_spec_id=spec.id,
+                name=spec.name,
+                kind=spec.kind,
+                max_level=spec.primary_param.max,
+                runs=[
+                    RankingRun(
+                        run_id=run.id,
+                        level=run.level,
+                        status=run.status,
+                        status_reason=(
+                            StatusReason.model_validate(run.status_reason)
+                            if run.status_reason
+                            else None
+                        ),
+                        metrics=RunMetrics.model_validate(run.metrics) if run.metrics else None,
+                    )
+                    for run in runs
+                    if run.attack_spec_id == spec.id
+                ],
+            )
+        )
+    return rank_attacks(attacks)
 
 
 # ---------------------------------------------------------------- run
 
 
+def _phase(run: m.Run) -> tuple[RunPhase | None, IterationProgress | None]:
+    """Phase 6: giai đoạn (chỉ khi `running`) và tiến độ train patch."""
+    if run.status != RunStatus.RUNNING or run.phase is None:
+        return None, None
+    phase = RunPhase(run.phase)
+    if phase == RunPhase.TRAINING and run.iterations_done is not None and run.iterations_total:
+        return phase, IterationProgress(done=run.iterations_done, total=run.iterations_total)
+    if phase == RunPhase.TRAINING:
+        return None, None
+    return phase, None
+
+
 def _run_view(session: Session, run: m.Run, spec: AttackSpec) -> RunView:
     """Như `runs.result_of`, nhưng run chưa bắt đầu có `fingerprint = null` (đề xuất 001)."""
     source = run.cached_from_run_id or run.id
+    phase, training = _phase(run)
     return RunView(
         run_id=run.id,
         experiment_id=run.experiment_id,
@@ -231,6 +280,8 @@ def _run_view(session: Session, run: m.Run, spec: AttackSpec) -> RunView:
             param_name=spec.primary_param.name,
             param_unit=spec.primary_param.unit,
         ),
+        phase=phase,
+        training=training,
     )
 
 

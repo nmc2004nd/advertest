@@ -1365,6 +1365,25 @@
               ],
               "title": "Dataset Version"
             }
+          },
+          {
+            "name": "disjoint_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Chỉ slice không có ảnh chung với slice này (slice huấn luyện, Phase 6)",
+              "title": "Disjoint From"
+            },
+            "description": "Chỉ slice không có ảnh chung với slice này (slice huấn luyện, Phase 6)"
           }
         ],
         "responses": {
@@ -6968,7 +6987,15 @@
             "$ref": "#/components/schemas/CaseDetections"
           },
           "artifacts": {
-            "$ref": "#/components/schemas/CaseArtifacts"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CaseArtifacts"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Khóa lưu trữ của ảnh; null khi và chỉ khi display_mode = hidden_unanonymized (không lộ khóa MinIO của ảnh bị ẩn; đề xuất contract 002, Phase 6)"
           },
           "perturbation_kind": {
             "$ref": "#/components/schemas/PerturbationImageKind",

@@ -119,3 +119,11 @@ def test_smtp_config_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     assert config is not None and (config.host, config.port, config.starttls) == (
         "mailpit", 1025, True,
     )  # fmt: skip
+
+
+def test_status_sentence_labels_early_stop() -> None:
+    """Phase 6 (plan task 28a): run bỏ qua do dừng sớm có nhãn riêng."""
+    counts = {RunStatus.COMPLETED: 5, RunStatus.SKIPPED: 3}
+    assert n.status_sentence(counts) == "5/8 hoàn thành, 3 bỏ qua"
+    assert n.status_sentence(counts, early_stopped=2) == "5/8 hoàn thành, 3 bỏ qua (2 do dừng sớm)"
+    assert n.status_sentence({RunStatus.COMPLETED: 1}, early_stopped=0) == "1/1 hoàn thành"
