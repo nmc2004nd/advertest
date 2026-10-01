@@ -61,7 +61,7 @@ from advertest_contracts.models import (
 from advertest_contracts.perturbation import Perturbation
 from advertest_worker.cache import JobCache
 from advertest_worker.calibrate import calibrate, calibration_patch, patch_training_cost
-from advertest_worker.client import LeaseLost, WorkerClient
+from advertest_worker.client import ApiError, LeaseLost, WorkerClient
 from advertest_worker.config import HEARTBEAT_INTERVAL_S
 from advertest_worker.early_stop import RunLedger
 from advertest_worker.patch import PatchInterrupted, PatchJob, obtain_patch
@@ -939,11 +939,18 @@ class _JobSearchHooks:
             runner.url_http,
         )
         try:
-            data = store.get(run_predictions_key(run_id))
+            return read_predictions_file(store.get(run_predictions_key(run_id)))
         except KeyNotFoundError:
-            logger.warning("Run %s không có file prediction", run_id)
-            return None
-        return read_predictions_file(data)
+            logger.warning("Run %s không có file prediction: bỏ khỏi bootstrap", run_id)
+        except LeaseLost:
+            raise
+        except (ApiError, httpx.HTTPError, ValueError):
+            # Review task 18b #1: lỗi đọc file (MinIO, API từ chối, file hỏng) không được làm sập
+            # job; điểm bị bỏ khỏi bootstrap như khi không có file.
+            logger.warning(
+                "Không đọc được prediction của run %s: bỏ khỏi bootstrap", run_id, exc_info=True
+            )
+        return None
 
 
 def read_predictions_file(data: bytes) -> dict[str, Prediction]:
