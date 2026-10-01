@@ -8405,6 +8405,12 @@
             "type": "string",
             "title": "Param Unit",
             "description": "Đơn vị tham số chính (primary_param.unit)"
+          },
+          "param_max": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Param Max",
+            "description": "primary_param.max; trục hoành chuẩn hóa level / param_max (đề xuất contract 003, Phase 6)"
           }
         },
         "additionalProperties": false,
@@ -8413,7 +8419,8 @@
           "name",
           "version",
           "param_name",
-          "param_unit"
+          "param_unit",
+          "param_max"
         ],
         "title": "RunAttackSpec"
       },

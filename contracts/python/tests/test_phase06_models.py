@@ -323,3 +323,21 @@ def test_attack_config_patch_mock() -> None:
     config = AttackConfig.model_validate(mock("attack_config", "patch_no_early_stop"))
     assert config.training_slice_id is not None
     assert config.grid is not None and config.grid.early_stop is False
+
+
+def test_run_view_param_max_matches_spec() -> None:
+    """Đề xuất contract 003: `attack_spec.param_max` là `primary_param.max` của spec đã chạy."""
+    seeds = {
+        (spec["name"], spec["version"]): spec["primary_param"]["max"]
+        for spec in json.loads(SEEDS.read_text())
+    }
+    views = [RunView.model_validate_json(p.read_text()) for p in (MOCKS / "run_view").glob("*")]
+    assert views
+    for view in views:
+        spec = view.attack_spec
+        assert spec.param_max == seeds[(spec.name, spec.version)], spec.name
+    data = mock("run_view", "catalog_fog_1_completed")
+    for bad in (0, -1):
+        data["attack_spec"]["param_max"] = bad
+        with pytest.raises(ValidationError):
+            RunView.model_validate(data)

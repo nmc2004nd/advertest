@@ -35,7 +35,8 @@
     "name": "pgd_l2",
     "version": 1,
     "param_name": "eps",
-    "param_unit": "L2"
+    "param_unit": "L2",
+    "param_max": 16
   },
   "phase": null,
   "training": null

@@ -1,7 +1,7 @@
 # Đề xuất contract 003: `RunAttackSpec` có giá trị lớn nhất của tham số chính
 
 - Người đề xuất: agent frontend, Phase 6, Group 6
-- Trạng thái: chờ duyệt
+- Trạng thái: đã duyệt và áp dụng (người dùng duyệt, 2026-10-01; áp dụng ở nhánh `phase06-reviewer-p003`).
 
 ## Vấn đề
 

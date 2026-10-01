@@ -35,7 +35,8 @@
     "name": "motion_blur",
     "version": 1,
     "param_name": "severity",
-    "param_unit": "severity"
+    "param_unit": "severity",
+    "param_max": 5.0
   },
   "phase": null,
   "training": null

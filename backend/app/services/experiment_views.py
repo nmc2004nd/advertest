@@ -279,6 +279,7 @@ def _run_view(session: Session, run: m.Run, spec: AttackSpec) -> RunView:
             version=spec.version,
             param_name=spec.primary_param.name,
             param_unit=spec.primary_param.unit,
+            param_max=spec.primary_param.max,
         ),
         phase=phase,
         training=training,

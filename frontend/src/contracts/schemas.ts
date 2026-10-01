@@ -2074,6 +2074,11 @@ export interface components {
              * @description Đơn vị tham số chính (primary_param.unit)
              */
             param_unit: string;
+            /**
+             * Param Max
+             * @description primary_param.max; trục hoành chuẩn hóa level / param_max (đề xuất contract 003, Phase 6)
+             */
+            param_max: number;
         };
         /**
          * RunCompletion
