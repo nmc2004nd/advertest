@@ -148,17 +148,21 @@ def test_sample_endpoint_returns_501_with_session(
         assert (response.status_code, error.code) == (501, "not_implemented"), group
 
 
-def test_worker_internal_endpoint_returns_501(repo: Path) -> None:
-    # Phase 3 cài đặt các endpoint worker khác; search-result vẫn là khung tới Phase 7 (Phase 7:
-    # body là SearchResultReport).
-    body = json.loads(
-        next((repo / "contracts" / "mocks" / "search_result_report").glob("*.json")).read_text()
-    )
-    response = TestClient(create_app()).post(
-        f"/internal/worker/experiments/{SAMPLE_ID}/search-result", json=body
-    )
-    assert response.status_code == 501
-    assert ErrorResponse.model_validate(response.json()).error.code == "not_implemented"
+def test_worker_internal_endpoints_require_worker_token(repo: Path) -> None:
+    # Phase 7 Group 4 cài đặt endpoint tìm ngưỡng (trước đó là khung trả 501): không có token của
+    # worker → 401, như mọi endpoint worker khác.
+    mocks = repo / "contracts" / "mocks"
+    calls = {
+        "search-result": next((mocks / "search_result_report").glob("*.json")),
+        "runs": next((mocks / "search_run_create").glob("*.json")),
+    }
+    client = TestClient(create_app())
+    for name, path in calls.items():
+        response = client.post(
+            f"/internal/worker/experiments/{SAMPLE_ID}/{name}", json=json.loads(path.read_text())
+        )
+        assert response.status_code == 401, name
+        assert ErrorResponse.model_validate(response.json()).error.code == "unauthenticated"
 
 
 def test_openapi_contains_every_group_and_worker_endpoint(openapi: dict[str, Any]) -> None:
