@@ -152,13 +152,20 @@
           "description": "Đơn vị tham số chính (primary_param.unit)",
           "title": "Param Unit",
           "type": "string"
+        },
+        "param_max": {
+          "description": "primary_param.max; trục hoành chuẩn hóa level / param_max (đề xuất contract 003, Phase 6)",
+          "exclusiveMinimum": 0,
+          "title": "Param Max",
+          "type": "number"
         }
       },
       "required": [
         "name",
         "version",
         "param_name",
-        "param_unit"
+        "param_unit",
+        "param_max"
       ],
       "title": "RunAttackSpec",
       "type": "object"
