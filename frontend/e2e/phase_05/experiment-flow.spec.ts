@@ -85,7 +85,10 @@ test('engineer đi hết wizard, theo dõi tới khi xong, xem kết quả, fail
   await expect(firstCase).toBeVisible()
   await firstCase.click()
   await expect(page).toHaveURL(/\/failure-cases\//)
-  await expect(page.getByText('Chưa làm mờ – chỉ dùng cho phát triển')).toBeVisible()
+  // Phase 6: worker làm mờ mọi case mới nên case hiển thị bình thường dù DEV_ALLOW_UNBLURRED bật
+  // (requirements.md Phase 6, mục Làm mờ); dải cảnh báo dev chỉ còn cho case cũ chưa làm mờ.
+  await expect(page.locator('[data-display-mode="normal"]')).toBeVisible()
+  await expect(page.getByText('Chưa làm mờ – chỉ dùng cho phát triển')).toHaveCount(0)
   const groundTruth = page.getByRole('button', { name: 'Ground truth' })
   await expect(groundTruth).toHaveAttribute('aria-pressed', 'true')
   await groundTruth.click()
