@@ -22,7 +22,9 @@ from typing import Any
 from uuid import UUID
 
 import pytest
-from sqlalchemy import Engine, select
+from alembic import command
+from alembic.config import Config
+from sqlalchemy import Engine, create_engine, select, text
 from sqlalchemy.orm import Session
 
 from advertest_contracts.models import SearchResult, SearchResultReport, SearchRunCreate
@@ -37,9 +39,8 @@ from ._phase05 import load
 
 P5 = load()
 
-# Hạ tầng của Phase 5: DB tạm (downgrade/upgrade rồi seed), MinIO, API, worker thật.
+# Hạ tầng của Phase 5: DB tạm, MinIO, API, worker thật. Riêng `owner_engine` viết lại (bên dưới).
 alembic_config = P5.alembic_config
-owner_engine = P5.owner_engine
 app_engine = P5.app_engine
 cli_env = P5.cli_env
 buckets = P5.buckets
@@ -56,6 +57,20 @@ ok = P5.ok
 error = P5.error
 
 SUBSET = 3  # < 5 ảnh của slice fixture
+
+
+@pytest.fixture(scope="session")
+def owner_engine(alembic_config: Config) -> Iterator[Engine]:
+    """DB sạch rồi `upgrade head`, như Phase 5 nhưng xóa bằng `DROP OWNED BY` thay cho `downgrade
+    base`: chạy chung phiên sau Phase 6, `downgrade` của migration 0006 (xóa spec
+    `not_applicable`) vướng khóa ngoại từ `cost_profiles` mà test Phase 6 đã tạo cho các spec đó
+    (lỗi của 0006, báo cáo Group 7 Phase 7)."""
+    engine = create_engine(P5.env("ADVERTEST_TEST_OWNER_URL"))
+    with engine.begin() as conn:
+        conn.execute(text("DROP OWNED BY advertest_owner"))
+    command.upgrade(alembic_config, "head")
+    yield engine
+    engine.dispose()
 
 
 def search_attack(name: str, *, seed: int = 0, **search: Any) -> dict[str, Any]:
