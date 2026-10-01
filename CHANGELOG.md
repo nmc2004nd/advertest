@@ -8,6 +8,23 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 **Trạng thái:** đang làm. Kickoff và Group 0 trên nhánh `phase07-reviewer-g0`.
 
+### Phase 7 — Group 4 (backend) — 2026-10-01
+#### Thêm
+- Migration `0008` (task 18a): `runs.scope` (mặc định `full`, ràng buộc giá trị), `runs.search_order` (bắt buộc khi `subset`, không trùng trong một attack), `runs.predictions_key`; `search_results` mỗi (experiment, attack) một dòng, `updated_at`.
+- Kiểm tra cấu hình (task 19): `adv_patch` tìm ngưỡng → `422 not_supported_yet`; dải trong spec (rời rạc: giá trị của spec), `subset_size` ≤ số ảnh slice, `class_filter` là class đích, cận `absolute_drop` khi biết mAP sạch, không có slice huấn luyện; `MAX_RUNS` tính `max_points`. Attack tìm ngưỡng không tạo run lúc tạo experiment.
+- Ước lượng (task 20, 23): `searches[]` (`search_bounds`), `max_total_seconds`, `max_exceeds_limit` (chỉ cảnh báo); `queue.ahead_seconds` cộng phần `max_seconds` còn lại.
+- `services/searches.py` (task 21, 22): tạo run động (mọi vi phạm `422`, `ordinal` sau mọi run); nhận `SearchResult` (đối chiếu run, metric, cấu hình; bản cuối không thay); điều kiện hoàn tất experiment mới; chốt `stopped_limit` khi hủy hoặc hết giờ. `ExperimentDetail.search_results`, bundle có `search_results`, `scope`, `search_order`; xếp hạng chỉ gồm quét lưới; `skip` từ chối run tìm ngưỡng (task 22a).
+- Đề xuất 001 (task 22b): `artifact-url` cấp `GET` prediction của run đã kết thúc; sao chép prediction khi trúng cache; `complete` lưu `predictions_key` (file phải có).
+- Test: `test_migration_0008.py`, `test_phase07_api.py` (23), `test_phase07_worker_api.py` (23).
+#### Sửa test cũ
+- Backend: `test_skeleton.py` (hai endpoint tìm ngưỡng không còn `501`), `test_experiment_api.py` (`mode = search` chỉ `not_supported_yet` với `adv_patch`).
+- Test nghiệm thu (người duyệt, người dùng cho phép ở kế hoạch Group 4): Phase 0 `test_api.py` (endpoint tìm ngưỡng không token → `401`), Phase 5 `test_experiment_validation.py` (`not_supported_yet` theo `adv_patch`).
+#### Review (phase-review, 2026-10-01)
+- #1 (người dùng chọn sửa): trúng cache mà file prediction gốc đã mất → API `500`, worker dừng job → không sao chép, `predictions_key` null; test mới fail trên code cũ.
+- #2, #3 (người dùng chấp nhận, ghi vào `requirements.md` mục "Chốt ở Group 4"): `stopped_limit` do API chốt không có `drop_ci`; kết quả cuối không thay; đối chiếu metric; downgrade `0008` xóa `search_results`.
+- Ghi nhận: `make test-db` 431 pass, 1 fail (test email Phase 5 phụ thuộc ngày, có từ trước trên `main`); `make test-e2e` chưa chạy.
+- Review và phần sửa do cùng một agent làm (không độc lập).
+
 ### Phase 7 — Đề xuất contract 001 (người duyệt, người dùng giao) — 2026-10-01
 - Nguồn: Group 3 (worker). Bootstrap cần prediction của mọi điểm toàn slice, nhưng `artifact-url` chỉ cấp URL cho run đang `running` (run đã xong → `409` = mất lease) và điểm trúng cache nằm ở thư mục run gốc.
 - Contract: mô tả `ArtifactUrlRequest.key` (run phải `running`, trừ `GET runs/<run_id>/predictions.json` của run đã kết thúc thuộc experiment đang lease) và `predictions_key` (run trúng cache có bản sao file của run gốc). Không đổi kiểu, route, `schema_version`; sinh lại JSON Schema, OpenAPI, type TypeScript.
