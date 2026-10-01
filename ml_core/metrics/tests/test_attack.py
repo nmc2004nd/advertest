@@ -9,6 +9,7 @@ from ml_core.metrics.attack import (
     ImageAttackStats,
     attack_success_rate,
     build_run_metrics,
+    class_attack_success_rate,
     compute_drops,
     image_attack_stats,
     iou,
@@ -251,3 +252,40 @@ def test_select_failure_cases_order_limit_and_positive() -> None:
     assert select_failure_cases(reordered, 10) == selected
     with pytest.raises(ValueError):
         select_failure_cases(stats, -1)
+
+
+# ---------------------------------------------------------------- Phase 7: ASR theo class
+
+
+def test_image_stats_count_correct_and_lost_per_class() -> None:
+    stats = _stats(_pred(_hits([0, 1, 2, 3])), _pred(_hits([0, 1, 3])))
+    assert sum(stats.class_correct.values()) == stats.correct
+    assert sum(stats.class_lost.values()) == stats.lost
+
+
+def test_build_run_metrics_fills_class_asr_only_with_class_names() -> None:
+    stats = [_stats(_pred(_hits([0, 1, 2, 3])), _pred(_hits([0, 1, 3])))]
+    without = build_run_metrics(_eval(0.6, 0.7, None), _eval(0.3, 0.35, None), stats)
+    assert without.per_class is not None
+    assert all(m.attack_success_rate is None for m in without.per_class.values())
+    assert "attack_success_rate" not in without.model_dump(mode="json")["per_class"]["car"]
+    names = ["person", "bicycle", "car"]
+    with_names = build_run_metrics(
+        _eval(0.6, 0.7, None), _eval(0.3, 0.35, None), stats, class_names=names
+    )
+    assert with_names.per_class is not None
+    assert stats[0].class_lost, "dữ liệu thử phải có object bị mất"
+    for name, label in (("person", PERSON), ("car", CAR)):
+        correct = stats[0].class_correct.get(label, 0)
+        expected = None if correct == 0 else stats[0].class_lost.get(label, 0) / correct
+        assert with_names.per_class[name].attack_success_rate == expected
+    with pytest.raises(ValueError):
+        build_run_metrics(_eval(0.6, 0.7, None), _eval(0.3, 0.35, None), stats, ["bus"])
+
+
+def test_class_attack_success_rate() -> None:
+    a = ImageAttackStats(3, 1, 0, 0, class_correct={0: 2, 1: 1}, class_lost={0: 1})
+    b = ImageAttackStats(2, 2, 0, 0, class_correct={0: 2}, class_lost={0: 2})
+    assert class_attack_success_rate([a, b], 0) == 3 / 4
+    assert class_attack_success_rate([a, b], 1) == 0.0
+    assert class_attack_success_rate([a, b], 2) is None
