@@ -264,7 +264,7 @@ def test_bundle_search_rules() -> None:
     invalid(WorkerJobBundle, {**data, "search_results": data["search_results"] * 2}, "tối đa một")
 
 
-# ---------------------------------------------------------------- bracket khớp quỹ đạo (review #2, #3)
+# ---------------------------------------------------------------- bracket khớp quỹ đạo (review)
 
 
 def _best_bracket(result: SearchResult, scope: EvalScope) -> tuple[float, float]:
