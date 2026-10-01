@@ -54,7 +54,11 @@ test('toàn catalog: xếp hạng, biểu đồ cột, trục chuẩn hóa, case
 
   // Case của corruption: đã làm mờ, ảnh thứ ba là vùng khác biệt.
   await page.goto(`/experiments/${id}?tab=cases`)
-  const fog = page.locator('section', { has: page.getByRole('heading', { name: /^fog · / }) })
+  // Section của riêng run fog (khung tab cũng là <section> chứa mọi run).
+  const fog = page
+    .getByRole('heading', { name: /^fog · / })
+    .first()
+    .locator('xpath=..')
   await fog.locator('a[href^="/failure-cases/"]').first().click()
   await expect(page).toHaveURL(/\/failure-cases\//)
   await expect(page.getByText('Đã làm mờ mặt và biển số')).toBeVisible()
