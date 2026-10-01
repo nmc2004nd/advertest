@@ -25,7 +25,8 @@
     "name": "fgsm",
     "version": 1,
     "param_name": "eps",
-    "param_unit": "1/255"
+    "param_unit": "1/255",
+    "param_max": 32
   },
   "phase": null,
   "training": null

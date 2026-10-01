@@ -21,7 +21,8 @@
     "name": "adv_patch",
     "version": 2,
     "param_name": "area_ratio",
-    "param_unit": "ratio"
+    "param_unit": "ratio",
+    "param_max": 0.25
   },
   "phase": "training",
   "training": {

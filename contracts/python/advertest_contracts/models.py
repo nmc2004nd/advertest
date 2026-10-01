@@ -1818,6 +1818,10 @@ class RunAttackSpec(_Model):
     version: PositiveInt
     param_name: str = Field(description="Tên tham số chính (primary_param.name)")
     param_unit: str = Field(description="Đơn vị tham số chính (primary_param.unit)")
+    param_max: PositiveFloat = Field(
+        description="primary_param.max; trục hoành chuẩn hóa level / param_max (đề xuất contract"
+        " 003, Phase 6)"
+    )
 
 
 class IterationProgress(_Model):

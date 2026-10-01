@@ -400,6 +400,11 @@ def test_user_views_ranking_phase_and_display_mode(
         assert view.phase == "training" and view.training is not None
         assert (view.training.done, view.training.total) == (7, 200)
         assert experiment_views.get_run(session, fgsm[0].run_id).phase is None
+        # Đề xuất contract 003: dải tham số của spec mà run đã dùng.
+        assert (
+            view.attack_spec.param_max
+            == get_spec(load_catalog(), name="adv_patch").primary_param.max
+        )
 
         base = {
             "run_id": fgsm[0].run_id, "severity_score": 1.0, "fingerprint": "a" * 64,

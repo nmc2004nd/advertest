@@ -8,6 +8,12 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 **Trạng thái:** đang làm. Group 0 xong (chờ merge).
 
+### Phase 6 — Đề xuất contract 003 (người duyệt, người dùng duyệt) — 2026-10-01
+- Nguồn: Group 6 (frontend), task 32 "trục hoành chuẩn hóa": `RunView.attack_spec` không có dải tham số chính; engineer chỉ đọc được spec đang bật (`GET /attack-specs`), nên run của spec version đã tắt không chuẩn hóa được.
+- `RunAttackSpec.param_max` (bắt buộc, `primary_param.max` của spec mà run đã dùng). `schema_version` không đổi; không đổi DB, hash, route.
+- 43 mock `run_view` thêm `param_max` theo seed (khớp tên và version). Test `test_run_view_param_max_matches_spec`. Sinh lại JSON Schema, OpenAPI, type TypeScript.
+- Việc tiếp theo: backend `_run_view` điền `param_max`; frontend dùng cho trục chuẩn hóa (`level / param_max`).
+
 ### Phase 6 — Đề xuất contract 002 (người duyệt, người dùng duyệt) — 2026-10-01
 - Nguồn: Group 5 (backend), mục validation "`FailureCaseView` có `display_mode = hidden_unanonymized` không chứa khóa MinIO": `artifacts` của view kế thừa `CaseArtifacts` bắt buộc nên backend không bỏ khóa được.
 - `FailureCaseView.artifacts: CaseArtifacts | None`, null khi và chỉ khi `display_mode = hidden_unanonymized` (validator kiểm). `FailureCaseRecord`, DB và dữ liệu worker gửi không đổi; `schema_version` không đổi.
