@@ -27,7 +27,14 @@ import {
 } from './api'
 import { LevelChips } from './LevelChips'
 import { catalogPreset, suggestedLevels } from './levels'
-import { type Action, type AttackDraft, type Draft, formatDuration, SEED } from './state'
+import {
+  type Action,
+  type AttackDraft,
+  type Draft,
+  formatDuration,
+  SEED,
+  trainingSummary,
+} from './state'
 
 export interface StepProps {
   draft: Draft
@@ -296,10 +303,12 @@ function TrainingSliceField({
   spec,
   chosen,
   error,
+  estimate,
 }: Pick<StepProps, 'draft' | 'dispatch'> & {
   spec: AttackSpec
   chosen: AttackDraft
   error?: string
+  estimate: EstimateResponse | undefined
 }) {
   const slices = useTrainingSlices(draft.sliceId)
   const maxImages = spec.training?.max_training_images ?? 0
@@ -340,6 +349,11 @@ function TrainingSliceField({
       <p className="text-sm text-muted-foreground">
         Mỗi level (tỉ lệ diện tích) train một patch trên slice này; patch đã có thì dùng lại.
       </p>
+      {estimate && chosen.trainingSliceId && (
+        <p className="text-sm" data-testid="thoi-gian-train">
+          {trainingSummary(estimate, spec.id)}
+        </p>
+      )}
       <FieldErrorText message={error} />
     </section>
   )
@@ -351,9 +365,12 @@ export function AttackStep({
   errors,
   model,
   onLevelInputError,
+  estimate,
 }: StepProps & {
   model: ModelSummary | undefined
   onLevelInputError: (id: string, bad: boolean) => void
+  /** Ước lượng hiện tại (để hiện thời gian train patch, Phase 6). */
+  estimate?: EstimateResponse
 }) {
   const specs = useAttackSpecs()
   const all = specs.data ?? []
@@ -450,6 +467,7 @@ export function AttackStep({
                             spec={spec}
                             chosen={chosen}
                             error={errors[`attacks.${index}.training_slice_id`]}
+                            estimate={estimate}
                           />
                         )}
                         <p className="text-xs text-muted-foreground">Seed cố định: {SEED}</p>

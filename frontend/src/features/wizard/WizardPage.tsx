@@ -226,8 +226,11 @@ function ConfirmStep({
                 <th scope="col" className="py-1 pr-3 font-medium">
                   Ảnh
                 </th>
-                <th scope="col" className="py-1 font-medium">
+                <th scope="col" className="py-1 pr-3 font-medium">
                   Thời gian
+                </th>
+                <th scope="col" className="py-1 font-medium">
+                  Train patch
                 </th>
               </tr>
             </thead>
@@ -239,11 +242,12 @@ function ConfirmStep({
                   </td>
                   <td className="py-1 pr-3 tabular-nums">{run.level}</td>
                   <td className="py-1 pr-3 tabular-nums">{run.images}</td>
-                  <td className="py-1">
+                  <td className="py-1 pr-3">
                     {run.skip_reason === 'incompatible'
                       ? 'Sẽ bỏ qua (model không hỗ trợ gradient)'
                       : formatDuration(run.est_seconds)}
                   </td>
+                  <td className="py-1">{formatDuration(run.training_seconds)}</td>
                 </tr>
               ))}
             </tbody>
@@ -387,6 +391,7 @@ export function WizardPage() {
                 <AttackStep
                   {...stepProps}
                   model={model}
+                  estimate={estimate.data}
                   onLevelInputError={(id, bad) =>
                     setLevelInputErrors((current) => ({ ...current, [id]: bad }))
                   }

@@ -5,6 +5,7 @@
  */
 import type {
   CloneWarning,
+  EstimateResponse,
   ExperimentCreateInput,
   ExperimentCreateOutput,
   FieldError,
@@ -360,4 +361,21 @@ export function formatDuration(seconds: number | null | undefined): string {
   const hours = Math.floor(minutes / 60)
   const rest = minutes % 60
   return rest ? `${hours} giờ ${rest} phút` : `${hours} giờ`
+}
+
+/**
+ * Phần train patch của một attack trong ước lượng (Phase 6, plan task 31): `training_seconds`
+ * chỉ có khi patch chưa có; spec thiếu số đo thì nằm trong `missing_profiles`.
+ */
+export function trainingSummary(estimate: EstimateResponse, attackSpecId: string): string {
+  if (estimate.missing_profiles.includes(attackSpecId)) {
+    return 'Chưa đo được thời gian train trên máy này: worker sẽ tự đo.'
+  }
+  const runs = estimate.runs.filter((r) => r.attack_spec_id === attackSpecId)
+  const training = runs.filter(
+    (r) => r.training_seconds !== null && r.training_seconds !== undefined,
+  )
+  if (training.length === 0) return 'Patch đã có sẵn: không cần train.'
+  const total = training.reduce((sum, r) => sum + (r.training_seconds ?? 0), 0)
+  return `Thời gian train: ${formatDuration(total)} (${training.length} patch cần train)`
 }

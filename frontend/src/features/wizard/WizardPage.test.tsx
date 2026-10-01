@@ -15,7 +15,14 @@ import type {
 import { render } from '@/test-utils'
 
 import { AttackStep, DatasetStep, EARLY_STOP_LABEL, TargetStep } from './steps'
-import { buildBody, type Draft, draftFromClone, EMPTY_DRAFT, STORAGE_KEY } from './state'
+import {
+  buildBody,
+  type Draft,
+  draftFromClone,
+  EMPTY_DRAFT,
+  formatDuration,
+  STORAGE_KEY,
+} from './state'
 import { WizardPage } from './WizardPage'
 
 const protocols = listMocks<ProtocolSummary>('protocol_summary')
@@ -84,6 +91,23 @@ describe('WizardPage', () => {
     expect(html).toContain('Ước lượng từng run')
     expect(html).toContain('Chạy experiment')
     expect(html).toMatch(/Seed<\/dt><dd[^>]*>0</)
+  })
+
+  it('Phase 6 bước 6: bảng ước lượng có cột thời gian train patch', () => {
+    const clone = listMocks<ExperimentClone>('experiment_clone')[0]
+    const draft = draftFromClone(clone.config, [], slices[0].dataset_version_id)
+    withDraft(draft)
+    const estimate = listMocks<EstimateResponse>('estimate_response').find((e) =>
+      e.runs.some((r) => r.training_seconds),
+    )
+    if (!estimate) throw new Error('Thiếu mock ước lượng có training_seconds')
+    const html = render(<WizardPage />, '/experiments/new', 'engineer', [
+      ...BASE,
+      [['estimate', JSON.stringify(buildBody(draft))], estimate],
+    ])
+    expect(html).toContain('Train patch')
+    const seconds = estimate.runs.find((r) => r.training_seconds)?.training_seconds ?? null
+    expect(html).toContain(`<td class="py-1">${formatDuration(seconds)}</td>`)
   })
 })
 

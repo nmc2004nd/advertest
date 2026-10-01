@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
 import { listMocks } from '@/api/mocks'
-import type { AttackSpecAdminPage, ExperimentClone, ExperimentDetail } from '@/contracts/api'
+import type {
+  AttackSpecAdminPage,
+  EstimateResponse,
+  ExperimentClone,
+  ExperimentDetail,
+} from '@/contracts/api'
 
 import { catalogPreset, PATCH_PRESET_LEVELS } from './levels'
 
@@ -22,6 +27,7 @@ import {
   type Step,
   stepOfField,
   STORAGE_KEY,
+  trainingSummary,
 } from './state'
 
 const FULL: Draft = {
@@ -321,4 +327,32 @@ it('định dạng thời gian', () => {
   expect(formatDuration(1500)).toBe('25 phút')
   expect(formatDuration(7200)).toBe('2 giờ')
   expect(formatDuration(5460)).toBe('1 giờ 31 phút')
+})
+
+describe('Phase 6: thời gian train trong ước lượng (task 31)', () => {
+  const estimate = listMocks<EstimateResponse>('estimate_response').find((e) =>
+    e.runs.some((r) => r.training_seconds),
+  )
+  if (!estimate) throw new Error('Thiếu mock ước lượng có training_seconds')
+  const patchId = estimate.runs.find((r) => r.training_seconds)?.attack_spec_id ?? ''
+
+  it('cộng training_seconds của các patch chưa có', () => {
+    const total = estimate.runs
+      .filter((r) => r.attack_spec_id === patchId)
+      .reduce((sum, r) => sum + (r.training_seconds ?? 0), 0)
+    const count = estimate.runs.filter((r) => r.attack_spec_id === patchId && r.training_seconds)
+    expect(trainingSummary(estimate, patchId)).toBe(
+      `Thời gian train: ${formatDuration(total)} (${count.length} patch cần train)`,
+    )
+  })
+
+  it('patch đã có, hoặc chưa đo được trên máy này', () => {
+    const ready: EstimateResponse = {
+      ...estimate,
+      runs: estimate.runs.map((r) => ({ ...r, training_seconds: null })),
+    }
+    expect(trainingSummary(ready, patchId)).toBe('Patch đã có sẵn: không cần train.')
+    const missing: EstimateResponse = { ...ready, missing_profiles: [patchId] }
+    expect(trainingSummary(missing, patchId)).toContain('Chưa đo được thời gian train')
+  })
 })
