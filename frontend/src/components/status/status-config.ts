@@ -59,6 +59,7 @@ export const SEARCH_STATUS: Record<SearchStatus, StatusDisplay> = {
   below_min: { label: 'Gãy ngay mức nhỏ nhất', icon: TriangleAlert, tone: 'danger' },
   stopped_limit: { label: 'Dừng do giới hạn', icon: OctagonPause, tone: 'warning' },
   non_monotonic: { label: 'Không đơn điệu', icon: Activity, tone: 'warning' },
+  failed: { label: 'Thất bại', icon: CircleX, tone: 'danger' },
 }
 
 export type StatusBadgeProps =

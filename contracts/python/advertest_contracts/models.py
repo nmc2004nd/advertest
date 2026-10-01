@@ -30,6 +30,7 @@ from advertest_contracts.enums import (
     ComputeKind,
     DisplayMode,
     ErrorCode,
+    EvalScope,
     ExperimentStatus,
     LimitKind,
     PerturbationImageKind,
@@ -38,6 +39,7 @@ from advertest_contracts.enums import (
     RunMode,
     RunPhase,
     RunStatus,
+    SearchStage,
     SearchStatus,
     SkipReason,
     StopReason,
@@ -228,19 +230,41 @@ class GridConfig(_Model):
 
 
 class SearchConfig(_Model):
+    """Cấu hình tự tìm ngưỡng (Phase 7, requirements.md mục Behaviour).
+
+    Kiểm tra phụ thuộc spec, slice và mapping (`lo`, `hi` trong dải của spec; `subset_size` không
+    quá số ảnh slice; `absolute_drop` không quá mAP sạch; `class_filter` là class đích) ở backend.
+    """
+
     threshold_kind: ThresholdKind
-    threshold: float
+    threshold: float = Field(
+        gt=0,
+        le=1,
+        description="relative_drop, attack_success_rate: (0, 1]; absolute_drop: (0, mAP sạch]",
+    )
     lo: float
     hi: float
-    tol: PositiveFloat
-    coarse_n: PositiveInt
-    subset_size: PositiveInt
-    class_filter: list[str] | None = None
+    tol: PositiveFloat = Field(
+        description="Độ rộng khoảng khi dừng chia đôi; wizard mặc định (hi - lo) / 256. Tham số"
+        " rời rạc chia đôi theo chỉ số nên không dùng tol"
+    )
+    coarse_n: int = Field(default=4, ge=3, le=8, description="Số level quét thô")
+    subset_size: int = Field(
+        default=100, ge=2, description="Số ảnh của tập con; wizard cảnh báo khi dưới 20"
+    )
+    class_filter: str | None = Field(
+        default=None, min_length=1, description="Một class đích của mapping; null là mọi class"
+    )
+    bootstrap_samples: int = Field(
+        default=200, ge=0, le=1000, description="Số mẫu bootstrap; 0 là không tính khoảng tin cậy"
+    )
 
     @model_validator(mode="after")
     def _check_bracket(self) -> SearchConfig:
         if self.lo >= self.hi:
             raise ValueError("search.lo phải nhỏ hơn hi")
+        if self.tol >= self.hi - self.lo:
+            raise ValueError("search.tol phải nhỏ hơn hi - lo")
         return self
 
 
@@ -340,6 +364,12 @@ class MapPair(_Model):
 class ClassRunMetrics(_Model):
     clean_ap50: UnitFloat | None
     attacked_ap50: UnitFloat | None
+    attack_success_rate: UnitFloat | None = Field(
+        default=None,
+        exclude_if=lambda v: v is None,
+        description="Phase 7: ASR chỉ tính object của class này (ngưỡng có class_filter); null"
+        " khi không có object nào của class được detect đúng trên ảnh sạch, hoặc run trước Phase 7",
+    )
 
 
 class RunMetrics(_Model):
@@ -381,6 +411,23 @@ class _RunCommon(_Model):
     cached_from_run_id: UUID | None = Field(
         default=None, description="Run gốc khi status = skipped với code = cached (Phase 3)"
     )
+    scope: EvalScope = Field(
+        default=EvalScope.FULL,
+        exclude_if=lambda v: v == EvalScope.FULL,
+        description="Phase 7: tập ảnh được đánh giá; subset chỉ có ở run của tìm ngưỡng",
+    )
+    search_order: NonNegativeInt | None = Field(
+        default=None,
+        exclude_if=lambda v: v is None,
+        description="Phase 7: thứ tự điểm trong lần tìm ngưỡng của attack (TrajectoryPoint.order);"
+        " null với run quét lưới",
+    )
+    predictions_key: ObjectKey | None = Field(
+        default=None,
+        exclude_if=lambda v: v is None,
+        description="Phase 7: khóa file prediction theo ảnh trong runs/<run_id>/ (bootstrap);"
+        " null khi chưa có metric hoặc run trước Phase 7",
+    )
 
     @model_validator(mode="after")
     def _check_status(self) -> _RunCommon:
@@ -402,6 +449,14 @@ class _RunCommon(_Model):
             stopped = self.status == RunStatus.STOPPED_LIMIT
             if self.metrics.partial != stopped:
                 raise ValueError("metrics.partial = true khi và chỉ khi status = stopped_limit")
+        if self.scope == EvalScope.SUBSET and self.search_order is None:
+            raise ValueError(
+                "run scope = subset phải có search_order (chỉ tìm ngưỡng dùng tập con)"
+            )
+        if self.predictions_key is not None and not self.predictions_key.startswith(
+            f"runs/{self.run_id}/"
+        ):
+            raise ValueError("predictions_key phải nằm trong runs/<run_id>/")
         return self
 
 
@@ -439,6 +494,13 @@ class FingerprintInputs(_Model):
         description="Phase 6: khóa patch (compute_patch_key) với run patch; bỏ khỏi JSON khi null"
         " nên fingerprint của run khác không đổi",
     )
+    eval_image_ids_sha256: Sha256Hex | None = Field(
+        default=None,
+        exclude_if=lambda v: v is None,
+        description="Phase 7: sha256 (canonical_json) của danh sách image_id đã sắp xếp mà run"
+        " đánh giá, chỉ khi đánh giá trên tập con; null với run toàn slice (bỏ khỏi JSON) để điểm"
+        " toàn slice trúng cache của run quét lưới",
+    )
 
 
 class Environment(_Model):
@@ -470,37 +532,116 @@ class Manifest(_Model):
 
 
 class TrajectoryPoint(_Model):
-    order: NonNegativeInt
+    order: NonNegativeInt = Field(description="Thứ tự đánh giá, bắt đầu từ 0, liên tục")
     level: float
-    scope: Literal["subset", "full"]
-    drop: float | None
-    run_id: UUID
+    scope: EvalScope
+    drop: float | None = Field(
+        description="Đại lượng so với ngưỡng (theo metric_kind); null khi run không có metric"
+    )
+    drop_ci: tuple[float, float] | None = Field(
+        default=None,
+        description="Phase 7: khoảng tin cậy bootstrap 95%; chỉ điểm toàn slice, null khi chưa"
+        " tính hoặc bootstrap_samples = 0",
+    )
+    synthetic: bool = Field(
+        default=False,
+        description='Phase 7: level "không biến đổi" của spec (eps = 0, tỉ lệ che = 0): drop = 0'
+        " theo định nghĩa, không chạy, không có run",
+    )
+    run_id: UUID | None = Field(description="null khi và chỉ khi synthetic")
+
+    @model_validator(mode="after")
+    def _check(self) -> TrajectoryPoint:
+        if (self.run_id is None) != self.synthetic:
+            raise ValueError("run_id là null khi và chỉ khi synthetic = true")
+        if self.synthetic and self.drop != 0:
+            raise ValueError("điểm synthetic có drop = 0")
+        if self.drop_ci is not None:
+            if self.scope != EvalScope.FULL:
+                raise ValueError("drop_ci chỉ có ở điểm toàn slice")
+            if self.drop_ci[0] > self.drop_ci[1]:
+                raise ValueError("drop_ci phải có dạng [thấp, cao]")
+        return self
+
+
+# Đại lượng so với ngưỡng (requirements.md Phase 7 mục "Đại lượng dùng để so với ngưỡng").
+SearchMetricKind = Literal["map50", "class_ap50", "asr", "class_asr"]
+
+
+def search_metric_kind(threshold_kind: ThresholdKind, class_filter: str | None) -> str:
+    if threshold_kind == ThresholdKind.ATTACK_SUCCESS_RATE:
+        return "asr" if class_filter is None else "class_asr"
+    return "map50" if class_filter is None else "class_ap50"
+
+
+# Trạng thái có điểm gãy (non_monotonic vẫn báo điểm gãy đầu tiên tìm được).
+_HAS_BREAKING_POINT = frozenset({SearchStatus.FOUND, SearchStatus.NON_MONOTONIC})
 
 
 class SearchResult(_Model):
+    """Kết quả tìm ngưỡng của một attack (Phase 7).
+
+    Worker gửi bản tạm thời sau mỗi điểm (`stage` khác `done`, `status` null) và bản cuối
+    (`stage = done`) kèm bootstrap. `bracket` là khoảng hiện tại, kể cả khi dừng giữa chừng.
+    """
+
     schema_version: Literal[1] = 1
     experiment_id: UUID
     attack_spec_id: UUID
-    status: SearchStatus
+    stage: SearchStage
+    status: SearchStatus | None = Field(description="null khi và chỉ khi stage khác done")
     threshold_kind: ThresholdKind
-    threshold: float
-    breaking_point: float | None = None
+    threshold: float = Field(gt=0, le=1)
+    class_filter: str | None = Field(min_length=1)
+    metric_kind: SearchMetricKind = Field(
+        description="map50: mAP@0.5; class_ap50: AP@0.5 của class_filter; asr: ASR mọi object;"
+        " class_asr: ASR object của class_filter. Suy từ threshold_kind và class_filter"
+    )
+    breaking_point: float | None = Field(
+        default=None,
+        description="Có khi và chỉ khi status là found hoặc non_monotonic (= bracket[1])",
+    )
     bracket: tuple[float, float] = Field(description="Khoảng hiện tại, kể cả khi dừng giữa chừng")
     confidence_interval: tuple[float, float] | None = Field(
-        default=None, description="null nếu chưa tính bootstrap"
+        default=None, description="Khoảng tin cậy 95% của điểm gãy; null nếu chưa tính bootstrap"
     )
-    near_threshold: bool = Field(description="Khoảng tin cậy bao trùm ngưỡng")
+    near_threshold: bool = Field(
+        description="Khoảng tin cậy của d(b) có cận dưới < ngưỡng, hoặc của d(a) có cận trên"
+        " >= ngưỡng; false khi chưa tính bootstrap"
+    )
+    max_points: PositiveInt = Field(description="Giới hạn trên số run (ml_core/search/bounds.py)")
+    points_used: NonNegativeInt = Field(description="Số điểm đã đánh giá (không gồm synthetic)")
+    message: str | None = Field(
+        default=None, min_length=1, description="Có khi và chỉ khi status = failed"
+    )
     trajectory: list[TrajectoryPoint]
 
     @model_validator(mode="after")
     def _check(self) -> SearchResult:
-        if (self.status == SearchStatus.FOUND) != (self.breaking_point is not None):
-            raise ValueError("breaking_point có khi và chỉ khi status = found")
+        if (self.status is None) != (self.stage != SearchStage.DONE):
+            raise ValueError("status là null khi và chỉ khi stage khác done")
+        if (self.status in _HAS_BREAKING_POINT) != (self.breaking_point is not None):
+            raise ValueError("breaking_point có khi và chỉ khi status là found hoặc non_monotonic")
+        if self.breaking_point is not None and self.breaking_point != self.bracket[1]:
+            raise ValueError("breaking_point phải bằng bracket[1]")
+        if (self.message is not None) != (self.status == SearchStatus.FAILED):
+            raise ValueError("message có khi và chỉ khi status = failed")
         if self.bracket[0] > self.bracket[1]:
             raise ValueError("bracket phải có dạng [thấp, cao]")
         ci = self.confidence_interval
         if ci is not None and ci[0] > ci[1]:
             raise ValueError("confidence_interval phải có dạng [thấp, cao]")
+        if self.metric_kind != search_metric_kind(self.threshold_kind, self.class_filter):
+            raise ValueError("metric_kind phải khớp threshold_kind và class_filter")
+        if [p.order for p in self.trajectory] != list(range(len(self.trajectory))):
+            raise ValueError("trajectory phải theo order 0, 1, 2, ... liên tục")
+        real = [p.run_id for p in self.trajectory if not p.synthetic]
+        if len(set(real)) != len(real):
+            raise ValueError("mỗi run chỉ là một điểm của trajectory")
+        if self.points_used != len(real):
+            raise ValueError("points_used phải bằng số điểm không synthetic của trajectory")
+        if self.points_used > self.max_points:
+            raise ValueError("points_used không được vượt max_points")
         return self
 
 
@@ -1068,11 +1209,23 @@ class BundleRun(_Model):
     patch_key: Sha256Hex | None = Field(
         default=None, description="Phase 6: khóa patch với run patch (có trong bundle.patches)"
     )
+    scope: EvalScope = Field(
+        default=EvalScope.FULL,
+        exclude_if=lambda v: v == EvalScope.FULL,
+        description="Phase 7: subset khi run đánh giá tập con của tìm ngưỡng",
+    )
+    search_order: NonNegativeInt | None = Field(
+        default=None,
+        exclude_if=lambda v: v is None,
+        description="Phase 7: thứ tự điểm của run tìm ngưỡng; null với run quét lưới",
+    )
 
     @model_validator(mode="after")
     def _check(self) -> BundleRun:
         if self.images_done > self.images_total:
             raise ValueError("images_done không được lớn hơn images_total")
+        if self.scope == EvalScope.SUBSET and self.search_order is None:
+            raise ValueError("run scope = subset phải có search_order")
         if self.checkpoint is not None and self.status != RunStatus.RUNNING:
             raise ValueError("checkpoint chỉ có khi status = running")
         return self
@@ -1128,7 +1281,10 @@ class WorkerJobBundle(_Model):
     )
     downloads: BundleDownloads
     limit: BundleLimit
-    runs: list[BundleRun] = Field(min_length=1, description="Theo thứ tự chạy")
+    runs: list[BundleRun] = Field(
+        description="Theo thứ tự chạy: run quét lưới trước, rồi run tìm ngưỡng đã tạo (Phase 7)."
+        " Rỗng được khi mọi attack ở chế độ tìm ngưỡng và chưa có điểm nào"
+    )
     training_slices: list[SliceSpec] = Field(
         default_factory=list,
         description="Phase 6: slice huấn luyện của các attack có training_slice_id",
@@ -1136,10 +1292,26 @@ class WorkerJobBundle(_Model):
     patches: list[BundlePatch] = Field(
         default_factory=list, description="Phase 6: patch mà các run patch cần, không trùng key"
     )
+    search_results: list[SearchResult] = Field(
+        default_factory=list,
+        description="Phase 7: SearchResult mới nhất của từng attack tìm ngưỡng đã có điểm; worker"
+        " chạy lại thuật toán theo trajectory để tiếp tục đúng giai đoạn sau gián đoạn",
+    )
 
     @model_validator(mode="after")
     def _check(self) -> WorkerJobBundle:
         cfg = self.config
+        search_ids = {a.attack_spec_id for a in cfg.attacks if a.mode == RunMode.SEARCH}
+        if not self.runs and len(search_ids) != len(cfg.attacks):
+            raise ValueError("runs chỉ rỗng khi mọi attack ở chế độ tìm ngưỡng")
+        for run in self.runs:
+            if (run.search_order is not None) != (run.attack_spec_id in search_ids):
+                raise ValueError("search_order có khi và chỉ khi run thuộc attack tìm ngưỡng")
+        found = [r.attack_spec_id for r in self.search_results]
+        if len(set(found)) != len(found) or not set(found) <= search_ids:
+            raise ValueError("search_results: mỗi attack tìm ngưỡng tối đa một kết quả")
+        if any(r.experiment_id != self.experiment_id for r in self.search_results):
+            raise ValueError("search_results phải thuộc experiment này")
         if cfg.model_version_id != self.model_card.id:
             raise ValueError("config.model_version_id phải bằng model_card.id")
         if cfg.slice_id != self.slice.id:
@@ -1321,6 +1493,26 @@ class RunSkipRequest(_Model):
     message: str = Field(min_length=1)
 
 
+class SearchRunCreate(_Model):
+    """Body của `POST /internal/worker/experiments/{id}/runs` (Phase 7): tạo run cho điểm tìm
+    ngưỡng kế tiếp. Trả `BundleRun` (`queued`). API trả `422` (không `409`) khi attack không ở
+    chế độ tìm ngưỡng, level ngoài `[lo, hi]` hoặc vượt `max_points`."""
+
+    lease_id: UUID
+    attack_spec_id: UUID
+    level: float
+    scope: EvalScope
+    search_order: NonNegativeInt = Field(description="Bằng TrajectoryPoint.order của điểm này")
+
+
+class SearchResultReport(_Model):
+    """Body của `POST /internal/worker/experiments/{id}/search-result` (Phase 7): bản tạm thời sau
+    mỗi điểm, bản cuối khi xong. Bản sau thay bản trước của cùng attack."""
+
+    lease_id: UUID
+    result: SearchResult
+
+
 class PatchRegistration(_Model):
     """Body của `POST /runs/{id}/patch` (Phase 6): đăng ký patch vừa train xong.
 
@@ -1402,7 +1594,12 @@ class RequiredAttack(_Model):
 class PassCriterion(_Model):
     threshold_kind: ThresholdKind
     threshold: float
-    class_filter: list[str] | None = None
+    class_filter: str | None = Field(
+        default=None,
+        min_length=1,
+        description="Một class đích; cùng kiểu với SearchConfig.class_filter (Phase 7) để Phase 8"
+        " điền cấu hình tìm ngưỡng từ protocol",
+    )
 
 
 class ProtocolBody(_Model):
@@ -1650,8 +1847,29 @@ class QueueEstimate(_Model):
     )
 
 
+class SearchEstimate(_Model):
+    """Chi phí tối đa của một attack tìm ngưỡng (Phase 7)."""
+
+    attack_spec_id: UUID
+    max_points: PositiveInt = Field(description="max_subset_points + max_full_points")
+    max_subset_points: NonNegativeInt = Field(description="0 khi slice không lớn hơn subset_size")
+    max_full_points: PositiveInt
+    max_seconds: Seconds | None = Field(
+        description="(max_subset_points * subset_size + max_full_points * số ảnh slice)"
+        " * sec_per_image * 1.2; null khi thiếu profile"
+    )
+
+    @model_validator(mode="after")
+    def _check(self) -> SearchEstimate:
+        if self.max_points != self.max_subset_points + self.max_full_points:
+            raise ValueError("max_points phải bằng max_subset_points + max_full_points")
+        return self
+
+
 class EstimateResponse(_Model):
-    runs: list[EstimateRun] = Field(min_length=1)
+    runs: list[EstimateRun] = Field(
+        description="Run quét lưới; rỗng được khi mọi attack ở chế độ tìm ngưỡng (Phase 7)"
+    )
     total_seconds: Seconds | None = Field(
         description="Tổng est_seconds và training_seconds; null khi có run thiếu profile"
     )
@@ -1663,16 +1881,49 @@ class EstimateResponse(_Model):
         " thiếu profile) lớn hơn giới hạn thời gian"
     )
     queue: QueueEstimate
+    searches: list[SearchEstimate] = Field(
+        default_factory=list, description="Phase 7: mỗi attack tìm ngưỡng một dòng"
+    )
+    max_total_seconds: Seconds | None = Field(
+        default=None,
+        description="Phase 7: total_seconds + tổng max_seconds; null khi không có attack tìm"
+        " ngưỡng, hoặc có run hay search thiếu ước lượng",
+    )
+    max_exceeds_limit: bool = Field(
+        default=False,
+        description="Phase 7: tổng ước lượng được của trường hợp xấu nhất (run quét lưới và"
+        " max_seconds) lớn hơn giới hạn thời gian; chỉ cảnh báo, không chặn tạo experiment",
+    )
 
     @model_validator(mode="after")
     def _check(self) -> EstimateResponse:
+        if not self.runs and not self.searches:
+            raise ValueError("cần ít nhất một run hoặc một search")
         unknown = [r for r in self.runs if r.skip_reason is None and r.est_seconds is None]
         if (self.total_seconds is None) != bool(unknown):
             raise ValueError("total_seconds là null khi và chỉ khi có run thiếu ước lượng")
         if len(set(self.missing_profiles)) != len(self.missing_profiles):
             raise ValueError("missing_profiles không được trùng")
-        if set(self.missing_profiles) != {r.attack_spec_id for r in unknown}:
-            raise ValueError("missing_profiles phải đúng bằng các attack của run thiếu ước lượng")
+        unknown_searches = [s for s in self.searches if s.max_seconds is None]
+        missing = {r.attack_spec_id for r in unknown} | {s.attack_spec_id for s in unknown_searches}
+        if set(self.missing_profiles) != missing:
+            raise ValueError(
+                "missing_profiles phải đúng bằng các attack của run và search thiếu ước lượng"
+            )
+        ids = [s.attack_spec_id for s in self.searches]
+        if len(set(ids)) != len(ids):
+            raise ValueError("searches không được trùng attack")
+        if ids and {r.attack_spec_id for r in self.runs} & set(ids):
+            raise ValueError("attack tìm ngưỡng không có run quét lưới")
+        known_max = self.searches and self.total_seconds is not None and not unknown_searches
+        if (self.max_total_seconds is not None) != bool(known_max):
+            raise ValueError(
+                "max_total_seconds có khi và chỉ khi có search và mọi run, search ước lượng được"
+            )
+        if not self.searches and self.max_exceeds_limit:
+            raise ValueError("max_exceeds_limit chỉ true khi có attack tìm ngưỡng")
+        if self.exceeds_limit and self.searches and not self.max_exceeds_limit:
+            raise ValueError("exceeds_limit kéo theo max_exceeds_limit")
         return self
 
 
@@ -1787,8 +2038,13 @@ class ExperimentDetail(ExperimentSummary):
     )
     attack_ranking: list[AttackRankingEntry] = Field(
         default_factory=list,
-        description="Phase 6: mỗi attack của config một dòng, giảm dần theo auc_drop, null xếp"
-        " cuối",
+        description="Phase 6: mỗi attack quét lưới của config một dòng (Phase 7: không gồm attack"
+        " tìm ngưỡng), giảm dần theo auc_drop, null xếp cuối",
+    )
+    search_results: list[SearchResult] = Field(
+        default_factory=list,
+        description="Phase 7: SearchResult mới nhất của từng attack tìm ngưỡng đã có điểm (cập nhật"
+        " khi đang chạy)",
     )
 
     @model_validator(mode="after")
@@ -1800,8 +2056,15 @@ class ExperimentDetail(ExperimentSummary):
         ids = [entry.attack_spec_id for entry in self.attack_ranking]
         if len(set(ids)) != len(ids):
             raise ValueError("attack_ranking không được trùng attack")
-        if not set(ids) <= {attack.attack_spec_id for attack in self.config.attacks}:
-            raise ValueError("attack_ranking chỉ gồm attack của config")
+        grid = {a.attack_spec_id for a in self.config.attacks if a.mode == RunMode.GRID}
+        if not set(ids) <= grid:
+            raise ValueError("attack_ranking chỉ gồm attack của config ở chế độ quét lưới")
+        search = {a.attack_spec_id for a in self.config.attacks if a.mode == RunMode.SEARCH}
+        found = [r.attack_spec_id for r in self.search_results]
+        if len(set(found)) != len(found) or not set(found) <= search:
+            raise ValueError("search_results: mỗi attack tìm ngưỡng của config tối đa một kết quả")
+        if any(r.experiment_id != self.id for r in self.search_results):
+            raise ValueError("search_results phải thuộc experiment này")
         scores = [entry.auc_drop for entry in self.attack_ranking]
         known = [score for score in scores if score is not None]
         if scores[: len(known)] != sorted(known, reverse=True):

@@ -35,4 +35,6 @@ def test_search_result_mocks_cover_every_status() -> None:
         SearchResult.model_validate_json(p.read_text()).status
         for p in (MOCKS / "search_result").glob("*.json")
     }
-    assert statuses == set(SearchStatus)
+    # Phase 7: bản tạm thời (stage khác done) có status null; cần cả bản tạm thời.
+    assert None in statuses
+    assert statuses - {None} == set(SearchStatus)

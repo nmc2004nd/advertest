@@ -27,7 +27,14 @@ EXPECTED = {
         "rejected",
         "cancelled",
     },
-    "SearchStatus": {"found", "not_reached", "below_min", "stopped_limit", "non_monotonic"},
+    "SearchStatus": {  # Phase 7: failed
+        "found",
+        "not_reached",
+        "below_min",
+        "stopped_limit",
+        "non_monotonic",
+        "failed",
+    },
     "StopReason": {"budget", "time"},
     "SkipReason": {"cached", "incompatible", "early_stop"},  # Phase 6: early_stop
     "ComputeKind": {"local", "rented"},
@@ -66,6 +73,9 @@ EXPECTED = {
     # Phase 6: giai đoạn của run patch, nội dung ảnh thứ ba của failure case.
     "RunPhase": {"training", "evaluating"},
     "PerturbationImageKind": {"amplified_noise", "difference", "patch_location"},
+    # Phase 7: giai đoạn tìm ngưỡng, tập ảnh của run.
+    "SearchStage": {"coarse", "bisect_subset", "confirm", "bisect_full", "done"},
+    "EvalScope": {"full", "subset"},
 }
 
 

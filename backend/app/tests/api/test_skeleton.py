@@ -38,6 +38,8 @@ WORKER_ENDPOINTS = {
     # Phase 6: dừng sớm, đăng ký patch.
     ("post", "/internal/worker/runs/{run_id}/skip"),
     ("post", "/internal/worker/runs/{run_id}/patch"),
+    # Phase 7: tạo run động của tìm ngưỡng.
+    ("post", "/internal/worker/experiments/{experiment_id}/runs"),
 }
 RUN_ID = "00000000-0000-5000-8000-000000000001"
 # Endpoint xác thực công khai (requirements.md Phase 4, mục Bảo vệ endpoint).
@@ -55,6 +57,7 @@ SAMPLE_CALLS = [
     ("get", "/verify/" + RUN_ID),
     # Endpoint worker còn là khung (Phase 7).
     ("post", "/internal/worker/experiments/" + RUN_ID + "/search-result"),
+    ("post", "/internal/worker/experiments/" + RUN_ID + "/runs"),
 ]
 # Endpoint có body bắt buộc: gửi body hợp lệ lấy từ contracts/mocks.
 MOCKS = Path(__file__).resolve().parents[4] / "contracts" / "mocks"
@@ -66,7 +69,10 @@ BODIES = {
     "/internal/worker/runs/" + RUN_ID + "/progress": "progress_report/after_batch_0.json",
     "/internal/worker/runs/" + RUN_ID + "/complete": "run_completion/completed_one_case.json",
     "/internal/worker/cost-profiles": "cost_profile/gpu_local_pgd.json",
-    "/internal/worker/experiments/" + RUN_ID + "/search-result": "search_result/found.json",
+    "/internal/worker/experiments/"
+    + RUN_ID
+    + "/search-result": "search_result_report/final_found.json",
+    "/internal/worker/experiments/" + RUN_ID + "/runs": "search_run_create/subset_coarse.json",
     "/internal/worker/runs/" + RUN_ID + "/skip": "run_skip_request/early_stop.json",
     "/internal/worker/runs/" + RUN_ID + "/patch": "patch_registration/trained_0.25.json",
 }

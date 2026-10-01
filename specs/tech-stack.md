@@ -105,7 +105,7 @@ Tầng sweep, metric, backend và frontend không được phụ thuộc vào vi
 - Thuật toán: quét thô vài điểm để khoanh vùng → chia đôi đến độ chính xác yêu cầu → xác nhận hai đầu khoảng trên toàn slice.
 - Giai đoạn tìm kiếm chạy trên tập con cố định của slice (khoảng 100 ảnh).
 - Số điểm tối đa được tính trước để hiển thị chi phí tối đa.
-- Trạng thái kết quả: `found`, `not_reached`, `below_min`, `stopped_limit`, `non_monotonic`.
+- Trạng thái kết quả: `found`, `not_reached`, `below_min`, `stopped_limit`, `non_monotonic`, `failed` (Phase 7: mAP sạch bằng 0, không còn object cho ASR, lỗi không phục hồi).
 
 ## 4. Backend và worker
 
@@ -155,7 +155,7 @@ Tầng sweep, metric, backend và frontend không được phụ thuộc vào vi
 | User | `pending`, `active`, `rejected`, `disabled` |
 | Run | `queued`, `running`, `completed`, `failed`, `skipped`, `stopped_limit`, `cancelled` |
 | Experiment | `draft`, `queued`, `running`, `completed`, `submitted_for_review`, `in_review`, `approved`, `changes_requested`, `rejected`, `cancelled` |
-| Kết quả tìm ngưỡng | `found`, `not_reached`, `below_min`, `stopped_limit`, `non_monotonic` |
+| Kết quả tìm ngưỡng | `found`, `not_reached`, `below_min`, `stopped_limit`, `non_monotonic`, `failed` |
 
 Mọi trạng thái bất thường (`failed`, `skipped`, `stopped_limit`, `cancelled`) phải có trường lý do.
 

@@ -57,6 +57,8 @@ from advertest_contracts.models import (
     RunStartResponse,
     RunView,
     SearchResult,
+    SearchResultReport,
+    SearchRunCreate,
     SliceSpec,
     SliceSummary,
     UserAdminPage,
@@ -130,4 +132,7 @@ SCHEMAS: dict[str, type[BaseModel]] = {
     "run_skip_request": RunSkipRequest,
     "attack_spec_admin_view": AttackSpecAdminView,
     "attack_spec_admin_page": AttackSpecAdminPage,
+    # Phase 7: tự tìm ngưỡng.
+    "search_run_create": SearchRunCreate,
+    "search_result_report": SearchResultReport,
 }

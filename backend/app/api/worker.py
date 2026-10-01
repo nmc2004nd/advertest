@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, Response, Security, status
 from advertest_contracts.models import (
     ArtifactUrlRequest,
     ArtifactUrlResponse,
+    BundleRun,
     CostProfile,
     HeartbeatRequest,
     PatchArtifact,
@@ -23,7 +24,8 @@ from advertest_contracts.models import (
     RunSkipRequest,
     RunStartRequest,
     RunStartResponse,
-    SearchResult,
+    SearchResultReport,
+    SearchRunCreate,
     WorkerDirective,
     WorkerJobBundle,
     WorkerLease,
@@ -191,6 +193,14 @@ def submit_cost_profile(body: CostProfile, credentials: Credentials, sessions: S
         runs.record_cost_profile(session, target, body)
 
 
-@router.post("/experiments/{experiment_id}/search-result")
-def submit_search_result(experiment_id: UUID, result: SearchResult) -> None:
+@router.post("/experiments/{experiment_id}/runs", status_code=status.HTTP_201_CREATED)
+def create_search_run(experiment_id: UUID, body: SearchRunCreate) -> BundleRun:
+    """Tạo run `queued` cho điểm tìm ngưỡng kế tiếp (Phase 7). Vi phạm (attack không ở chế độ tìm
+    ngưỡng, level ngoài `[lo, hi]`, vượt `max_points`) trả `422`, không `409`."""
+    not_implemented()
+
+
+@router.post("/experiments/{experiment_id}/search-result", status_code=status.HTTP_204_NO_CONTENT)
+def submit_search_result(experiment_id: UUID, body: SearchResultReport) -> None:
+    """SearchResult tạm thời sau mỗi điểm, hoặc kết quả cuối (Phase 7)."""
     not_implemented()

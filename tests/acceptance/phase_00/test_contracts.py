@@ -35,7 +35,9 @@ ENUMS = {
         "draft", "queued", "running", "completed", "submitted_for_review", "in_review",
         "approved", "changes_requested", "rejected", "cancelled",
     },
-    "SearchStatus": {"found", "not_reached", "below_min", "stopped_limit", "non_monotonic"},
+    "SearchStatus": {  # Phase 7: failed
+        "found", "not_reached", "below_min", "stopped_limit", "non_monotonic", "failed",
+    },
     "StopReason": {"budget", "time"},
     "SkipReason": {"cached", "incompatible", "early_stop"},  # Phase 6: early_stop
     "ComputeKind": {"local", "rented"},
@@ -94,7 +96,9 @@ def test_search_result_mocks_cover_every_status(repo: Path) -> None:
         SearchResult.model_validate_json(p.read_text()).status
         for p in _mocks(repo, "search_result")
     }
-    assert statuses == set(SearchStatus)
+    # Phase 7: bản tạm thời (stage khác done) có status null; cần cả bản tạm thời.
+    assert None in statuses
+    assert statuses - {None} == set(SearchStatus)
 
 
 @pytest.mark.parametrize("status", ["failed", "skipped", "stopped_limit", "cancelled"])

@@ -1,0 +1,53 @@
+{
+  "runs": [
+    {
+      "attack_spec_id": "8d15422d-f111-5c7e-96eb-e704767e6218",
+      "level": 2,
+      "images": 300,
+      "sec_per_image": 0.158,
+      "est_seconds": 56.88,
+      "skip_reason": null
+    },
+    {
+      "attack_spec_id": "8d15422d-f111-5c7e-96eb-e704767e6218",
+      "level": 4,
+      "images": 300,
+      "sec_per_image": 0.158,
+      "est_seconds": 56.88,
+      "skip_reason": null
+    },
+    {
+      "attack_spec_id": "8d15422d-f111-5c7e-96eb-e704767e6218",
+      "level": 8,
+      "images": 300,
+      "sec_per_image": 0.158,
+      "est_seconds": 56.88,
+      "skip_reason": null
+    }
+  ],
+  "total_seconds": 170.64,
+  "missing_profiles": [],
+  "exceeds_limit": false,
+  "queue": {
+    "position": 1,
+    "ahead_seconds": 0
+  },
+  "searches": [
+    {
+      "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+      "max_points": 20,
+      "max_subset_points": 11,
+      "max_full_points": 9,
+      "max_seconds": 5604.24
+    },
+    {
+      "attack_spec_id": "9603bf27-ab9b-5086-be38-f60a4e6ebe74",
+      "max_points": 8,
+      "max_subset_points": 5,
+      "max_full_points": 3,
+      "max_seconds": 84.0
+    }
+  ],
+  "max_total_seconds": 5858.88,
+  "max_exceeds_limit": false
+}

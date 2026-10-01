@@ -1,0 +1,49 @@
+{
+  "$defs": {
+    "EvalScope": {
+      "description": "Tập ảnh mà run đánh giá (Phase 7).",
+      "enum": [
+        "full",
+        "subset"
+      ],
+      "title": "EvalScope",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Body của `POST /internal/worker/experiments/{id}/runs` (Phase 7): tạo run cho điểm tìm\nngưỡng kế tiếp. Trả `BundleRun` (`queued`). API trả `422` (không `409`) khi attack không ở\nchế độ tìm ngưỡng, level ngoài `[lo, hi]` hoặc vượt `max_points`.",
+  "properties": {
+    "lease_id": {
+      "format": "uuid",
+      "title": "Lease Id",
+      "type": "string"
+    },
+    "attack_spec_id": {
+      "format": "uuid",
+      "title": "Attack Spec Id",
+      "type": "string"
+    },
+    "level": {
+      "title": "Level",
+      "type": "number"
+    },
+    "scope": {
+      "$ref": "#/$defs/EvalScope"
+    },
+    "search_order": {
+      "description": "Bằng TrajectoryPoint.order của điểm này",
+      "minimum": 0,
+      "title": "Search Order",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "lease_id",
+    "attack_spec_id",
+    "level",
+    "scope",
+    "search_order"
+  ],
+  "title": "SearchRunCreate",
+  "type": "object"
+}

@@ -367,15 +367,22 @@ def test_manifest_rejects_wrong_fingerprint_and_non_utc() -> None:
 
 
 def _search(status: str, **overrides: Any) -> dict[str, Any]:
+    has_point = status in ("found", "non_monotonic")
     data: dict[str, Any] = {
         "experiment_id": str(uuid4()),
         "attack_spec_id": str(uuid4()),
+        "stage": "done",
         "status": status,
         "threshold_kind": "relative_drop",
         "threshold": 0.2,
-        "breaking_point": 6.5 if status == "found" else None,
+        "class_filter": None,
+        "metric_kind": "map50",
+        "breaking_point": 7 if has_point else None,
         "bracket": [6, 7],
         "near_threshold": False,
+        "max_points": 13,
+        "points_used": 1,
+        "message": "mAP@0.5 sạch bằng 0" if status == "failed" else None,
         "trajectory": [
             {"order": 0, "level": 8, "scope": "subset", "drop": 0.3, "run_id": str(uuid4())}
         ],
@@ -385,7 +392,7 @@ def _search(status: str, **overrides: Any) -> dict[str, Any]:
 
 
 @pytest.mark.parametrize(
-    "status", ["found", "not_reached", "below_min", "stopped_limit", "non_monotonic"]
+    "status", ["found", "not_reached", "below_min", "stopped_limit", "non_monotonic", "failed"]
 )
 def test_search_result_statuses(status: str) -> None:
     SearchResult.model_validate(_search(status))

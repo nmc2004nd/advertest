@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "run_id": "789fc8c0-58da-5a21-b198-90ce80693211",
+  "experiment_id": "872ccaa0-8ee6-56c8-a7d7-edc6ddbc4410",
+  "fingerprint": "67e029fa9cd9d405562185e732f0eb2542c38c8f5542c71da9c7281fb716866e",
+  "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+  "level": 0.5,
+  "status": "completed",
+  "status_reason": null,
+  "progress": {
+    "images_done": 100,
+    "images_total": 100
+  },
+  "metrics": {
+    "clean": {
+      "map50": 0.531,
+      "map50_95": 0.309
+    },
+    "attacked": {
+      "map50": 0.402,
+      "map50_95": 0.221
+    },
+    "relative_drop": 0.243,
+    "absolute_drop": 0.129,
+    "attack_success_rate": 0.288,
+    "per_class": {
+      "car": {
+        "clean_ap50": 0.648,
+        "attacked_ap50": 0.497,
+        "attack_success_rate": 0.262
+      },
+      "person": {
+        "clean_ap50": 0.493,
+        "attacked_ap50": 0.361,
+        "attack_success_rate": 0.334
+      },
+      "truck": {
+        "clean_ap50": 0.452,
+        "attacked_ap50": 0.348,
+        "attack_success_rate": 0.25
+      }
+    }
+  },
+  "gpu_seconds": 41.7,
+  "cost": null,
+  "failure_case_ids": [],
+  "manifest_uri": "s3://artifacts/runs/789fc8c0-58da-5a21-b198-90ce80693211/manifest.json",
+  "scope": "subset",
+  "search_order": 8,
+  "predictions_key": "runs/789fc8c0-58da-5a21-b198-90ce80693211/predictions.json",
+  "attack_spec": {
+    "name": "pgd_linf",
+    "version": 1,
+    "param_name": "eps",
+    "param_unit": "1/255",
+    "param_max": 32
+  }
+}

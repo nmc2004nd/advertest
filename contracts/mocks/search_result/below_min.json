@@ -1,31 +1,71 @@
 {
   "schema_version": 1,
-  "experiment_id": "37440a93-11db-57a1-a2dd-3de419d3001f",
-  "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+  "experiment_id": "872ccaa0-8ee6-56c8-a7d7-edc6ddbc4410",
+  "attack_spec_id": "8d15422d-f111-5c7e-96eb-e704767e6218",
+  "stage": "done",
+  "status": "below_min",
   "threshold_kind": "relative_drop",
   "threshold": 0.2,
-  "confidence_interval": null,
-  "near_threshold": false,
-  "status": "below_min",
+  "class_filter": null,
+  "metric_kind": "map50",
   "breaking_point": null,
   "bracket": [
-    0,
-    0.5
+    2,
+    2
   ],
+  "confidence_interval": null,
+  "near_threshold": false,
+  "max_points": 17,
+  "points_used": 5,
+  "message": null,
   "trajectory": [
     {
       "order": 0,
-      "level": 0.5,
+      "level": 2,
       "scope": "subset",
-      "drop": 0.41,
-      "run_id": "3e815bb4-98a5-51e4-b0f3-5379af8ad267"
+      "drop": 0.904,
+      "drop_ci": null,
+      "synthetic": false,
+      "run_id": "de219e60-933f-5482-8d49-065c63af1c74"
     },
     {
       "order": 1,
-      "level": 0.5,
+      "level": 12,
+      "scope": "subset",
+      "drop": 0.981,
+      "drop_ci": null,
+      "synthetic": false,
+      "run_id": "1efb5078-3b5e-5790-a73b-66fac856e4e0"
+    },
+    {
+      "order": 2,
+      "level": 22,
+      "scope": "subset",
+      "drop": 0.989,
+      "drop_ci": null,
+      "synthetic": false,
+      "run_id": "8a44f59a-2e0f-59fc-82fd-cf8b58045428"
+    },
+    {
+      "order": 3,
+      "level": 32,
+      "scope": "subset",
+      "drop": 0.992,
+      "drop_ci": null,
+      "synthetic": false,
+      "run_id": "6852de67-fd8a-56bb-bd0f-c2b66a672f00"
+    },
+    {
+      "order": 4,
+      "level": 2,
       "scope": "full",
-      "drop": 0.39,
-      "run_id": "4f05f045-3adc-5607-a6a1-bd772249dfee"
+      "drop": 0.897,
+      "drop_ci": [
+        0.871,
+        0.92
+      ],
+      "synthetic": false,
+      "run_id": "e2ac3d30-9f39-5caa-ade7-48b4bc806994"
     }
   ]
 }

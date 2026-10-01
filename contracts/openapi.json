@@ -4147,12 +4147,82 @@
         ]
       }
     },
+    "/internal/worker/experiments/{experiment_id}/runs": {
+      "post": {
+        "tags": [
+          "internal-worker"
+        ],
+        "summary": "Create Search Run",
+        "description": "Tạo run `queued` cho điểm tìm ngưỡng kế tiếp (Phase 7). Vi phạm (attack không ở chế độ tìm\nngưỡng, level ngoài `[lo, hi]`, vượt `max_points`) trả `422`, không `409`.",
+        "operationId": "create_search_run_internal_worker_experiments__experiment_id__runs_post",
+        "security": [
+          {
+            "workerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchRunCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BundleRun"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/internal/worker/experiments/{experiment_id}/search-result": {
       "post": {
         "tags": [
           "internal-worker"
         ],
         "summary": "Submit Search Result",
+        "description": "SearchResult tạm thời sau mỗi điểm, hoặc kết quả cuối (Phase 7).",
         "operationId": "submit_search_result_internal_worker_experiments__experiment_id__search_result_post",
         "security": [
           {
@@ -4176,19 +4246,14 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SearchResult"
+                "$ref": "#/components/schemas/SearchResultReport"
               }
             }
           }
         },
         "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
+          "204": {
+            "description": "Successful Response"
           },
           "501": {
             "description": "Chưa cài đặt",
@@ -5136,6 +5201,23 @@
             ],
             "title": "Patch Key",
             "description": "Phase 6: khóa patch với run patch (có trong bundle.patches)"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/EvalScope",
+            "description": "Phase 7: subset khi run đánh giá tập con của tìm ngưỡng"
+          },
+          "search_order": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search Order",
+            "description": "Phase 7: thứ tự điểm của run tìm ngưỡng; null với run quét lưới"
           }
         },
         "additionalProperties": false,
@@ -5554,6 +5636,20 @@
               }
             ],
             "title": "Attacked Ap50"
+          },
+          "attack_success_rate": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attack Success Rate",
+            "description": "Phase 7: ASR chỉ tính object của class này (ngưỡng có class_filter); null khi không có object nào của class được detect đúng trên ảnh sạch, hoặc run trước Phase 7"
           }
         },
         "additionalProperties": false,
@@ -6137,8 +6233,8 @@
               "$ref": "#/components/schemas/EstimateRun"
             },
             "type": "array",
-            "minItems": 1,
-            "title": "Runs"
+            "title": "Runs",
+            "description": "Run quét lưới; rỗng được khi mọi attack ở chế độ tìm ngưỡng (Phase 7)"
           },
           "total_seconds": {
             "anyOf": [
@@ -6169,6 +6265,33 @@
           },
           "queue": {
             "$ref": "#/components/schemas/QueueEstimate"
+          },
+          "searches": {
+            "items": {
+              "$ref": "#/components/schemas/SearchEstimate"
+            },
+            "type": "array",
+            "title": "Searches",
+            "description": "Phase 7: mỗi attack tìm ngưỡng một dòng"
+          },
+          "max_total_seconds": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Total Seconds",
+            "description": "Phase 7: total_seconds + tổng max_seconds; null khi không có attack tìm ngưỡng, hoặc có run hay search thiếu ước lượng"
+          },
+          "max_exceeds_limit": {
+            "type": "boolean",
+            "title": "Max Exceeds Limit",
+            "description": "Phase 7: tổng ước lượng được của trường hợp xấu nhất (run quét lưới và max_seconds) lớn hơn giới hạn thời gian; chỉ cảnh báo, không chặn tạo experiment",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -6262,6 +6385,15 @@
           "skip_reason"
         ],
         "title": "EstimateRun"
+      },
+      "EvalScope": {
+        "type": "string",
+        "enum": [
+          "full",
+          "subset"
+        ],
+        "title": "EvalScope",
+        "description": "Tập ảnh mà run đánh giá (Phase 7)."
       },
       "ExperimentClone": {
         "properties": {
@@ -6629,7 +6761,15 @@
             },
             "type": "array",
             "title": "Attack Ranking",
-            "description": "Phase 6: mỗi attack của config một dòng, giảm dần theo auc_drop, null xếp cuối"
+            "description": "Phase 6: mỗi attack quét lưới của config một dòng (Phase 7: không gồm attack tìm ngưỡng), giảm dần theo auc_drop, null xếp cuối"
+          },
+          "search_results": {
+            "items": {
+              "$ref": "#/components/schemas/SearchResult"
+            },
+            "type": "array",
+            "title": "Search Results",
+            "description": "Phase 7: SearchResult mới nhất của từng attack tìm ngưỡng đã có điểm (cập nhật khi đang chạy)"
           }
         },
         "additionalProperties": false,
@@ -7151,6 +7291,19 @@
             ],
             "title": "Patch Key",
             "description": "Phase 6: khóa patch (compute_patch_key) với run patch; bỏ khỏi JSON khi null nên fingerprint của run khác không đổi"
+          },
+          "eval_image_ids_sha256": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eval Image Ids Sha256",
+            "description": "Phase 7: sha256 (canonical_json) của danh sách image_id đã sắp xếp mà run đánh giá, chỉ khi đánh giá trên tập con; null với run toàn slice (bỏ khỏi JSON) để điểm toàn slice trúng cache của run quét lưới"
           }
         },
         "additionalProperties": false,
@@ -7754,16 +7907,15 @@
           "class_filter": {
             "anyOf": [
               {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
+                "type": "string",
+                "minLength": 1
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Class Filter"
+            "title": "Class Filter",
+            "description": "Một class đích; cùng kiểu với SearchConfig.class_filter (Phase 7) để Phase 8 điền cấu hình tìm ngưỡng từ protocol"
           }
         },
         "additionalProperties": false,
@@ -8698,6 +8850,36 @@
             "title": "Cached From Run Id",
             "description": "Run gốc khi status = skipped với code = cached (Phase 3)"
           },
+          "scope": {
+            "$ref": "#/components/schemas/EvalScope",
+            "description": "Phase 7: tập ảnh được đánh giá; subset chỉ có ở run của tìm ngưỡng"
+          },
+          "search_order": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search Order",
+            "description": "Phase 7: thứ tự điểm trong lần tìm ngưỡng của attack (TrajectoryPoint.order); null với run quét lưới"
+          },
+          "predictions_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]*(/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Predictions Key",
+            "description": "Phase 7: khóa file prediction theo ảnh trong runs/<run_id>/ (bootstrap); null khi chưa có metric hoặc run trước Phase 7"
+          },
           "fingerprint": {
             "type": "string",
             "pattern": "^[0-9a-f]{64}$",
@@ -8819,6 +9001,36 @@
             ],
             "title": "Cached From Run Id",
             "description": "Run gốc khi status = skipped với code = cached (Phase 3)"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/EvalScope",
+            "description": "Phase 7: tập ảnh được đánh giá; subset chỉ có ở run của tìm ngưỡng"
+          },
+          "search_order": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search Order",
+            "description": "Phase 7: thứ tự điểm trong lần tìm ngưỡng của attack (TrajectoryPoint.order); null với run quét lưới"
+          },
+          "predictions_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]*(/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Predictions Key",
+            "description": "Phase 7: khóa file prediction theo ảnh trong runs/<run_id>/ (bootstrap); null khi chưa có metric hoặc run trước Phase 7"
           },
           "fingerprint": {
             "type": "string",
@@ -9061,6 +9273,36 @@
             "title": "Cached From Run Id",
             "description": "Run gốc khi status = skipped với code = cached (Phase 3)"
           },
+          "scope": {
+            "$ref": "#/components/schemas/EvalScope",
+            "description": "Phase 7: tập ảnh được đánh giá; subset chỉ có ở run của tìm ngưỡng"
+          },
+          "search_order": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search Order",
+            "description": "Phase 7: thứ tự điểm trong lần tìm ngưỡng của attack (TrajectoryPoint.order); null với run quét lưới"
+          },
+          "predictions_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]*(/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Predictions Key",
+            "description": "Phase 7: khóa file prediction theo ảnh trong runs/<run_id>/ (bootstrap); null khi chưa có metric hoặc run trước Phase 7"
+          },
           "fingerprint": {
             "anyOf": [
               {
@@ -9124,7 +9366,10 @@
           },
           "threshold": {
             "type": "number",
-            "title": "Threshold"
+            "maximum": 1.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Threshold",
+            "description": "relative_drop, attack_success_rate: (0, 1]; absolute_drop: (0, mAP sạch]"
           },
           "lo": {
             "type": "number",
@@ -9137,31 +9382,44 @@
           "tol": {
             "type": "number",
             "exclusiveMinimum": 0.0,
-            "title": "Tol"
+            "title": "Tol",
+            "description": "Độ rộng khoảng khi dừng chia đôi; wizard mặc định (hi - lo) / 256. Tham số rời rạc chia đôi theo chỉ số nên không dùng tol"
           },
           "coarse_n": {
             "type": "integer",
-            "exclusiveMinimum": 0.0,
-            "title": "Coarse N"
+            "maximum": 8.0,
+            "minimum": 3.0,
+            "title": "Coarse N",
+            "description": "Số level quét thô",
+            "default": 4
           },
           "subset_size": {
             "type": "integer",
-            "exclusiveMinimum": 0.0,
-            "title": "Subset Size"
+            "minimum": 2.0,
+            "title": "Subset Size",
+            "description": "Số ảnh của tập con; wizard cảnh báo khi dưới 20",
+            "default": 100
           },
           "class_filter": {
             "anyOf": [
               {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
+                "type": "string",
+                "minLength": 1
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Class Filter"
+            "title": "Class Filter",
+            "description": "Một class đích của mapping; null là mọi class"
+          },
+          "bootstrap_samples": {
+            "type": "integer",
+            "maximum": 1000.0,
+            "minimum": 0.0,
+            "title": "Bootstrap Samples",
+            "description": "Số mẫu bootstrap; 0 là không tính khoảng tin cậy",
+            "default": 200
           }
         },
         "additionalProperties": false,
@@ -9171,11 +9429,60 @@
           "threshold",
           "lo",
           "hi",
-          "tol",
-          "coarse_n",
-          "subset_size"
+          "tol"
         ],
-        "title": "SearchConfig"
+        "title": "SearchConfig",
+        "description": "Cấu hình tự tìm ngưỡng (Phase 7, requirements.md mục Behaviour).\n\nKiểm tra phụ thuộc spec, slice và mapping (`lo`, `hi` trong dải của spec; `subset_size` không\nquá số ảnh slice; `absolute_drop` không quá mAP sạch; `class_filter` là class đích) ở backend."
+      },
+      "SearchEstimate": {
+        "properties": {
+          "attack_spec_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Attack Spec Id"
+          },
+          "max_points": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Max Points",
+            "description": "max_subset_points + max_full_points"
+          },
+          "max_subset_points": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Max Subset Points",
+            "description": "0 khi slice không lớn hơn subset_size"
+          },
+          "max_full_points": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Max Full Points"
+          },
+          "max_seconds": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Seconds",
+            "description": "(max_subset_points * subset_size + max_full_points * số ảnh slice) * sec_per_image * 1.2; null khi thiếu profile"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "attack_spec_id",
+          "max_points",
+          "max_subset_points",
+          "max_full_points",
+          "max_seconds"
+        ],
+        "title": "SearchEstimate",
+        "description": "Chi phí tối đa của một attack tìm ngưỡng (Phase 7)."
       },
       "SearchResult": {
         "properties": {
@@ -9195,15 +9502,51 @@
             "format": "uuid",
             "title": "Attack Spec Id"
           },
+          "stage": {
+            "$ref": "#/components/schemas/SearchStage"
+          },
           "status": {
-            "$ref": "#/components/schemas/SearchStatus"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SearchStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null khi và chỉ khi stage khác done"
           },
           "threshold_kind": {
             "$ref": "#/components/schemas/ThresholdKind"
           },
           "threshold": {
             "type": "number",
+            "maximum": 1.0,
+            "exclusiveMinimum": 0.0,
             "title": "Threshold"
+          },
+          "class_filter": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Class Filter"
+          },
+          "metric_kind": {
+            "type": "string",
+            "enum": [
+              "map50",
+              "class_ap50",
+              "asr",
+              "class_asr"
+            ],
+            "title": "Metric Kind",
+            "description": "map50: mAP@0.5; class_ap50: AP@0.5 của class_filter; asr: ASR mọi object; class_asr: ASR object của class_filter. Suy từ threshold_kind và class_filter"
           },
           "breaking_point": {
             "anyOf": [
@@ -9214,7 +9557,8 @@
                 "type": "null"
               }
             ],
-            "title": "Breaking Point"
+            "title": "Breaking Point",
+            "description": "Có khi và chỉ khi status là found hoặc non_monotonic (= bracket[1])"
           },
           "bracket": {
             "prefixItems": [
@@ -9251,12 +9595,37 @@
               }
             ],
             "title": "Confidence Interval",
-            "description": "null nếu chưa tính bootstrap"
+            "description": "Khoảng tin cậy 95% của điểm gãy; null nếu chưa tính bootstrap"
           },
           "near_threshold": {
             "type": "boolean",
             "title": "Near Threshold",
-            "description": "Khoảng tin cậy bao trùm ngưỡng"
+            "description": "Khoảng tin cậy của d(b) có cận dưới < ngưỡng, hoặc của d(a) có cận trên >= ngưỡng; false khi chưa tính bootstrap"
+          },
+          "max_points": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Max Points",
+            "description": "Giới hạn trên số run (ml_core/search/bounds.py)"
+          },
+          "points_used": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Points Used",
+            "description": "Số điểm đã đánh giá (không gồm synthetic)"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message",
+            "description": "Có khi và chỉ khi status = failed"
           },
           "trajectory": {
             "items": {
@@ -9271,14 +9640,90 @@
         "required": [
           "experiment_id",
           "attack_spec_id",
+          "stage",
           "status",
           "threshold_kind",
           "threshold",
+          "class_filter",
+          "metric_kind",
           "bracket",
           "near_threshold",
+          "max_points",
+          "points_used",
           "trajectory"
         ],
-        "title": "SearchResult"
+        "title": "SearchResult",
+        "description": "Kết quả tìm ngưỡng của một attack (Phase 7).\n\nWorker gửi bản tạm thời sau mỗi điểm (`stage` khác `done`, `status` null) và bản cuối\n(`stage = done`) kèm bootstrap. `bracket` là khoảng hiện tại, kể cả khi dừng giữa chừng."
+      },
+      "SearchResultReport": {
+        "properties": {
+          "lease_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Lease Id"
+          },
+          "result": {
+            "$ref": "#/components/schemas/SearchResult"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "lease_id",
+          "result"
+        ],
+        "title": "SearchResultReport",
+        "description": "Body của `POST /internal/worker/experiments/{id}/search-result` (Phase 7): bản tạm thời sau\nmỗi điểm, bản cuối khi xong. Bản sau thay bản trước của cùng attack."
+      },
+      "SearchRunCreate": {
+        "properties": {
+          "lease_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Lease Id"
+          },
+          "attack_spec_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Attack Spec Id"
+          },
+          "level": {
+            "type": "number",
+            "title": "Level"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/EvalScope"
+          },
+          "search_order": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Search Order",
+            "description": "Bằng TrajectoryPoint.order của điểm này"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "lease_id",
+          "attack_spec_id",
+          "level",
+          "scope",
+          "search_order"
+        ],
+        "title": "SearchRunCreate",
+        "description": "Body của `POST /internal/worker/experiments/{id}/runs` (Phase 7): tạo run cho điểm tìm\nngưỡng kế tiếp. Trả `BundleRun` (`queued`). API trả `422` (không `409`) khi attack không ở\nchế độ tìm ngưỡng, level ngoài `[lo, hi]` hoặc vượt `max_points`."
+      },
+      "SearchStage": {
+        "type": "string",
+        "enum": [
+          "coarse",
+          "bisect_subset",
+          "confirm",
+          "bisect_full",
+          "done"
+        ],
+        "title": "SearchStage",
+        "description": "Giai đoạn của một lần tìm ngưỡng (Phase 7, requirements.md mục Thuật toán)."
       },
       "SearchStatus": {
         "type": "string",
@@ -9287,7 +9732,8 @@
           "not_reached",
           "below_min",
           "stopped_limit",
-          "non_monotonic"
+          "non_monotonic",
+          "failed"
         ],
         "title": "SearchStatus"
       },
@@ -9611,19 +10057,15 @@
           "order": {
             "type": "integer",
             "minimum": 0.0,
-            "title": "Order"
+            "title": "Order",
+            "description": "Thứ tự đánh giá, bắt đầu từ 0, liên tục"
           },
           "level": {
             "type": "number",
             "title": "Level"
           },
           "scope": {
-            "type": "string",
-            "enum": [
-              "subset",
-              "full"
-            ],
-            "title": "Scope"
+            "$ref": "#/components/schemas/EvalScope"
           },
           "drop": {
             "anyOf": [
@@ -9634,12 +10076,49 @@
                 "type": "null"
               }
             ],
-            "title": "Drop"
+            "title": "Drop",
+            "description": "Đại lượng so với ngưỡng (theo metric_kind); null khi run không có metric"
+          },
+          "drop_ci": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 2,
+                "minItems": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drop Ci",
+            "description": "Phase 7: khoảng tin cậy bootstrap 95%; chỉ điểm toàn slice, null khi chưa tính hoặc bootstrap_samples = 0"
+          },
+          "synthetic": {
+            "type": "boolean",
+            "title": "Synthetic",
+            "description": "Phase 7: level \"không biến đổi\" của spec (eps = 0, tỉ lệ che = 0): drop = 0 theo định nghĩa, không chạy, không có run",
+            "default": false
           },
           "run_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Run Id"
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id",
+            "description": "null khi và chỉ khi synthetic"
           }
         },
         "additionalProperties": false,
@@ -9925,9 +10404,8 @@
               "$ref": "#/components/schemas/BundleRun"
             },
             "type": "array",
-            "minItems": 1,
             "title": "Runs",
-            "description": "Theo thứ tự chạy"
+            "description": "Theo thứ tự chạy: run quét lưới trước, rồi run tìm ngưỡng đã tạo (Phase 7). Rỗng được khi mọi attack ở chế độ tìm ngưỡng và chưa có điểm nào"
           },
           "training_slices": {
             "items": {
@@ -9944,6 +10422,14 @@
             "type": "array",
             "title": "Patches",
             "description": "Phase 6: patch mà các run patch cần, không trùng key"
+          },
+          "search_results": {
+            "items": {
+              "$ref": "#/components/schemas/SearchResult"
+            },
+            "type": "array",
+            "title": "Search Results",
+            "description": "Phase 7: SearchResult mới nhất của từng attack tìm ngưỡng đã có điểm; worker chạy lại thuật toán theo trajectory để tiếp tục đúng giai đoạn sau gián đoạn"
           }
         },
         "additionalProperties": false,

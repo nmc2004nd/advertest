@@ -1,0 +1,319 @@
+{
+  "$defs": {
+    "EvalScope": {
+      "description": "Tập ảnh mà run đánh giá (Phase 7).",
+      "enum": [
+        "full",
+        "subset"
+      ],
+      "title": "EvalScope",
+      "type": "string"
+    },
+    "SearchResult": {
+      "additionalProperties": false,
+      "description": "Kết quả tìm ngưỡng của một attack (Phase 7).\n\nWorker gửi bản tạm thời sau mỗi điểm (`stage` khác `done`, `status` null) và bản cuối\n(`stage = done`) kèm bootstrap. `bracket` là khoảng hiện tại, kể cả khi dừng giữa chừng.",
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "experiment_id": {
+          "format": "uuid",
+          "title": "Experiment Id",
+          "type": "string"
+        },
+        "attack_spec_id": {
+          "format": "uuid",
+          "title": "Attack Spec Id",
+          "type": "string"
+        },
+        "stage": {
+          "$ref": "#/$defs/SearchStage"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SearchStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null khi và chỉ khi stage khác done"
+        },
+        "threshold_kind": {
+          "$ref": "#/$defs/ThresholdKind"
+        },
+        "threshold": {
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Threshold",
+          "type": "number"
+        },
+        "class_filter": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Class Filter"
+        },
+        "metric_kind": {
+          "description": "map50: mAP@0.5; class_ap50: AP@0.5 của class_filter; asr: ASR mọi object; class_asr: ASR object của class_filter. Suy từ threshold_kind và class_filter",
+          "enum": [
+            "map50",
+            "class_ap50",
+            "asr",
+            "class_asr"
+          ],
+          "title": "Metric Kind",
+          "type": "string"
+        },
+        "breaking_point": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Có khi và chỉ khi status là found hoặc non_monotonic (= bracket[1])",
+          "title": "Breaking Point"
+        },
+        "bracket": {
+          "description": "Khoảng hiện tại, kể cả khi dừng giữa chừng",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Bracket",
+          "type": "array"
+        },
+        "confidence_interval": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Khoảng tin cậy 95% của điểm gãy; null nếu chưa tính bootstrap",
+          "title": "Confidence Interval"
+        },
+        "near_threshold": {
+          "description": "Khoảng tin cậy của d(b) có cận dưới < ngưỡng, hoặc của d(a) có cận trên >= ngưỡng; false khi chưa tính bootstrap",
+          "title": "Near Threshold",
+          "type": "boolean"
+        },
+        "max_points": {
+          "description": "Giới hạn trên số run (ml_core/search/bounds.py)",
+          "exclusiveMinimum": 0,
+          "title": "Max Points",
+          "type": "integer"
+        },
+        "points_used": {
+          "description": "Số điểm đã đánh giá (không gồm synthetic)",
+          "minimum": 0,
+          "title": "Points Used",
+          "type": "integer"
+        },
+        "message": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Có khi và chỉ khi status = failed",
+          "title": "Message"
+        },
+        "trajectory": {
+          "items": {
+            "$ref": "#/$defs/TrajectoryPoint"
+          },
+          "title": "Trajectory",
+          "type": "array"
+        }
+      },
+      "required": [
+        "experiment_id",
+        "attack_spec_id",
+        "stage",
+        "status",
+        "threshold_kind",
+        "threshold",
+        "class_filter",
+        "metric_kind",
+        "bracket",
+        "near_threshold",
+        "max_points",
+        "points_used",
+        "trajectory"
+      ],
+      "title": "SearchResult",
+      "type": "object"
+    },
+    "SearchStage": {
+      "description": "Giai đoạn của một lần tìm ngưỡng (Phase 7, requirements.md mục Thuật toán).",
+      "enum": [
+        "coarse",
+        "bisect_subset",
+        "confirm",
+        "bisect_full",
+        "done"
+      ],
+      "title": "SearchStage",
+      "type": "string"
+    },
+    "SearchStatus": {
+      "enum": [
+        "found",
+        "not_reached",
+        "below_min",
+        "stopped_limit",
+        "non_monotonic",
+        "failed"
+      ],
+      "title": "SearchStatus",
+      "type": "string"
+    },
+    "ThresholdKind": {
+      "enum": [
+        "relative_drop",
+        "absolute_drop",
+        "attack_success_rate"
+      ],
+      "title": "ThresholdKind",
+      "type": "string"
+    },
+    "TrajectoryPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "order": {
+          "description": "Thứ tự đánh giá, bắt đầu từ 0, liên tục",
+          "minimum": 0,
+          "title": "Order",
+          "type": "integer"
+        },
+        "level": {
+          "title": "Level",
+          "type": "number"
+        },
+        "scope": {
+          "$ref": "#/$defs/EvalScope"
+        },
+        "drop": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Đại lượng so với ngưỡng (theo metric_kind); null khi run không có metric",
+          "title": "Drop"
+        },
+        "drop_ci": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Phase 7: khoảng tin cậy bootstrap 95%; chỉ điểm toàn slice, null khi chưa tính hoặc bootstrap_samples = 0",
+          "title": "Drop Ci"
+        },
+        "synthetic": {
+          "default": false,
+          "description": "Phase 7: level \"không biến đổi\" của spec (eps = 0, tỉ lệ che = 0): drop = 0 theo định nghĩa, không chạy, không có run",
+          "title": "Synthetic",
+          "type": "boolean"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null khi và chỉ khi synthetic",
+          "title": "Run Id"
+        }
+      },
+      "required": [
+        "order",
+        "level",
+        "scope",
+        "drop",
+        "run_id"
+      ],
+      "title": "TrajectoryPoint",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Body của `POST /internal/worker/experiments/{id}/search-result` (Phase 7): bản tạm thời sau\nmỗi điểm, bản cuối khi xong. Bản sau thay bản trước của cùng attack.",
+  "properties": {
+    "lease_id": {
+      "format": "uuid",
+      "title": "Lease Id",
+      "type": "string"
+    },
+    "result": {
+      "$ref": "#/$defs/SearchResult"
+    }
+  },
+  "required": [
+    "lease_id",
+    "result"
+  ],
+  "title": "SearchResultReport",
+  "type": "object"
+}
