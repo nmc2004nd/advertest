@@ -27,7 +27,7 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 - Kickoff (người dùng chốt, đã ghi vào spec Phase 7): vượt `max_points` trả `422`; `MAX_RUNS = 50` tính cả `max_points`; chi phí tối đa là trường riêng, chỉ cảnh báo; `tol` mặc định (hi − lo)/256; `subset_size` ≥ 2; `class_filter` một class. Bổ sung độ phủ: xếp hạng, `ordinal`, `early_stop`, migration `0008`, nháp wizard cũ, `failed`, hủy, hiển thị `below_min`.
 - Group 0 (người duyệt tự chọn, ghi vào `requirements.md` mục "Chi tiết chốt ở Group 0"): `SearchResult` tạm thời có `status = null` và `stage`; worker dựng lại trạng thái tìm kiếm từ `trajectory` (không có checkpoint riêng); `search-result` mang `lease_id`; ASR theo class trong `ClassRunMetrics`; `metric_kind` 4 giá trị. `tech-stack.md` mục 3.3 và 4.3 thêm `failed`.
 #### Số liệu
-- `make test` (1184 test Python, 232 Vitest), `make test-acceptance` (264 test), lint, mypy, `tsc` pass. Ước lượng của mock (cost profile mock 1.229 s/ảnh): PGD tối đa 20 điểm, khoảng 93 phút.
+- `make test` (1184 test Python, 232 Vitest), `make test-acceptance` (264 test), `make test-db` (386 test), lint, mypy, `tsc`, `contracts-check`, `verify:build` pass. Ước lượng của mock (cost profile mock 1.229 s/ảnh): PGD tối đa 20 điểm, khoảng 93 phút.
 #### Lưu ý
 - Group 0 do agent làm thay người duyệt theo ủy quyền của người dùng; không độc lập.
 
