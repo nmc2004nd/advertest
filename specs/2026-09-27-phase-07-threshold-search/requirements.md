@@ -99,6 +99,12 @@ Ký hiệu `d(x, S)` là mức sụt ở level `x` trên tập ảnh `S`.
 - `drop_ci` của mỗi điểm và `confidence_interval` của điểm gãy là phân vị 2.5% và 97.5%.
 - `near_threshold = true` khi khoảng tin cậy của `d(b)` có cận dưới nhỏ hơn ngưỡng, hoặc khoảng tin cậy của `d(a)` có cận trên từ ngưỡng trở lên.
 - Seed của bootstrap lấy từ `seed` của attack để kết quả tái lập được.
+- **Chốt ở Group 2** (kế hoạch và review):
+  - Mẫu không cắt ngưỡng được cắt về biên: luôn dưới ngưỡng → level toàn slice lớn nhất; gãy ngay ở điểm toàn slice thấp nhất → level thấp nhất. Không bỏ mẫu nào vì lý do này.
+  - Mẫu có đại lượng không tính được (NaN, ví dụ mẫu không còn object đúng của class) bị bỏ khỏi `drop_ci` của điểm đó, và bỏ khỏi khoảng tin cậy của điểm gãy.
+  - `confidence_interval` của điểm gãy chỉ có khi `found` hoặc `non_monotonic`; trạng thái khác là null (`drop_ci` của từng điểm vẫn có).
+  - `near_threshold`: `found`/`non_monotonic` theo quy tắc trên; `not_reached` chỉ xét `d(hi)` (cận trên KTC ≥ ngưỡng); `below_min` chỉ xét `d(lo)` (cận dưới KTC < ngưỡng); trạng thái khác là `false`.
+  - Bộ sinh số: `sha256(canonical_json({"purpose": "bootstrap", "seed": seed}))`; một mẫu dùng chung cho mọi điểm toàn slice.
 
 ### Trạng thái
 | Tình huống | `SearchStatus` | `bracket` |
