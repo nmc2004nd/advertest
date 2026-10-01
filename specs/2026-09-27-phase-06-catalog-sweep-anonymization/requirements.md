@@ -164,6 +164,25 @@ Mọi spec corruption và occlusion có `requires_gradients = false`, `access = 
 - **Làm mờ cả ảnh thứ ba** (kickoff). *Lý do:* |δ| của corruption (ví dụ `contrast`, `fog`) gần như tái hiện nguyên cảnh (`mission.md` nguyên tắc 9).
 - **E2E dùng seed `adv_patch` với `max_iter = 4`** (kickoff). *Lý do:* thấy được giai đoạn train mà vẫn chạy nhanh trên CPU; catalog E2E vẫn đủ 10 spec (chỉ khác `spec_sha256` của patch).
 
+### Quyết định khi implement (ghi ở Group 7, nguồn: CHANGELOG Phase 6)
+- **Corruption dùng bản vá nội bộ của imagecorruptions 1.1.2** (Group 1, `attacks/corruptions/`, giữ LICENSE và tham số gốc). *Lý do:* bản 1.1.2 cần `pkg_resources` và `fog` dùng `np.float_` (lỗi với numpy 2). Tham số gốc cho `fog` mức 3 và 4 cùng cường độ nên mức khác biệt không tăng chặt giữa hai mức này (Group 7).
+- **Occlusion không tô pixel chạm ignore region; target có `image_id` và `ignore_boxes`** (Group 1, 3). Target thiếu `boxes` thì báo lỗi; mảng rỗng là ảnh không có object.
+- **Hình học patch** (Group 2): khi train, cạnh và vị trí patch theo phần giao vùng ảnh thật của slice huấn luyện; khi đánh giá, patch đặt ở tâm vùng ảnh thật của từng ảnh. Giá trị mục tiêu là loss của detector trên ảnh đã dán patch.
+- **Không dừng sớm khi mAP@0.5 sạch bằng 0** (Group 3). *Lý do:* không đánh giá được mức sụt.
+- **Vùng làm mờ dùng prediction thô mọi class của model; làm mờ luôn áp cho case mới, không phụ thuộc `datasets.anonymized`** (Group 4).
+- **Quy tắc hiển thị** (Group 5, Group 7 sửa test Phase 5): case đã làm mờ luôn `normal`, kể cả khi bật `DEV_ALLOW_UNBLURRED`; quy tắc ẩn ảnh và cờ dev của Phase 5 chỉ còn áp cho case cũ chưa làm mờ. `FailureCaseView.artifacts` là null khi và chỉ khi ảnh bị ẩn (đề xuất contract 002).
+- **API nội bộ của patch và dừng sớm** (Group 5, review):
+  - patch đã đăng ký chỉ đọc: `artifact-url` cấp `GET` trong `patches/<key>/`, riêng `DELETE` trong `checkpoints/` (worker xóa checkpoint cuối sau khi đăng ký);
+  - `skip`: run không ở `queued` → 409; attack tắt `grid.early_stop`, hoặc `trigger_run_id` không phải run kích hoạt theo `ml_core.runner.grid.early_stop` (level nhỏ nhất đã sụp, metric đầy đủ) → 422.
+- **Ước lượng thiếu `sec_per_image_iteration`** (Group 5, review): patch cần train mà profile chưa đo thời gian train thì run đó coi như thiếu profile (`total_seconds = null`, attack vào `missing_profiles`).
+- **Wizard** (Group 6):
+  - một công tắc dừng sớm chung cho mọi attack; nhân bản cấu hình có attack bật và attack tắt (chỉ tạo được qua API) thì công tắc tắt, kèm ghi chú;
+  - `early_stop` chỉ gửi trong body khi tắt (bật thì body như Phase 5, cùng `config_sha256`);
+  - không tự chọn slice huấn luyện khi chỉ có một ứng viên; đổi slice đánh giá hoặc dataset version thì chọn lại;
+  - preset "Toàn bộ catalog" dùng bộ level gợi ý của Phase 5, riêng spec cần train dùng 0.1 và 0.25 (43 run với catalog hiện tại).
+- **Trục hoành chuẩn hóa áp cho biểu đồ từng attack** (Group 6): miền cố định 0–100%, `level / param_max` (đề xuất contract 003), không thêm biểu đồ gộp.
+- **Calibration đo trên batch có `image_id`** (Group 7): như `RunExecutor`, để corruption và occlusion đo được trên máy chưa có cost profile.
+
 ## Context
 
 - `mission.md` nguyên tắc 4 (tái lập), 5 (chi phí), 9 (riêng tư); mục 5 (phạm vi: thời tiết, che khuất, patch).

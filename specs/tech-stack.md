@@ -69,7 +69,7 @@ Quy tắc kiến trúc:
 |---|---|
 | Thư viện attack | Adversarial Robustness Toolbox (ART) |
 | White-box | `FastGradientMethod` (FGSM), `ProjectedGradientDescent` (L∞, L2), `AdversarialPatchPyTorch` hoặc `RobustDPatch` |
-| Corruption | `imagecorruptions`; dùng `albumentations` nếu gặp lỗi tương thích |
+| Corruption | Bản vá nội bộ của `imagecorruptions` 1.1.2 trong `attacks/corruptions/` (giữ LICENSE và tham số gốc; bản gốc cần `pkg_resources` và dùng `np.float_`, Phase 6) |
 | Occlusion | Tự viết, che theo tỷ lệ diện tích bounding box |
 
 ### 3.1. Interface chung (bắt buộc)

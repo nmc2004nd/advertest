@@ -65,7 +65,12 @@ def measure(
     """Attack + predict một batch gồm `image_ids`."""
     loaded = [loader.load(image_id) for image_id in image_ids]
     images = np.stack([item[0] for item in loaded])
-    targets = [item[1] for item in loaded]
+    # Như `RunExecutor.process_batch` (Phase 6, plan task 15a): `image_id` cho seed theo ảnh của
+    # corruption và occlusion, `ignore_boxes` cho occlusion.
+    targets = [
+        {**target, "image_id": image_id, "ignore_boxes": ignore["boxes"]}
+        for image_id, (_, target, ignore, _) in zip(image_ids, loaded, strict=True)
+    ]
     mask = letterbox_mask([item[3] for item in loaded])
     if _is_cuda(device):
         torch.cuda.reset_peak_memory_stats(device)

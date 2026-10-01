@@ -8,6 +8,27 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 **Trạng thái:** đang làm. Group 0 xong (chờ merge).
 
+### Phase 6 — Group 7 (người duyệt) — 2026-10-01
+#### Thêm
+- `scripts/e2e.sh` (task 36a): `adv_patch` nạp với `max_iter = 4`, `checkpoint_every = 2` (cùng tên và version với seed, hash và id tính lại; chỉ trên DB tạm của E2E); slice đánh giá 3 ảnh và slice huấn luyện 2 ảnh không giao (`--exclude-slice`), vẫn giữ slice 5 ảnh của Phase 5.
+- `tests/acceptance/phase_06/` (task 36): dùng lại hạ tầng của Phase 5 (nạp `phase_05/conftest.py` theo đường dẫn, cùng tên module); spec patch `max_iter = 4` riêng của test. 69 test:
+  - thuật toán (không DB): seed theo ảnh, 5 corruption × 5 severity trên ảnh letterbox KITTI, occlusion, hình học và train patch trên YOLOv8n thật, vùng `rule_v1`, làm mờ, metric không đổi khi tắt làm mờ, quy tắc xếp hạng;
+  - với worker CPU thật qua API: thứ tự thô → mịn, dừng sớm từ metric trong bundle (attack không được gọi cho level bị bỏ), `early_stop = false`, 409 khi `skip` run không `queued`, giới hạn sau lượt một, train → đăng ký → dùng lại patch (không train lại), chạy tiếp từ checkpoint sau khi worker chết, chạm giới hạn giữa lúc train, `patch_key` trong fingerprint, ước lượng có `training_seconds`, calibration của spec mới, ảnh trong MinIO đã làm mờ, `display_mode` và view bị ẩn không có khóa, quyền catalog admin;
+  - chung: 7 spec mới hợp lệ, hash 3 spec cũ, fingerprint manifest và `config_sha256` của Phase 5 không đổi (dữ liệu mốc chép từ commit `99c81ff` vào `data/`), roadmap.
+- `frontend/e2e/phase_06/` (task 36), 4 kịch bản × 3 viewport: experiment toàn catalog rút gọn chạy xong rồi xem bảng xếp hạng (thẻ ở 390px), biểu đồ cột, trục chuẩn hóa 0–100%, case fog có dải "Đã làm mờ" và nhãn "Vùng khác biệt"; wizard (nháp v1, preset 10 attack, `adv_patch` 0.1 và 0.25, chặn khi chưa chọn slice huấn luyện, chỉ liệt kê slice không giao, dừng sớm bật mặc định, thời gian train); run patch hiện "Đang train patch (x/4)"; `/admin/attacks` đủ 10 spec, engineer bị chuyển tới `/forbidden`.
+#### Sửa lỗi (phát hiện khi viết test)
+- Worker (vai trò agent worker, người dùng cho phép): batch đo calibration không có `image_id` nên corruption và occlusion ném lỗi; `calibrate` nằm ngoài `try` nên experiment kẹt ở `running` trên máy chưa có cost profile. Nay batch đo có `image_id` và `ignore_boxes` như `RunExecutor`; unit test và test nghiệm thu mới.
+#### Quyết định (người dùng chốt ở Group 7; đã ghi vào spec)
+- `fog` mức 3 và 4 của tham số gốc imagecorruptions cùng cường độ (2.5) nên mức khác biệt không tăng chặt giữa hai mức này; validation sửa: `fog` tăng 1 < 2 < 3, 4 < 5, 2 < 4, 1 < 5; `contrast` tăng ở mọi cặp mức. Đo trên KITTI: mức 4 thấp hơn mức 3 ở 5/6 seed.
+- Task 37–38 (toàn catalog trên KITTI 300 ảnh, kiểm tra làm mờ bằng mắt): máy phát triển không còn KITTI đầy đủ và không có GPU; người dùng tự chạy sau theo hướng dẫn trong báo cáo Group 7.
+- Ghi vào `requirements.md` (mục "Quyết định khi implement") các quyết định của Group 1–7; `validation.md` sửa câu chữ sai số patch (Group 2), thêm mục calibration corruption/occlusion, ghi giới hạn của E2E; `tech-stack.md` (bản vá imagecorruptions); `plan.md` (ml-privacy sửa `executor.py`); `roadmap.md` đánh dấu các mục tính năng.
+#### Ghi nhận
+- E2E không dựng được run `early_stop` trên fixture 3 ảnh: chỉ `bbox_occlusion` 0.9 (level lớn nhất) làm model sụp (0,049 mAP sạch, sát ngưỡng 0,05). Nhãn kiểm bằng Vitest, luồng kiểm bằng test nghiệm thu với worker thật.
+- E2E chỉ kiểm "Đang train patch"; giai đoạn đánh giá 3 ảnh ngắn hơn chu kỳ cập nhật 2 giây của giao diện.
+- Mục "nên sửa" ở `ml_core/metrics/tests/test_ranking.py` (thuộc agent ml-core) vẫn mở.
+#### Số liệu
+- `make test-e2e`: 72 test (60 của Phase 4–5, 12 của Phase 6), 4,5 phút. Test nghiệm thu Phase 6: 69 test, khoảng 1,5 phút trong `make test-db`.
+
 ### Phase 6 — Group 6 (frontend) — 2026-10-01
 #### Thêm
 - Wizard bước 4 (task 30): ba nhóm "Tấn công", "Biến đổi điều kiện", "Che khuất"; spec rời rạc (corruption) chọn severity bằng chip bật/tắt; attack cần train (patch) phải chọn slice huấn luyện từ `GET /slices?disjoint_from=<slice đánh giá>`, lọc cùng dataset version và ≤ `max_training_images` ảnh (chưa chọn thì không sang bước 5; đổi slice đánh giá hoặc dataset version thì chọn lại); nút "Toàn bộ catalog" (mọi spec với bộ level gợi ý, `adv_patch` 0.1 và 0.25: 43 run với catalog hiện tại); công tắc "Dừng sớm khi model đã sụp" bật mặc định (`early_stop` chỉ gửi khi tắt, body như Phase 5 khi bật). Nháp đổi khóa sang `advertest.wizard.v2`; attack trong nháp thiếu trường mới được điền mặc định. Nhân bản giữ slice huấn luyện và dừng sớm.
