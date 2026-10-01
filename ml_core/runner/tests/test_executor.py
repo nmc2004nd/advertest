@@ -485,3 +485,61 @@ def test_third_image_kind_and_content(setup: dict[str, Any]) -> None:
     _run_all(executor, setup, 3)
     cases = executor.finalize(RUN_ID).failure_cases
     assert cases and all(case.perturbation_kind == kind for case in cases)
+
+
+# ---------------------------------------------------------------- Phase 7
+
+
+def test_metrics_have_class_asr(straight: tuple[FinalizedRun, MemStore]) -> None:
+    """Plan task 13a: `finalize` truyền `class_names`, nên có ASR theo class."""
+    finalized, _ = straight
+    assert finalized.metrics.per_class is not None
+    known = [m.attack_success_rate for m in finalized.metrics.per_class.values()]
+    assert any(v is not None for v in known)
+
+
+def test_checkpoint_keeps_class_counts(
+    setup: dict[str, Any], straight: tuple[FinalizedRun, MemStore]
+) -> None:
+    """Plan task 13b: chạy tiếp từ checkpoint (qua JSON) cho cùng ASR theo class."""
+    expected, _ = straight
+    store = MemStore()
+    first = _executor(setup, store)
+    first.process_batch(next(first.batches(setup["runner"].loader, 2)))
+    checkpoint = first.to_checkpoint()
+    stats = next(iter(checkpoint["stats"].values()))
+    assert set(stats) >= {"class_correct", "class_lost"}
+    resumed = _resume(setup, checkpoint, store, 1)
+    assert resumed.finalize(RUN_ID).metrics == expected.metrics
+
+
+def test_old_checkpoint_without_class_counts_still_loads(setup: dict[str, Any]) -> None:
+    store = MemStore()
+    first = _executor(setup, store)
+    first.process_batch(next(first.batches(setup["runner"].loader, 1)))
+    checkpoint = first.to_checkpoint()
+    for stats in checkpoint["stats"].values():
+        stats.pop("class_correct")
+        stats.pop("class_lost")
+    resumed = _resume(setup, checkpoint, store, 2)
+    assert resumed.remaining_ids() == []
+
+
+def test_restricted_context_runs_only_subset(setup: dict[str, Any]) -> None:
+    """Plan task 13: run trên tập con chỉ xử lý ảnh của tập con, mAP sạch tính trên tập con."""
+    context: RunContext = setup["context"]
+    subset = list(reversed(context.image_ids[:2]))
+    restricted = context.restricted(subset)
+    assert restricted.image_ids == context.image_ids[:2]
+    assert restricted.clean_metrics == context.clean_metrics_on(context.image_ids[:2])
+    assert context.restricted(context.image_ids) is context
+    store = MemStore()
+    executor = _executor(setup, store, context=restricted)
+    _run_all(executor, setup, 3)
+    assert executor.images_total == 2 and executor.done == context.image_ids[:2]
+    finalized = executor.finalize(RUN_ID)
+    assert finalized.images_done == 2
+    with pytest.raises(ValueError):
+        context.restricted(["không-có"])
+    with pytest.raises(ValueError):
+        context.restricted([context.image_ids[0], context.image_ids[0]])

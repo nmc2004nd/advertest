@@ -49,9 +49,12 @@ def build_fingerprint_inputs(
     lib_versions: LibVersions,
     docker_image_digest: str,
     patch_key: str | None = None,
+    eval_image_ids_sha256: str | None = None,
 ) -> FingerprintInputs:
     """`patch_key` (Phase 6, plan task 18): khóa patch của run patch; null với run khác (bỏ khỏi
-    JSON nên fingerprint của run khác không đổi)."""
+    JSON nên fingerprint của run khác không đổi). `eval_image_ids_sha256` (Phase 7, plan task 13):
+    chỉ với run trên tập con (`ml_core.search.subset.eval_image_ids_sha256`); null với run toàn
+    slice để điểm toàn slice trúng cache của run quét lưới."""
     level_param: dict[str, Any] = {spec.primary_param.name: level}
     return FingerprintInputs(
         config_sha256=run_config_sha256(spec, level, params, mapping),
@@ -67,6 +70,7 @@ def build_fingerprint_inputs(
         lib_versions=lib_versions,
         docker_image_digest=docker_image_digest,
         patch_key=patch_key,
+        eval_image_ids_sha256=eval_image_ids_sha256,
     )
 
 

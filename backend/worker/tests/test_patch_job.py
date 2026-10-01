@@ -43,7 +43,7 @@ def test_bundle_patch_key_mismatch_fails_before_training() -> None:
     spec = next(s for s in bundle.attack_specs if s.requires_training)
     runner = JobRunner.__new__(JobRunner)
     runner.cache = cast(Any, None)  # không được chạm tới cache (không tải ảnh huấn luyện)
-    job = cast(Any, SimpleNamespace(bundle=tampered))
+    job = cast(Any, SimpleNamespace(bundle=tampered, runs={r.run_id: r for r in tampered.runs}))
     with pytest.raises(ValueError, match="không khớp"):
         runner._patch_perturbation(job, run.run_id, spec, cast(Any, None))
 
@@ -79,18 +79,19 @@ def test_training_seconds_added_to_gpu_seconds() -> None:
                 compute_target_id=None, gpu_model=None, cuda_version=None, driver_version=None
             ),
             ledger=RunLedger(bundle),
+            outcomes={},
         ),
     )
     finish = _Finisher(
         runner,
         job,
-        run.run_id,
+        run,
         spec,
-        run.level,
         manifest.fingerprint,
         manifest.fingerprint_inputs,
         cast(Any, _Store()),
         f"runs/{run.run_id}",
+        images_total=run.images_total,
     )
     finish.extra_seconds = 12.5
     finish.stopped(None)  # dừng giữa lúc train: chưa có executor

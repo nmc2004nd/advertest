@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable, Iterator, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 from uuid import UUID
 
@@ -80,6 +80,17 @@ class RunContext:
 
     def new_metric(self) -> CleanMetric:
         return CleanMetric(self.class_names, self.target_classes, self.params.max_det)
+
+    def restricted(self, image_ids: Sequence[str]) -> RunContext:
+        """Bối cảnh của run chỉ đánh giá một phần slice (tập con của tìm ngưỡng, Phase 7): ảnh theo
+        thứ tự của slice, mAP sạch tính lại trên đúng các ảnh đó."""
+        wanted = set(image_ids)
+        if len(wanted) != len(image_ids) or not wanted <= set(self.image_ids):
+            raise ValueError("Tập ảnh phải là tập con không trùng của slice")
+        ordered = [i for i in self.image_ids if i in wanted]
+        if ordered == self.image_ids:
+            return self
+        return replace(self, image_ids=ordered, clean_metrics=self.clean_metrics_on(ordered))
 
     def clean_metrics_on(self, image_ids: Sequence[str]) -> EvalMetrics:
         metric = self.new_metric()
@@ -165,13 +176,28 @@ def _pred_from_json(data: dict[str, Any]) -> Prediction:
     }
 
 
-def _stats_to_json(stats: ImageAttackStats) -> dict[str, int]:
+def _stats_to_json(stats: ImageAttackStats) -> dict[str, Any]:
+    """Phase 7 (plan task 13b): kèm số đếm theo class (khóa JSON là chuỗi của label)."""
     return {
         "correct": stats.correct,
         "lost": stats.lost,
         "clean_fp": stats.clean_fp,
         "attacked_fp": stats.attacked_fp,
+        "class_correct": {str(k): v for k, v in sorted(stats.class_correct.items())},
+        "class_lost": {str(k): v for k, v in sorted(stats.class_lost.items())},
     }
+
+
+def _stats_from_json(data: dict[str, Any]) -> ImageAttackStats:
+    """Checkpoint trước Phase 7 không có số đếm theo class: để rỗng."""
+    return ImageAttackStats(
+        correct=int(data["correct"]),
+        lost=int(data["lost"]),
+        clean_fp=int(data["clean_fp"]),
+        attacked_fp=int(data["attacked_fp"]),
+        class_correct={int(k): int(v) for k, v in data.get("class_correct", {}).items()},
+        class_lost={int(k): int(v) for k, v in data.get("class_lost", {}).items()},
+    )
 
 
 # ---------------------------------------------------------------- executor
@@ -352,7 +378,9 @@ class RunExecutor:
             [ctx.ignore_boxes[i] for i in ids],
         )
         clean = ctx.clean_metrics_on(ids) if partial else ctx.clean_metrics
-        metrics = build_run_metrics(clean, metric.compute(), [self.stats[i] for i in ids])
+        metrics = build_run_metrics(
+            clean, metric.compute(), [self.stats[i] for i in ids], class_names=ctx.class_names
+        )
         if partial:
             metrics = metrics.model_copy(update={"partial": True})
 
@@ -468,7 +496,7 @@ class RunExecutor:
         )
         executor.done = list(checkpoint["done"])
         executor.predictions = {i: _pred_from_json(p) for i, p in checkpoint["predictions"].items()}
-        executor.stats = {i: ImageAttackStats(**s) for i, s in checkpoint["stats"].items()}
+        executor.stats = {i: _stats_from_json(s) for i, s in checkpoint["stats"].items()}
         executor.top = list(checkpoint["top"])
         executor.offered = list(checkpoint["offered"])
         executor.case_inputs = dict(checkpoint["case_inputs"])
