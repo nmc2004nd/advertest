@@ -86,6 +86,8 @@ class Kitti:
     batch: Batch
     mask: np.ndarray
     targets: list[dict[str, Any]]
+    store_dir: Path
+    ids: dict[str, str]  # model, slice, mapping
 
     def subset(self, order: list[int]) -> tuple[np.ndarray, list[dict[str, Any]], np.ndarray]:
         return (
@@ -115,7 +117,8 @@ def kitti(tmp_path_factory: pytest.TempPathFactory) -> Kitti:
             batch.targets, batch.image_ids, batch.ignore, strict=True
         )
     ]
-    return Kitti(batch, letterbox_mask(batch.infos), targets)
+    ids = {"model": model["id"], "slice": slice_spec["id"], "mapping": mapping["id"]}
+    return Kitti(batch, letterbox_mask(batch.infos), targets, store_dir, ids)
 
 
 # ---------------------------------------------------------------- hệ thống (DB, API, worker)
