@@ -20,6 +20,8 @@ export interface SearchDraft {
   hi: number
   /** Chỉ dùng với tham số liên tục; rời rạc vẫn gửi `(hi − lo) / 256` vì contract bắt buộc. */
   tol: number
+  /** Người dùng đã tự sửa `tol`: đổi dải không tính lại nữa (review Group 5 #3). Thiếu là chưa sửa. */
+  tolEdited?: boolean
   coarseN: number
   subsetSize: number
   bootstrapSamples: number
@@ -64,10 +66,28 @@ export function defaultSearch(param: PrimaryParam, sliceSize: number | null): Se
     lo: param.min,
     hi: param.max,
     tol: defaultTol(param.min, param.max),
+    tolEdited: false,
     coarseN: DEFAULT_COARSE_N,
     subsetSize: Math.max(2, Math.min(DEFAULT_SUBSET_SIZE, sliceSize ?? DEFAULT_SUBSET_SIZE)),
     bootstrapSamples: DEFAULT_BOOTSTRAP,
   }
+}
+
+/**
+ * Thay đổi khi đổi dải: `tol` tính lại bằng `(hi − lo) / 256` cho tới khi người dùng tự sửa ô độ
+ * chính xác; tham số rời rạc (không có ô `tol`) luôn tính lại.
+ */
+export function withRange(
+  search: SearchDraft,
+  range: { lo?: number; hi?: number },
+  discrete: boolean,
+): Partial<SearchDraft> {
+  const lo = range.lo ?? search.lo
+  const hi = range.hi ?? search.hi
+  const follow = discrete || search.tolEdited !== true
+  return follow && Number.isFinite(lo) && Number.isFinite(hi) && lo < hi
+    ? { ...range, tol: defaultTol(lo, hi) }
+    : range
 }
 
 export function isDiscrete(param: PrimaryParam): boolean {
@@ -120,7 +140,8 @@ export function searchSchema(
       }
       if (value.lo >= value.hi) {
         ctx.addIssue({ code: 'custom', path: ['hi'], message: 'Cận trên phải lớn hơn cận dưới' })
-      } else if (!discrete && value.tol >= value.hi - value.lo) {
+      } else if (value.tol >= value.hi - value.lo) {
+        // Contract kiểm tra cả tham số rời rạc (review Group 5 #4); form rời rạc luôn giữ tol hợp lệ.
         ctx.addIssue({
           code: 'custom',
           path: ['tol'],
@@ -148,7 +169,8 @@ export function searchSchema(
     })
 }
 
-export type SearchField = keyof SearchDraft
+/** Trường nhập của form (cờ `tolEdited` không phải trường). */
+export type SearchField = Exclude<keyof SearchDraft, 'tolEdited'>
 
 /** Lỗi theo trường (thông điệp đầu tiên của mỗi trường); rỗng khi hợp lệ. */
 export function searchErrors(
@@ -203,6 +225,8 @@ export function fromSearchConfig(config: SearchConfig): SearchDraft {
     lo: config.lo,
     hi: config.hi,
     tol: config.tol,
+    // Nhân bản: tol khác mặc định theo dải là do người dùng chọn, giữ nguyên khi đổi dải.
+    tolEdited: config.tol !== defaultTol(config.lo, config.hi),
     coarseN: config.coarse_n,
     subsetSize: config.subset_size,
     bootstrapSamples: config.bootstrap_samples,

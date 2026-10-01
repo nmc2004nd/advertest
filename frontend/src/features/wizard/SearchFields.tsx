@@ -13,6 +13,7 @@ import {
   type SearchDraft,
   type SearchField,
   THRESHOLD_KINDS,
+  withRange,
 } from './search'
 import { type Action, type AttackDraft, type AttackMode, searchCostSummary } from './state'
 
@@ -153,12 +154,8 @@ export function SearchFields({
   const patch = (value: Partial<SearchDraft>) =>
     dispatch({ type: 'search', attackSpecId: spec.id, patch: value })
   const number = (raw: string) => (raw.trim() === '' ? Number.NaN : Number(raw))
-  const setRange = (value: { lo?: number; hi?: number }) => {
-    const lo = value.lo ?? search.lo
-    const hi = value.hi ?? search.hi
-    // Tham số rời rạc không có ô độ chính xác: giữ `tol = (hi − lo) / 256` cho contract.
-    patch(discrete ? { ...value, tol: defaultTol(lo, hi) } : value)
-  }
+  const setRange = (value: { lo?: number; hi?: number }) =>
+    patch(withRange(search, value, discrete))
   const percent = Math.round(search.threshold * 100)
   const cost = estimate ? searchCostSummary(estimate, spec.id) : null
   const general =
@@ -171,7 +168,11 @@ export function SearchFields({
     <div className="space-y-4 rounded-lg bg-muted/40 p-3" data-testid={`tim-nguong-${spec.id}`}>
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium">Loại ngưỡng</legend>
-        <div role="radiogroup" aria-label="Loại ngưỡng" className="grid gap-2 md:grid-cols-3">
+        <div
+          role="radiogroup"
+          aria-label={`Loại ngưỡng của ${spec.name}`}
+          className="grid gap-2 md:grid-cols-3"
+        >
           {THRESHOLD_KINDS.map(({ kind, label, hint }) => (
             <button
               key={kind}
@@ -200,7 +201,7 @@ export function SearchFields({
             min={1}
             max={100}
             step={1}
-            aria-label="Ngưỡng (thanh trượt)"
+            aria-label={`Ngưỡng của ${spec.name} (thanh trượt)`}
             value={Number.isFinite(percent) ? percent : 1}
             onChange={(event) => patch({ threshold: Number(event.target.value) / 100 })}
             className="min-h-11 w-full min-w-0 flex-1"
@@ -280,7 +281,11 @@ export function SearchFields({
             id={id('tol')}
             label={`Độ chính xác${unit}`}
             error={error('tol')}
-            hint={`Mặc định ${defaultTol(param.min, param.max)} (1/256 dải của spec).`}
+            hint={
+              search.tolEdited
+                ? `Mặc định (đến − từ) / 256 = ${defaultTol(search.lo, search.hi)}.`
+                : 'Mặc định (đến − từ) / 256, tự tính lại khi đổi dải cho tới khi bạn sửa ô này.'
+            }
           >
             <input
               id={id('tol')}
@@ -289,7 +294,7 @@ export function SearchFields({
               step="any"
               value={Number.isFinite(search.tol) ? search.tol : ''}
               aria-invalid={error('tol') ? true : undefined}
-              onChange={(event) => patch({ tol: number(event.target.value) })}
+              onChange={(event) => patch({ tol: number(event.target.value), tolEdited: true })}
               className={inputClass}
             />
           </Field>

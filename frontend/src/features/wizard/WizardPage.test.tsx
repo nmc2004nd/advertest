@@ -422,6 +422,17 @@ describe('các bước', () => {
       expect(server).toContain('Ngưỡng lớn hơn mAP ảnh sạch')
     })
 
+    it('hai attack tìm ngưỡng: tên truy cập không trùng (review Group 5 #2)', () => {
+      const two = searchDraft(pgd)
+      const fogAttack = searchDraft(fog).attacks[0]
+      const html = render4({ ...two, attacks: [...two.attacks, fogAttack] })
+      const labels = [...html.matchAll(/aria-label="([^"]+)"/g)].map((m) => m[1])
+      expect(labels).toContain(`Loại ngưỡng của ${pgd.name}`)
+      expect(labels).toContain(`Loại ngưỡng của ${fog.name}`)
+      expect(labels).toContain(`Ngưỡng của ${fog.name} (thanh trượt)`)
+      expect(new Set(labels).size).toBe(labels.length)
+    })
+
     it('adv_patch: công tắc tìm ngưỡng bị khóa và có giải thích', () => {
       const html = render4({
         ...draft,

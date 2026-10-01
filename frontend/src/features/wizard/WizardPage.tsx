@@ -31,6 +31,7 @@ import {
   formatDuration,
   groupFieldErrors,
   hasLevelInputError,
+  hasSearchInputError,
   loadDraft,
   reducer,
   runCounts,
@@ -352,7 +353,9 @@ export function WizardPage() {
   const body = useMemo(() => buildBody(draft), [draft])
   // Tên không ảnh hưởng ước lượng: bỏ khỏi body để gõ tên không gọi lại API.
   const estimateBody = useMemo(() => (body ? { ...body, name: null } : null), [body])
-  const estimate = useEstimate(draft.step >= 4 ? estimateBody : null)
+  // Form tìm ngưỡng còn lỗi thì chưa ước lượng: API chỉ trả 422 (review Group 5 #1).
+  const searchInputError = hasSearchInputError(draft.attacks, levelInputErrors)
+  const estimate = useEstimate(draft.step >= 4 && !searchInputError ? estimateBody : null)
   const target = targets.data?.find((t) => t.id === draft.targetId)
   const model = models.data?.find((m) => m.id === draft.modelId)
   const levelInputError = hasLevelInputError(draft.attacks, levelInputErrors)

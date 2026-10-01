@@ -161,14 +161,19 @@ export function reducer(draft: Draft, action: Action): Draft {
     case 'earlyStop':
       return { ...draft, earlyStop: action.on, earlyStopMixed: false }
     case 'preset': {
-      // Giữ slice huấn luyện đã chọn của attack đã có.
-      const chosen = new Map(draft.attacks.map((a) => [a.attackSpecId, a.trainingSliceId]))
+      // Giữ slice huấn luyện, chế độ và cấu hình tìm ngưỡng của attack đã có (review Group 5 #5).
+      const chosen = new Map(draft.attacks.map((a) => [a.attackSpecId, a]))
       return {
         ...draft,
-        attacks: action.attacks.map((a) => ({
-          ...a,
-          trainingSliceId: chosen.get(a.attackSpecId) ?? a.trainingSliceId,
-        })),
+        attacks: action.attacks.map((a) => {
+          const old = chosen.get(a.attackSpecId)
+          return {
+            ...a,
+            trainingSliceId: old?.trainingSliceId ?? a.trainingSliceId,
+            mode: old?.mode ?? a.mode,
+            search: old?.search ?? a.search,
+          }
+        }),
       }
     }
     case 'levels':
@@ -240,15 +245,38 @@ export function canAdvance(
 }
 
 /** Attack đủ cấu hình: quét lưới có level (và slice huấn luyện khi cần train); tìm ngưỡng có cấu
- * hình (tính hợp lệ của từng trường báo qua `inputErrors`). */
+ * hình với mọi trường là số (luật chi tiết của từng trường báo qua `inputErrors`). */
 function attackReady(a: AttackDraft): boolean {
-  if (a.mode === 'search') return a.search !== null
+  if (a.mode === 'search') return a.search !== null && searchComplete(a.search)
   return a.levels.length > 0 && (!a.requiresTraining || a.trainingSliceId !== null)
+}
+
+/** Ô số đang trống (`NaN`) thì chưa dựng body: tránh gửi `null` lên ước lượng (review Group 5 #1). */
+function searchComplete(search: SearchDraft): boolean {
+  return [
+    search.threshold,
+    search.lo,
+    search.hi,
+    search.tol,
+    search.coarseN,
+    search.subsetSize,
+    search.bootstrapSamples,
+  ].every(Number.isFinite)
 }
 
 /** Khóa lỗi nhập của form tìm ngưỡng trong `inputErrors` (ô level dùng `attackSpecId`). */
 export function searchErrorKey(attackSpecId: string): string {
   return `search:${attackSpecId}`
+}
+
+/** Form tìm ngưỡng của một attack đang chọn có lỗi: chưa gọi ước lượng (review Group 5 #1). */
+export function hasSearchInputError(
+  attacks: AttackDraft[],
+  inputErrors: Record<string, boolean>,
+): boolean {
+  return attacks.some(
+    (a) => a.mode === 'search' && inputErrors[searchErrorKey(a.attackSpecId)] === true,
+  )
 }
 
 /** Ô nhập đang có giá trị sai ở một attack **đang chọn**, theo chế độ hiện tại của attack (attack

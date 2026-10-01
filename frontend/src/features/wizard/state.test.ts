@@ -22,6 +22,7 @@ import {
   formatDuration,
   groupFieldErrors,
   hasLevelInputError,
+  hasSearchInputError,
   loadDraft,
   reducer,
   runCounts,
@@ -473,6 +474,32 @@ describe('Phase 7: tự tìm ngưỡng', () => {
     // Lỗi của chế độ đang ẩn không chặn.
     expect(hasLevelInputError(FULL.attacks, bad)).toBe(false)
     expect(hasLevelInputError(noLevels.attacks, { a: true })).toBe(false)
+  })
+
+  it('form tìm ngưỡng có ô trống hoặc lỗi thì chưa dựng body, chưa ước lượng (review Group 5 #1)', () => {
+    const blank = reducer(searching, {
+      type: 'search',
+      attackSpecId: 'a',
+      patch: { coarseN: Number.NaN },
+    })
+    expect(buildBody(blank)).toBeNull()
+    expect(canAdvance(blank)).toBe(false)
+    expect(hasSearchInputError(searching.attacks, { [searchErrorKey('a')]: true })).toBe(true)
+    expect(hasSearchInputError(searching.attacks, { a: true })).toBe(false)
+    // Lỗi ô level của attack quét lưới không chặn ước lượng (như Phase 5).
+    expect(hasSearchInputError(FULL.attacks, { a: true, [searchErrorKey('a')]: true })).toBe(false)
+  })
+
+  it('preset "Toàn bộ catalog" giữ chế độ và cấu hình tìm ngưỡng của attack đã có (review Group 5 #5)', () => {
+    const preset = reducer(searching, {
+      type: 'preset',
+      attacks: [
+        { ...FULL.attacks[0], levels: [2, 4, 8] },
+        { ...FULL.attacks[0], attackSpecId: 'moi', levels: [1] },
+      ],
+    })
+    expect(preset.attacks[0]).toMatchObject({ mode: 'search', search: SEARCH })
+    expect(preset.attacks[1]).toMatchObject({ attackSpecId: 'moi', mode: 'grid', search: null })
   })
 
   it('nhân bản experiment tìm ngưỡng giữ cấu hình tìm ngưỡng', () => {

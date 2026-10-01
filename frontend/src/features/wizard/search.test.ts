@@ -12,6 +12,7 @@ import {
   searchSchema,
   targetClassesOf,
   toSearchConfig,
+  withRange,
 } from './search'
 
 type PrimaryParam = components['schemas']['PrimaryParam']
@@ -48,6 +49,7 @@ describe('defaultSearch', () => {
       lo: 0,
       hi: 32,
       tol: 0.125,
+      tolEdited: false,
       coarseN: 4,
       subsetSize: 100,
       bootstrapSamples: 200,
@@ -91,11 +93,30 @@ describe('searchSchema: từ chối đúng các trường hợp backend từ ch�
     expect(Object.keys(errors)).toContain(field)
   })
 
-  it('tham số rời rạc: lo/hi phải là giá trị của spec, không kiểm tra tol', () => {
+  it('tham số rời rạc: lo/hi phải là giá trị của spec; tol ≥ hi − lo vẫn bị từ chối như contract', () => {
     expect(searchErrors(valid({ lo: 1.5 }, SEVERITY), SEVERITY, 300, CLASSES).lo).toBeDefined()
-    expect(searchErrors(valid({ lo: 4, hi: 5, tol: 1 }, SEVERITY), SEVERITY, 300, CLASSES)).toEqual(
-      {},
-    )
+    expect(
+      searchErrors(valid({ lo: 4, hi: 5, tol: 1 }, SEVERITY), SEVERITY, 300, CLASSES).tol,
+    ).toBeDefined()
+    expect(
+      searchErrors(valid({ lo: 4, hi: 5, tol: 1 / 256 }, SEVERITY), SEVERITY, 300, CLASSES),
+    ).toEqual({})
+  })
+
+  it('tol theo dải cho tới khi người dùng tự sửa (review Group 5 #3)', () => {
+    const fresh = valid()
+    expect(withRange(fresh, { hi: 8 }, false)).toEqual({ hi: 8, tol: 8 / 256 })
+    expect(withRange(fresh, { lo: 4 }, false)).toEqual({ lo: 4, tol: 28 / 256 })
+    // Nháp chưa có cờ (trước bản sửa) coi như chưa sửa.
+    const legacy: SearchDraft = { ...fresh }
+    delete legacy.tolEdited
+    expect(withRange(legacy, { hi: 8 }, false)).toEqual({ hi: 8, tol: 8 / 256 })
+    const edited = valid({ tol: 0.5, tolEdited: true })
+    expect(withRange(edited, { hi: 8 }, false)).toEqual({ hi: 8 })
+    // Rời rạc luôn tính lại; dải chưa hợp lệ thì để nguyên tol.
+    expect(withRange(edited, { hi: 3 }, true)).toEqual({ hi: 3, tol: 3 / 256 })
+    expect(withRange(fresh, { hi: Number.NaN }, false)).toEqual({ hi: Number.NaN })
+    expect(withRange(fresh, { lo: 40 }, false)).toEqual({ lo: 40 })
   })
 
   it('chấp nhận biên: ngưỡng 100%, coarse_n 3 và 8, bootstrap 0 và 1000, tập con bằng slice', () => {
@@ -129,6 +150,12 @@ describe('chuyển đổi SearchConfig', () => {
         class_filter: search.class_filter ?? null,
       })
     }
+  })
+
+  it('nhân bản: tol khác mặc định theo dải được coi là người dùng đã sửa', () => {
+    const base = toSearchConfig(valid())
+    expect(fromSearchConfig(base).tolEdited).toBe(false)
+    expect(fromSearchConfig({ ...base, tol: 0.5 }).tolEdited).toBe(true)
   })
 
   it('class đích: bỏ null, không trùng, sắp xếp', () => {
