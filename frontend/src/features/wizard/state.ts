@@ -469,3 +469,17 @@ export function runCounts(
   const maxPoints = (estimate?.searches ?? []).reduce((n, s) => n + s.max_points, 0)
   return { grid, maxPoints }
 }
+
+/**
+ * Ước lượng hiển thị (bước 5, bước 6, thanh dưới): có attack tìm ngưỡng thì là chi phí tối đa
+ * "tối đa ~X (tối đa N điểm)" (requirements.md Phase 7, Frontend), không thì như Phase 5.
+ */
+export function estimateText(estimate: EstimateResponse | undefined): string {
+  const searches = estimate?.searches ?? []
+  if (!estimate || searches.length === 0) return formatDuration(estimate?.total_seconds)
+  const points = searches.reduce((n, s) => n + s.max_points, 0)
+  const max = estimate.max_total_seconds
+  return max === null || max === undefined
+    ? `chưa ước lượng được tối đa (tối đa ${points} điểm)`
+    : `tối đa ~${formatDuration(max)} (tối đa ${points} điểm)`
+}

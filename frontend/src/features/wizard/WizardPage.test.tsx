@@ -8,6 +8,7 @@ import type {
   DatasetSummary,
   EstimateResponse,
   ExperimentClone,
+  ExperimentDetail,
   ModelSummary,
   ProtocolSummary,
   SliceSummary,
@@ -22,6 +23,7 @@ import {
   type Draft,
   draftFromClone,
   EMPTY_DRAFT,
+  estimateText,
   formatDuration,
   searchCostSummary,
   STORAGE_KEY,
@@ -61,6 +63,10 @@ afterEach(() => {
 })
 
 const noop = () => undefined
+
+/** Văn bản như react-dom/server in ra (thoát `&`, `<`, `>`). */
+const escapeHtml = (text: string) =>
+  text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
 describe('WizardPage', () => {
   it('bước 1: protocol dev có nhãn, thanh bước, thanh dưới có ước lượng', () => {
@@ -111,6 +117,44 @@ describe('WizardPage', () => {
     expect(html).toContain('Train patch')
     const seconds = estimate.runs.find((r) => r.training_seconds)?.training_seconds ?? null
     expect(html).toContain(`<td class="py-1">${formatDuration(seconds)}</td>`)
+  })
+})
+
+describe('Phase 7: chi phí tối đa của tìm ngưỡng ở bước 5 và 6', () => {
+  const detail = listMocks<ExperimentDetail>('experiment_detail').find((d) =>
+    d.config.attacks.some((a) => a.mode === 'search'),
+  )
+  if (!detail) throw new Error('Thiếu mock experiment tìm ngưỡng')
+  const draft = { ...draftFromClone(detail.config, [], slices[0].dataset_version_id), name: '' }
+  const estimate = listMocks<EstimateResponse>('estimate_response').find(
+    (e) => (e.searches ?? []).length === 2 && e.max_exceeds_limit,
+  )
+  if (!estimate) throw new Error('Thiếu mock ước lượng tìm ngưỡng')
+  const cache: [readonly unknown[], unknown][] = [
+    ...BASE,
+    [['estimate', JSON.stringify(buildBody(draft))], estimate],
+  ]
+
+  it('bước 6: "tối đa" theo từng attack, tổng tối đa, cảnh báo vượt giới hạn', () => {
+    withDraft(draft)
+    const html = render(<WizardPage />, '/experiments/new', 'engineer', cache)
+    expect(html).toContain('Bước 6/6')
+    expect(html).toContain('data-testid="chi-phi-tim-nguong"')
+    for (const s of estimate.searches ?? []) {
+      expect(html).toContain(searchCostSummary(estimate, s.attack_spec_id))
+    }
+    expect(html).toContain(escapeHtml(estimateText(estimate)))
+    expect(html).toContain('Chi phí tối đa của tìm ngưỡng vượt giới hạn thời gian')
+  })
+
+  it('bước 5: thẻ máy chạy hiện ước lượng tối đa', () => {
+    const html = render(
+      <TargetStep draft={{ ...draft, step: 5 }} dispatch={noop} errors={{}} estimate={estimate} />,
+      '/',
+      'engineer',
+      BASE,
+    )
+    expect(html).toContain(escapeHtml(estimateText(estimate)))
   })
 })
 

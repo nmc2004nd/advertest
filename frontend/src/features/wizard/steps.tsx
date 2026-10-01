@@ -33,7 +33,7 @@ import {
   type Action,
   type AttackDraft,
   type Draft,
-  formatDuration,
+  estimateText,
   searchErrorKey,
   SEED,
   trainingSummary,
@@ -537,9 +537,7 @@ export function TargetStep({
               </span>
               {target.kind === 'local' && <Badge>Miễn phí – máy local</Badge>}
               {draft.targetId === target.id && (
-                <span className="text-sm">
-                  Ước lượng: {formatDuration(estimate?.total_seconds)}
-                </span>
+                <span className="text-sm">Ước lượng: {estimateText(estimate)}</span>
               )}
             </ChoiceCard>
           ))}

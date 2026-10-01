@@ -18,6 +18,7 @@ import {
   type Draft,
   draftFromClone,
   EMPTY_DRAFT,
+  estimateText,
   formatDuration,
   groupFieldErrors,
   hasLevelInputError,
@@ -510,5 +511,19 @@ describe('Phase 7: tự tìm ngưỡng', () => {
     } as EstimateResponse
     expect(runCounts(WITH_PATCH, undefined)).toEqual({ grid: 2, maxPoints: 0 })
     expect(runCounts(searching, estimate)).toEqual({ grid: 0, maxPoints: 23 })
+  })
+
+  it('ước lượng hiển thị: có tìm ngưỡng thì là "tối đa ~X (tối đa N điểm)"', () => {
+    const all = listMocks<EstimateResponse>('estimate_response')
+    const grid = all.find((e) => (e.searches ?? []).length === 0 && e.total_seconds)
+    const mixed = all.find((e) => (e.searches ?? []).length === 2 && e.max_total_seconds)
+    const missing = all.find((e) => (e.searches ?? []).length > 0 && e.max_total_seconds === null)
+    if (!grid || !mixed || !missing) throw new Error('Thiếu mock ước lượng')
+    expect(estimateText(grid)).toBe(formatDuration(grid.total_seconds))
+    expect(estimateText(mixed)).toBe(
+      `tối đa ~${formatDuration(mixed.max_total_seconds)} (tối đa 34 điểm)`,
+    )
+    expect(estimateText(missing)).toBe('chưa ước lượng được tối đa (tối đa 34 điểm)')
+    expect(estimateText(undefined)).toBe('—')
   })
 })
