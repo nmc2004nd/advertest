@@ -1,7 +1,7 @@
 # Đề xuất contract 002: failure case bị ẩn không trả khóa MinIO
 
 - Người đề xuất: agent backend, Phase 6, Group 5
-- Trạng thái: chờ duyệt
+- Trạng thái: đã duyệt và áp dụng (người dùng duyệt, 2026-10-01; áp dụng ở nhánh `phase06-reviewer-p002`).
 
 ## Vấn đề
 

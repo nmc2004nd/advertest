@@ -188,6 +188,20 @@ def test_hidden_case_has_no_url() -> None:
         FailureCaseView.model_validate(data)
 
 
+def test_artifacts_null_iff_hidden() -> None:
+    """Đề xuất contract 002: view bị ẩn không chứa khóa MinIO; view khác bắt buộc có."""
+    hidden = FailureCaseView.model_validate(mock("failure_case_view", "hidden_unanonymized"))
+    assert hidden.artifacts is None
+    keys = mock("failure_case_view", "normal_full")["artifacts"]
+    data = {**mock("failure_case_view", "hidden_unanonymized"), "artifacts": keys}
+    with pytest.raises(ValidationError, match="artifacts là null"):
+        FailureCaseView.model_validate(data)
+    for name in ("normal_full", "dev_unblurred"):
+        data = {**mock("failure_case_view", name), "artifacts": None}
+        with pytest.raises(ValidationError, match="artifacts là null"):
+            FailureCaseView.model_validate(data)
+
+
 def test_visible_case_requires_expiry() -> None:
     data = {**mock("failure_case_view", "dev_unblurred"), "urls_expire_at": None}
     with pytest.raises(ValidationError, match="urls_expire_at"):

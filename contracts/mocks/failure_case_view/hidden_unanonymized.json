@@ -96,13 +96,7 @@
       }
     ]
   },
-  "artifacts": {
-    "clean_png": "runs/acd64412-55de-5ac6-b8d0-8ca96f218a64/cases/69228d88-e1a3-5f2f-bbdb-cbd2b266863c/clean.png",
-    "adversarial_png": "runs/acd64412-55de-5ac6-b8d0-8ca96f218a64/cases/69228d88-e1a3-5f2f-bbdb-cbd2b266863c/adversarial.png",
-    "perturbation_png": "runs/acd64412-55de-5ac6-b8d0-8ca96f218a64/cases/69228d88-e1a3-5f2f-bbdb-cbd2b266863c/perturbation.png",
-    "clean_thumb": "runs/acd64412-55de-5ac6-b8d0-8ca96f218a64/cases/69228d88-e1a3-5f2f-bbdb-cbd2b266863c/clean_thumb.webp",
-    "adversarial_thumb": "runs/acd64412-55de-5ac6-b8d0-8ca96f218a64/cases/69228d88-e1a3-5f2f-bbdb-cbd2b266863c/adversarial_thumb.webp"
-  },
+  "artifacts": null,
   "urls": {
     "clean": null,
     "adversarial": null,
