@@ -14,7 +14,7 @@ import type {
 } from '@/contracts/api'
 import { render } from '@/test-utils'
 
-import { AttackStep, DatasetStep, TargetStep } from './steps'
+import { AttackStep, DatasetStep, EARLY_STOP_LABEL, TargetStep } from './steps'
 import { buildBody, type Draft, draftFromClone, EMPTY_DRAFT, STORAGE_KEY } from './state'
 import { WizardPage } from './WizardPage'
 
@@ -130,7 +130,15 @@ describe('các bước', () => {
     const attackDraft: Draft = {
       ...draft,
       step: 4,
-      attacks: [{ attackSpecId: spec.id, specSha256: spec.spec_sha256, levels: [4] }],
+      attacks: [
+        {
+          attackSpecId: spec.id,
+          specSha256: spec.spec_sha256,
+          levels: [4],
+          requiresTraining: false,
+          trainingSliceId: null,
+        },
+      ],
     }
     const html = render(
       <AttackStep
@@ -148,6 +156,105 @@ describe('các bước', () => {
     expect(html).toContain('các run sẽ bị bỏ qua')
     expect(html).toContain('Level 40 nằm ngoài dải')
     expect(html).toContain('Dùng bộ gợi ý')
+  })
+
+  it('Phase 6 bước 4: ba nhóm, công tắc dừng sớm bật, preset toàn catalog, chip severity', () => {
+    const fog = specs.find((s) => s.name === 'fog')
+    if (!fog) throw new Error('Thiếu mock fog')
+    const html = render(
+      <AttackStep
+        draft={{
+          ...draft,
+          step: 4,
+          attacks: [
+            {
+              attackSpecId: fog.id,
+              specSha256: fog.spec_sha256,
+              levels: [1, 3],
+              requiresTraining: false,
+              trainingSliceId: null,
+            },
+          ],
+        }}
+        dispatch={noop}
+        errors={{}}
+        model={models[0]}
+        onLevelInputError={noop}
+      />,
+      '/',
+      'engineer',
+      BASE,
+    )
+    const headings = [...html.matchAll(/<h3[^>]*>([^<]+)<\/h3>/g)].map((m) => m[1])
+    expect(headings).toEqual(['Tấn công', 'Biến đổi điều kiện', 'Che khuất'])
+    expect(html).toMatch(/<input type="checkbox" role="switch"[^>]*checked=""/)
+    expect(html).toContain(EARLY_STOP_LABEL)
+    expect(html).toContain('Toàn bộ catalog')
+    // Severity: 5 chip bật/tắt, đang chọn 1 và 3; không có ô nhập tự do.
+    const pressed = [...html.matchAll(/aria-pressed="(true|false)"[^>]*>(\d)</g)].map((m) => [
+      m[2],
+      m[1],
+    ])
+    expect(pressed).toEqual([
+      ['1', 'true'],
+      ['2', 'false'],
+      ['3', 'true'],
+      ['4', 'false'],
+      ['5', 'false'],
+    ])
+    expect(html).not.toContain('Thêm level (severity')
+  })
+
+  it('Phase 6 bước 4: patch chỉ liệt kê slice huấn luyện không giao, cùng version, ≤ 50 ảnh', () => {
+    const patch = specs.find((s) => s.requires_training)
+    if (!patch?.training) throw new Error('Thiếu mock adv_patch')
+    const dv = draft.datasetVersionId ?? ''
+    const candidate = (name: string, size: number, version = dv): SliceSummary => ({
+      ...slices[0],
+      id: `00000000-0000-4000-8000-${String(size).padStart(12, '0')}`,
+      name,
+      size,
+      dataset_version_id: version,
+    })
+    const patchDraft: Draft = {
+      ...draft,
+      step: 4,
+      sliceId: slices[0].id,
+      attacks: [
+        {
+          attackSpecId: patch.id,
+          specSha256: patch.spec_sha256,
+          levels: [0.1, 0.25],
+          requiresTraining: true,
+          trainingSliceId: null,
+        },
+      ],
+    }
+    const render4 = (training: SliceSummary[]) =>
+      render(
+        <AttackStep
+          draft={patchDraft}
+          dispatch={noop}
+          errors={{ 'attacks.0.training_slice_id': 'Slice huấn luyện giao với slice đánh giá' }}
+          model={models[0]}
+          onLevelInputError={noop}
+        />,
+        '/',
+        'engineer',
+        [...BASE, [['slices', 'disjoint-from', slices[0].id], training]],
+      )
+    const html = render4([
+      candidate('train-ok', patch.training.max_training_images),
+      candidate('train-qua-lon', patch.training.max_training_images + 1),
+      candidate('train-khac-version', 10, 'khac'),
+    ])
+    expect(html).toContain('Slice huấn luyện (bắt buộc)')
+    expect(html).toContain('train-ok')
+    expect(html).not.toContain('train-qua-lon')
+    expect(html).not.toContain('train-khac-version')
+    expect(html).toContain('Slice huấn luyện giao với slice đánh giá')
+    expect(html).toContain('Dùng bộ gợi ý: 0.1, 0.25')
+    expect(render4([])).toContain('Chưa có slice huấn luyện nào không giao')
   })
 
   it('bước 5: nhãn máy local, giới hạn vượt tối đa bị báo', () => {

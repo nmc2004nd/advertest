@@ -14,6 +14,49 @@ interface LevelChipsProps {
   serverError?: string
   /** Báo cho wizard biết ô đang có giá trị sai (chặn sang bước sau). */
   onInputError?: (hasError: boolean) => void
+  /** Bộ level gợi ý (mặc định `presetLevels(param)`; patch dùng 0.1 và 0.25). */
+  suggested?: number[]
+}
+
+/** Spec rời rạc (corruption: severity 1–5, Phase 6): mỗi giá trị một chip bật/tắt. */
+function DiscreteChips({
+  param,
+  levels,
+  onChange,
+  serverError,
+}: Pick<LevelChipsProps, 'param' | 'levels' | 'onChange' | 'serverError'>) {
+  const values = param.values ?? []
+  return (
+    <div className="space-y-2">
+      <div role="group" aria-label={`Chọn ${param.name}`} className="flex flex-wrap gap-2">
+        {values.map((value) => {
+          const on = levels.includes(value)
+          return (
+            <Button
+              key={value}
+              type="button"
+              variant={on ? 'default' : 'outline'}
+              aria-pressed={on}
+              className="min-w-11 tabular-nums"
+              onClick={() =>
+                onChange(on ? levels.filter((l) => l !== value) : addLevel(levels, value))
+              }
+            >
+              {value}
+            </Button>
+          )
+        })}
+      </div>
+      <p className="text-sm text-muted-foreground">
+        {param.name} ({rangeText(param)}): chọn một hoặc nhiều mức.
+      </p>
+      {serverError && (
+        <p role="alert" className="text-sm text-destructive">
+          {serverError}
+        </p>
+      )}
+    </div>
+  )
 }
 
 /** Chỉnh level bằng chip: nhập rồi Enter hoặc "Thêm"; kiểm tra dải và trùng ngay khi thêm. */
@@ -23,10 +66,17 @@ export function LevelChips({
   onChange,
   serverError,
   onInputError,
+  suggested,
 }: LevelChipsProps) {
   const id = useId()
   const [text, setText] = useState('')
   const [error, setError] = useState<string | null>(null)
+  if (param.type === 'discrete' && param.values) {
+    return (
+      <DiscreteChips param={param} levels={levels} onChange={onChange} serverError={serverError} />
+    )
+  }
+  const preset = suggested ?? presetLevels(param)
 
   const report = (message: string | null) => {
     setError(message)
@@ -100,11 +150,11 @@ export function LevelChips({
         type="button"
         variant="outline"
         onClick={() => {
-          onChange(presetLevels(param))
+          onChange(preset)
           report(null)
         }}
       >
-        Dùng bộ gợi ý: {presetLevels(param).join(', ')}
+        Dùng bộ gợi ý: {preset.join(', ')}
       </Button>
     </div>
   )

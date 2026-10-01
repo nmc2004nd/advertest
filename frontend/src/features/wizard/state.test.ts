@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import { listMocks } from '@/api/mocks'
-import type { ExperimentClone } from '@/contracts/api'
+import type { AttackSpecAdminPage, ExperimentClone, ExperimentDetail } from '@/contracts/api'
+
+import { catalogPreset, PATCH_PRESET_LEVELS } from './levels'
 
 import {
   buildBody,
@@ -19,6 +21,7 @@ import {
   SEED,
   type Step,
   stepOfField,
+  STORAGE_KEY,
 } from './state'
 
 const FULL: Draft = {
@@ -31,7 +34,30 @@ const FULL: Draft = {
   mappingId: 'map',
   targetId: 't',
   limitSeconds: 7200,
-  attacks: [{ attackSpecId: 'a', specSha256: 'sha', levels: [4] }],
+  attacks: [
+    {
+      attackSpecId: 'a',
+      specSha256: 'sha',
+      levels: [4],
+      requiresTraining: false,
+      trainingSliceId: null,
+    },
+  ],
+}
+
+/** Cấu hình đủ, có thêm một attack cần train (patch). */
+const WITH_PATCH: Draft = {
+  ...FULL,
+  attacks: [
+    ...FULL.attacks,
+    {
+      attackSpecId: 'p',
+      specSha256: 'sp',
+      levels: [0.1],
+      requiresTraining: true,
+      trainingSliceId: null,
+    },
+  ],
 }
 
 class MemoryStore {
@@ -56,11 +82,21 @@ describe('reducer', () => {
   })
 
   it('bật tắt attack và sửa level', () => {
-    const added = reducer(FULL, { type: 'toggleAttack', attackSpecId: 'b', specSha256: 'sb' })
+    const added = reducer(FULL, {
+      type: 'toggleAttack',
+      attackSpecId: 'b',
+      specSha256: 'sb',
+      requiresTraining: false,
+    })
     expect(added.attacks.map((a) => a.attackSpecId)).toEqual(['a', 'b'])
     const levels = reducer(added, { type: 'levels', attackSpecId: 'b', levels: [2, 8] })
     expect(levels.attacks[1].levels).toEqual([2, 8])
-    const removed = reducer(levels, { type: 'toggleAttack', attackSpecId: 'a', specSha256: 'sha' })
+    const removed = reducer(levels, {
+      type: 'toggleAttack',
+      attackSpecId: 'a',
+      specSha256: 'sha',
+      requiresTraining: false,
+    })
     expect(removed.attacks.map((a) => a.attackSpecId)).toEqual(['b'])
   })
 })
@@ -71,7 +107,7 @@ describe('điều kiện sang bước sau', () => {
     [2, { modelId: null }, false],
     [3, { mappingId: null }, false],
     [4, { attacks: [] }, false],
-    [4, { attacks: [{ attackSpecId: 'a', specSha256: 's', levels: [] }] }, false],
+    [4, { attacks: [{ ...FULL.attacks[0], levels: [] }] }, false],
     [5, { limitSeconds: 0 }, false],
   ] satisfies [Step, Partial<Draft>, boolean][])(
     'bước %i thiếu dữ liệu thì chặn',
@@ -96,7 +132,12 @@ describe('lỗi ô nhập level (review Group 5 #1)', () => {
   it('chỉ tính attack đang chọn: bỏ chọn attack có lỗi thì không còn chặn', () => {
     const errors = { a: false, b: true }
     expect(hasLevelInputError(FULL.attacks, errors)).toBe(false) // chỉ còn attack "a"
-    const withB = reducer(FULL, { type: 'toggleAttack', attackSpecId: 'b', specSha256: 'sb' })
+    const withB = reducer(FULL, {
+      type: 'toggleAttack',
+      attackSpecId: 'b',
+      specSha256: 'sb',
+      requiresTraining: false,
+    })
     expect(hasLevelInputError(withB.attacks, errors)).toBe(true)
   })
 })
@@ -148,8 +189,116 @@ describe('nháp trong sessionStorage', () => {
 
   it('dữ liệu hỏng thì bắt đầu lại', () => {
     const store = new MemoryStore()
-    store.setItem('advertest.wizard.v1', '{hỏng')
+    store.setItem(STORAGE_KEY, '{hỏng')
     expect(loadDraft(store)).toEqual(EMPTY_DRAFT)
+  })
+
+  it('Phase 6: nháp v1 cũ bị bỏ qua (khóa mới v2)', () => {
+    const store = new MemoryStore()
+    store.setItem(
+      'advertest.wizard.v1',
+      JSON.stringify({ ...FULL, attacks: [{ attackSpecId: 'a' }] }),
+    )
+    expect(STORAGE_KEY).toBe('advertest.wizard.v2')
+    expect(loadDraft(store)).toEqual(EMPTY_DRAFT)
+  })
+
+  it('Phase 6: attack trong nháp thiếu trường mới được điền mặc định', () => {
+    const store = new MemoryStore()
+    const old = { ...FULL, attacks: [{ attackSpecId: 'a', specSha256: 'sha', levels: [4] }] }
+    store.setItem(STORAGE_KEY, JSON.stringify(old))
+    expect(loadDraft(store).attacks).toEqual(FULL.attacks)
+    expect(canAdvance(loadDraft(store))).toBe(true)
+  })
+})
+
+describe('Phase 6: slice huấn luyện và dừng sớm', () => {
+  it('attack cần train chặn bước 4 và không dựng body cho tới khi chọn slice huấn luyện', () => {
+    expect(canAdvance(WITH_PATCH)).toBe(false)
+    expect(buildBody(WITH_PATCH)).toBeNull()
+    const chosen = reducer(WITH_PATCH, { type: 'trainingSlice', attackSpecId: 'p', id: 'ts' })
+    expect(canAdvance(chosen)).toBe(true)
+    const body = buildBody(chosen)
+    expect(body?.attacks[1]).toMatchObject({ training_slice_id: 'ts', grid: { levels: [0.1] } })
+    expect(body?.attacks[0]).not.toHaveProperty('training_slice_id')
+  })
+
+  it('đổi slice đánh giá hoặc dataset version thì phải chọn lại slice huấn luyện', () => {
+    const chosen = reducer(
+      { ...WITH_PATCH, step: 3 },
+      { type: 'trainingSlice', attackSpecId: 'p', id: 'ts' },
+    )
+    expect(reducer(chosen, { type: 'slice', id: 's' }).attacks[1].trainingSliceId).toBe('ts')
+    expect(reducer(chosen, { type: 'slice', id: 's2' }).attacks[1].trainingSliceId).toBeNull()
+    expect(
+      reducer(chosen, { type: 'datasetVersion', id: 'dv2' }).attacks[1].trainingSliceId,
+    ).toBeNull()
+  })
+
+  it('dừng sớm bật mặc định: body như Phase 5; tắt thì mọi attack có early_stop = false', () => {
+    expect(EMPTY_DRAFT.earlyStop).toBe(true)
+    expect(buildBody(FULL)?.attacks[0].grid).toEqual({ levels: [4] })
+    const off = reducer(FULL, { type: 'earlyStop', on: false })
+    expect(buildBody(off)?.attacks[0].grid).toEqual({ levels: [4], early_stop: false })
+  })
+
+  it('preset "Toàn bộ catalog": mọi spec, patch 0.1 và 0.25, giữ slice huấn luyện đã chọn', () => {
+    const page = listMocks<AttackSpecAdminPage>('attack_spec_admin_page')[0]
+    const specs = page.items.filter((spec) => spec.is_active)
+    const preset = catalogPreset(specs)
+    expect(preset).toHaveLength(specs.length)
+    const patch = specs.find((spec) => spec.requires_training)
+    if (!patch) throw new Error('Thiếu spec patch trong mock')
+    expect(preset.find((a) => a.attackSpecId === patch.id)?.levels).toEqual(PATCH_PRESET_LEVELS)
+    for (const spec of specs.filter((s) => s.primary_param.type === 'discrete')) {
+      expect(preset.find((a) => a.attackSpecId === spec.id)?.levels).toEqual(
+        spec.primary_param.values,
+      )
+    }
+    // Dưới trần 50 run mỗi experiment (backend `MAX_RUNS`).
+    expect(preset.reduce((n, a) => n + a.levels.length, 0)).toBeLessThanOrEqual(50)
+
+    const before = reducer(
+      { ...FULL, attacks: [] },
+      {
+        type: 'toggleAttack',
+        attackSpecId: patch.id,
+        specSha256: patch.spec_sha256,
+        requiresTraining: true,
+      },
+    )
+    const kept = reducer(
+      reducer(before, { type: 'trainingSlice', attackSpecId: patch.id, id: 'ts' }),
+      { type: 'preset', attacks: preset },
+    )
+    expect(kept.attacks.find((a) => a.attackSpecId === patch.id)?.trainingSliceId).toBe('ts')
+  })
+
+  it('nhân bản giữ slice huấn luyện và dừng sớm', () => {
+    const detail = listMocks<ExperimentDetail>('experiment_detail').find((d) =>
+      d.config.attacks.some((a) => a.training_slice_id),
+    )
+    if (!detail) throw new Error('Thiếu mock experiment có patch')
+    const draft = draftFromClone(detail.config, [], 'dv')
+    const patch = draft.attacks.find((a) => a.requiresTraining)
+    expect(patch?.trainingSliceId).toBe(
+      detail.config.attacks.find((a) => a.training_slice_id)?.training_slice_id,
+    )
+    const stops = detail.config.attacks.map((a) => a.grid?.early_stop !== false)
+    expect(draft.earlyStop).toBe(stops.every(Boolean))
+    expect(draft.earlyStopMixed).toBe(stops.some(Boolean) && !stops.every(Boolean))
+
+    const mixed = draftFromClone(
+      {
+        ...detail.config,
+        attacks: detail.config.attacks.map((a, i) =>
+          a.grid ? { ...a, grid: { ...a.grid, early_stop: i !== 0 } } : a,
+        ),
+      },
+      [],
+      'dv',
+    )
+    expect([mixed.earlyStop, mixed.earlyStopMixed]).toEqual([false, true])
   })
 })
 

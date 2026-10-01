@@ -57,6 +57,10 @@ function mockPhase5(pathname: string, query: URLSearchParams): unknown {
   }
   if (pathname in simple) return listMocks(simple[pathname])
   if (pathname === '/slices') {
+    // Phase 6: mock không có danh sách ảnh; coi mọi slice khác là không giao.
+    const disjointFrom = query.get('disjoint_from')
+    if (disjointFrom)
+      return listMocks<SliceSummary>('slice_summary').filter((s) => s.id !== disjointFrom)
     return where<SliceSummary>('slice_summary', 'dataset_version_id', query.get('dataset_version'))
   }
   if (pathname === '/class-mappings') {
