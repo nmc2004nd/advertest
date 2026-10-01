@@ -8,6 +8,21 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 **Trạng thái:** đang làm. Kickoff và Group 0 trên nhánh `phase07-reviewer-g0`.
 
+### Phase 7 — Group 1 (ml-search) — 2026-10-01
+#### Thêm
+- `ml_core/search/subset.py` (task 5): `select_subset` (sắp theo `sha256({"purpose": "search_subset", "seed", "image_id"})`, slice không lớn hơn `subset_size` thì lấy cả slice), `eval_image_ids_sha256`.
+- `ml_core/search/bounds.py` (task 6): `search_grid` (level thô; rời rạc chọn theo chỉ số, `lo`/`hi` phải là giá trị của spec), `bisect_steps`, `search_bounds` (tập con `m + s`, toàn slice `m + 1 + s`, slice nhỏ `m + s`). Chỉ import contract nên backend dùng được.
+- `ml_core/search/algorithm.py` (task 7, 8): `ThresholdSearch.progress(observations, stop=, failure=)` chạy lại thuật toán trên các điểm đã đánh giá, trả điểm kế tiếp (`order` = `search_order`) hoặc kết quả cuối (`found`, `non_monotonic`, `not_reached`, `below_min`, `stopped_limit`, `failed` kèm thông điệp); level 0 là synthetic; mỗi cặp (level, tập ảnh) đánh giá một lần; `to_search_result`, `observations_from_trajectory` (chạy tiếp từ `SearchResult.trajectory`).
+- Test (task 9): 58 unit test với hàm mức sụt tổng hợp, gồm test thuộc tính 400 hàm có nhiễu (số điểm không vượt giới hạn), chạy tiếp từ mọi điểm qua JSON của `SearchResult`, chạy lại mock `search_result/found.json`.
+#### Quyết định (người dùng chốt ở kế hoạch Group 1; đã ghi vào `requirements.md`)
+- Dịch từng ô thô tới khi đổi phía ngưỡng (kể cả khi xác nhận `lo`/`hi` cho kết quả ngược tập con); giới hạn toàn slice đổi từ `3 + s` thành `coarse_n + 1 + s` (PGD mặc định 20 → 23 điểm).
+- Xác nhận mâu thuẫn (`d(a) ≥ ngưỡng`, `d(b) < ngưỡng`) → dịch xuống và gắn `non_monotonic`.
+#### Review (phase-review, 2026-10-01)
+- #1 (người dùng chọn sửa, agent ml-search): khoảng tạm thời ở giai đoạn xác nhận nhảy về `[lo, hi]` → giữ cận từ tập con khi điểm toàn slice chưa suy ra được; test mới fail trên code cũ.
+- #2 (người dùng chọn sửa, người duyệt): `requirements.md` công thức giới hạn, quy tắc dịch, quét thô đủ mọi level, khóa tập con, quy tắc khoảng tạm thời; mock `search_result/*`, `search_result_report/*`, `experiment_detail/search_*`, `estimate_response/search_*`, bundle sinh lại theo công thức mới (đối chiếu từng mock với `search_bounds`: khớp). `estimate_response/search_pgd_fog` nay có `max_exceeds_limit = true` (7240 s > 7200 s).
+- Ghi nhận (không ghi spec): `round()` làm tròn kiểu ngân hàng khi chọn chỉ số level thô rời rạc; khi cận dưới bằng 0 được xác nhận, quỹ đạo có điểm synthetic ở cả hai tập ảnh (báo frontend Group 6).
+- Review và phần sửa do cùng một agent làm (không độc lập).
+
 ### Phase 7 — Group 0 (người duyệt, người dùng giao) — 2026-10-01
 #### Contract
 - Enum: `SearchStatus.failed`; enum mới `SearchStage` (`coarse`, `bisect_subset`, `confirm`, `bisect_full`, `done`), `EvalScope` (`full`, `subset`).

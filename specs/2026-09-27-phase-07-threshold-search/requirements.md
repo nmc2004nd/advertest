@@ -45,7 +45,7 @@ Cuối phase: chọn ngưỡng sụt 20% cho PGD, hệ thống trả về điể
 - **API nội bộ:** body `SearchRunCreate` (`lease_id`, `attack_spec_id`, `level`, `scope`, `search_order`) trả `BundleRun` (`201`); `POST .../search-result` đổi body thành `SearchResultReport` (`lease_id`, `result`) như mọi request khác của worker, trả `204`; bản sau thay bản trước của cùng attack.
 - **Chạy tiếp sau gián đoạn:** `WorkerJobBundle.search_results` chứa `SearchResult` mới nhất của từng attack tìm ngưỡng; thuật toán là máy trạng thái thuần nên worker dựng lại trạng thái bằng cách nạp lại `trajectory` theo `order` (không cần lưu trạng thái riêng trong checkpoint). Run tìm ngưỡng trong bundle có `search_order`; `runs` được rỗng khi mọi attack ở chế độ tìm ngưỡng.
 - **`ExperimentDetail`:** `attack_ranking` chỉ được chứa attack quét lưới (validator); `search_results` chỉ chứa attack tìm ngưỡng, mỗi attack tối đa một.
-- **`bracket` của kết quả tạm thời** (review Group 0): khoảng hẹp nhất suy ra được từ các điểm đã có của giai đoạn hiện tại (cận dưới là level lớn nhất chưa gãy, cận trên là level nhỏ nhất đã gãy), kể cả trong giai đoạn quét thô; chưa có điểm gãy thì cận trên là `hi`.
+- **`bracket` của kết quả tạm thời** (review Group 0, chỉnh ở review Group 1): khoảng hẹp nhất suy ra được từ các điểm đã có của giai đoạn hiện tại (cận dưới là level lớn nhất chưa gãy nằm dưới cận trên, cận trên là level nhỏ nhất đã gãy), kể cả trong giai đoạn quét thô; chưa có điểm gãy thì cận trên là `hi`, chưa có điểm chưa gãy thì cận dưới là `lo`. Ở giai đoạn xác nhận và dịch khoảng (điểm toàn slice), cận nào các điểm toàn slice chưa suy ra được thì giữ cận lấy từ các điểm tập con, để khoảng không nhảy về `[lo, hi]`.
 - **Tiến độ và hàng đợi khi có tìm ngưỡng** (review Group 0): `ExperimentSummary.progress.images_total` chỉ tính ảnh của các run đã tạo (tăng dần khi worker tạo run động); giao diện dùng dòng tiến độ tìm kiếm cho attack tìm ngưỡng. `queue.ahead_seconds` tính phần tìm ngưỡng của experiment đứng trước bằng `max_seconds` trừ thời gian xử lý đã dùng cho attack đó (không âm).
 - **`PassCriterion.class_filter`** đổi thành `str | None` cùng kiểu với `SearchConfig.class_filter` (Phase 8 điền cấu hình tìm ngưỡng từ protocol).
 - **`EstimateResponse`:** `max_total_seconds` null khi không có attack tìm ngưỡng; `max_exceeds_limit` chỉ `true` khi có attack tìm ngưỡng; `exceeds_limit` kéo theo `max_exceeds_limit`; attack của `searches` không có run quét lưới; `missing_profiles` gồm cả attack tìm ngưỡng có `max_seconds = null`.
@@ -64,30 +64,33 @@ Cuối phase: chọn ngưỡng sụt 20% cho PGD, hệ thống trả về điể
 - Mức sụt bằng hoặc vượt ngưỡng được coi là **gãy**.
 
 ### Tập con
-- Tập con = `subset_size` ảnh đầu tiên của slice sau khi sắp theo `hash(seed, image_id)`. Xác định, không phụ thuộc thứ tự lưu trữ.
+- Tập con = `subset_size` ảnh đầu tiên của slice sau khi sắp theo `hash(seed, image_id)`. Xác định, không phụ thuộc thứ tự lưu trữ. Khóa sắp xếp (review Group 1): `sha256(canonical_json({"purpose": "search_subset", "seed": seed, "image_id": image_id}))`, `seed` là seed của attack; đổi khóa này làm đổi tập con và fingerprint của mọi run trên tập con.
 - Nếu slice có không quá `subset_size` ảnh: tập con là toàn slice và bỏ qua giai đoạn xác nhận.
 
 ### Thuật toán
 Ký hiệu `d(x, S)` là mức sụt ở level `x` trên tập ảnh `S`.
 
-1. **Quét thô (trên tập con):** `coarse_n` level cách đều từ `lo` đến `hi` (với tham số rời rạc: `coarse_n` giá trị cách đều theo chỉ số, luôn gồm giá trị nhỏ nhất và lớn nhất).
-   - `d(lo) ≥ ngưỡng` → chuyển sang xác nhận `lo` trên toàn slice; nếu vẫn gãy → `below_min`.
-   - `d(hi) < ngưỡng` → chuyển sang xác nhận `hi` trên toàn slice; nếu vẫn không gãy → `not_reached`.
+1. **Quét thô (trên tập con):** `coarse_n` level cách đều từ `lo` đến `hi` (với tham số rời rạc: `coarse_n` giá trị cách đều theo chỉ số, luôn gồm giá trị nhỏ nhất và lớn nhất; `lo`, `hi` phải là giá trị của spec). Luôn đánh giá đủ mọi level thô, theo thứ tự tăng dần (Group 1).
+   - `d(lo) ≥ ngưỡng` → chuyển sang xác nhận `lo` trên toàn slice; nếu vẫn gãy → `below_min`; nếu không gãy → dịch lên từ `lo` như bước 3.
+   - `d(hi) < ngưỡng` → chuyển sang xác nhận `hi` trên toàn slice; nếu vẫn không gãy → `not_reached`; nếu gãy → dịch xuống từ `hi` như bước 3.
    - Ngược lại: khoảng `[a, b]` = hai level liền kề đầu tiên mà `d(a) < ngưỡng ≤ d(b)`.
    - Nếu các mức sụt thô không tăng dần (một điểm thấp hơn điểm trước quá 0.02) → ghi nhận cờ không đơn điệu.
 2. **Chia đôi (trên tập con):** lặp `m = (a + b) / 2`, cập nhật `a` hoặc `b`, cho đến khi `b − a ≤ tol`. Với tham số rời rạc: chia đôi theo chỉ số, dừng khi `a` và `b` liền kề.
 3. **Xác nhận (trên toàn slice):** đánh giá `a` và `b`.
    - `d(a) < ngưỡng ≤ d(b)` → xong.
-   - `d(b) < ngưỡng` → dịch lên: `a = b`, `b` = level thô kế tiếp phía trên (hoặc `hi`); đánh giá `b` trên toàn slice; nếu `b = hi` mà vẫn không gãy → `not_reached`; ngược lại chia đôi trên toàn slice đến khi `b − a ≤ tol`.
-   - `d(a) ≥ ngưỡng` → dịch xuống, đối xứng; nếu `a = lo` mà vẫn gãy → `below_min`.
+   - `d(b) < ngưỡng` → dịch lên: `a = b`, `b` = level thô kế tiếp phía trên; đánh giá `b` trên toàn slice; còn chưa gãy thì `a = b` và lặp với level thô kế tiếp (dịch từng ô thô, quyết định Group 1); `b = hi` mà vẫn không gãy → `not_reached`; gãy thì chia đôi trên toàn slice đến khi `b − a ≤ tol`.
+   - `d(a) ≥ ngưỡng` → dịch xuống, đối xứng; `a = lo` mà vẫn gãy → `below_min`.
+   - `d(a) ≥ ngưỡng` và `d(b) < ngưỡng` cùng lúc (mâu thuẫn) → dịch xuống (thận trọng: điểm gãy nhỏ hơn) và ghi nhận cờ không đơn điệu (quyết định Group 1).
 4. **Kết quả:** `breaking_point = b`, `bracket = [a, b]`. Trạng thái `found`, hoặc `non_monotonic` nếu có cờ không đơn điệu (vẫn báo điểm gãy đầu tiên tìm được).
 
 - **Điểm tổng hợp:** level là giá trị "không biến đổi" của spec (eps = 0, tỉ lệ che = 0) có mức sụt bằng 0 theo định nghĩa, không chạy, ghi vào quỹ đạo với `synthetic = true`.
 - **Dùng lại kết quả:** mỗi điểm là một run có fingerprint riêng (gồm `eval_image_ids_sha256`). Điểm trên toàn slice trùng với run quét lưới đã có được bỏ qua do cache như mọi run khác.
 - **Giới hạn trên số điểm:** với `W = (hi − lo) / (coarse_n − 1)` và `s = ⌈log₂(W / tol)⌉`:
   - điểm trên tập con tối đa: `coarse_n + s`;
-  - điểm trên toàn slice tối đa: `3 + s`;
-  - `max_points` = tổng hai giá trị trên. Với tham số rời rạc, `s` tính theo số chỉ số trong khoảng thô.
+  - điểm trên toàn slice tối đa: `coarse_n + 1 + s` (xác nhận 2 điểm, dịch tối đa `coarse_n − 1` ô thô, chia đôi `s` bước; review Group 1, thay cho `3 + s` vì dịch từng ô thô);
+  - `max_points` = tổng hai giá trị trên. Với tham số rời rạc, `coarse_n` là số level thô thực có (không quá số giá trị trong `[lo, hi]`) và `s = ⌈log₂ g⌉` với `g` là khoảng cách chỉ số lớn nhất giữa hai level thô liền kề (`s = 0` khi `g ≤ 1`).
+  - Slice không lớn hơn `subset_size`: không có tập con, toàn slice tối đa `coarse_n + s`.
+  - Ví dụ PGD L∞ dải 0–32, `coarse_n = 5`, `tol = 0.125`: `W = 8`, `s = 6`, tập con 11, toàn slice 12, `max_points = 23`.
 - Worker không bao giờ tạo quá `max_points` run cho một lần tìm kiếm (API từ chối nếu vượt).
 
 ### Khoảng tin cậy bootstrap
