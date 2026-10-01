@@ -12,7 +12,16 @@ from sqlalchemy.orm import Session
 from advertest_contracts.models import EstimateResponse, compute_patch_key
 from backend.app.db import models as m
 
-from .conftest import PATCH_MAX_ITER, World6, ok, patch_attack, post, profile
+from .conftest import (
+    PATCH_MAX_ITER,
+    World6,
+    grid_attack,
+    ok,
+    patch_attack,
+    post,
+    profile,
+    spec_id,
+)
 
 pytestmark = pytest.mark.db
 SPI = 0.25  # giây mỗi ảnh mỗi vòng train
@@ -51,18 +60,27 @@ def test_training_seconds_until_patch_exists(api: Any, world: World6, owner_engi
     assert [r.training_seconds for r in again.runs] == [None, pytest.approx(train)]
 
 
-def test_calibration_measures_training_cost(api: Any, world: World6, app_engine: Engine) -> None:
-    """Không có cost profile: worker calibration cho adv_patch đo cả `sec_per_image_iteration`."""
+def test_calibration_of_new_specs(api: Any, world: World6, app_engine: Engine) -> None:
+    """Không có cost profile: worker calibration cho spec mới (corruption, occlusion, patch) chạy
+    được và experiment xong; profile của adv_patch có `sec_per_image_iteration`."""
     target = api.target()
     _, _, client = api.user("engineer")
-    created = ok(post(client, "/experiments", api.body(target, [patch_attack(world, [0.05])])))
-    api.work(target, created.json()["id"])
+    attacks = [grid_attack("fog", [1]), grid_attack("bbox_occlusion", [0.3]),
+               patch_attack(world, [0.05])]  # fmt: skip
+    created = ok(post(client, "/experiments", api.body(target, attacks))).json()
+    api.work(target, created["id"])
+    assert client.get(f"/experiments/{created['id']}").json()["status"] == "completed"
+    runs = client.get(f"/experiments/{created['id']}/runs").json()
+    assert {r["status"] for r in runs} == {"completed"}, runs
     with Session(app_engine) as session:
-        row = session.scalars(
-            select(m.CostProfile).where(
-                m.CostProfile.compute_target_id == UUID(target.id),
-                m.CostProfile.attack_spec_id == world.patch.id,
+        rows = {
+            row.attack_spec_id: row
+            for row in session.scalars(
+                select(m.CostProfile).where(m.CostProfile.compute_target_id == UUID(target.id))
             )
-        ).one()
-    assert row.sec_per_image > 0
-    assert row.sec_per_image_iteration is not None and row.sec_per_image_iteration > 0
+        }
+    for name in ("fog", "bbox_occlusion"):
+        assert rows[UUID(spec_id(name))].sec_per_image > 0, name
+    patch = rows[world.patch.id]
+    assert patch.sec_per_image > 0
+    assert patch.sec_per_image_iteration is not None and patch.sec_per_image_iteration > 0
