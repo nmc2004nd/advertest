@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef } from 'react'
 import { apiGet } from '@/api/client'
 import { POLL_INTERVAL_MS } from '@/api/queries'
 import type {
+  AttackSpec,
   ExperimentDetail,
   ExperimentPage,
   ExperimentStatus,
@@ -177,5 +178,13 @@ export function useMyRecentExperiments() {
       query.state.data?.items.some((e) => ACTIVE_EXPERIMENT.includes(e.status))
         ? POLL_INTERVAL_MS
         : false,
+  })
+}
+
+/** Catalog attack (Phase 7: tên và dải của attack tìm ngưỡng chưa có run). Cùng khóa với wizard. */
+export function useAttackCatalog() {
+  return useQuery({
+    queryKey: ['attack-specs'],
+    queryFn: () => apiGet<AttackSpec[]>('/attack-specs'),
   })
 }

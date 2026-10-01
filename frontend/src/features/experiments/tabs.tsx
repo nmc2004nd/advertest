@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 
 import { middleTruncate } from '@/admin/format'
 import { AttackRanking } from '@/components/charts/AttackRanking'
+import { gridAttackIds } from '@/components/charts/breakpoints'
 import { MetricCurves } from '@/components/charts/MetricCurves'
 import { CopyButton } from '@/components/CopyButton'
 import { WATERMARK } from '@/components/case-viewer/CaseViewer'
@@ -12,6 +13,7 @@ import { StatusBadge } from '@/components/status/StatusBadge'
 import type { ExperimentDetail, FailureCaseView, Manifest, RunView } from '@/contracts/api'
 
 import { artifactSrc, useFailureCases, useManifest } from './api'
+import { BreakingPoints } from './BreakingPoints'
 import { downloadJson, formatDuration, reasonText, runLabel } from './format'
 import { ProgressBar } from './ProgressBar'
 import { RunProgress } from './RunProgress'
@@ -66,10 +68,17 @@ export function ResultsTab({
   experiment: ExperimentDetail
   runs: RunView[]
 }) {
+  // Phase 7: xếp hạng và đường cong chỉ gồm attack quét lưới; run tìm ngưỡng (kể cả tập con)
+  // nằm ở mục "Điểm gãy".
+  const grid = gridAttackIds(experiment)
+  const gridRuns = runs.filter((run) => grid.has(run.attack_spec_id))
   return (
     <div className="space-y-6">
+      <BreakingPoints experiment={experiment} runs={runs} />
       <AttackRanking ranking={experiment.attack_ranking ?? []} />
-      <MetricCurves runs={runs} cleanMap50={experiment.clean_metrics?.map50 ?? null} />
+      {grid.size > 0 && (
+        <MetricCurves runs={gridRuns} cleanMap50={experiment.clean_metrics?.map50 ?? null} />
+      )}
     </div>
   )
 }
