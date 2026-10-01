@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from advertest_contracts.enums import RunStatus
-from advertest_contracts.models import RunMetrics, WorkerJobBundle
+from advertest_contracts.models import BundleRun, RunMetrics, WorkerJobBundle
 from ml_core.runner.grid import EarlyStop, GridRun, early_stop
 
 
@@ -34,6 +34,10 @@ class RunLedger:
             attack.attack_spec_id: bool(attack.grid is not None and attack.grid.early_stop)
             for attack in bundle.config.attacks
         }
+
+    def add(self, run: BundleRun) -> None:
+        """Run tạo động trong phiên (tìm ngưỡng, Phase 7); không tham gia dừng sớm."""
+        self._runs[run.run_id] = _Entry(run.attack_spec_id, run.level, run.status, run.metrics)
 
     def record(self, run_id: UUID, status: RunStatus, metrics: RunMetrics | None = None) -> None:
         entry = self._runs[run_id]

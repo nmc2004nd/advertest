@@ -10,6 +10,10 @@ task 24-28, 30).
 
 Chạy tiếp sau gián đoạn: bundle có checkpoint mới nhất của run đang chạy dở; executor dựng lại
 từ checkpoint và chỉ xử lý ảnh chưa xử lý.
+
+Phase 7: chạy mọi run quét lưới trước, rồi lần lượt từng attack tìm ngưỡng (`SearchDriver`); run
+của tìm ngưỡng được tạo động qua API, đánh giá trên tập con hoặc toàn slice theo `scope`. Mọi run
+có metric ghi prediction theo ảnh (`runs/<run_id>/predictions.json`, dùng cho bootstrap).
 """
 
 from __future__ import annotations
@@ -27,13 +31,16 @@ import httpx
 import numpy as np
 import torch
 
-from advertest_contracts.enums import RunStatus, SkipReason, StopReason
+from advertest_contracts.enums import EvalScope, RunMode, RunStatus, SkipReason, StopReason
 from advertest_contracts.models import (
+    AttackConfig,
     AttackSpec,
+    BundleRun,
     CostProfile,
     Environment,
     FailureCaseRecord,
     FingerprintInputs,
+    LibVersions,
     Manifest,
     Progress,
     ProgressReport,
@@ -42,6 +49,9 @@ from advertest_contracts.models import (
     RunResult,
     RunSkipRequest,
     RunStartRequest,
+    SearchResult,
+    SearchResultReport,
+    SearchRunCreate,
     StatusReason,
     WorkerDirective,
     WorkerJobBundle,
@@ -54,16 +64,25 @@ from advertest_worker.client import LeaseLost, WorkerClient
 from advertest_worker.config import HEARTBEAT_INTERVAL_S
 from advertest_worker.early_stop import RunLedger
 from advertest_worker.patch import PatchInterrupted, PatchJob, obtain_patch
+from advertest_worker.search import KnownRun, PointOutcome, SearchDriver
 from attacks.art_adapter import IncompatibleAttack
 from attacks.factory import build_perturbation
 from attacks.patch.adapter import PatchPerturbation
 from attacks.patch.geometry import patch_key
 from ml_core.cli.evaluate import load_model_from_store
+from ml_core.metrics.bootstrap import dump_run_predictions, run_predictions_key
+from ml_core.metrics.filters import Prediction
 from ml_core.models.estimator import build_estimator
 from ml_core.models.register import lib_versions
 from ml_core.runner.cache_loader import ShaCacheLoader
 from ml_core.runner.candidates import StoreCandidates
-from ml_core.runner.env import describe_device, docker_image_digest, environment, git_state
+from ml_core.runner.env import (
+    GitState,
+    describe_device,
+    docker_image_digest,
+    environment,
+    git_state,
+)
 from ml_core.runner.executor import (
     RunContext,
     RunExecutor,
@@ -73,6 +92,7 @@ from ml_core.runner.executor import (
 )
 from ml_core.runner.fingerprint import build_fingerprint_inputs, fingerprint
 from ml_core.runner.images import letterbox_mask, perturbation_kind
+from ml_core.search.subset import eval_image_ids_sha256, select_subset
 from ml_core.store import PresignedStore
 
 logger = logging.getLogger(__name__)
@@ -148,6 +168,15 @@ class _StopExperiment(Exception):
     """Run kết thúc vì bị hủy hoặc chạm giới hạn: không chạy các run sau."""
 
 
+@dataclass(frozen=True)
+class _Provenance:
+    """Nguồn gốc mã và môi trường cho fingerprint, đọc một lần mỗi experiment."""
+
+    git: GitState
+    versions: LibVersions
+    digest: str
+
+
 @dataclass
 class _Job:
     lease: WorkerLease
@@ -160,6 +189,12 @@ class _Job:
     remaining_seconds: float | None
     ledger: RunLedger
     context: RunContext | None = None
+    # Phase 7: mọi run đã biết (bundle và run tạo động), kết quả của run trong phiên và prediction
+    # theo ảnh của run đã hoàn tất trong phiên (bootstrap).
+    runs: dict[UUID, BundleRun] = field(default_factory=dict)
+    outcomes: dict[UUID, PointOutcome] = field(default_factory=dict)
+    predictions: dict[UUID, dict[str, Prediction]] = field(default_factory=dict)
+    provenance: _Provenance | None = None
 
 
 class JobRunner:
@@ -211,7 +246,10 @@ class JobRunner:
             ):
                 continue
             levels = [r.level for r in bundle.runs if r.attack_spec_id == spec.id]
-            level = levels[0] if levels else spec.primary_param.min
+            # Phase 7: attack tìm ngưỡng có thể chưa có run; đo ở `hi` (level 0 của PGD cho bước
+            # nhảy 0).
+            fallback = attack.search.hi if attack.search is not None else spec.primary_param.min
+            level = levels[0] if levels else fallback
             try:
                 if spec.requires_training:
                     # Phase 6: đánh giá đo bằng patch ngẫu nhiên; chi phí train đo riêng bên dưới.
@@ -281,38 +319,95 @@ class JobRunner:
             specs={s.id: s for s in bundle.attack_specs},
             remaining_seconds=(float(limit.value - limit.used) if limit.kind == "time" else None),
             ledger=RunLedger(bundle),
+            runs={run.run_id: run for run in bundle.runs},
         )
-        git = git_state()
-        versions = lib_versions()
-        digest = docker_image_digest()
         for run in bundle.runs:
+            if run.search_order is not None:
+                continue  # run tìm ngưỡng chạy trong vòng lặp tìm kiếm (Phase 7)
             if run.status not in (RunStatus.QUEUED, RunStatus.RUNNING):
                 continue
-            directive = box.current()
-            if directive is not None and directive.action != "continue":
-                logger.info("Dừng experiment theo chỉ thị %s", directive.action)
+            if self._directive_stops(job):
                 return
             spec = job.specs[run.attack_spec_id]
             if self._skip_early_stop(job, run.run_id, spec.name, run.level):
                 continue
-            inputs = build_fingerprint_inputs(
-                spec=spec,
-                level=run.level,
-                seed=run.seed,
-                params=bundle.inference_params,
-                mapping=bundle.class_mapping,
-                slice_spec=bundle.slice,
-                weights_sha256=bundle.model_card.weights_sha256,
-                git_commit=git.commit,
-                git_dirty=git.dirty,
-                lib_versions=versions,
-                docker_image_digest=digest,
-                patch_key=run.patch_key,
-            )
             try:
-                self._run_one(job, run.run_id, spec, inputs)
+                self._run_one(job, run.run_id, spec, self._inputs(job, run, spec))
             except _StopExperiment:
                 return
+        for attack in bundle.config.attacks:
+            if attack.mode != RunMode.SEARCH:
+                continue
+            if self._directive_stops(job):
+                return
+            if self._search(job, attack):
+                return
+
+    @staticmethod
+    def _directive_stops(job: _Job) -> bool:
+        directive = job.box.current()
+        if directive is not None and directive.action != "continue":
+            logger.info("Dừng experiment theo chỉ thị %s", directive.action)
+            return True
+        return False
+
+    def _inputs(self, job: _Job, run: BundleRun, spec: AttackSpec) -> FingerprintInputs:
+        bundle = job.bundle
+        if job.provenance is None:
+            job.provenance = _Provenance(git_state(), lib_versions(), docker_image_digest())
+        git, versions, digest = job.provenance.git, job.provenance.versions, job.provenance.digest
+        image_ids = self._image_ids(job, run)
+        return build_fingerprint_inputs(
+            spec=spec,
+            level=run.level,
+            seed=run.seed,
+            params=bundle.inference_params,
+            mapping=bundle.class_mapping,
+            slice_spec=bundle.slice,
+            weights_sha256=bundle.model_card.weights_sha256,
+            git_commit=git.commit,
+            git_dirty=git.dirty,
+            lib_versions=versions,
+            docker_image_digest=digest,
+            patch_key=run.patch_key,
+            eval_image_ids_sha256=(None if image_ids is None else eval_image_ids_sha256(image_ids)),
+        )
+
+    @staticmethod
+    def _image_ids(job: _Job, run: BundleRun) -> list[str] | None:
+        """Ảnh của run trên tập con (Phase 7); `None` với run toàn slice."""
+        if run.scope != EvalScope.SUBSET:
+            return None
+        attack = next(
+            a for a in job.bundle.config.attacks if a.attack_spec_id == run.attack_spec_id
+        )
+        if attack.search is None:
+            raise ValueError(f"Run {run.run_id} trên tập con nhưng attack không tìm ngưỡng")
+        return select_subset(job.bundle.slice.image_ids, attack.seed, attack.search.subset_size)
+
+    # ------------------------------------------------------------------ tìm ngưỡng (Phase 7)
+
+    def _search(self, job: _Job, attack: AttackConfig) -> bool:
+        """Một attack tìm ngưỡng; `True` nếu experiment phải dừng."""
+        bundle = job.bundle
+        spec = job.specs[attack.attack_spec_id]
+        previous = next((r for r in bundle.search_results if r.attack_spec_id == spec.id), None)
+        known = {
+            run.search_order: KnownRun(run.run_id, run.level, run.scope, run.status, run.metrics)
+            for run in bundle.runs
+            if run.attack_spec_id == spec.id and run.search_order is not None
+        }
+        driver = SearchDriver(
+            experiment_id=bundle.experiment_id,
+            attack=attack,
+            spec=spec,
+            context=self._context(job),
+            hooks=_JobSearchHooks(self, job, attack, spec),
+            known_runs=known,
+            previous=previous,
+        )
+        logger.info("[%s] tìm ngưỡng", spec.name)
+        return driver.run()
 
     def _skip_early_stop(self, job: _Job, run_id: UUID, name: str, level: float) -> bool:
         """Phase 6 (plan task 16): bỏ run `queued` khi level nhỏ hơn của cùng attack đã làm model
@@ -358,7 +453,7 @@ class JobRunner:
         self, job: _Job, run_id: UUID, spec: AttackSpec, inputs: FingerprintInputs
     ) -> None:
         bundle, lease = job.bundle, job.lease
-        run = next(r for r in bundle.runs if r.run_id == run_id)
+        run = job.runs[run_id]
         fp = fingerprint(inputs)
         response = self.client.start(
             run_id,
@@ -372,7 +467,9 @@ class JobRunner:
         if response.action == "skip_cached":
             logger.info("[%s %g] bỏ qua: trùng fingerprint", spec.name, run.level)
             cached = response.cached_result
-            job.ledger.record(run_id, RunStatus.SKIPPED, cached.metrics if cached else None)
+            metrics = cached.metrics if cached else None
+            job.ledger.record(run_id, RunStatus.SKIPPED, metrics)
+            job.outcomes[run_id] = PointOutcome(RunStatus.SKIPPED, metrics)
             return
 
         store = PresignedStore(
@@ -380,7 +477,11 @@ class JobRunner:
             self.url_http,
         )
         prefix = f"runs/{run_id}"
-        finish = _Finisher(self, job, run_id, spec, run.level, fp, inputs, store, prefix)
+        image_ids = self._image_ids(job, run)
+        images_total = len(image_ids) if image_ids is not None else len(bundle.slice.image_ids)
+        finish = _Finisher(
+            self, job, run, spec, fp, inputs, store, prefix, images_total=images_total
+        )
 
         if spec.requires_gradients and not bundle.model_card.supports_gradients:
             finish.skipped(f"{spec.name} cần gradient nhưng model không hỗ trợ gradient")
@@ -414,7 +515,7 @@ class JobRunner:
         )
         try:
             executor, batch_index = self._executor(
-                job, run_id, fp, run.level, run.seed, perturbation, candidates
+                job, run_id, fp, run.level, run.seed, perturbation, candidates, image_ids
             )
         except LeaseLost:
             raise
@@ -499,7 +600,7 @@ class JobRunner:
         độ `phase = training`), rồi dựng adapter dán patch. Trả kèm thời gian train để cộng vào
         `gpu_seconds` của run."""
         bundle = job.bundle
-        run = next(r for r in bundle.runs if r.run_id == run_id)
+        run = job.runs[run_id]
         patch = next(p for p in bundle.patches if p.key == run.patch_key)
         training = next(s for s in bundle.training_slices if s.id == patch.training_slice_id)
         # Review Group 3 #2: không tin khóa và kích thước patch của bundle mà không đối chiếu.
@@ -573,15 +674,17 @@ class JobRunner:
         seed: int,
         perturbation: Perturbation,
         candidates: StoreCandidates,
+        image_ids: list[str] | None = None,
     ) -> tuple[RunExecutor, int]:
-        run = next(r for r in job.bundle.runs if r.run_id == run_id)
+        run = job.runs[run_id]
+        context = self._context(job)
         args: dict[str, Any] = {
             "fingerprint": fp,
             "level": level,
             "seed": seed,
             "perturbation": perturbation,
             "estimator": self._estimator(job.bundle),
-            "context": self._context(job),
+            "context": context if image_ids is None else context.restricted(image_ids),
             "candidates": candidates,
         }
         if run.checkpoint is None:
@@ -617,19 +720,22 @@ class _Finisher:
         self,
         runner: JobRunner,
         job: _Job,
-        run_id: UUID,
+        run: BundleRun,
         spec: AttackSpec,
-        level: float,
         fp: str,
         inputs: FingerprintInputs,
         store: PresignedStore,
         prefix: str,
+        *,
+        images_total: int,
     ) -> None:
         self.runner = runner
         self.job = job
-        self.run_id = run_id
+        self.run = run
+        self.run_id = run.run_id
         self.spec = spec
-        self.level = level
+        self.level = run.level
+        self.images_total = images_total
         self.fp = fp
         self.inputs = inputs
         self.store = store
@@ -657,9 +763,9 @@ class _Finisher:
         executor: RunExecutor | None,
         metrics: RunMetrics | None = None,
         cases: list[FailureCaseRecord] | None = None,
+        predictions_key: str | None = None,
     ) -> None:
         cases = cases or []
-        images_total = len(self.job.bundle.slice.image_ids)
         result = RunResult(
             run_id=self.run_id,
             experiment_id=self.job.bundle.experiment_id,
@@ -669,19 +775,25 @@ class _Finisher:
             status=status,
             status_reason=reason,
             progress=Progress(
-                images_done=executor.images_done if executor else 0, images_total=images_total
+                images_done=executor.images_done if executor else 0,
+                images_total=self.images_total,
             ),
             metrics=metrics,
             gpu_seconds=(executor.processing_seconds if executor else 0.0) + self.extra_seconds,
             cost=None,
             failure_case_ids=[case.id for case in cases],
             manifest_uri=self._manifest(),
+            scope=self.run.scope,
+            search_order=self.run.search_order,
+            predictions_key=predictions_key,
         )
         self.runner.client.complete(
             self.run_id,
             RunCompletion(lease_id=self.job.lease.lease_id, run_result=result, failure_cases=cases),
         )
         self.job.ledger.record(self.run_id, status, metrics)
+        message = reason.message if reason is not None else None
+        self.job.outcomes[self.run_id] = PointOutcome(status, metrics, message)
         logger.info("[%s %g] %s", self.spec.name, self.level, status)
 
     def _discard_candidates(self, executor: RunExecutor | None) -> None:
@@ -694,9 +806,25 @@ class _Finisher:
             except Exception:
                 logger.warning("Không xóa được ứng viên %s", image_id, exc_info=True)
 
+    def _predictions(self, executor: RunExecutor) -> str:
+        """Prediction theo ảnh của run (Phase 7, plan task 13a): upload để bootstrap dùng lại."""
+        key = run_predictions_key(self.run_id)
+        device = describe_device(self.runner.device)
+        self.store.put(key, dump_run_predictions(self.run_id, executor.predictions, device))
+        return key
+
     def completed(self, executor: RunExecutor) -> None:
         finalized = executor.finalize(self.run_id)
-        self._send(RunStatus.COMPLETED, None, executor, finalized.metrics, finalized.failure_cases)
+        key = self._predictions(executor)
+        self._send(
+            RunStatus.COMPLETED,
+            None,
+            executor,
+            finalized.metrics,
+            finalized.failure_cases,
+            predictions_key=key,
+        )
+        self.job.predictions[self.run_id] = dict(executor.predictions)
 
     def stopped(self, executor: RunExecutor | None) -> None:
         reason = StatusReason(
@@ -707,7 +835,12 @@ class _Finisher:
             return
         finalized = executor.finalize(self.run_id, partial=True)
         self._send(
-            RunStatus.STOPPED_LIMIT, reason, executor, finalized.metrics, finalized.failure_cases
+            RunStatus.STOPPED_LIMIT,
+            reason,
+            executor,
+            finalized.metrics,
+            finalized.failure_cases,
+            predictions_key=self._predictions(executor),
         )
 
     def cancelled(self, executor: RunExecutor | None) -> None:
@@ -728,3 +861,66 @@ class _Finisher:
         logger.error("[%s %g] failed: %s", self.spec.name, self.level, message, exc_info=exc)
         self._discard_candidates(executor)
         self._send(RunStatus.FAILED, StatusReason(code="error", message=message), executor)
+
+
+# ---------------------------------------------------------------- hook của tìm ngưỡng (Phase 7)
+
+
+class _JobSearchHooks:
+    """`SearchHooks` của `SearchDriver` trên API và model thật."""
+
+    def __init__(
+        self, runner: JobRunner, job: _Job, attack: AttackConfig, spec: AttackSpec
+    ) -> None:
+        self.runner = runner
+        self.job = job
+        self.attack = attack
+        self.spec = spec
+
+    def should_stop(self) -> bool:
+        directive = self.job.box.current()
+        return directive is not None and directive.action != "continue"
+
+    def create_run(self, attack_spec_id: UUID, level: float, scope: EvalScope, order: int) -> UUID:
+        job = self.job
+        run = self.runner.client.create_search_run(
+            job.bundle.experiment_id,
+            SearchRunCreate(
+                lease_id=job.lease.lease_id,
+                attack_spec_id=attack_spec_id,
+                level=level,
+                scope=scope,
+                search_order=order,
+            ),
+        )
+        if (run.attack_spec_id, run.level, run.scope, run.search_order) != (
+            attack_spec_id,
+            level,
+            scope,
+            order,
+        ):
+            raise ValueError(f"API tạo run {run.run_id} không khớp điểm đã yêu cầu")
+        job.runs[run.run_id] = run
+        job.ledger.add(run)
+        return run.run_id
+
+    def execute(self, run_id: UUID) -> PointOutcome:
+        job = self.job
+        run = job.runs[run_id]
+        try:
+            self.runner._run_one(job, run_id, self.spec, self.runner._inputs(job, run, self.spec))
+        except _StopExperiment:
+            outcome = job.outcomes.get(run_id, PointOutcome(RunStatus.CANCELLED, None))
+            return PointOutcome(outcome.status, outcome.metrics, outcome.message, stop=True)
+        return job.outcomes[run_id]
+
+    def report(self, result: SearchResult) -> None:
+        self.runner.client.search_result(
+            self.job.bundle.experiment_id,
+            SearchResultReport(lease_id=self.job.lease.lease_id, result=result),
+        )
+
+    def predictions(self, run_id: UUID) -> dict[str, Prediction] | None:
+        """Chỉ prediction của run hoàn tất trong phiên này. Đọc file của run đã kết thúc ở phiên
+        trước hoặc trúng cache chờ đề xuất contract 001 (Phase 7)."""
+        return self.job.predictions.get(run_id)
