@@ -28,6 +28,13 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 - Group 0 (người duyệt tự chọn, ghi vào `requirements.md` mục "Chi tiết chốt ở Group 0"): `SearchResult` tạm thời có `status = null` và `stage`; worker dựng lại trạng thái tìm kiếm từ `trajectory` (không có checkpoint riêng); `search-result` mang `lease_id`; ASR theo class trong `ClassRunMetrics`; `metric_kind` 4 giá trị. `tech-stack.md` mục 3.3 và 4.3 thêm `failed`.
 #### Số liệu
 - `make test` (1184 test Python, 232 Vitest), `make test-acceptance` (264 test), `make test-db` (386 test), lint, mypy, `tsc`, `contracts-check`, `verify:build` pass. Ước lượng của mock (cost profile mock 1.229 s/ảnh): PGD tối đa 20 điểm, khoảng 93 phút.
+#### Review (phase-review, 2026-10-01)
+- #1 (chặn theo mặc định, người dùng chấp nhận): Group 0 sửa `status-config.ts` của agent frontend; ghi thành task 4a của `plan.md` (thêm enum thì thêm nhãn để `main` không đỏ).
+- #2, #3 (người dùng chọn sửa): `bracket` của mock tạm thời sai (`[1, 2]` → `[0, 1]` ở 3 mock; bundle `[0, 16]` → `[0, 4]`); quy ước `bracket` là khoảng hẹp nhất suy ra từ các điểm đã có, kể cả khi quét thô (ghi vào `requirements.md`); test `test_mock_bracket_is_best_known_interval`.
+- #4 (người dùng chọn sửa): `PassCriterion.class_filter` đổi thành `str | None` cùng kiểu `SearchConfig`.
+- #5 (người dùng chọn ghi vào spec): `progress.images_total` chỉ tính run đã tạo; `queue.ahead_seconds` tính phần `max_seconds` còn lại của attack tìm ngưỡng (`requirements.md`, plan task 23, `validation.md`).
+- Ghi nhận: sửa backend và test nghiệm thu Phase 0 theo tiền lệ Group 0 Phase 6; `tol` bắt buộc với tham số rời rạc; script sinh mock không commit.
+- Review và phần sửa do cùng một agent làm (không độc lập).
 #### Lưu ý
 - Group 0 do agent làm thay người duyệt theo ủy quyền của người dùng; không độc lập.
 

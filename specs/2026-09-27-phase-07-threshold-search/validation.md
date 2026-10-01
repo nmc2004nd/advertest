@@ -53,6 +53,7 @@
 - [ ] `lo ≥ hi`, `tol ≤ 0`, `tol ≥ hi − lo`, `coarse_n` ngoài 3–8, `subset_size` ngoài miền (dưới 2 hoặc lớn hơn số ảnh slice), ngưỡng ngoài miền, `class_filter` không phải class đích → `422` với đường dẫn trường đúng.
 - [ ] Ước lượng `searches[]`, `max_total_seconds`, `max_exceeds_limit` đúng công thức trong `requirements.md`; `total_seconds` và `exceeds_limit` không đổi khi thêm attack tìm ngưỡng; experiment chỉ có attack tìm ngưỡng có `runs` rỗng.
 - [ ] Số run quét lưới cộng Σ `max_points` vượt 50 → `422` ở `attacks`.
+- [ ] `progress.images_total` của experiment tìm ngưỡng tăng khi worker tạo run động; `queue.ahead_seconds` của experiment xếp sau tính phần `max_seconds` còn lại.
 - [ ] `class_filter` dạng danh sách → `422`.
 - [ ] Worker tạo run động với level ngoài `[lo, hi]` → `422`; vượt `max_points` → `422`; cho attack không ở chế độ tìm kiếm → `422`; worker không dừng experiment khi nhận các `422` này.
 - [ ] Token của target khác gọi endpoint tạo run động → `403`.

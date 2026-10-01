@@ -12,6 +12,7 @@
 2. Thêm endpoint nội bộ `POST /internal/worker/experiments/{id}/runs` vào OpenAPI.
 3. Viết mock: `SearchResult` cho mỗi trạng thái (kể cả tạm thời khi đang chạy); quỹ đạo có điểm tập con, toàn slice, điểm tổng hợp; `EstimateResponse` có `searches`.
 4. `make contracts`; ghi `CHANGELOG.md`.
+4a. Thêm giá trị enum dùng trong bảng nhãn `frontend/src/components/status/status-config.ts` (`Record<Enum, …>`) thì Group 0 thêm luôn nhãn tương ứng, để `tsc` trên `main` không đỏ trước khi group frontend làm (ngoại lệ quyền sở hữu thư mục, review Group 0). Phase 7: nhãn "Thất bại" cho `SearchStatus.failed`.
 
 ## Group 1 — Thuật toán tìm kiếm `[agent: ml-search]`
 
@@ -44,7 +45,7 @@
 21. Endpoint tạo run động: kiểm tra attack, level, số run so với `max_points` (mọi vi phạm → `422`); ghi `scope`, `search_order`; `ordinal` của run động đứng sau mọi run quét lưới của experiment.
 22. Lưu `SearchResult` tạm thời và cuối cùng; `ExperimentDetail.search_results`.
 22a. `attack_ranking` loại attack `mode = search` và run `scope = subset` (`experiment_views.py::_ranking`); endpoint `skip` (dừng sớm) từ chối run của attack tìm ngưỡng (`422`).
-23. Tính trạng thái tiến độ tìm kiếm cho giao diện (điểm đã dùng, khoảng hiện tại, giai đoạn).
+23. Tính trạng thái tiến độ tìm kiếm cho giao diện (điểm đã dùng, khoảng hiện tại, giai đoạn); `progress.images_total` chỉ gồm run đã tạo; `queue.ahead_seconds` cộng phần `max_seconds` còn lại của attack tìm ngưỡng.
 
 ## Group 5 — Frontend: wizard `[agent: frontend]`
 
