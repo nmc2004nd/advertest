@@ -23,7 +23,7 @@
 
 ## Group 2 — Đại lượng ngưỡng và bootstrap `[agent: ml-metric]`
 
-10. `ml_core/metrics/threshold.py`: tính đại lượng so với ngưỡng cho 3 loại, có và không có `class_filter`, từ `RunResult` và metric sạch.
+10. `ml_core/metrics/threshold.py`: tính đại lượng so với ngưỡng cho 3 loại, có và không có `class_filter`, từ `RunResult` và metric sạch; metric của run điền `per_class[*].attack_success_rate` (Group 0).
 11. Lưu prediction theo ảnh cho mọi run (`predictions_key`) nếu Phase 2–3 chưa lưu đủ.
 12. `ml_core/metrics/bootstrap.py`: lấy mẫu lại theo ảnh với seed; tính `drop_ci` từng điểm; khoảng tin cậy của điểm gãy bằng nội suy; `near_threshold`.
 
@@ -31,7 +31,7 @@
 
 13. Thêm `eval_image_ids_sha256` vào `fingerprint_inputs` (null và bỏ khỏi JSON với run toàn slice, theo mẫu `patch_key`); runner hỗ trợ đánh giá trên tập con.
 14. Vòng lặp tìm kiếm trong worker: hỏi thuật toán điểm kế tiếp → tạo run qua API → chạy run → đưa kết quả vào thuật toán → gửi `SearchResult` tạm thời.
-15. Lưu trạng thái tìm kiếm vào checkpoint experiment; khôi phục đúng giai đoạn.
+15. Khôi phục đúng giai đoạn sau gián đoạn bằng cách nạp lại `trajectory` của `bundle.search_results` vào thuật toán (Group 0: không có checkpoint riêng cho trạng thái tìm kiếm); run đang dở tiếp tục từ checkpoint của run.
 16. Xử lý `stopped_limit`, hủy, và các trường hợp `failed` (mAP sạch bằng 0, không còn object cho ASR, lỗi không phục hồi).
 17. Chạy bootstrap khi kết thúc và gửi `SearchResult` cuối.
 18. Thứ tự: attack quét lưới trước, attack tìm ngưỡng sau; `early_stop` (`RunLedger`) không áp cho run của attack tìm ngưỡng.

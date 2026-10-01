@@ -35,6 +35,18 @@ Cuối phase: chọn ngưỡng sụt 20% cho PGD, hệ thống trả về điể
 | `ExperimentDetail` | Thêm `search_results[]` (cập nhật cả khi đang chạy) |
 | API nội bộ | `POST /internal/worker/experiments/{id}/runs`: worker tạo run động cho điểm tìm kiếm kế tiếp |
 
+**Chi tiết chốt ở Group 0** (người duyệt, 2026-10-01; code trong `contracts/python/advertest_contracts/models.py`):
+
+- **Hash cũ không đổi:** trường mới của model đã có (`RunResult`/`RunView` `scope`, `search_order`, `predictions_key`; `FingerprintInputs.eval_image_ids_sha256`; `ClassRunMetrics.attack_success_rate`; `BundleRun.scope`, `search_order`) bị bỏ khỏi JSON khi mang giá trị mặc định (`exclude_if`), như `patch_key` của Phase 6. Config, fingerprint và manifest cũ giữ nguyên hash.
+- **Enum mới:** `EvalScope` (`full`, `subset`) cho `scope`; `SearchStage` (`coarse`, `bisect_subset`, `confirm`, `bisect_full`, `done`) cho giai đoạn tìm kiếm.
+- **`SearchResult` tạm thời và cuối:** thêm `stage`; `status` null khi và chỉ khi `stage` khác `done` (bản tạm thời gửi sau mỗi điểm, `SearchStatus` không có giá trị "đang chạy"). Dòng tiến độ của giao diện đọc `points_used`, `max_points`, `bracket`, `stage`. `breaking_point = bracket[1]`. `class_filter` lặp lại trong kết quả. `metric_kind` suy từ `threshold_kind` và `class_filter`: `map50`, `class_ap50`, `asr`, `class_asr`. `points_used` = số điểm không `synthetic` của `trajectory` và ≤ `max_points`; `order` liên tục từ 0; mỗi run tối đa một điểm. Điểm `synthetic` có `run_id = null`, `drop = 0`; `drop_ci` chỉ ở điểm `full`. `near_threshold = false` khi chưa tính bootstrap.
+- **`SearchConfig`:** `threshold` trong (0, 1] ở contract (cận `absolute_drop` ≤ mAP sạch kiểm ở backend); `tol < hi − lo` ở contract; `tol` vẫn bắt buộc với tham số rời rạc (không dùng).
+- **ASR theo class:** `ClassRunMetrics.attack_success_rate` (tùy chọn) để `threshold.py` tính đại lượng `class_asr` từ `RunResult` (plan task 10).
+- **API nội bộ:** body `SearchRunCreate` (`lease_id`, `attack_spec_id`, `level`, `scope`, `search_order`) trả `BundleRun` (`201`); `POST .../search-result` đổi body thành `SearchResultReport` (`lease_id`, `result`) như mọi request khác của worker, trả `204`; bản sau thay bản trước của cùng attack.
+- **Chạy tiếp sau gián đoạn:** `WorkerJobBundle.search_results` chứa `SearchResult` mới nhất của từng attack tìm ngưỡng; thuật toán là máy trạng thái thuần nên worker dựng lại trạng thái bằng cách nạp lại `trajectory` theo `order` (không cần lưu trạng thái riêng trong checkpoint). Run tìm ngưỡng trong bundle có `search_order`; `runs` được rỗng khi mọi attack ở chế độ tìm ngưỡng.
+- **`ExperimentDetail`:** `attack_ranking` chỉ được chứa attack quét lưới (validator); `search_results` chỉ chứa attack tìm ngưỡng, mỗi attack tối đa một.
+- **`EstimateResponse`:** `max_total_seconds` null khi không có attack tìm ngưỡng; `max_exceeds_limit` chỉ `true` khi có attack tìm ngưỡng; `exceeds_limit` kéo theo `max_exceeds_limit`; attack của `searches` không có run quét lưới; `missing_profiles` gồm cả attack tìm ngưỡng có `max_seconds = null`.
+
 ## Behaviour
 
 ### Đại lượng dùng để so với ngưỡng
@@ -96,7 +108,7 @@ Ký hiệu `d(x, S)` là mức sụt ở level `x` trên tập ảnh `S`.
 - Chạy các attack quét lưới trước, rồi lần lượt từng attack tìm ngưỡng.
 - Với mỗi điểm: gọi `POST /internal/worker/experiments/{id}/runs` để tạo run (`attack_spec_id`, `level`, `scope`, `search_order`), sau đó chạy như mọi run.
 - Sau mỗi điểm gửi `SearchResult` tạm thời để giao diện cập nhật quỹ đạo; khi xong gửi kết quả cuối kèm bootstrap.
-- Checkpoint của tìm kiếm (các điểm đã có, `a`, `b`, giai đoạn) nằm trong checkpoint của experiment; bị gián đoạn thì tiếp tục đúng giai đoạn.
+- Trạng thái tìm kiếm (các điểm đã có, `a`, `b`, giai đoạn) dựng lại từ `SearchResult` tạm thời mới nhất (`bundle.search_results`, xem "Chi tiết chốt ở Group 0"); bị gián đoạn thì tiếp tục đúng giai đoạn, không đánh giá lại điểm đã có.
 
 ### API và kiểm tra khi tạo experiment
 - `mode = search` được chấp nhận cho mọi spec không cần huấn luyện; với `adv_patch` → `422 not_supported_yet`.

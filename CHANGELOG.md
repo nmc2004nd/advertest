@@ -4,6 +4,35 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ---
 
+## Phase 7 — Tự tìm ngưỡng
+
+**Trạng thái:** đang làm. Kickoff và Group 0 trên nhánh `phase07-reviewer-g0`.
+
+### Phase 7 — Group 0 (người duyệt, người dùng giao) — 2026-10-01
+#### Contract
+- Enum: `SearchStatus.failed`; enum mới `SearchStage` (`coarse`, `bisect_subset`, `confirm`, `bisect_full`, `done`), `EvalScope` (`full`, `subset`).
+- `SearchConfig`: `threshold` (0, 1], `tol < hi − lo`, `coarse_n` 3–8 (mặc định 4), `subset_size` ≥ 2 (mặc định 100), `class_filter: str | None` (thay `list[str]`), `bootstrap_samples` 0–1000 (mặc định 200).
+- `RunResult`, `RunView`: `scope`, `search_order` (bắt buộc khi `scope = subset`), `predictions_key` (trong `runs/<run_id>/`). `FingerprintInputs.eval_image_ids_sha256` (null với run toàn slice). `ClassRunMetrics.attack_success_rate`.
+- `SearchResult`: `stage`, `status` null khi chưa xong, `class_filter`, `metric_kind`, `max_points`, `points_used`, `message` (khi và chỉ khi `failed`); `breaking_point` cho `found` và `non_monotonic`, bằng `bracket[1]`. `TrajectoryPoint`: `drop_ci`, `synthetic`, `run_id` null khi synthetic.
+- `EstimateResponse`: `searches[]` (`SearchEstimate`), `max_total_seconds`, `max_exceeds_limit`; `runs` được rỗng khi có `searches`. `ExperimentDetail.search_results`; `attack_ranking` chỉ gồm attack quét lưới. `WorkerJobBundle.search_results`, `runs` được rỗng khi mọi attack tìm ngưỡng; `BundleRun.scope`, `search_order`.
+- Schema mới: `SearchRunCreate`, `SearchResultReport`. 61 JSON Schema.
+- OpenAPI (endpoint khung trả `501`, Group 4 cài đặt): `POST /internal/worker/experiments/{id}/runs` (trả `BundleRun`, `201`); `POST .../search-result` đổi body thành `SearchResultReport`, trả `204`.
+- **Hash cũ không đổi:** trường mới bỏ khỏi JSON khi mang giá trị mặc định (`exclude_if`); test kiểm `config_sha256`, fingerprint của manifest cũ và dump của run quét lưới.
+- Mock: `SearchResult` đủ 6 trạng thái và một bản tạm thời (PGD L∞ KITTI 300 tập con 100 điểm gãy 0.5/255 với `tol` 0.125; fog rời rạc `non_monotonic`; occlusion ASR `not_reached`; FGSM `lo = 2` `below_min`; PGD L2 class `person` `stopped_limit`; class `truck` `failed`), `SearchResultReport`, `SearchRunCreate`, run tập con (`RunResult`, `RunView`, manifest có `eval_image_ids_sha256`), `AttackConfig` theo class ASR, experiment FGSM lưới + PGD và fog tìm ngưỡng (`ExperimentCreate`, `ExperimentDetail` đang chạy và xong), ước lượng (có lưới, chỉ tìm ngưỡng, thiếu profile), bundle chạy tiếp giữa giai đoạn quét thô (fixture 5 ảnh, tập con 3).
+#### Thay đổi ngoài thư mục người duyệt (theo task Group 0)
+- `backend/app/api/worker.py`: endpoint khung tạo run động, body mới của `search-result`.
+- `frontend/src/components/status/status-config.ts`: nhãn "Thất bại" cho `SearchStatus.failed` (bảng `Record<SearchStatus, …>` phải đủ giá trị, nếu không `tsc` báo lỗi).
+- Test: `contracts/python/tests/test_phase07_models.py` (38 test), `test_models.py` (`SearchResult` theo dạng mới), `test_enums.py`, `test_mocks.py` (cần cả bản tạm thời); `backend/app/tests/api/test_skeleton.py`; test nghiệm thu Phase 0 (`test_contracts.py` enum và độ phủ trạng thái, `test_api.py` endpoint worker và body của `search-result`).
+#### Quyết định
+- Kickoff (người dùng chốt, đã ghi vào spec Phase 7): vượt `max_points` trả `422`; `MAX_RUNS = 50` tính cả `max_points`; chi phí tối đa là trường riêng, chỉ cảnh báo; `tol` mặc định (hi − lo)/256; `subset_size` ≥ 2; `class_filter` một class. Bổ sung độ phủ: xếp hạng, `ordinal`, `early_stop`, migration `0008`, nháp wizard cũ, `failed`, hủy, hiển thị `below_min`.
+- Group 0 (người duyệt tự chọn, ghi vào `requirements.md` mục "Chi tiết chốt ở Group 0"): `SearchResult` tạm thời có `status = null` và `stage`; worker dựng lại trạng thái tìm kiếm từ `trajectory` (không có checkpoint riêng); `search-result` mang `lease_id`; ASR theo class trong `ClassRunMetrics`; `metric_kind` 4 giá trị. `tech-stack.md` mục 3.3 và 4.3 thêm `failed`.
+#### Số liệu
+- `make test` (1184 test Python, 232 Vitest), `make test-acceptance` (264 test), lint, mypy, `tsc` pass. Ước lượng của mock (cost profile mock 1.229 s/ảnh): PGD tối đa 20 điểm, khoảng 93 phút.
+#### Lưu ý
+- Group 0 do agent làm thay người duyệt theo ủy quyền của người dùng; không độc lập.
+
+---
+
 ## Phase 6 — Đủ attack catalog, quét lưới và làm mờ ảnh
 
 **Trạng thái:** ✅ hoàn thành 2026-10-01, còn tồn đọng. Group 0–7 đã merge.
