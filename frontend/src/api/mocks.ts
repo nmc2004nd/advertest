@@ -72,6 +72,7 @@ function mockPhase5(pathname: string, query: URLSearchParams): unknown {
     const model = query.get('model')
     return model ? byVersion.filter((m) => m.model_version_id === model) : byVersion
   }
+  if (pathname === '/admin/attack-specs') return listMocks('attack_spec_admin_page')[0]
   if (pathname === '/experiments')
     return first(listMocks<ExperimentPage>('experiment_page'), pathname)
   let m = match(`/models/${id}`)

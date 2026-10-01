@@ -73,6 +73,7 @@ describe('điều hướng (Phase 5 Group 6: bật Experiment và Tạo experime
       '/experiments',
       '/admin/users',
       '/admin/audit',
+      '/admin/attacks',
       '/account',
     ])
   })
