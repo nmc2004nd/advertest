@@ -69,3 +69,14 @@ def test_patch_key_changes_fingerprint_only_when_set() -> None:
     with_patch = build_fingerprint_inputs(**_inputs(patch_key="c" * 64))
     assert with_patch.model_dump(mode="json")["patch_key"] == "c" * 64
     assert fingerprint(with_patch) != _fp()
+
+
+def test_eval_image_ids_changes_fingerprint_only_when_set() -> None:
+    """Phase 7 (plan task 13): run toàn slice giữ nguyên fingerprint (trúng cache quét lưới)."""
+    assert _fp(eval_image_ids_sha256=None) == _fp()
+    assert "eval_image_ids_sha256" not in build_fingerprint_inputs(**_inputs()).model_dump(
+        mode="json"
+    )
+    subset = build_fingerprint_inputs(**_inputs(eval_image_ids_sha256="d" * 64))
+    assert subset.model_dump(mode="json")["eval_image_ids_sha256"] == "d" * 64
+    assert fingerprint(subset) != _fp()
