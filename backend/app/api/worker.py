@@ -114,8 +114,11 @@ def start_run(
     # Phase 7 (đề xuất contract 001): trúng cache thì sao chép file prediction của run gốc.
     artifacts = stores.buckets.artifacts
 
-    def copy(source: str, target_key: str) -> None:
+    def copy(source: str, target_key: str) -> bool:
+        if not artifacts.exists(source):
+            return False
         artifacts.put(target_key, artifacts.get(source))
+        return True
 
     with transaction(sessions) as session:
         target = authenticate_worker(session, credentials)

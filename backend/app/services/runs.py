@@ -127,7 +127,8 @@ def result_of(session: Session, run: m.Run) -> RunResult:
 # ---------------------------------------------------------------- start
 
 
-CopyFn = Callable[[str, str], None]  # sao chép đối tượng trong bucket artifacts (nguồn, đích)
+# Sao chép đối tượng trong bucket artifacts (nguồn, đích); `False` khi nguồn không còn.
+CopyFn = Callable[[str, str], bool]
 
 
 def start(
@@ -141,7 +142,8 @@ def start(
     """Có run `completed` cùng fingerprint ở bất kỳ experiment nào → run này `skipped` (`cached`),
     metric chép từ run gốc. Ngược lại run `running`. Gọi lại khi chạy tiếp sau gián đoạn: run đang
     `running` với cùng fingerprint được chạy tiếp. Phase 7 (đề xuất contract 001): run gốc có file
-    prediction thì sao chép sang `runs/<run_id>/predictions.json` (`copy`)."""
+    prediction thì sao chép sang `runs/<run_id>/predictions.json` (`copy`); file gốc không còn thì
+    để `predictions_key` null (review Group 4 #1: không làm hỏng `start`)."""
     run, experiment = _run_for_worker(session, target, run_id, request.lease_id)
     if experiment.status != ExperimentStatus.RUNNING:
         raise Conflict(f"Experiment đang ở trạng thái {experiment.status}")
@@ -194,8 +196,8 @@ def start(
     run.manifest_uri = origin.manifest_uri
     if origin.predictions_key is not None and copy is not None:
         key = predictions_key(run.id)
-        copy(origin.predictions_key, key)
-        run.predictions_key = key
+        if copy(origin.predictions_key, key):
+            run.predictions_key = key
     run.finished_at = now
     session.flush()
     _after_run(session, experiment, run, clock)

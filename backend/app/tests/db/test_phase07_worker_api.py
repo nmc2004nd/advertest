@@ -695,3 +695,54 @@ def test_cached_run_gets_copy_of_predictions(
     copied = f"runs/{run2.run_id}/predictions.json"
     assert _run(app_engine, run2.run_id).predictions_key == copied
     assert buckets.artifacts.get(copied) == buckets.artifacts.get(key)
+
+
+def test_cached_run_without_origin_file_still_skips(
+    client: TestClient,
+    app_engine: Engine,
+    buckets: Buckets,
+    world: World,
+    clock: FakeClock,
+    big_slice: tuple[UUID, int],
+) -> None:
+    """Review Group 4 #1: file prediction của run gốc đã mất → không sao chép, `start` vẫn trả
+    `skip_cached` (không lỗi 500)."""
+    first = _setup(app_engine, world, clock, big_slice, grid=False)
+    lease = _lease(client, first.token)
+    run = BundleRun.model_validate(_create(client, first, lease, scope="full").json())
+    start = _start_request(lease.lease_id, seed=778)
+    client.post(
+        f"/internal/worker/runs/{run.run_id}/start",
+        json=start.model_dump(mode="json"),
+        headers=_auth(first.token),
+    )
+    row = _run(app_engine, run.run_id)
+    completion = _completion(row, lease.lease_id, buckets, cases=0)
+    key = f"runs/{run.run_id}/predictions.json"
+    buckets.artifacts.put(key, b"{}")
+    result = completion.run_result.model_copy(
+        update={
+            "scope": EvalScope(row.scope),
+            "search_order": row.search_order,
+            "predictions_key": key,
+        }
+    )
+    done = client.post(
+        f"/internal/worker/runs/{run.run_id}/complete",
+        json=completion.model_copy(update={"run_result": result}).model_dump(mode="json"),
+        headers=_auth(first.token),
+    )
+    assert done.status_code == 204, done.text
+    buckets.artifacts.delete(key)  # file gốc mất
+    second = _setup(app_engine, world, clock, big_slice, grid=False)
+    lease2 = _lease(client, second.token)
+    run2 = BundleRun.model_validate(_create(client, second, lease2, scope="full").json())
+    response = client.post(
+        f"/internal/worker/runs/{run2.run_id}/start",
+        json=start.model_copy(update={"lease_id": lease2.lease_id}).model_dump(mode="json"),
+        headers=_auth(second.token),
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["action"] == "skip_cached"
+    assert _run(app_engine, run2.run_id).predictions_key is None
+    assert not buckets.artifacts.exists(f"runs/{run2.run_id}/predictions.json")
