@@ -30,9 +30,9 @@
 
 ## Group 3 — Worker `[agent: worker]`
 
+13. Thêm `eval_image_ids_sha256` vào `fingerprint_inputs` (null và bỏ khỏi JSON với run toàn slice, theo mẫu `patch_key`); runner hỗ trợ đánh giá trên tập con.
 13a. (Chuyển từ task 11, review Group 2) Mọi run ghi `executor.predictions` bằng `dump_run_predictions`, upload, điền `RunResult.predictions_key`; truyền `ModelCard.class_names` cho `build_run_metrics` để điền ASR theo class.
 13b. (Review Group 2, #1) Checkpoint của run (`_stats_to_json` trong `executor.py`) lưu và khôi phục `class_correct`, `class_lost` của `ImageAttackStats`; test chạy tiếp sau gián đoạn cho cùng ASR theo class như chạy liền mạch.
-13. Thêm `eval_image_ids_sha256` vào `fingerprint_inputs` (null và bỏ khỏi JSON với run toàn slice, theo mẫu `patch_key`); runner hỗ trợ đánh giá trên tập con.
 14. Vòng lặp tìm kiếm trong worker: hỏi thuật toán điểm kế tiếp → tạo run qua API → chạy run → đưa kết quả vào thuật toán → gửi `SearchResult` tạm thời.
 15. Khôi phục đúng giai đoạn sau gián đoạn bằng cách nạp lại `trajectory` của `bundle.search_results` vào thuật toán (Group 0: không có checkpoint riêng cho trạng thái tìm kiếm); run đang dở tiếp tục từ checkpoint của run.
 16. Xử lý `stopped_limit`, hủy, và các trường hợp `failed` (mAP sạch bằng 0, không còn object cho ASR, lỗi không phục hồi).
