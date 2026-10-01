@@ -254,19 +254,34 @@ class ThresholdSearch:
         )
 
     def _known_bracket(self, ctx: _Context) -> tuple[float, float]:
-        """Khoảng hẹp nhất suy ra từ các điểm đã có của giai đoạn hiện tại (review Group 0): cận
-        trên là level nhỏ nhất đã gãy (chưa có thì `hi`), cận dưới là level lớn nhất chưa gãy nằm
-        dưới cận trên (chưa có thì `lo`)."""
-        if ctx.stage in _FULL_STAGES or not self.uses_subset:
-            scope = EvalScope.FULL
+        """Khoảng hẹp nhất suy ra từ các điểm đã có (review Group 0): cận trên là level nhỏ nhất đã
+        gãy (chưa có thì `hi`), cận dưới là level lớn nhất chưa gãy nằm dưới cận trên (chưa có thì
+        `lo`). Ở giai đoạn xác nhận và dịch khoảng, cận nào các điểm toàn slice chưa suy ra được
+        thì giữ cận lấy từ tập con (review Group 1, #1), để khoảng không nhảy về `[lo, hi]`."""
+        t, lo, hi = self.config.threshold, self.grid.lo, self.grid.hi
+
+        def split(scope: EvalScope) -> tuple[list[float], list[float]]:
+            points = [(e.level, e.drop) for e in ctx.trajectory if e.scope == scope]
+            broken = [level for level, drop in points if drop is not None and drop >= t]
+            intact = [level for level, drop in points if drop is not None and drop < t]
+            return broken, intact
+
+        if not self.uses_subset or ctx.stage not in _FULL_STAGES:
+            broken, intact = split(EvalScope.FULL if not self.uses_subset else EvalScope.SUBSET)
+            upper = min(broken, default=hi)
+            return (max((x for x in intact if x < upper), default=lo), upper)
+
+        full_broken, full_intact = split(EvalScope.FULL)
+        sub_broken, sub_intact = split(EvalScope.SUBSET)
+        if full_broken:
+            upper = min(full_broken)
         else:
-            scope = EvalScope.SUBSET
-        t = self.config.threshold
-        points = [e for e in ctx.trajectory if e.scope == scope and e.drop is not None]
-        broken = [e.level for e in points if e.drop is not None and e.drop >= t]
-        upper = min(broken, default=self.grid.hi)
-        intact = [e.level for e in points if e.drop is not None and e.drop < t and e.level < upper]
-        return (max(intact, default=self.grid.lo), upper)
+            floor = max(full_intact, default=-math.inf)
+            upper = min((x for x in sub_broken if x > floor), default=hi)
+        below = [x for x in full_intact if x < upper]
+        if below:
+            return (max(below), upper)
+        return (max((x for x in sub_intact if x < upper), default=lo), upper)
 
     def _no_drop_message(self, ask: _Ask) -> str:
         where = "tập con" if ask.scope == EvalScope.SUBSET else "toàn slice"

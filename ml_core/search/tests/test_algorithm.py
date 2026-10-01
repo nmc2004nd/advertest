@@ -414,3 +414,36 @@ def test_search_results_validate_for_every_status() -> None:
         assert result.points_used <= result.max_points
         json.loads(result.model_dump_json())
     assert statuses == {SearchStatus.FOUND, SearchStatus.NOT_REACHED, SearchStatus.BELOW_MIN}
+
+
+# ------------------------------------------------ khoảng tạm thời khi xác nhận (review Group 1, #1)
+
+
+def _subset_done_index(observations: list[Observation]) -> int:
+    return next(i for i, o in enumerate(observations) if o.scope == EvalScope.FULL)
+
+
+@pytest.mark.parametrize(("x_star", "tol", "coarse_n"), [(0.3, 0.125, 5), (6.3, 0.5, 4)])
+def test_interim_bracket_does_not_widen_when_confirming(
+    x_star: float, tol: float, coarse_n: int
+) -> None:
+    search = ThresholdSearch(_config(tol=tol, coarse_n=coarse_n), EPS, SLICE)
+    final, observations = run(search, crossing(x_star))
+    k = _subset_done_index(observations)
+    sub_lo, sub_hi = search.progress(observations[:k]).bracket
+    assert sub_hi - sub_lo <= tol
+    for i in range(k, len(observations)):
+        low, high = search.progress(observations[:i]).bracket
+        assert sub_lo <= low <= high <= sub_hi, (i, low, high)
+        assert search.progress(observations[:i], stop=True).bracket == (low, high)
+    assert final.bracket == (sub_lo, sub_hi)
+
+
+def test_interim_bracket_while_shifting_up_is_valid_and_bounded() -> None:
+    search = ThresholdSearch(_config(), EPS, SLICE)
+    _, observations = run(search, crossing(6.3), crossing(25.0))
+    for i in range(_subset_done_index(observations), len(observations)):
+        progress = search.progress(observations[:i])
+        low, high = progress.bracket
+        assert low <= high
+        assert (low, high) != (0, 32), i
