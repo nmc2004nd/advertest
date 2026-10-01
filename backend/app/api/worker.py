@@ -110,8 +110,8 @@ def start_run(
     stores: Stores,
     clock: Now,
 ) -> RunStartResponse:
-    """Chạy run, hoặc bỏ qua khi đã có run `completed` cùng fingerprint (Phase 7: sao chép file
-    prediction của run gốc)."""
+    """Chạy run, hoặc bỏ qua khi đã có run `completed` cùng fingerprint."""
+    # Phase 7 (đề xuất contract 001): trúng cache thì sao chép file prediction của run gốc.
     artifacts = stores.buckets.artifacts
 
     def copy(source: str, target_key: str) -> None:
@@ -212,8 +212,8 @@ def create_search_run(
     clock: Now,
 ) -> BundleRun:
     """Tạo run `queued` cho điểm tìm ngưỡng kế tiếp (Phase 7). Vi phạm (attack không ở chế độ tìm
-    ngưỡng, level ngoài `[lo, hi]`, vượt `max_points`) trả `422`, không `409`. Hết thời gian:
-    API chốt kết quả tìm ngưỡng, experiment kết thúc, trả `409`."""
+    ngưỡng, level ngoài `[lo, hi]`, vượt `max_points`) trả `422`, không `409`."""
+    # Hết thời gian: API chốt kết quả tìm ngưỡng, experiment kết thúc, trả 409 (quyết định Group 4).
     with transaction(sessions) as session:
         target = authenticate_worker(session, credentials)
         try:
