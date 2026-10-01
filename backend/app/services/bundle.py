@@ -13,7 +13,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from advertest_contracts.enums import ExperimentStatus, RunStatus
+from advertest_contracts.enums import EvalScope, ExperimentStatus, RunStatus
 from advertest_contracts.models import (
     AttackSpec,
     BundleCheckpoint,
@@ -35,6 +35,7 @@ from advertest_contracts.models import (
 from backend.app import storage
 from backend.app.db import models as m
 from backend.app.presign import Presigner
+from backend.app.services import searches
 from backend.app.services.clock import Clock, utcnow
 from backend.app.services.errors import Conflict, Forbidden, NotFound
 from backend.app.services.estimate import latest_profiles
@@ -154,6 +155,8 @@ def build(
                 checkpoint=checkpoint,
                 metrics=RunMetrics.model_validate(run.metrics) if run.metrics else None,
                 patch_key=patch.key if patch is not None else None,
+                scope=EvalScope(run.scope),
+                search_order=run.search_order,
             )
         )
     image_ids = list(
@@ -191,4 +194,5 @@ def build(
         runs=runs,
         training_slices=list(training_slices.values()),
         patches=list(patches.values()),
+        search_results=searches.results(session, experiment.id),
     )

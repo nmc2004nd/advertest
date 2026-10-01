@@ -238,9 +238,13 @@ def _cancel_run(run: m.Run, now: datetime) -> None:
 def finish_cancelled(session: Session, experiment: m.Experiment, now: datetime) -> None:
     """Experiment đã hủy mà không còn worker giữ lease: run còn `running` thành `cancelled`
     (không để run kẹt ở `running`, mission.md nguyên tắc 6) và bỏ lease."""
+    from backend.app.services import searches  # tránh import vòng (searches dùng runs_of)
+
     for run in runs_of(session, experiment.id):
         if run.status in (RunStatus.QUEUED, RunStatus.RUNNING):
             _cancel_run(run, now)
+    # Phase 7: kết quả tìm ngưỡng còn tạm thời → stopped_limit (quyết định Group 4).
+    searches.finalize_unfinished(session, experiment, lambda: now)
     experiment.lease_id = None
     experiment.lease_expires_at = None
     session.flush()

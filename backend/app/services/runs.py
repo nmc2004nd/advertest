@@ -16,6 +16,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from advertest_contracts.enums import (
+    EvalScope,
     ExperimentStatus,
     RunPhase,
     RunStatus,
@@ -46,12 +47,13 @@ from advertest_contracts.models import (
 from backend.app import storage
 from backend.app.db import models as m
 from backend.app.presign import Presigner
-from backend.app.services import leasing, notifications
+from backend.app.services import leasing, searches
 from backend.app.services.clock import Clock, utcnow
 from backend.app.services.errors import Conflict, Forbidden, Invalid, NotFound
 from backend.app.services.experiment_config import spec_of
 from backend.app.services.experiments import TERMINAL_RUN, reason, runs_of
 from backend.app.services.patches import RunPatch, is_registered, run_patch
+from ml_core.metrics.bootstrap import run_predictions_key
 from ml_core.runner.grid import GridRun, early_stop
 from ml_core.store import validate_key
 
@@ -63,6 +65,11 @@ class RunInvalidated(Conflict):
 
 ExistsFn = Callable[[str], bool]  # khóa trong bucket artifacts đã có chưa
 ARTIFACTS_URI = f"s3://{storage.BUCKET_ARTIFACTS}/"
+
+
+def predictions_key(run_id: UUID) -> str:
+    """Khóa file prediction theo ảnh của run (Phase 7)."""
+    return run_predictions_key(run_id)
 
 
 def _run_for_worker(
@@ -111,10 +118,16 @@ def result_of(session: Session, run: m.Run) -> RunResult:
         failure_case_ids=failure_case_ids(session, source),
         manifest_uri=run.manifest_uri,
         cached_from_run_id=run.cached_from_run_id,
+        scope=EvalScope(run.scope),
+        search_order=run.search_order,
+        predictions_key=run.predictions_key,
     )
 
 
 # ---------------------------------------------------------------- start
+
+
+CopyFn = Callable[[str, str], None]  # sao chép đối tượng trong bucket artifacts (nguồn, đích)
 
 
 def start(
@@ -123,10 +136,12 @@ def start(
     run_id: UUID,
     request: RunStartRequest,
     clock: Clock = utcnow,
+    copy: CopyFn | None = None,
 ) -> RunStartResponse:
     """Có run `completed` cùng fingerprint ở bất kỳ experiment nào → run này `skipped` (`cached`),
     metric chép từ run gốc. Ngược lại run `running`. Gọi lại khi chạy tiếp sau gián đoạn: run đang
-    `running` với cùng fingerprint được chạy tiếp."""
+    `running` với cùng fingerprint được chạy tiếp. Phase 7 (đề xuất contract 001): run gốc có file
+    prediction thì sao chép sang `runs/<run_id>/predictions.json` (`copy`)."""
     run, experiment = _run_for_worker(session, target, run_id, request.lease_id)
     if experiment.status != ExperimentStatus.RUNNING:
         raise Conflict(f"Experiment đang ở trạng thái {experiment.status}")
@@ -177,6 +192,10 @@ def start(
     run.metrics = origin.metrics
     run.images_done = origin.images_done
     run.manifest_uri = origin.manifest_uri
+    if origin.predictions_key is not None and copy is not None:
+        key = predictions_key(run.id)
+        copy(origin.predictions_key, key)
+        run.predictions_key = key
     run.finished_at = now
     session.flush()
     _after_run(session, experiment, run, clock)
@@ -285,7 +304,9 @@ def skip(
         raise Conflict(f"Run đang ở trạng thái {run.status}, chỉ bỏ được run queued")
     config = ExperimentConfig.model_validate(experiment.config)
     attack = next(a for a in config.attacks if a.attack_spec_id == run.attack_spec_id)
-    if attack.grid is None or not attack.grid.early_stop:
+    if attack.grid is None:
+        raise Invalid("Run của attack tự tìm ngưỡng không dùng dừng sớm (plan task 22a)")
+    if not attack.grid.early_stop:
         raise Invalid("Attack này tắt dừng sớm (grid.early_stop = false)")
     same_attack = [
         GridRun(
@@ -397,6 +418,8 @@ def complete(
             ("attack_spec_id", result.attack_spec_id == run.attack_spec_id),
             ("level", result.level == run.level),
             ("images_total", result.progress.images_total == run.images_total),
+            ("scope", result.scope == run.scope),
+            ("search_order", result.search_order == run.search_order),
         )
         if not ok
     ]
@@ -412,6 +435,8 @@ def complete(
         raise Invalid("Máy local không có chi phí (cost phải null)")
     if result.manifest_uri is not None and not exists(_artifact_key(result.manifest_uri, run.id)):
         raise Invalid(f"Manifest {result.manifest_uri} chưa có trong MinIO")
+    if result.predictions_key is not None and not exists(result.predictions_key):
+        raise Invalid(f"File prediction {result.predictions_key} chưa có trong MinIO")
     for case in completion.failure_cases:
         _check_case(case, run.id, exists)
 
@@ -423,6 +448,7 @@ def complete(
     run.metrics = result.metrics.model_dump(mode="json") if result.metrics else None
     run.gpu_seconds = result.gpu_seconds
     run.manifest_uri = result.manifest_uri
+    run.predictions_key = result.predictions_key
     run.finished_at = clock()
     for rank, case in enumerate(completion.failure_cases):
         session.add(
@@ -450,7 +476,9 @@ def complete(
 
 def _after_run(session: Session, experiment: m.Experiment, run: m.Run, clock: Clock) -> None:
     """Sau khi một run kết thúc: chạm giới hạn thì các run chưa chạy `stopped_limit`
-    (`images_done = 0`); mọi run kết thúc thì experiment `completed` (trừ khi đã bị hủy)."""
+    (`images_done = 0`); mọi run kết thúc thì experiment `completed` (trừ khi đã bị hủy). Phase 7:
+    còn attack tìm ngưỡng chưa có kết quả cuối thì experiment tiếp tục chạy
+    (`searches.maybe_finish`)."""
     now = clock()
     remaining = leasing.remaining_seconds(experiment)
     limit_hit = run.status == RunStatus.STOPPED_LIMIT or (remaining is not None and remaining <= 0)
@@ -469,14 +497,8 @@ def _after_run(session: Session, experiment: m.Experiment, run: m.Run, clock: Cl
             )
             other.images_done = 0
             other.finished_at = now
-    if all(r.status in TERMINAL_RUN for r in runs):
-        if experiment.status == ExperimentStatus.RUNNING:
-            experiment.status = ExperimentStatus.COMPLETED
-            experiment.finished_at = now
-            notifications.enqueue_experiment_finished(session, experiment)
-        experiment.lease_id = None
-        experiment.lease_expires_at = None
     session.flush()
+    searches.maybe_finish(session, experiment, clock)
 
 
 # ---------------------------------------------------------------- artifact URL
@@ -494,7 +516,18 @@ def artifact_url(
     đúng lease). Run đã kết thúc không xin được URL nữa: artifact của nó là bất biến."""
     run, experiment = _run_for_worker(session, target, run_id, request.lease_id)
     if run.status != RunStatus.RUNNING:
-        raise Conflict(f"Run đang ở trạng thái {run.status}, không cấp URL")
+        # Phase 7 (đề xuất contract 001): bootstrap đọc lại prediction của run đã kết thúc.
+        readable = (
+            run.status in TERMINAL_RUN
+            and request.method == "GET"
+            and request.key == predictions_key(run.id)
+        )
+        if not readable:
+            raise Conflict(f"Run đang ở trạng thái {run.status}, không cấp URL")
+        signed = presigner.url(storage.BUCKET_ARTIFACTS, request.key, request.method, clock())
+        return ArtifactUrlResponse(
+            key=request.key, method=request.method, url=signed.url, expires_at=signed.expires_at
+        )
     if not request.key.startswith(storage.run_prefix(run.id)):
         # Phase 6: run patch được đọc/ghi thư mục của khóa patch của mình.
         patch = run_patch(session, experiment, run, _spec(session, run))
