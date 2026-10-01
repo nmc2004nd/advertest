@@ -8,6 +8,26 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 **Trạng thái:** đang làm. Group 0 xong (chờ merge).
 
+### Phase 6 — Group 6 (frontend) — 2026-10-01
+#### Thêm
+- Wizard bước 4 (task 30): ba nhóm "Tấn công", "Biến đổi điều kiện", "Che khuất"; spec rời rạc (corruption) chọn severity bằng chip bật/tắt; attack cần train (patch) phải chọn slice huấn luyện từ `GET /slices?disjoint_from=<slice đánh giá>`, lọc cùng dataset version và ≤ `max_training_images` ảnh (chưa chọn thì không sang bước 5; đổi slice đánh giá hoặc dataset version thì chọn lại); nút "Toàn bộ catalog" (mọi spec với bộ level gợi ý, `adv_patch` 0.1 và 0.25: 43 run với catalog hiện tại); công tắc "Dừng sớm khi model đã sụp" bật mặc định (`early_stop` chỉ gửi khi tắt, body như Phase 5 khi bật). Nháp đổi khóa sang `advertest.wizard.v2`; attack trong nháp thiếu trường mới được điền mặc định. Nhân bản giữ slice huấn luyện và dừng sớm.
+- Ước lượng (task 31): thời gian train patch ở bước 4 (cần train / đã có / chưa đo được) và cột "Train patch" trong bảng ước lượng bước 6.
+- Tab Kết quả (task 32): bảng xếp hạng attack (auc_drop, mức sụt lớn nhất, số level kèm level dừng sớm, độ phủ, cờ partial; "Không đủ dữ liệu" khi null; thẻ dưới md) và biểu đồ cột `auc_drop`; công tắc trục hoành chuẩn hóa `level / param_max` (0–100%) cho mọi biểu đồ và cột "% dải" trong bảng số liệu; run `early_stop` ghi "Bỏ qua: model đã sụp ở level thấp hơn (sụp ở <tham số> <level>)" trong bảng run và đánh dấu trong bảng số liệu.
+- Tiến độ run patch (task 33): "Đang train patch (x/y)" với thanh theo vòng lặp, rồi "Đang đánh giá" với thanh theo ảnh.
+- `CaseViewer` (task 34): nhãn ảnh thứ ba theo `perturbation_kind` (Nhiễu khuếch đại / Vùng khác biệt / Vị trí patch); dải "Đã làm mờ mặt và biển số" khi `anonymization.applied`.
+- Trang `/admin/attacks` (task 35): mọi spec và version (kể cả đã tắt), bảng từ xl và thẻ dưới xl, hash rút gọn có nút copy, "Tải thêm"; mục điều hướng "Attack catalog" (`attack_catalog.manage`, admin có 6 mục nên điện thoại 3 mục + "Thêm"). Chế độ mock có `/admin/attack-specs` và `disjoint_from`.
+#### Đổi ngoài task
+- Nhãn dataset chưa ẩn danh ở bước 3: "Chưa ẩn danh: ảnh failure case được làm mờ mặt và biển số" (trước: "ảnh failure case bị ẩn", không còn đúng với case mới từ Phase 6).
+- Test `CaseViewer` Phase 5 chọn mock case chưa làm mờ (mock Phase 6 có ảnh thứ ba khác loại).
+#### Đề xuất contract
+- 003 (`RunAttackSpec.param_max`): người dùng duyệt, người duyệt áp dụng (đã merge vào `main`), dùng cho trục chuẩn hóa.
+#### Quyết định (người dùng chốt ở kế hoạch Group 6; người duyệt ghi vào spec)
+- Một công tắc dừng sớm chung cho mọi attack; nhân bản cấu hình có attack bật và attack tắt (chỉ tạo được qua API) thì công tắc tắt kèm ghi chú.
+- Trục hoành chuẩn hóa áp cho biểu đồ từng attack (miền cố định 0–100%), không thêm biểu đồ gộp; chuẩn hóa `level / max` như bảng xếp hạng.
+#### Ghi nhận
+- E2E Phase 6 (`frontend/e2e/phase_06/`) do người duyệt viết ở Group 7; Group 6 kiểm bằng Vitest. E2E Phase 5 vẫn pass (60/60).
+- Không tự chọn slice huấn luyện khi chỉ có một ứng viên (khác class mapping): người dùng chọn rõ ràng.
+
 ### Phase 6 — Đề xuất contract 003 (người duyệt, người dùng duyệt) — 2026-10-01
 - Nguồn: Group 6 (frontend), task 32 "trục hoành chuẩn hóa": `RunView.attack_spec` không có dải tham số chính; engineer chỉ đọc được spec đang bật (`GET /attack-specs`), nên run của spec version đã tắt không chuẩn hóa được.
 - `RunAttackSpec.param_max` (bắt buộc, `primary_param.max` của spec mà run đã dùng). `schema_version` không đổi; không đổi DB, hash, route.
