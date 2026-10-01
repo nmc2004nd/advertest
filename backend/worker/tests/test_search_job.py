@@ -40,10 +40,10 @@ from advertest_contracts.models import (
     WorkerLease,
 )
 from advertest_worker import job as job_module
-from advertest_worker.client import ApiError
-from advertest_worker.job import DirectiveBox, JobRunner
+from advertest_worker.client import ApiError, LeaseLost
+from advertest_worker.job import DirectiveBox, JobRunner, read_predictions_file
 from attacks.registry import get_spec, load_catalog
-from ml_core.metrics.bootstrap import load_run_predictions
+from ml_core.metrics.bootstrap import dump_run_predictions, load_run_predictions
 from ml_core.metrics.filters import Prediction
 from ml_core.runner.run import Runner
 from ml_core.runner.tests.test_run import Base, _attack, _build, _config
@@ -151,11 +151,15 @@ class FakeApi:
     cancel_after_progress: int | None = None
     progress_calls: int = 0
     others: list[AttackConfig] = field(default_factory=list)
+    broken_keys: set[str] = field(default_factory=set)  # MinIO trả 500
+    lease_lost_keys: set[str] = field(default_factory=set)  # artifact-url trả 409
     reject_spec_id: UUID | None = None  # API trả 422 khi tạo run cho attack này
 
     def http(self) -> httpx.Client:
         def handler(request: httpx.Request) -> httpx.Response:
             key = request.url.path.removeprefix("/store/")
+            if key in self.broken_keys:
+                return httpx.Response(500)
             if request.method == "PUT":
                 self.objects[key] = request.content
                 return httpx.Response(200)
@@ -183,6 +187,8 @@ class FakeApi:
         return WorkerDirective(action="cancel" if cancel else "continue", remaining_seconds=None)
 
     def artifact_url(self, run_id: UUID, lease_id: UUID, key: str, method: str) -> str:
+        if key in self.lease_lost_keys:
+            raise LeaseLost(409, "conflict", "lease")
         return f"http://store/store/{key}"
 
     def complete(self, run_id: UUID, body: RunCompletion) -> None:
@@ -472,3 +478,119 @@ def test_rejected_search_fails_and_next_attack_still_runs(
     assert "422" in (finals[world.fog.id].message or "")
     assert finals[world.contrast.id].status != SearchStatus.FAILED
     assert {r.attack_spec_id for r in api.created} == {world.contrast.id}
+
+
+# ------------------------------------------------ prediction của phiên trước (task 18b)
+
+
+def _resume_after_full_point(
+    world: World,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    keep_files: bool,
+    corrupt: Callable[[FakeApi, set[UUID]], None] = lambda api, runs: None,
+) -> tuple[SearchResult, SearchResult, set[UUID]]:
+    straight = FakeApi(attack=_search_attack(world))
+    _run(
+        world,
+        straight,
+        _runner(world, straight, monkeypatch),
+        _bundle(world, [straight.attack], []),
+    )
+    expected = straight.reports[-1]
+    full = [i for i, r in enumerate(straight.created) if r.scope == EvalScope.FULL]
+    cut = full[0] + 1  # phiên trước đã chạy xong ít nhất một điểm toàn slice
+    previous = straight.reports[cut - 1]
+    done = [
+        r.model_copy(
+            update={
+                "status": RunStatus.COMPLETED,
+                "images_done": r.images_total,
+                "metrics": straight.completions[r.run_id].run_result.metrics,
+            }
+        )
+        for r in straight.created[:cut]
+    ]
+    resumed = FakeApi(attack=straight.attack)
+    if keep_files:
+        resumed.objects.update(straight.objects)  # file trong MinIO còn từ phiên trước
+    corrupt(resumed, {r.run_id for r in straight.created[:cut]})
+    runner = _runner(world, resumed, monkeypatch)
+    _run(world, resumed, runner, _bundle(world, [straight.attack], done, [previous]))
+    earlier = {r.run_id for r in straight.created[:cut] if r.scope == EvalScope.FULL}
+    return expected, resumed.reports[-1], earlier
+
+
+def test_resume_bootstrap_reads_previous_session_predictions(
+    world: World, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    expected, final, earlier = _resume_after_full_point(world, monkeypatch, keep_files=True)
+    assert earlier
+    assert (final.status, final.bracket) == (expected.status, expected.bracket)
+    for point in final.trajectory:
+        if point.scope == EvalScope.FULL and not point.synthetic:
+            assert point.drop_ci is not None, point.run_id
+    assert [p.drop_ci for p in final.trajectory] == [p.drop_ci for p in expected.trajectory]
+    assert final.confidence_interval == expected.confidence_interval
+
+
+def test_resume_without_previous_files_leaves_points_out(
+    world: World, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    expected, final, earlier = _resume_after_full_point(world, monkeypatch, keep_files=False)
+    assert (final.status, final.bracket) == (expected.status, expected.bracket)
+    missing = [p for p in final.trajectory if p.run_id in earlier]
+    assert missing and all(p.drop_ci is None for p in missing)
+
+
+def test_read_copied_predictions_file_uses_key_inside() -> None:
+    origin, copy = uuid5(NS, "origin"), uuid5(NS, "copy")
+    preds: dict[str, Prediction] = {
+        "000001": {
+            "boxes": np.zeros((1, 4), np.float32),
+            "labels": np.zeros(1, np.int64),
+            "scores": np.full(1, 0.9, np.float32),
+        }
+    }
+    data = dump_run_predictions(origin, preds, "cpu")  # bản sao giữ khóa của run gốc
+    loaded = read_predictions_file(data)
+    assert set(loaded) == {"000001"}
+    with pytest.raises(ValueError):
+        read_predictions_file(json.dumps({"key": f"x/{copy}", "predictions": {}}).encode())
+
+
+def _break_files(api: FakeApi, runs: set[UUID]) -> None:
+    for run_id in runs:
+        api.objects[f"runs/{run_id}/predictions.json"] = b"{not json"
+
+
+def _server_error(api: FakeApi, runs: set[UUID]) -> None:
+    api.broken_keys = {f"runs/{run_id}/predictions.json" for run_id in runs}
+
+
+@pytest.mark.parametrize("corrupt", [_break_files, _server_error])
+def test_unreadable_previous_predictions_are_left_out(
+    world: World, monkeypatch: pytest.MonkeyPatch, corrupt: Callable[[FakeApi, set[UUID]], None]
+) -> None:
+    """Review task 18b #1: file hỏng hoặc MinIO lỗi → điểm bỏ khỏi bootstrap, vẫn có kết quả
+    cuối."""
+    expected, final, earlier = _resume_after_full_point(
+        world, monkeypatch, keep_files=True, corrupt=corrupt
+    )
+    assert (final.stage, final.status, final.bracket) == (
+        SearchStage.DONE,
+        expected.status,
+        expected.bracket,
+    )
+    missing = [p for p in final.trajectory if p.run_id in earlier]
+    assert missing and all(p.drop_ci is None for p in missing)
+
+
+def test_lease_lost_while_reading_predictions_stops(
+    world: World, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def lost(api: FakeApi, runs: set[UUID]) -> None:
+        api.lease_lost_keys = {f"runs/{run_id}/predictions.json" for run_id in runs}
+
+    with pytest.raises(LeaseLost):
+        _resume_after_full_point(world, monkeypatch, keep_files=True, corrupt=lost)

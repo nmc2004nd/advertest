@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import threading
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
@@ -60,7 +61,7 @@ from advertest_contracts.models import (
 from advertest_contracts.perturbation import Perturbation
 from advertest_worker.cache import JobCache
 from advertest_worker.calibrate import calibrate, calibration_patch, patch_training_cost
-from advertest_worker.client import LeaseLost, WorkerClient
+from advertest_worker.client import ApiError, LeaseLost, WorkerClient
 from advertest_worker.config import HEARTBEAT_INTERVAL_S
 from advertest_worker.early_stop import RunLedger
 from advertest_worker.patch import PatchInterrupted, PatchJob, obtain_patch
@@ -70,7 +71,11 @@ from attacks.factory import build_perturbation
 from attacks.patch.adapter import PatchPerturbation
 from attacks.patch.geometry import patch_key
 from ml_core.cli.evaluate import load_model_from_store
-from ml_core.metrics.bootstrap import dump_run_predictions, run_predictions_key
+from ml_core.metrics.bootstrap import (
+    dump_run_predictions,
+    load_run_predictions,
+    run_predictions_key,
+)
 from ml_core.metrics.filters import Prediction
 from ml_core.models.estimator import build_estimator
 from ml_core.models.register import lib_versions
@@ -93,9 +98,10 @@ from ml_core.runner.executor import (
 from ml_core.runner.fingerprint import build_fingerprint_inputs, fingerprint
 from ml_core.runner.images import letterbox_mask, perturbation_kind
 from ml_core.search.subset import eval_image_ids_sha256, select_subset
-from ml_core.store import PresignedStore
+from ml_core.store import KeyNotFoundError, PresignedStore
 
 logger = logging.getLogger(__name__)
+_PREDICTIONS_KEY = re.compile(r"runs/([0-9a-f-]{36})/predictions\.json")
 DEFAULT_BATCH_SIZE = 8  # chỉ dùng khi không có cost profile (calibration thất bại)
 ARTIFACTS_URI = "s3://artifacts/"
 BatchHook = Callable[[UUID, Sequence[str]], None]
@@ -921,6 +927,37 @@ class _JobSearchHooks:
         )
 
     def predictions(self, run_id: UUID) -> dict[str, Prediction] | None:
-        """Chỉ prediction của run hoàn tất trong phiên này. Đọc file của run đã kết thúc ở phiên
-        trước hoặc trúng cache chờ đề xuất contract 001 (Phase 7)."""
-        return self.job.predictions.get(run_id)
+        """Prediction của run hoàn tất trong phiên này (bộ nhớ); run đã kết thúc ở phiên trước
+        hoặc trúng cache thì đọc `runs/<run_id>/predictions.json` qua `artifact-url` của chính run
+        (đề xuất contract 001, plan task 18b). Không có file → `None` (bỏ khỏi bootstrap)."""
+        cached = self.job.predictions.get(run_id)
+        if cached is not None:
+            return cached
+        runner, lease_id = self.runner, self.job.lease.lease_id
+        store = PresignedStore(
+            lambda key, method: runner.client.artifact_url(run_id, lease_id, key, method),
+            runner.url_http,
+        )
+        try:
+            return read_predictions_file(store.get(run_predictions_key(run_id)))
+        except KeyNotFoundError:
+            logger.warning("Run %s không có file prediction: bỏ khỏi bootstrap", run_id)
+        except LeaseLost:
+            raise
+        except (ApiError, httpx.HTTPError, ValueError):
+            # Review task 18b #1: lỗi đọc file (MinIO, API từ chối, file hỏng) không được làm sập
+            # job; điểm bị bỏ khỏi bootstrap như khi không có file.
+            logger.warning(
+                "Không đọc được prediction của run %s: bỏ khỏi bootstrap", run_id, exc_info=True
+            )
+        return None
+
+
+def read_predictions_file(data: bytes) -> dict[str, Prediction]:
+    """File prediction của một run. Bản sao do API tạo khi trúng cache giữ khóa của run gốc trong
+    trường `key`: đọc theo đúng run ghi trong file (vẫn kiểm file nhất quán với khóa của nó)."""
+    key = json.loads(data).get("key")
+    match = _PREDICTIONS_KEY.fullmatch(key) if isinstance(key, str) else None
+    if match is None:
+        raise ValueError(f"File prediction có khóa không hợp lệ: {key!r}")
+    return load_run_predictions(data, UUID(match.group(1)))
