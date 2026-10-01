@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "experiment_id": "872ccaa0-8ee6-56c8-a7d7-edc6ddbc4410",
+  "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+  "stage": "done",
+  "status": "failed",
+  "threshold_kind": "relative_drop",
+  "threshold": 0.2,
+  "class_filter": "truck",
+  "metric_kind": "class_ap50",
+  "breaking_point": null,
+  "bracket": [
+    0,
+    32
+  ],
+  "confidence_interval": null,
+  "near_threshold": false,
+  "max_points": 20,
+  "points_used": 1,
+  "message": "AP@0.5 sạch của class truck trên tập con bằng 0: không tính được mức sụt tương đối",
+  "trajectory": [
+    {
+      "order": 0,
+      "level": 0,
+      "scope": "subset",
+      "drop": 0.0,
+      "drop_ci": null,
+      "synthetic": true,
+      "run_id": null
+    },
+    {
+      "order": 1,
+      "level": 8,
+      "scope": "subset",
+      "drop": null,
+      "drop_ci": null,
+      "synthetic": false,
+      "run_id": "8feb669c-a52b-5aaf-94ac-c79b1d27d77b"
+    }
+  ]
+}

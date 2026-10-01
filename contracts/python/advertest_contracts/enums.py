@@ -45,6 +45,7 @@ class SearchStatus(StrEnum):
     BELOW_MIN = "below_min"
     STOPPED_LIMIT = "stopped_limit"
     NON_MONOTONIC = "non_monotonic"
+    FAILED = "failed"  # Phase 7: mAP sạch bằng 0, không còn object cho ASR, lỗi không phục hồi
 
 
 class StopReason(StrEnum):
@@ -150,6 +151,23 @@ class RunPhase(StrEnum):
 
     TRAINING = "training"
     EVALUATING = "evaluating"
+
+
+class SearchStage(StrEnum):
+    """Giai đoạn của một lần tìm ngưỡng (Phase 7, requirements.md mục Thuật toán)."""
+
+    COARSE = "coarse"  # quét thô trên tập con
+    BISECT_SUBSET = "bisect_subset"  # chia đôi trên tập con
+    CONFIRM = "confirm"  # xác nhận hai đầu khoảng trên toàn slice
+    BISECT_FULL = "bisect_full"  # dịch khoảng rồi chia đôi trên toàn slice
+    DONE = "done"  # kết quả cuối (status có giá trị)
+
+
+class EvalScope(StrEnum):
+    """Tập ảnh mà run đánh giá (Phase 7)."""
+
+    FULL = "full"  # toàn slice (mọi run quét lưới)
+    SUBSET = "subset"  # tập con cố định của tìm ngưỡng
 
 
 class PerturbationImageKind(StrEnum):

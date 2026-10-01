@@ -5,15 +5,15 @@
   "mode": "search",
   "grid": null,
   "search": {
-    "threshold_kind": "relative_drop",
-    "threshold": 0.2,
+    "threshold_kind": "attack_success_rate",
+    "threshold": 0.5,
     "lo": 0,
     "hi": 32,
     "tol": 0.125,
-    "coarse_n": 5,
+    "coarse_n": 4,
     "subset_size": 100,
-    "class_filter": null,
-    "bootstrap_samples": 200
+    "class_filter": "person",
+    "bootstrap_samples": 0
   },
   "seed": 42
 }

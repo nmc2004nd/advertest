@@ -28,6 +28,20 @@
             }
           ],
           "title": "Attacked Ap50"
+        },
+        "attack_success_rate": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Phase 7: ASR chỉ tính object của class này (ngưỡng có class_filter); null khi không có object nào của class được detect đúng trên ảnh sạch, hoặc run trước Phase 7",
+          "title": "Attack Success Rate"
         }
       },
       "required": [
@@ -65,6 +79,15 @@
       ],
       "title": "Cost",
       "type": "object"
+    },
+    "EvalScope": {
+      "description": "Tập ảnh mà run đánh giá (Phase 7).",
+      "enum": [
+        "full",
+        "subset"
+      ],
+      "title": "EvalScope",
+      "type": "string"
     },
     "MapPair": {
       "additionalProperties": false,
@@ -364,6 +387,36 @@
       "default": null,
       "description": "Run gốc khi status = skipped với code = cached (Phase 3)",
       "title": "Cached From Run Id"
+    },
+    "scope": {
+      "$ref": "#/$defs/EvalScope",
+      "description": "Phase 7: tập ảnh được đánh giá; subset chỉ có ở run của tìm ngưỡng"
+    },
+    "search_order": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Phase 7: thứ tự điểm trong lần tìm ngưỡng của attack (TrajectoryPoint.order); null với run quét lưới",
+      "title": "Search Order"
+    },
+    "predictions_key": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]*(/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Phase 7: khóa file prediction theo ảnh trong runs/<run_id>/ (bootstrap); null khi chưa có metric hoặc run trước Phase 7",
+      "title": "Predictions Key"
     },
     "fingerprint": {
       "pattern": "^[0-9a-f]{64}$",

@@ -920,6 +920,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/worker/experiments/{experiment_id}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Search Run
+         * @description Tạo run `queued` cho điểm tìm ngưỡng kế tiếp (Phase 7). Vi phạm (attack không ở chế độ tìm
+         *     ngưỡng, level ngoài `[lo, hi]`, vượt `max_points`) trả `422`, không `409`.
+         */
+        post: operations["create_search_run_internal_worker_experiments__experiment_id__runs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/worker/experiments/{experiment_id}/search-result": {
         parameters: {
             query?: never;
@@ -929,7 +950,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Submit Search Result */
+        /**
+         * Submit Search Result
+         * @description SearchResult tạm thời sau mỗi điểm, hoặc kết quả cuối (Phase 7).
+         */
         post: operations["submit_search_result_internal_worker_experiments__experiment_id__search_result_post"];
         delete?: never;
         options?: never;
@@ -1349,6 +1373,13 @@ export interface components {
              * @description Phase 6: khóa patch với run patch (có trong bundle.patches)
              */
             patch_key?: string | null;
+            /** @description Phase 7: subset khi run đánh giá tập con của tìm ngưỡng */
+            scope?: components["schemas"]["EvalScope"];
+            /**
+             * Search Order
+             * @description Phase 7: thứ tự điểm của run tìm ngưỡng; null với run quét lưới
+             */
+            search_order?: number | null;
         };
         /**
          * CaseAnonymization
@@ -1527,6 +1558,11 @@ export interface components {
             clean_ap50: number | null;
             /** Attacked Ap50 */
             attacked_ap50: number | null;
+            /**
+             * Attack Success Rate
+             * @description Phase 7: ASR chỉ tính object của class này (ngưỡng có class_filter); null khi không có object nào của class được detect đúng trên ảnh sạch, hoặc run trước Phase 7
+             */
+            attack_success_rate?: number | null;
         };
         /** CloneWarning */
         CloneWarning: {
@@ -1796,7 +1832,10 @@ export interface components {
         };
         /** EstimateResponse */
         EstimateResponse: {
-            /** Runs */
+            /**
+             * Runs
+             * @description Run quét lưới; rỗng được khi mọi attack ở chế độ tìm ngưỡng (Phase 7)
+             */
             runs: components["schemas"]["EstimateRun"][];
             /**
              * Total Seconds
@@ -1814,6 +1853,22 @@ export interface components {
              */
             exceeds_limit: boolean;
             queue: components["schemas"]["QueueEstimate"];
+            /**
+             * Searches
+             * @description Phase 7: mỗi attack tìm ngưỡng một dòng
+             */
+            searches?: components["schemas"]["SearchEstimate"][];
+            /**
+             * Max Total Seconds
+             * @description Phase 7: total_seconds + tổng max_seconds; null khi không có attack tìm ngưỡng, hoặc có run hay search thiếu ước lượng
+             */
+            max_total_seconds?: number | null;
+            /**
+             * Max Exceeds Limit
+             * @description Phase 7: tổng ước lượng được của trường hợp xấu nhất (run quét lưới và max_seconds) lớn hơn giới hạn thời gian; chỉ cảnh báo, không chặn tạo experiment
+             * @default false
+             */
+            max_exceeds_limit: boolean;
         };
         /** EstimateRun */
         EstimateRun: {
@@ -1847,6 +1902,12 @@ export interface components {
              */
             training_seconds?: number | null;
         };
+        /**
+         * EvalScope
+         * @description Tập ảnh mà run đánh giá (Phase 7).
+         * @enum {string}
+         */
+        EvalScope: "full" | "subset";
         /**
          * ExperimentClone
          * @description `GET /experiments/{id}/clone`: cấu hình điền sẵn; spec cũ đã lên version hiện hành.
@@ -2038,9 +2099,14 @@ export interface components {
             clean_metrics: components["schemas"]["MapPair"] | null;
             /**
              * Attack Ranking
-             * @description Phase 6: mỗi attack của config một dòng, giảm dần theo auc_drop, null xếp cuối
+             * @description Phase 6: mỗi attack quét lưới của config một dòng (Phase 7: không gồm attack tìm ngưỡng), giảm dần theo auc_drop, null xếp cuối
              */
             attack_ranking?: components["schemas"]["AttackRankingEntry"][];
+            /**
+             * Search Results
+             * @description Phase 7: SearchResult mới nhất của từng attack tìm ngưỡng đã có điểm (cập nhật khi đang chạy)
+             */
+            search_results?: components["schemas"]["SearchResult"][];
         };
         /** ExperimentPage */
         ExperimentPage: {
@@ -2264,6 +2330,11 @@ export interface components {
              * @description Phase 6: khóa patch (compute_patch_key) với run patch; bỏ khỏi JSON khi null nên fingerprint của run khác không đổi
              */
             patch_key?: string | null;
+            /**
+             * Eval Image Ids Sha256
+             * @description Phase 7: sha256 (canonical_json) của danh sách image_id đã sắp xếp mà run đánh giá, chỉ khi đánh giá trên tập con; null với run toàn slice (bỏ khỏi JSON) để điểm toàn slice trúng cache của run quét lưới
+             */
+            eval_image_ids_sha256?: string | null;
         };
         /** GradientCheck */
         GradientCheck: {
@@ -2955,6 +3026,18 @@ export interface components {
              * @description Run gốc khi status = skipped với code = cached (Phase 3)
              */
             cached_from_run_id?: string | null;
+            /** @description Phase 7: tập ảnh được đánh giá; subset chỉ có ở run của tìm ngưỡng */
+            scope?: components["schemas"]["EvalScope"];
+            /**
+             * Search Order
+             * @description Phase 7: thứ tự điểm trong lần tìm ngưỡng của attack (TrajectoryPoint.order); null với run quét lưới
+             */
+            search_order?: number | null;
+            /**
+             * Predictions Key
+             * @description Phase 7: khóa file prediction theo ảnh trong runs/<run_id>/ (bootstrap); null khi chưa có metric hoặc run trước Phase 7
+             */
+            predictions_key?: string | null;
             /** Fingerprint */
             fingerprint: string;
         };
@@ -3000,6 +3083,18 @@ export interface components {
              * @description Run gốc khi status = skipped với code = cached (Phase 3)
              */
             cached_from_run_id?: string | null;
+            /** @description Phase 7: tập ảnh được đánh giá; subset chỉ có ở run của tìm ngưỡng */
+            scope?: components["schemas"]["EvalScope"];
+            /**
+             * Search Order
+             * @description Phase 7: thứ tự điểm trong lần tìm ngưỡng của attack (TrajectoryPoint.order); null với run quét lưới
+             */
+            search_order?: number | null;
+            /**
+             * Predictions Key
+             * @description Phase 7: khóa file prediction theo ảnh trong runs/<run_id>/ (bootstrap); null khi chưa có metric hoặc run trước Phase 7
+             */
+            predictions_key?: string | null;
             /** Fingerprint */
             fingerprint: string;
         };
@@ -3105,6 +3200,18 @@ export interface components {
              * @description Run gốc khi status = skipped với code = cached (Phase 3)
              */
             cached_from_run_id?: string | null;
+            /** @description Phase 7: tập ảnh được đánh giá; subset chỉ có ở run của tìm ngưỡng */
+            scope?: components["schemas"]["EvalScope"];
+            /**
+             * Search Order
+             * @description Phase 7: thứ tự điểm trong lần tìm ngưỡng của attack (TrajectoryPoint.order); null với run quét lưới
+             */
+            search_order?: number | null;
+            /**
+             * Predictions Key
+             * @description Phase 7: khóa file prediction theo ảnh trong runs/<run_id>/ (bootstrap); null khi chưa có metric hoặc run trước Phase 7
+             */
+            predictions_key?: string | null;
             /**
              * Fingerprint
              * @description null khi run chưa bắt đầu (queued, bị hủy/dừng trước khi chạy, hoặc bị bỏ qua do early_stop)
@@ -3116,25 +3223,88 @@ export interface components {
             /** @description Phase 6: tiến độ train patch; có khi và chỉ khi phase = training */
             training?: components["schemas"]["IterationProgress"] | null;
         };
-        /** SearchConfig */
+        /**
+         * SearchConfig
+         * @description Cấu hình tự tìm ngưỡng (Phase 7, requirements.md mục Behaviour).
+         *
+         *     Kiểm tra phụ thuộc spec, slice và mapping (`lo`, `hi` trong dải của spec; `subset_size` không
+         *     quá số ảnh slice; `absolute_drop` không quá mAP sạch; `class_filter` là class đích) ở backend.
+         */
         SearchConfig: {
             threshold_kind: components["schemas"]["ThresholdKind"];
-            /** Threshold */
+            /**
+             * Threshold
+             * @description relative_drop, attack_success_rate: (0, 1]; absolute_drop: (0, mAP sạch]
+             */
             threshold: number;
             /** Lo */
             lo: number;
             /** Hi */
             hi: number;
-            /** Tol */
+            /**
+             * Tol
+             * @description Độ rộng khoảng khi dừng chia đôi; wizard mặc định (hi - lo) / 256. Tham số rời rạc chia đôi theo chỉ số nên không dùng tol
+             */
             tol: number;
-            /** Coarse N */
+            /**
+             * Coarse N
+             * @description Số level quét thô
+             * @default 4
+             */
             coarse_n: number;
-            /** Subset Size */
+            /**
+             * Subset Size
+             * @description Số ảnh của tập con; wizard cảnh báo khi dưới 20
+             * @default 100
+             */
             subset_size: number;
-            /** Class Filter */
-            class_filter?: string[] | null;
+            /**
+             * Class Filter
+             * @description Một class đích của mapping; null là mọi class
+             */
+            class_filter?: string | null;
+            /**
+             * Bootstrap Samples
+             * @description Số mẫu bootstrap; 0 là không tính khoảng tin cậy
+             * @default 200
+             */
+            bootstrap_samples: number;
         };
-        /** SearchResult */
+        /**
+         * SearchEstimate
+         * @description Chi phí tối đa của một attack tìm ngưỡng (Phase 7).
+         */
+        SearchEstimate: {
+            /**
+             * Attack Spec Id
+             * Format: uuid
+             */
+            attack_spec_id: string;
+            /**
+             * Max Points
+             * @description max_subset_points + max_full_points
+             */
+            max_points: number;
+            /**
+             * Max Subset Points
+             * @description 0 khi slice không lớn hơn subset_size
+             */
+            max_subset_points: number;
+            /** Max Full Points */
+            max_full_points: number;
+            /**
+             * Max Seconds
+             * @description (max_subset_points * subset_size + max_full_points * số ảnh slice) * sec_per_image * 1.2; null khi thiếu profile
+             */
+            max_seconds: number | null;
+        };
+        /**
+         * SearchResult
+         * @description Kết quả tìm ngưỡng của một attack (Phase 7).
+         *
+         *     Worker gửi bản tạm thời sau mỗi điểm (`stage` khác `done`, `status` null) và bản cuối
+         *     (`stage = done`) kèm bootstrap. `bracket` là khoảng hiện tại, kể cả khi dừng giữa chừng.
+         */
         SearchResult: {
             /**
              * Schema Version
@@ -3152,11 +3322,24 @@ export interface components {
              * Format: uuid
              */
             attack_spec_id: string;
-            status: components["schemas"]["SearchStatus"];
+            stage: components["schemas"]["SearchStage"];
+            /** @description null khi và chỉ khi stage khác done */
+            status: components["schemas"]["SearchStatus"] | null;
             threshold_kind: components["schemas"]["ThresholdKind"];
             /** Threshold */
             threshold: number;
-            /** Breaking Point */
+            /** Class Filter */
+            class_filter: string | null;
+            /**
+             * Metric Kind
+             * @description map50: mAP@0.5; class_ap50: AP@0.5 của class_filter; asr: ASR mọi object; class_asr: ASR object của class_filter. Suy từ threshold_kind và class_filter
+             * @enum {string}
+             */
+            metric_kind: "map50" | "class_ap50" | "asr" | "class_asr";
+            /**
+             * Breaking Point
+             * @description Có khi và chỉ khi status là found hoặc non_monotonic (= bracket[1])
+             */
             breaking_point?: number | null;
             /**
              * Bracket
@@ -3168,7 +3351,7 @@ export interface components {
             ];
             /**
              * Confidence Interval
-             * @description null nếu chưa tính bootstrap
+             * @description Khoảng tin cậy 95% của điểm gãy; null nếu chưa tính bootstrap
              */
             confidence_interval?: [
                 number,
@@ -3176,17 +3359,77 @@ export interface components {
             ] | null;
             /**
              * Near Threshold
-             * @description Khoảng tin cậy bao trùm ngưỡng
+             * @description Khoảng tin cậy của d(b) có cận dưới < ngưỡng, hoặc của d(a) có cận trên >= ngưỡng; false khi chưa tính bootstrap
              */
             near_threshold: boolean;
+            /**
+             * Max Points
+             * @description Giới hạn trên số run (ml_core/search/bounds.py)
+             */
+            max_points: number;
+            /**
+             * Points Used
+             * @description Số điểm đã đánh giá (không gồm synthetic)
+             */
+            points_used: number;
+            /**
+             * Message
+             * @description Có khi và chỉ khi status = failed
+             */
+            message?: string | null;
             /** Trajectory */
             trajectory: components["schemas"]["TrajectoryPoint"][];
         };
         /**
+         * SearchResultReport
+         * @description Body của `POST /internal/worker/experiments/{id}/search-result` (Phase 7): bản tạm thời sau
+         *     mỗi điểm, bản cuối khi xong. Bản sau thay bản trước của cùng attack.
+         */
+        SearchResultReport: {
+            /**
+             * Lease Id
+             * Format: uuid
+             */
+            lease_id: string;
+            result: components["schemas"]["SearchResult"];
+        };
+        /**
+         * SearchRunCreate
+         * @description Body của `POST /internal/worker/experiments/{id}/runs` (Phase 7): tạo run cho điểm tìm
+         *     ngưỡng kế tiếp. Trả `BundleRun` (`queued`). API trả `422` (không `409`) khi attack không ở
+         *     chế độ tìm ngưỡng, level ngoài `[lo, hi]` hoặc vượt `max_points`.
+         */
+        SearchRunCreate: {
+            /**
+             * Lease Id
+             * Format: uuid
+             */
+            lease_id: string;
+            /**
+             * Attack Spec Id
+             * Format: uuid
+             */
+            attack_spec_id: string;
+            /** Level */
+            level: number;
+            scope: components["schemas"]["EvalScope"];
+            /**
+             * Search Order
+             * @description Bằng TrajectoryPoint.order của điểm này
+             */
+            search_order: number;
+        };
+        /**
+         * SearchStage
+         * @description Giai đoạn của một lần tìm ngưỡng (Phase 7, requirements.md mục Thuật toán).
+         * @enum {string}
+         */
+        SearchStage: "coarse" | "bisect_subset" | "confirm" | "bisect_full" | "done";
+        /**
          * SearchStatus
          * @enum {string}
          */
-        SearchStatus: "found" | "not_reached" | "below_min" | "stopped_limit" | "non_monotonic";
+        SearchStatus: "found" | "not_reached" | "below_min" | "stopped_limit" | "non_monotonic" | "failed";
         /**
          * SkipReason
          * @enum {string}
@@ -3343,22 +3586,38 @@ export interface components {
         };
         /** TrajectoryPoint */
         TrajectoryPoint: {
-            /** Order */
+            /**
+             * Order
+             * @description Thứ tự đánh giá, bắt đầu từ 0, liên tục
+             */
             order: number;
             /** Level */
             level: number;
+            scope: components["schemas"]["EvalScope"];
             /**
-             * Scope
-             * @enum {string}
+             * Drop
+             * @description Đại lượng so với ngưỡng (theo metric_kind); null khi run không có metric
              */
-            scope: "subset" | "full";
-            /** Drop */
             drop: number | null;
             /**
-             * Run Id
-             * Format: uuid
+             * Drop Ci
+             * @description Phase 7: khoảng tin cậy bootstrap 95%; chỉ điểm toàn slice, null khi chưa tính hoặc bootstrap_samples = 0
              */
-            run_id: string;
+            drop_ci?: [
+                number,
+                number
+            ] | null;
+            /**
+             * Synthetic
+             * @description Phase 7: level "không biến đổi" của spec (eps = 0, tỉ lệ che = 0): drop = 0 theo định nghĩa, không chạy, không có run
+             * @default false
+             */
+            synthetic: boolean;
+            /**
+             * Run Id
+             * @description null khi và chỉ khi synthetic
+             */
+            run_id: string | null;
         };
         /** UserAdminPage */
         UserAdminPage: {
@@ -3464,7 +3723,7 @@ export interface components {
             limit: components["schemas"]["BundleLimit"];
             /**
              * Runs
-             * @description Theo thứ tự chạy
+             * @description Theo thứ tự chạy: run quét lưới trước, rồi run tìm ngưỡng đã tạo (Phase 7). Rỗng được khi mọi attack ở chế độ tìm ngưỡng và chưa có điểm nào
              */
             runs: components["schemas"]["BundleRun"][];
             /**
@@ -3477,6 +3736,11 @@ export interface components {
              * @description Phase 6: patch mà các run patch cần, không trùng key
              */
             patches?: components["schemas"]["BundlePatch"][];
+            /**
+             * Search Results
+             * @description Phase 7: SearchResult mới nhất của từng attack tìm ngưỡng đã có điểm; worker chạy lại thuật toán theo trajectory để tiếp tục đúng giai đoạn sau gián đoạn
+             */
+            search_results?: components["schemas"]["SearchResult"][];
         };
         /**
          * WorkerLease
@@ -3560,6 +3824,7 @@ export type ErrorCode = components['schemas']['ErrorCode'];
 export type ErrorResponse = components['schemas']['ErrorResponse'];
 export type EstimateResponse = components['schemas']['EstimateResponse'];
 export type EstimateRun = components['schemas']['EstimateRun'];
+export type EvalScope = components['schemas']['EvalScope'];
 export type ExperimentClone = components['schemas']['ExperimentClone'];
 export type ExperimentConfig = components['schemas']['ExperimentConfig'];
 export type ExperimentCreateInput = components['schemas']['ExperimentCreate-Input'];
@@ -3625,7 +3890,11 @@ export type RunStartResponse = components['schemas']['RunStartResponse'];
 export type RunStatus = components['schemas']['RunStatus'];
 export type RunView = components['schemas']['RunView'];
 export type SearchConfig = components['schemas']['SearchConfig'];
+export type SearchEstimate = components['schemas']['SearchEstimate'];
 export type SearchResult = components['schemas']['SearchResult'];
+export type SearchResultReport = components['schemas']['SearchResultReport'];
+export type SearchRunCreate = components['schemas']['SearchRunCreate'];
+export type SearchStage = components['schemas']['SearchStage'];
 export type SearchStatus = components['schemas']['SearchStatus'];
 export type SkipReason = components['schemas']['SkipReason'];
 export type SliceFilter = components['schemas']['SliceFilter'];
@@ -6569,6 +6838,50 @@ export interface operations {
             };
         };
     };
+    create_search_run_internal_worker_experiments__experiment_id__runs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SearchRunCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BundleRun"];
+                };
+            };
+            /** @description validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Chưa cài đặt */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     submit_search_result_internal_worker_experiments__experiment_id__search_result_post: {
         parameters: {
             query?: never;
@@ -6580,18 +6893,16 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["SearchResult"];
+                "application/json": components["schemas"]["SearchResultReport"];
             };
         };
         responses: {
             /** @description Successful Response */
-            200: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": unknown;
-                };
+                content?: never;
             };
             /** @description validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ) */
             422: {

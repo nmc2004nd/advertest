@@ -2,24 +2,21 @@
   "schema_version": 1,
   "experiment_id": "872ccaa0-8ee6-56c8-a7d7-edc6ddbc4410",
   "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
-  "stage": "done",
-  "status": "found",
+  "stage": "bisect_subset",
+  "status": null,
   "threshold_kind": "relative_drop",
   "threshold": 0.2,
   "class_filter": null,
   "metric_kind": "map50",
-  "breaking_point": 0.5,
+  "breaking_point": null,
   "bracket": [
-    0.375,
-    0.5
+    1,
+    2
   ],
-  "confidence_interval": [
-    0.41,
-    0.5
-  ],
+  "confidence_interval": null,
   "near_threshold": false,
   "max_points": 20,
-  "points_used": 12,
+  "points_used": 7,
   "message": null,
   "trajectory": [
     {
@@ -93,57 +90,6 @@
       "drop_ci": null,
       "synthetic": false,
       "run_id": "a25c26e1-c9ef-5993-8934-359a1b3f85fe"
-    },
-    {
-      "order": 8,
-      "level": 0.5,
-      "scope": "subset",
-      "drop": 0.243,
-      "drop_ci": null,
-      "synthetic": false,
-      "run_id": "789fc8c0-58da-5a21-b198-90ce80693211"
-    },
-    {
-      "order": 9,
-      "level": 0.25,
-      "scope": "subset",
-      "drop": 0.108,
-      "drop_ci": null,
-      "synthetic": false,
-      "run_id": "d4ec43dc-f26f-56b2-ab88-cc80948bf31c"
-    },
-    {
-      "order": 10,
-      "level": 0.375,
-      "scope": "subset",
-      "drop": 0.171,
-      "drop_ci": null,
-      "synthetic": false,
-      "run_id": "ae4f629b-64d7-5a73-aeae-952cbeae2bb8"
-    },
-    {
-      "order": 11,
-      "level": 0.375,
-      "scope": "full",
-      "drop": 0.162,
-      "drop_ci": [
-        0.131,
-        0.193
-      ],
-      "synthetic": false,
-      "run_id": "89e31b9b-33c7-5957-a4ce-33574e74e601"
-    },
-    {
-      "order": 12,
-      "level": 0.5,
-      "scope": "full",
-      "drop": 0.231,
-      "drop_ci": [
-        0.204,
-        0.259
-      ],
-      "synthetic": false,
-      "run_id": "e4c72f6d-7c52-5ef7-a705-c7184973076b"
     }
   ]
 }

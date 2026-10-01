@@ -104,15 +104,65 @@
       ],
       "title": "QueueEstimate",
       "type": "object"
+    },
+    "SearchEstimate": {
+      "additionalProperties": false,
+      "description": "Chi phí tối đa của một attack tìm ngưỡng (Phase 7).",
+      "properties": {
+        "attack_spec_id": {
+          "format": "uuid",
+          "title": "Attack Spec Id",
+          "type": "string"
+        },
+        "max_points": {
+          "description": "max_subset_points + max_full_points",
+          "exclusiveMinimum": 0,
+          "title": "Max Points",
+          "type": "integer"
+        },
+        "max_subset_points": {
+          "description": "0 khi slice không lớn hơn subset_size",
+          "minimum": 0,
+          "title": "Max Subset Points",
+          "type": "integer"
+        },
+        "max_full_points": {
+          "exclusiveMinimum": 0,
+          "title": "Max Full Points",
+          "type": "integer"
+        },
+        "max_seconds": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "(max_subset_points * subset_size + max_full_points * số ảnh slice) * sec_per_image * 1.2; null khi thiếu profile",
+          "title": "Max Seconds"
+        }
+      },
+      "required": [
+        "attack_spec_id",
+        "max_points",
+        "max_subset_points",
+        "max_full_points",
+        "max_seconds"
+      ],
+      "title": "SearchEstimate",
+      "type": "object"
     }
   },
   "additionalProperties": false,
   "properties": {
     "runs": {
+      "description": "Run quét lưới; rỗng được khi mọi attack ở chế độ tìm ngưỡng (Phase 7)",
       "items": {
         "$ref": "#/$defs/EstimateRun"
       },
-      "minItems": 1,
       "title": "Runs",
       "type": "array"
     },
@@ -145,6 +195,34 @@
     },
     "queue": {
       "$ref": "#/$defs/QueueEstimate"
+    },
+    "searches": {
+      "description": "Phase 7: mỗi attack tìm ngưỡng một dòng",
+      "items": {
+        "$ref": "#/$defs/SearchEstimate"
+      },
+      "title": "Searches",
+      "type": "array"
+    },
+    "max_total_seconds": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Phase 7: total_seconds + tổng max_seconds; null khi không có attack tìm ngưỡng, hoặc có run hay search thiếu ước lượng",
+      "title": "Max Total Seconds"
+    },
+    "max_exceeds_limit": {
+      "default": false,
+      "description": "Phase 7: tổng ước lượng được của trường hợp xấu nhất (run quét lưới và max_seconds) lớn hơn giới hạn thời gian; chỉ cảnh báo, không chặn tạo experiment",
+      "title": "Max Exceeds Limit",
+      "type": "boolean"
     }
   },
   "required": [

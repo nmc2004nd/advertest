@@ -1,0 +1,98 @@
+{
+  "lease_id": "42cb4daa-3c72-5a3a-9ab8-102e61cd6ad3",
+  "result": {
+    "schema_version": 1,
+    "experiment_id": "872ccaa0-8ee6-56c8-a7d7-edc6ddbc4410",
+    "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+    "stage": "bisect_subset",
+    "status": null,
+    "threshold_kind": "relative_drop",
+    "threshold": 0.2,
+    "class_filter": null,
+    "metric_kind": "map50",
+    "breaking_point": null,
+    "bracket": [
+      1,
+      2
+    ],
+    "confidence_interval": null,
+    "near_threshold": false,
+    "max_points": 20,
+    "points_used": 7,
+    "message": null,
+    "trajectory": [
+      {
+        "order": 0,
+        "level": 0,
+        "scope": "subset",
+        "drop": 0.0,
+        "drop_ci": null,
+        "synthetic": true,
+        "run_id": null
+      },
+      {
+        "order": 1,
+        "level": 8,
+        "scope": "subset",
+        "drop": 0.962,
+        "drop_ci": null,
+        "synthetic": false,
+        "run_id": "8feb669c-a52b-5aaf-94ac-c79b1d27d77b"
+      },
+      {
+        "order": 2,
+        "level": 16,
+        "scope": "subset",
+        "drop": 0.988,
+        "drop_ci": null,
+        "synthetic": false,
+        "run_id": "ea605121-91d4-515a-8b86-6072dc49ea96"
+      },
+      {
+        "order": 3,
+        "level": 24,
+        "scope": "subset",
+        "drop": 0.991,
+        "drop_ci": null,
+        "synthetic": false,
+        "run_id": "a79843c2-fd6c-5e6c-9130-693d0a4f4f6d"
+      },
+      {
+        "order": 4,
+        "level": 32,
+        "scope": "subset",
+        "drop": 0.995,
+        "drop_ci": null,
+        "synthetic": false,
+        "run_id": "4074f919-16f6-5cc9-b650-51787473482f"
+      },
+      {
+        "order": 5,
+        "level": 4,
+        "scope": "subset",
+        "drop": 0.931,
+        "drop_ci": null,
+        "synthetic": false,
+        "run_id": "365eb541-78ba-570f-b6a7-b0ee87e17e90"
+      },
+      {
+        "order": 6,
+        "level": 2,
+        "scope": "subset",
+        "drop": 0.862,
+        "drop_ci": null,
+        "synthetic": false,
+        "run_id": "337b5616-f0a2-5ecb-bfe7-91702d3b8237"
+      },
+      {
+        "order": 7,
+        "level": 1,
+        "scope": "subset",
+        "drop": 0.551,
+        "drop_ci": null,
+        "synthetic": false,
+        "run_id": "a25c26e1-c9ef-5993-8934-359a1b3f85fe"
+      }
+    ]
+  }
+}
