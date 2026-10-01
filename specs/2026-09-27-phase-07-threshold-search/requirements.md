@@ -138,6 +138,15 @@ Ký hiệu `d(x, S)` là mức sụt ở level `x` trên tập ảnh `S`.
 - **Ước lượng:** `max_seconds = (max_subset_points × subset_size + max_full_points × số ảnh slice) × sec_per_image × 1.2`. Hiển thị như "tối đa", vì thực tế thường ít hơn.
   `total_seconds` và `exceeds_limit` giữ nghĩa của Phase 5–6 (chỉ run quét lưới). `max_total_seconds` = `total_seconds` + Σ `max_seconds`; `max_exceeds_limit` = `max_total_seconds` > giới hạn thời gian: chỉ cảnh báo, không chặn tạo experiment (worker vẫn dừng ở trần, `stopped_limit`).
 
+- **Chốt ở Group 4** (kế hoạch và review):
+  - Experiment có attack tìm ngưỡng chỉ `completed` khi mọi run đã kết thúc **và** mọi attack tìm ngưỡng có `SearchResult` cuối; trước đó experiment giữ `running` và lease (worker còn tạo run động).
+  - Hủy, hoặc mọi run đã kết thúc khi hết thời gian, mà kết quả còn tạm thời: API chốt thành `stopped_limit` (giữ quỹ đạo, khoảng; không có `drop_ci`, không tạo metric mới), bỏ lease; kết quả cuối worker gửi sau đó nhận `409`, worker chỉ ghi log. Tạo run động khi đã hết thời gian → API chốt kết quả và kết thúc experiment, trả `409`.
+  - `SearchResult` phải khớp cấu hình (`threshold_kind`, `threshold`, `class_filter`), `max_points` tính lại, và từng điểm khớp run (`search_order`, level, `scope`; run đã kết thúc); `drop` phải bằng đại lượng tính lại từ metric của run (sai số 1e-9), run không có metric dùng được thì `drop` null. Kết quả cuối không được thay (`422`).
+  - Cận `absolute_drop` ≤ mAP sạch chỉ kiểm khi đã biết mAP sạch từ một run toàn slice đã `completed` cùng model, slice, mapping; chưa biết thì chỉ kiểm (0, 1].
+  - Ước lượng: attack tìm ngưỡng không dùng được với model (cần gradient) có `max_seconds = 0`.
+  - Trúng cache mà file prediction của run gốc không còn trong MinIO: không sao chép, `predictions_key` null (review #1).
+  - Downgrade migration `0008` xóa dữ liệu `search_results` (có từ Phase 7) để downgrade xa hơn không vướng khóa ngoại.
+
 ### Frontend
 - **Wizard bước 4:** mỗi attack có công tắc "Quét lưới / Tự tìm ngưỡng". Chế độ tìm ngưỡng gồm:
   - loại ngưỡng (ba lựa chọn, có giải thích một dòng), giá trị ngưỡng (thanh trượt và ô nhập, hiển thị %), class áp dụng (tùy chọn);
