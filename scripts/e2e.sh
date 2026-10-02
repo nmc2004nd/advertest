@@ -82,11 +82,18 @@ PY
 uv run --no-sync python - <<'PY'
 from typing import Any
 
-from backend.app.storage import BUCKET_ARTIFACTS, BUCKET_DATASETS, BUCKET_MODELS, make_s3_client
+from backend.app.storage import (
+    BUCKET_ARTIFACTS,
+    BUCKET_DATASETS,
+    BUCKET_MODELS,
+    BUCKET_REPORTS,
+    make_s3_client,
+)
 
 client: Any = make_s3_client()
 existing = {b["Name"] for b in client.list_buckets().get("Buckets", [])}
-for name in (BUCKET_MODELS, BUCKET_DATASETS, BUCKET_ARTIFACTS):
+# Phase 8: bucket reports cho report chính thức (như minio-init của compose).
+for name in (BUCKET_MODELS, BUCKET_DATASETS, BUCKET_ARTIFACTS, BUCKET_REPORTS):
     if name not in existing:
         client.create_bucket(Bucket=name)
 PY
