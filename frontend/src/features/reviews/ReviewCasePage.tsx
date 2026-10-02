@@ -205,6 +205,15 @@ function History({ verdicts }: { verdicts: CaseVerdictView[] }) {
 }
 
 /**
+ * Route `/reviews/:id/cases/:caseId`: mỗi case một instance riêng (`key`), để bản nháp verdict,
+ * lỗi lưu và bottom sheet của case trước không sang case sau khi chuyển bằng J/K hoặc vuốt.
+ */
+export function ReviewCaseRoute() {
+  const { caseId = '' } = useParams()
+  return <ReviewCasePage key={caseId} />
+}
+
+/**
  * Review một failure case (requirements.md Phase 8, Frontend reviewer; plan task 29): trình xem,
  * form verdict và lịch sử verdict; phím tắt trên desktop; vuốt và bottom sheet trên điện thoại.
  */
@@ -231,6 +240,8 @@ export function ReviewCasePage() {
   const e = experiment.data
   // Chỉ người đang nhận review ghi verdict (server cũng kiểm: 403).
   const canWrite = e?.status === 'in_review' && me !== undefined && e.review?.assignee?.id === me.id
+  // Chỉ ghi khi đã điền sẵn verdict hiện hành của đúng case này.
+  const ready = loadedFor === caseId
   const nav = e ? neighbours(e, caseId) : { index: -1, total: 0, prev: undefined, next: undefined }
   const goTo = useCallback(
     (target: string | undefined) => {
@@ -240,8 +251,9 @@ export function ReviewCasePage() {
   )
   const save = useCallback(() => {
     const check = verdictBody(draft)
-    if ('body' in check && canWrite) add.mutate(check.body, { onSuccess: () => setSheet(false) })
-  }, [draft, canWrite, add])
+    if ('body' in check && canWrite && ready)
+      add.mutate(check.body, { onSuccess: () => setSheet(false) })
+  }, [draft, canWrite, ready, add])
 
   // Phím tắt: bỏ qua phím chữ khi đang gõ trong ô nhập (Ctrl+Enter vẫn lưu).
   const handler = useRef<(event: KeyboardEvent) => void>(() => undefined)
@@ -259,7 +271,7 @@ export function ReviewCasePage() {
     else if (action.type === 'next') goTo(nav.next)
     else if (action.type === 'prev') goTo(nav.prev)
     else if (action.type === 'save') save()
-    else if (canWrite) setDraft((d) => applyShortcut(d, action))
+    else if (canWrite && ready) setDraft((d) => applyShortcut(d, action))
   }
   useEffect(() => {
     handler.current = onKey
@@ -290,10 +302,17 @@ export function ReviewCasePage() {
     onSave: save,
     saving: add.isPending,
     error: add.isError ? errorMessage(add.error) : null,
-    disabled: !canWrite,
+    disabled: !canWrite || !ready,
   }
   const aside = (
     <div className="space-y-4">
+      {canWrite && !ready && (
+        <p className="text-sm text-muted-foreground">
+          {verdicts.isError
+            ? 'Không tải được verdict hiện hành của case: chưa ghi được verdict.'
+            : 'Đang tải verdict hiện hành…'}
+        </p>
+      )}
       {!canWrite && (
         <p className="text-sm text-muted-foreground">
           Chỉ người đang nhận review mới ghi verdict (experiment đang ở trạng thái{' '}

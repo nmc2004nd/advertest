@@ -5,7 +5,7 @@ import { ExperimentDetailPage } from './features/experiments/ExperimentDetailPag
 import { ExperimentsPage } from './features/experiments/ExperimentsPage'
 import { FailureCasePage } from './features/experiments/FailureCasePage'
 import { ProtocolsPage } from './features/protocols/ProtocolsPage'
-import { ReviewCasePage } from './features/reviews/ReviewCasePage'
+import { ReviewCaseRoute } from './features/reviews/ReviewCasePage'
 import { ReviewPage } from './features/reviews/ReviewPage'
 import { ReviewsPage } from './features/reviews/ReviewsPage'
 import { WizardPage } from './features/wizard/WizardPage'
@@ -88,7 +88,7 @@ const routes: RouteObject[] = [
         path: '/reviews/:id/cases/:caseId',
         element: (
           <RequirePermission requirement="review.decide">
-            <ReviewCasePage />
+            <ReviewCaseRoute />
           </RequirePermission>
         ),
       },

@@ -15,7 +15,7 @@ import { expectLabelledControls, render } from '@/test-utils'
 
 import { REVIEWS_KEY, verdictsKey } from './api'
 import { approveBlockers, decisionBody, EMPTY_DECISION, otherBlockers } from './decision'
-import { ReviewCasePage, ShortcutTable, VerdictForm } from './ReviewCasePage'
+import { ReviewCasePage, ReviewCaseRoute, ShortcutTable, VerdictForm } from './ReviewCasePage'
 import { DecisionPanel, ReviewPage } from './ReviewPage'
 import { ReviewsPage } from './ReviewsPage'
 import {
@@ -290,6 +290,34 @@ describe('trang verdict của case', () => {
     expect(html).toContain('Ghi verdict')
     expect(html).toContain('role="radiogroup"')
     expect(html).toContain('Phím tắt (?)')
+  })
+
+  it('chưa tải xong verdict hiện hành của case: form khóa, không lưu được bản nháp cũ', () => {
+    if (!view) throw new Error('thiếu mock case')
+    const page = (withVerdicts: boolean) =>
+      render(
+        <Routes>
+          <Route path="/reviews/:id/cases/:caseId" element={<ReviewCaseRoute />} />
+        </Routes>,
+        `/reviews/${partial.id}/cases/${caseId}`,
+        'reviewer',
+        [
+          [experimentKey(partial.id), partial],
+          [failureCaseKey(caseId), view],
+          ...(withVerdicts
+            ? [[verdictsKey(caseId), history] as [readonly unknown[], unknown]]
+            : []),
+        ],
+      )
+    const loading = page(false)
+    expect(loading).toContain('Đang tải verdict hiện hành…')
+    expect(isDisabled(loading, 'Lưu verdict')).toBe(true)
+    expect(loading).not.toContain('aria-checked="true"')
+    const loaded = page(true)
+    expect(loaded).not.toContain('Đang tải verdict hiện hành…')
+    // Điền sẵn verdict hiện hành: đủ trường nên lưu được.
+    expect(loaded).toContain('aria-checked="true"')
+    expect(isDisabled(loaded, 'Lưu verdict')).toBe(false)
   })
 
   it('form: nút lớn, khóa khi chưa đủ; người không nhận review không ghi được', () => {
