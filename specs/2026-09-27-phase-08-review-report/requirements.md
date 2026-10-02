@@ -223,6 +223,20 @@ Ràng buộc DB:
   - engineer bình luận ở mức experiment từ tab Review (API vẫn nhận bình luận gắn run, failure case);
   - sau khi gửi duyệt, trang không polling (thấy thay đổi khi tải lại hoặc quay lại tab).
 
+### Chốt ở Group 5 (2026-10-02)
+
+- **Quyền và điều hướng:**
+  - trang `/protocols` và mục điều hướng "Protocol" theo `protocol.read` (engineer, reviewer, admin xem được); tạo protocol, tạo version mới, ngừng dùng chỉ hiện với `protocol.manage`;
+  - mục "Protocol" đứng sau các trang quản trị trong `nav/config.ts`, để admin trên điện thoại giữ "Người dùng" trong thanh tab.
+- **Hàng đợi:** nhóm và cách sắp xếp lưu trên URL (`/reviews?status=&sort=`).
+- **Case bắt buộc và verdict:**
+  - giao diện Phase 8 chỉ dẫn tới case bắt buộc; review thêm case khác (API cho phép) chưa có lối vào, để Phase 11 hoặc Group 7 quyết định (review Group 5, phát hiện #2);
+  - `J`/`K` đi theo thứ tự danh sách case bắt buộc;
+  - phím tắt chữ và số bị bỏ qua khi đang gõ trong ô nhập; `Ctrl+Enter` (hoặc `⌘+Enter`) vẫn lưu;
+  - mỗi case là một instance trang riêng; form verdict khóa tới khi tải xong verdict hiện hành của đúng case (review Group 5, phát hiện #1).
+- **Quyết định:** ba nút đều qua hộp xác nhận; "Yêu cầu sửa" và "Từ chối" chỉ cần kết luận; "Chấp nhận" khóa kèm danh sách lý do (checklist của server, rồi các ô bắt buộc).
+- **Form protocol:** kiểm tra cùng luật với contract trước khi gửi; lỗi `422` của server hiện tại đúng ô khi ánh xạ được, còn lại (ví dụ lỗi của cả `body`) hiện ở đầu form; tạo version mới điền sẵn nội dung version mới nhất và khóa tên.
+
 ## Behaviour
 
 ### Protocol

@@ -6,7 +6,39 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 8 — Protocol, review và report
 
-**Trạng thái:** đang làm. Group 0–4 đã merge (2026-10-02).
+**Trạng thái:** đang làm. Group 0–5 đã merge (2026-10-02).
+
+### Phase 8 — Group 5 (frontend-review) — 2026-10-02
+#### Thêm
+- **`/reviews` (task 27):** ba nhóm (chờ nhận, tôi đang review, đã quyết định), sắp theo thời gian gửi hoặc mức sụt lớn nhất; bảng trên desktop, thẻ trên điện thoại, kèm tiến độ case.
+- **`/reviews/:id` (task 28):**
+  - nhận và trả lại; người tạo experiment không thấy nút nhận;
+  - tuân thủ, kết quả tiêu chí (tham khảo), danh sách kiểm tra ✓/✗ kèm lý do;
+  - case bắt buộc nhóm theo attack ("3/5 đã review"), run, biểu đồ và bình luận (dùng lại tab Kết quả và tab Review);
+  - khung quyết định: "Chấp nhận" khóa kèm lý do, cả ba nút có hộp xác nhận.
+- **`/reviews/:id/cases/:caseId` (task 29):**
+  - `CaseViewer` kèm form verdict và lịch sử verdict;
+  - phím tắt `J`/`K`, `1`–`4`, `S`/`A`/`N`, `Ctrl+Enter`, `?`;
+  - điện thoại: vuốt chuyển case, form verdict trong bottom sheet với nút lớn.
+- **`/protocols` (task 30):** danh sách gồm bản ngừng dùng; form tạo và tạo version mới (attack bắt buộc, tiêu chí, số case, `forbid_dirty_runs`) kiểm tra theo luật contract; ngừng dùng có xác nhận.
+- **Trang chủ và điều hướng (task 31):** khối reviewer (số chờ nhận, danh sách đang review); bật mục "Duyệt" (`review.decide`), thêm mục "Protocol" (`protocol.read`).
+- **Mock (`api/mocks.ts`):** `GET /reviews?status=`, `GET /failure-cases/{id}/verdicts`.
+- **Test:** `reviews/reviews.test.tsx` (17), `protocols/protocols.test.tsx` (11).
+#### Sửa
+- **Lỗi Phase 4:** mở menu "Thêm" trên điện thoại làm sập trang (Slot của Radix gộp `className` dạng hàm thành chuỗi). Admin trên điện thoại đã dính lỗi từ Phase 4; Group 5 làm engineer và reviewer cũng có "Thêm". Sửa trong `layout/AppShell.tsx`, có unit test; E2E Phase 4 giờ mở "Thêm" thật.
+#### Sửa test cũ
+- `pages/app-pages.test.tsx`: khối reviewer trên trang chủ, danh sách mục điều hướng có "Duyệt" và "Protocol".
+- `e2e/phase_04/onboarding.spec.ts`: engineer có 5 mục; trên điện thoại kiểm 3 tab và 2 mục trong "Thêm" (người dùng cho phép).
+#### Review (phase-review, 2026-10-02)
+- **#1 (chặn, đã sửa trước khi merge):** chuyển case bằng `J`/`K` hoặc vuốt giữ bản nháp verdict của case trước, có thể lưu nhầm vào case mới. Sửa: mỗi case một instance (`key`), khóa lưu tới khi tải xong verdict hiện hành; có test.
+- **#2 (chấp nhận, ghi vào spec):** chưa có lối vào để review case ngoài danh sách bắt buộc.
+- Quyết định ngầm đã ghi vào `requirements.md` mục "Chốt ở Group 5".
+- Review và phần sửa do cùng một agent làm (không độc lập).
+#### Số liệu
+- `make check` pass: 360 Vitest, 331 test nghiệm thu.
+- `make test-e2e` 78/78 (7,2 phút, chạy trước phần sửa #1; phần sửa chỉ đụng trang verdict, E2E không đi qua trang này); `pnpm verify:build` pass.
+#### Tồn đọng
+- Kiểm tra tay: phím tắt trên trình duyệt thật, vuốt và bottom sheet trên điện thoại thật, lỗi `MAX_RUNS` của form protocol, menu "Thêm" của admin.
 
 ### Phase 8 — Group 4 (frontend-report) — 2026-10-02
 #### Thêm
