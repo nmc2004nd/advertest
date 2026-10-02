@@ -54,7 +54,7 @@ const ready = mock('review_in_review_ready')
 const filled = {
   conclusion: 'Model giữ được mAP dưới fog nhẹ.',
   mitigation: 'Bổ sung dữ liệu fog.',
-  modelVerdict: 'pass_with_conditions' as const,
+  modelVerdict: 'conditional' as const,
   inconclusiveJustification: 'Slice nhỏ, ghi nhận.',
 }
 
