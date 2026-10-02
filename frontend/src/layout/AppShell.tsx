@@ -1,4 +1,5 @@
 import { Ellipsis } from 'lucide-react'
+import { useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router'
 
 import { RequirePermission } from '@/auth/RequirePermission'
@@ -6,7 +7,6 @@ import { AUTHENTICATED } from '@/auth/permissions'
 import { useMe } from '@/auth/useMe'
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
   DialogTitle,
@@ -67,6 +67,7 @@ function ItemLink({
   children: React.ReactNode
   title?: string
   'aria-label'?: string
+  onClick?: () => void
 }) {
   const { pathname } = useLocation()
   const isActive = isNavActive(item, pathname)
@@ -125,9 +126,27 @@ function tabClass({ isActive }: { isActive: boolean }): string {
   )
 }
 
+/**
+ * Danh sách mục trong bottom sheet "Thêm". Link tự đóng sheet qua `onNavigate`: không bọc trong
+ * `DialogClose asChild` vì Slot của Radix gộp `className` dạng hàm thành chuỗi (sập trang).
+ */
+export function MoreLinks({ items, onNavigate }: { items: NavItem[]; onNavigate: () => void }) {
+  return (
+    <nav className="flex flex-col gap-1">
+      {items.map((item) => (
+        <ItemLink key={item.path} item={item} className={navClass} onClick={onNavigate}>
+          <item.icon className="size-5 shrink-0" aria-hidden />
+          <span>{item.label}</span>
+        </ItemLink>
+      ))}
+    </nav>
+  )
+}
+
 /** Thanh tab điện thoại: tối đa 4 ô, dư thì ô cuối là "Thêm" mở bottom sheet. */
 export function BottomTabs({ items }: { items: NavItem[] }) {
   const { tabs, more } = splitTabs(items)
+  const [moreOpen, setMoreOpen] = useState(false)
   if (items.length === 0) return null
   return (
     <nav
@@ -141,7 +160,7 @@ export function BottomTabs({ items }: { items: NavItem[] }) {
         </ItemLink>
       ))}
       {more.length > 0 && (
-        <Dialog>
+        <Dialog open={moreOpen} onOpenChange={setMoreOpen}>
           <DialogTrigger className={tabClass({ isActive: false })}>
             <Ellipsis className="size-5" aria-hidden />
             <span>Thêm</span>
@@ -149,16 +168,7 @@ export function BottomTabs({ items }: { items: NavItem[] }) {
           <DialogContent>
             <DialogTitle>Thêm</DialogTitle>
             <DialogDescription className="sr-only">Các mục điều hướng khác</DialogDescription>
-            <nav className="flex flex-col gap-1">
-              {more.map((item) => (
-                <DialogClose key={item.path} asChild>
-                  <ItemLink item={item} className={navClass}>
-                    <item.icon className="size-5 shrink-0" aria-hidden />
-                    <span>{item.label}</span>
-                  </ItemLink>
-                </DialogClose>
-              ))}
-            </nav>
+            <MoreLinks items={more} onNavigate={() => setMoreOpen(false)} />
           </DialogContent>
         </Dialog>
       )}
