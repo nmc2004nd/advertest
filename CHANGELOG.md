@@ -6,7 +6,40 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 8 — Protocol, review và report
 
-**Trạng thái:** đang làm. Group 0 đã merge (2026-10-02).
+**Trạng thái:** đang làm. Group 0, 1 đã merge (2026-10-02).
+
+### Phase 8 — Group 1 (backend-review) — 2026-10-02
+#### Thêm
+- **Migration `0009` (task 7):**
+  - bảng mới `run_explanations`, `review_comments`; `advertest_app` chỉ có `SELECT, INSERT`;
+  - `case_verdicts`: thêm `kind`, xóa `verdict`; `reviews`: thêm `model_verdict`, `inconclusive_justification`, `criteria_results`, `checklist`;
+  - `reports`: chuyển sang dạng có trạng thái; quyền `UPDATE` theo cột; trigger chặn sửa dòng `ready`; mỗi experiment một report;
+  - `experiments`: thêm `review_submitted_at`, `submission_note`, `review_assignee_id`, `claimed_at`, `decided_at`; `protocols`: thêm `created_at`; body `dev-open` theo v2;
+  - trigger: người nhận review khác người tạo; experiment đã khóa chỉ đổi được trạng thái review và trạng thái quyết định là cuối; không thêm hay sửa run và failure case của experiment đã khóa; không thêm verdict, bình luận, giải trình sau quyết định.
+- **Task 7a:** downgrade `0006` xóa `cost_profiles` của spec `not_applicable` trước.
+- **`backend/app/protocols/service.py` (task 8, 10):**
+  - tạo, tạo version (bản cũ chuyển `retired`, chỉ tạo từ bản mới nhất), ngừng dùng, đọc;
+  - kiểm tra cần catalog: spec có thật và đang hoạt động, level và dải trong `primary_param`, patch không tìm ngưỡng, `MAX_RUNS` tính cả `max_points`;
+  - audit `protocol.created`, `protocol.versioned`, `protocol.retired`; endpoint `/protocols*`.
+- **`backend/app/protocols/compliance.py` (task 9):**
+  - dùng chung cho ước lượng (chỉ trả danh sách), tạo experiment (`422 not_compliant` kèm `error.compliance`) và `ExperimentDetail.compliance`;
+  - protocol `dev` → danh sách rỗng.
+- **Test:** `test_migration_0009.py`, `test_phase08_protocols.py`, `tests/protocols/test_compliance_items.py`.
+#### Sửa test cũ (agent)
+- `test_migration.py`: seed `dev-open` theo body mới.
+- `test_schema.py`: bảng và enum mới.
+- `test_skeleton.py`: mẫu thử `501` chuyển sang `/reviews/{id}/claim`.
+#### Review (phase-review, 2026-10-02)
+- **#1 (người dùng chọn sửa trước khi merge):** trạng thái quyết định là cuối cả ở tầng DB; có test.
+- **#2 (người dùng chọn sửa trước khi merge):** tạo protocol trùng `(name, version)` đồng thời trả `409` thay vì `500` (dùng savepoint); có test.
+- **Ghi nhận:** quyết định ngầm đã ghi vào `requirements.md` mục "Chốt ở Group 1", gồm cột `review_submitted_at` lệch so với spec.
+- Review và phần sửa do cùng một agent làm (không độc lập).
+#### Số liệu
+- `make check` pass: 1451 test Python, 314 Vitest, 334 test nghiệm thu không cần DB.
+- `make test-db`: 551 pass, 1 fail (test email Phase 5 phụ thuộc ngày, có từ trước, giao ở task 37).
+#### Việc tiếp theo
+- **Task 37:** thử bỏ `DROP OWNED BY` trong `tests/acceptance/phase_07/conftest.py`. Run của spec corruption (Phase 6) có thể vẫn chặn downgrade `0006`.
+- **Group 2:** gửi duyệt đặt `locked_at` và `review_submitted_at`, rồi đổi lỗi `check_violation` của trigger thành `409 experiment_locked`.
 
 ### Phase 8 — Group 0 (người duyệt) — 2026-10-02
 #### Contract

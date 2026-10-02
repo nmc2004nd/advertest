@@ -121,6 +121,25 @@ Chi tiết contract (nguồn sự thật: `contracts/python/advertest_contracts/
   - file JSON là `canonical_json(snapshot)`.
 - **`ReportView`:** `generated_at`, `json_sha256`, `pdf_sha256` có khi và chỉ khi `ready`; có `model_verdict`, `experiment_name`.
 
+### Chốt ở Group 1 (2026-10-02)
+
+- **Thời điểm gửi duyệt:** lưu ở cột `experiments.review_submitted_at`, không dùng `submitted_at`. Cột `submitted_at` của Phase 0 đã mang nghĩa *thời điểm vào hàng đợi* từ Phase 5 (thứ tự lease, vị trí hàng đợi). `ReviewView.submitted_at` đọc từ `review_submitted_at`.
+- **`case_verdicts.verdict`** (Phase 0, kiểu text) đã bị xóa; nội dung verdict là `severity`, `kind`, `mitigation`.
+- **`reports`:** `advertest_app` chỉ được `UPDATE` các cột `status`, `attempts`, `snapshot_key`, `json_key`, `pdf_key`, `json_sha256`, `pdf_sha256`, `generated_at` (quyền theo cột), không được `DELETE`. Trigger chặn sửa dòng đã `ready`. Ràng buộc: `ready` thì đủ khóa, hash và `generated_at`.
+- **Trigger khóa experiment:**
+  - experiment có `locked_at` chỉ đổi được `status` (trong nhóm trạng thái review), `review_assignee_id`, `claimed_at`, `decided_at`;
+  - khi đã `approved`, `changes_requested` hoặc `rejected` thì không đổi gì nữa (review Group 1);
+  - `runs` và `failure_cases` của experiment đã khóa không thêm hay sửa được, kể cả `archived`.
+- **Tạo protocol:**
+  - spec bắt buộc phải có trong catalog và đang hoạt động;
+  - trùng tên → `409`, kể cả khi hai request chạy đồng thời;
+  - `dev-open` không tạo version hay ngừng dùng được (`409`);
+  - khi kiểm `MAX_RUNS`, số ảnh giả định là `max(min_slice_size, 101)` để luôn tính cả giai đoạn tập con.
+- **Tuân thủ:**
+  - mục `protocol_active` chỉ có khi ước lượng hoặc tạo mới; `ExperimentDetail.compliance` không có mục này;
+  - attack bắt buộc vắng mặt, hoặc sai chế độ, thì không có các mục chi tiết của attack đó;
+  - mục `model_gradients` luôn có, kể cả khi không attack bắt buộc nào cần gradient.
+
 ### Thay đổi DB
 
 | Bảng | Thay đổi |

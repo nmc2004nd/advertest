@@ -17,6 +17,8 @@
 
 ## Group 1 — Backend: dữ liệu và protocol `[agent: backend-review]`
 
+> File được sửa (người dùng duyệt ở kế hoạch Group 1): `backend/app/protocols/`, `backend/migrations/versions/`, `backend/app/db/models.py`, `backend/app/api/public.py`, `backend/app/api/errors.py`, `backend/app/services/{experiment_config,estimate,experiment_views,errors}.py`, test trong `backend/app/tests/`.
+
 7. Migration: thay đổi bảng trong `requirements.md`; cập nhật `dev-open`; quyền DB và trigger mới (gồm `UPDATE` có trigger trên `reports`).
 7a. Sửa `downgrade` migration 0006: xóa `cost_profiles` của spec `not_applicable` trước (roadmap "Từ Phase 7").
 8. Service protocol: tạo, tạo version, ngừng dùng; kiểm tra hợp lệ.
