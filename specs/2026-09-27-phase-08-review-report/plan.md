@@ -27,6 +27,8 @@
 
 ## Group 2 — Backend: gửi duyệt và review `[agent: backend-review]`
 
+> File được sửa (người dùng duyệt ở kế hoạch Group 2): `backend/app/reviews/`, `backend/app/api/{public,errors}.py`, `backend/app/services/{errors,experiment_views,experiments,runs,searches}.py`, `backend/app/db/models.py`, `backend/migrations/versions/`, test trong `backend/app/tests/`.
+
 11. Gửi duyệt: điều kiện (gồm chặn case bắt buộc bị ẩn), giải trình run chỉ qua `SubmitForReview`, khóa experiment (chặn mọi endpoint thay đổi bằng một kiểm tra chung), email cho reviewer.
 12. Nhận / trả lại review; hàng đợi loại experiment của chính người gọi.
 13. Chọn case bắt buộc review theo attack.
