@@ -53,6 +53,7 @@ from backend.app import storage
 from backend.app.api import pagination
 from backend.app.db import models as m
 from backend.app.protocols import compliance
+from backend.app.reports import views as report_views
 from backend.app.reviews import views as review_views
 from backend.app.services import searches
 from backend.app.services.errors import NotFound
@@ -234,7 +235,8 @@ def detail(session: Session, experiment_id: UUID) -> ExperimentDetail:
 
 
 def _review_fields(session: Session, experiment: m.Experiment) -> dict[str, Any]:
-    """Phase 8: điều kiện gửi duyệt khi `completed`; `review` khi đã gửi duyệt."""
+    """Phase 8: điều kiện gửi duyệt khi `completed`; `review` khi đã gửi duyệt; `report` khi
+    `approved`."""
     ctx = review_views.load(session, experiment)
     if experiment.status == ExperimentStatus.COMPLETED:
         return {
@@ -243,7 +245,10 @@ def _review_fields(session: Session, experiment: m.Experiment) -> dict[str, Any]
                 run.id for run in review_views.runs_requiring_explanation(ctx)
             ],
         }
-    return {"review": review_views.review_view(session, ctx)}
+    fields: dict[str, Any] = {"review": review_views.review_view(session, ctx)}
+    if experiment.status == ExperimentStatus.APPROVED:
+        fields["report"] = report_views.for_experiment(session, experiment.id)
+    return fields
 
 
 def _compliance(
