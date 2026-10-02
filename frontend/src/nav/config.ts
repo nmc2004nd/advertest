@@ -1,6 +1,7 @@
 import {
   CircleUser,
   ClipboardCheck,
+  FileText,
   FlaskConical,
   House,
   Library,
@@ -83,6 +84,13 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: 'Protocol',
     icon: ListChecks,
     requirement: 'protocol.read',
+    implemented: true,
+  },
+  {
+    path: '/reports',
+    label: 'Report',
+    icon: FileText,
+    requirement: 'report.read',
     implemented: true,
   },
   {

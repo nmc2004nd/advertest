@@ -5,6 +5,9 @@ import { ExperimentDetailPage } from './features/experiments/ExperimentDetailPag
 import { ExperimentsPage } from './features/experiments/ExperimentsPage'
 import { FailureCasePage } from './features/experiments/FailureCasePage'
 import { ProtocolsPage } from './features/protocols/ProtocolsPage'
+import { ReportPage } from './features/reports/ReportPage'
+import { ReportsPage } from './features/reports/ReportsPage'
+import { VerifyPage } from './features/reports/VerifyPage'
 import { ReviewCaseRoute } from './features/reviews/ReviewCasePage'
 import { ReviewPage } from './features/reviews/ReviewPage'
 import { ReviewsPage } from './features/reviews/ReviewsPage'
@@ -30,6 +33,8 @@ const routes: RouteObject[] = [
   { path: '/request-access/sent', element: <RequestAccessSentPage /> },
   { path: '/pending', element: <PendingPage /> },
   { path: '/reset-password/:token', element: <ResetPasswordPage /> },
+  // Phase 8: xác minh report công khai, không cần đăng nhập.
+  { path: '/verify/:id', element: <VerifyPage /> },
   // Trang cần đăng nhập nằm trong khung ứng dụng; trang admin chặn thêm theo permission.
   {
     element: <AppShell />,
@@ -97,6 +102,22 @@ const routes: RouteObject[] = [
         element: (
           <RequirePermission requirement="protocol.read">
             <ProtocolsPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: '/reports',
+        element: (
+          <RequirePermission requirement="report.read">
+            <ReportsPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: '/reports/:id',
+        element: (
+          <RequirePermission requirement="report.read">
+            <ReportPage />
           </RequirePermission>
         ),
       },
