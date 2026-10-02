@@ -37,22 +37,27 @@ Kết quả tham chiếu (2026-10-02, `main`): `make check` pass; `make test-db`
 
 ## 3. Khởi động hệ thống
 
+Biến môi trường của demo nằm trong `.env.demo` (đã có trong `.gitignore` theo mẫu `.env.*`, không bị commit). Chưa có file này thì tạo từ bản mẫu:
+
 ```bash
-cp .env.example .env
+cp .env.example .env.demo && chmod 600 .env.demo
 ```
 
-Sửa `.env`:
-- thay mọi giá trị `change-me-*` (chỉ dùng chữ và số);
+Rồi sửa `.env.demo`:
+- thay mọi giá trị `change-me-*` (chỉ dùng chữ và số), kể cả mật khẩu nằm trong `DATABASE_URL`, `MIGRATION_DATABASE_URL`;
 - đặt `ADVERTEST_ADMIN_EMAIL`, `ADVERTEST_ADMIN_PASSWORD` cho tài khoản admin đầu tiên;
 - bỏ dấu `#` và đặt `ADVERTEST_DATA_DIR` = đường dẫn **tuyệt đối** tới thư mục `data/` của repo;
 - giữ `DEV_ALLOW_UNBLURRED=false` khi demo.
+- đặt giá trị có dấu cách hoặc `<`, `>` trong nháy kép, ví dụ `SMTP_FROM="AdverTest <no-reply@advertest.local>"`: lệnh `. ./.env.demo` bên dưới chạy bằng shell, không có nháy thì báo lỗi cú pháp và không nạp biến nào.
+
+Mọi lệnh bên dưới dùng `.env.demo`: `make` qua `ENV_FILE=.env.demo`, `docker compose` qua `--env-file .env.demo`.
 
 ```bash
-GIT_COMMIT=$(git rev-parse HEAD) make up        # build và chờ mọi service healthy
-set -a; . ./.env; set +a
-docker compose -f docker/compose.yaml --env-file .env exec \
+ENV_FILE=.env.demo GIT_COMMIT=$(git rev-parse HEAD) make up   # build và chờ mọi service healthy
+set -a; . ./.env.demo; set +a
+docker compose -f docker/compose.yaml --env-file .env.demo exec \
   -e ADVERTEST_ADMIN_EMAIL -e ADVERTEST_ADMIN_PASSWORD api python -m backend.admin_cli.seed
-admin() { docker compose -f docker/compose.yaml --env-file .env exec api advertest-admin "$@"; }
+admin() { docker compose -f docker/compose.yaml --env-file .env.demo exec api advertest-admin "$@"; }
 ```
 
 `seed` nạp attack catalog, compute target `local-dev` và tài khoản admin.
@@ -81,7 +86,7 @@ DATASET=$(uv run --extra cpu advertest --store-dir "$STORE" dataset import-kitti
 MODEL=$(uv run --extra cpu advertest --store-dir "$STORE" model register --weights tests/fixtures/yolov8n.pt --name yolov8n-coco | field id)
 uv run --extra cpu advertest --store-dir "$STORE" slice create --dataset "$DATASET" --size 5 --seed 42
 uv run --extra cpu advertest --store-dir "$STORE" mapping create --dataset "$DATASET" --model "$MODEL"
-docker compose -f docker/compose.yaml --env-file .env exec -u "$(id -u):$(id -g)" api \
+docker compose -f docker/compose.yaml --env-file .env.demo exec -u "$(id -u):$(id -g)" api \
   advertest-admin import-local --store "$STORE" --as "$ADVERTEST_ADMIN_EMAIL"
 ```
 
@@ -180,11 +185,23 @@ Lựa chọn khác:
 - Report liệt kê mọi experiment khác cùng model và dataset (kể cả lần chạy không gửi duyệt hay đã hủy), nên không giấu được các lần chạy xấu.
 - **Audit log** (admin) ghi mọi bước: gửi duyệt, nhận, verdict, quyết định, sinh và tải report.
 
-## 8. Sự cố thường gặp
+## 8. Xem giao diện không cần backend (chế độ mock)
+
+Muốn xem nhanh giao diện mà không dựng Docker hay worker, frontend đọc dữ liệu mẫu trong `contracts/mocks`:
+
+```bash
+VITE_USE_MOCKS=true VITE_MOCK_ME=reviewer pnpm --dir frontend dev   # mở http://localhost:5173/home
+```
+
+- `VITE_MOCK_ME` chọn người đang đăng nhập: `admin`, `engineer`, `reviewer`, `engineer_reviewer`.
+- Chế độ này chỉ đọc: tạo experiment, gửi duyệt, ra quyết định sẽ báo lỗi.
+- Dùng để soát bố cục và nội dung trang (hàng đợi `/reviews`, trang report `/reports`), không thay cho demo thật ở mục 7.
+
+## 9. Sự cố thường gặp
 
 | Triệu chứng | Cách xử lý |
 |---|---|
-| `make up` không healthy | `docker compose -f docker/compose.yaml --env-file .env logs api`; kiểm tra mật khẩu trong `.env` chỉ có chữ và số |
+| `make up` không healthy | `docker compose -f docker/compose.yaml --env-file .env.demo logs api`; kiểm tra mật khẩu trong `.env.demo` chỉ có chữ và số |
 | Lệnh `advertest` báo lỗi JSON (`field`) | Chạy `uv run --extra cpu python -c "import ultralytics"` một lần rồi chạy lại lệnh |
 | `import-local` báo không đọc được ảnh | Ảnh phải nằm trong `ADVERTEST_DATA_DIR` (đường dẫn tuyệt đối, cùng đường dẫn lúc `import-kitti`); chạy với `-u "$(id -u):$(id -g)"` |
 | Experiment nằm mãi ở hàng đợi | Worker chưa chạy hoặc sai token; xem log worker, `admin compute-target list` |
@@ -193,9 +210,9 @@ Lựa chọn khác:
 | Report ở "Sinh lỗi" | Reviewer bấm **Sinh lại** trên trang report; xem log `api` |
 | Ảnh case bị ẩn | Case cũ chưa làm mờ (trước Phase 6); chạy lại experiment để worker làm mờ |
 
-## 9. Dọn dẹp
+## 10. Dọn dẹp
 
 ```bash
-make down                                          # dừng, giữ dữ liệu
-docker compose -f docker/compose.yaml --env-file .env down -v   # dừng và xóa toàn bộ DB, MinIO
+ENV_FILE=.env.demo make down                                          # dừng, giữ dữ liệu
+docker compose -f docker/compose.yaml --env-file .env.demo down -v   # dừng và xóa toàn bộ DB, MinIO
 ```
