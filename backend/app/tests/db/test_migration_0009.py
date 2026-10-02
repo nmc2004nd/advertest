@@ -7,6 +7,7 @@ import uuid
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from decimal import Decimal
 
 import pytest
 from alembic import command
@@ -16,12 +17,22 @@ from sqlalchemy.exc import DBAPIError, IntegrityError, ProgrammingError
 from sqlalchemy.orm import Session
 
 from advertest_contracts import enums
-from advertest_contracts.models import AttackSpecBody, compute_spec_sha256
+from advertest_contracts.enums import RunMode
+from advertest_contracts.hashing import sha256_of
+from advertest_contracts.models import (
+    AttackConfig,
+    AttackSpecBody,
+    ExperimentConfig,
+    GridConfig,
+    Limit,
+    compute_spec_sha256,
+)
 from attacks.registry import get_spec, load_catalog
 from backend.app.db import models as m
 
 pytestmark = pytest.mark.db
 SHA = "b" * 64
+DEV_OPEN = "2edcdef5-0d3a-5d5f-98ac-b02637fa6718"
 
 
 def _sha() -> str:
@@ -64,10 +75,7 @@ def _chain(owner_engine: Engine, status: enums.ExperimentStatus) -> Chain:
             access=enums.AttackAccess.WHITE_BOX, spec=body,
             spec_sha256=compute_spec_sha256(body),
         )  # fmt: skip
-        protocol = m.Protocol(
-            name=f"p-{tag}", version=1, body={}, body_sha256=SHA, created_by=reviewer.id
-        )
-        s.add_all([model, dataset, spec, protocol])
+        s.add_all([model, dataset, spec])
         s.flush()
         mv = m.ModelVersion(
             model_id=model.id, weights_sha256=_sha(), weights_uri="s3://w", framework="u",
@@ -88,11 +96,22 @@ def _chain(owner_engine: Engine, status: enums.ExperimentStatus) -> Chain:
         )  # fmt: skip
         s.add_all([mapping, sl])
         s.flush()
+        # Cấu hình hợp lệ (dev-open): hàng đợi review của test khác đọc mọi experiment đang review.
+        config = ExperimentConfig(
+            protocol_id=uuid.UUID(DEV_OPEN), model_version_id=mv.id, slice_id=sl.id,
+            class_mapping_id=mapping.id, compute_target_id=target.id,
+            attacks=[AttackConfig(
+                attack_spec_id=spec.id, spec_sha256=spec.spec_sha256, mode=RunMode.GRID,
+                grid=GridConfig(levels=[4]), seed=0,
+            )],
+            limit=Limit(kind=enums.LimitKind.TIME, value=Decimal(7200)),
+        )  # fmt: skip
         exp = m.Experiment(
-            created_by=engineer.id, protocol_id=protocol.id, model_version_id=mv.id,
-            slice_id=sl.id, class_mapping_id=mapping.id, compute_target_id=target.id, config={},
-            config_sha256=SHA, limit_kind=enums.LimitKind.TIME, limit_value=7200,
-            status=enums.ExperimentStatus.COMPLETED,
+            created_by=engineer.id, protocol_id=config.protocol_id, model_version_id=mv.id,
+            slice_id=sl.id, class_mapping_id=mapping.id, compute_target_id=target.id,
+            config=config.model_dump(mode="json"), config_sha256=sha256_of(config),
+            limit_kind=enums.LimitKind.TIME, limit_value=7200,
+            status=enums.ExperimentStatus.COMPLETED, finished_at=datetime.now(UTC),
         )  # fmt: skip
         s.add(exp)
         s.flush()
