@@ -72,6 +72,11 @@ BEGIN
     IF OLD.locked_at IS NULL THEN
         RETURN NEW;
     END IF;
+    -- approved, changes_requested, rejected là trạng thái cuối: không đổi gì nữa.
+    IF OLD.status::text IN {DECIDED} AND to_jsonb(NEW) IS DISTINCT FROM to_jsonb(OLD) THEN
+        RAISE EXCEPTION 'Review đã có quyết định; experiment không đổi được nữa'
+            USING ERRCODE = 'check_violation';
+    END IF;
     IF NEW.locked_at IS DISTINCT FROM OLD.locked_at
         OR NEW.status::text NOT IN {REVIEW_STATUSES}
         OR (to_jsonb(NEW) - ARRAY['status', 'review_assignee_id', 'claimed_at', 'decided_at'])

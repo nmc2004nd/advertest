@@ -387,3 +387,31 @@ def test_errors_are_integrity_or_permission(app_conn: Connection) -> None:
     """Lỗi trigger là check_violation (IntegrityError) để service phân biệt với lỗi quyền."""
     with pytest.raises((IntegrityError, ProgrammingError)):
         app_conn.execute(text("UPDATE review_comments SET body = 'x'"))
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        "status = 'in_review'",
+        "status = 'submitted_for_review', review_assignee_id = NULL, claimed_at = NULL",
+        "decided_at = now()",
+        "review_assignee_id = NULL",
+    ],
+)
+@pytest.mark.parametrize(
+    "status",
+    [
+        enums.ExperimentStatus.APPROVED,
+        enums.ExperimentStatus.CHANGES_REQUESTED,
+        enums.ExperimentStatus.REJECTED,
+    ],
+)
+def test_decided_experiment_is_final(
+    owner_engine: Engine, app_conn: Connection, status: enums.ExperimentStatus, change: str
+) -> None:
+    """Review Group 1 #1: trạng thái quyết định là cuối, kể cả ở tầng DB."""
+    chain = _chain(owner_engine, status)
+    message = _fails(
+        app_conn, f"UPDATE experiments SET {change} WHERE id = :id", id=chain.experiment
+    )
+    assert message is not None and "không đổi được nữa" in message

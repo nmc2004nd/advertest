@@ -14,6 +14,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from advertest_contracts.enums import ErrorCode, ProtocolStatus, RunMode
@@ -143,8 +144,14 @@ def _insert(
         status=ProtocolStatus.ACTIVE,
         created_by=actor.id,
     )
-    session.add(row)
-    session.flush()
+    # Hai request đồng thời cùng tên (hoặc cùng version mới) qua được kiểm tra trước đó: ràng
+    # buộc unique (name, version) chặn bản thứ hai, trả 409 thay vì 500 (review Group 1 #2).
+    try:
+        with session.begin_nested():
+            session.add(row)
+            session.flush()
+    except IntegrityError as exc:
+        raise Conflict(f"{name} v{version} vừa được tạo bởi request khác; hãy tải lại") from exc
     session.refresh(row)
     return row
 

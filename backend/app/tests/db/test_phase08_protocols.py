@@ -337,3 +337,19 @@ def test_protocol_ids_are_distinct_rows(app_engine: Engine, api: Api, fx: Fx) ->
         (1, ProtocolStatus.RETIRED),
         (2, ProtocolStatus.ACTIVE),
     ]
+
+
+def test_concurrent_duplicate_insert_is_conflict(api: Api, fx: Fx, app_engine: Engine) -> None:
+    """Review Group 1 #2: bản thứ hai cùng (name, version) → Conflict (409), không phải 500."""
+    from backend.app.protocols import service as protocol_service
+    from backend.app.services.errors import Conflict
+
+    reviewer_id, client = api.client(Role.REVIEWER)
+    view = _create_protocol(client)
+    with Session(app_engine) as s, s.begin():
+        actor = s.get(m.User, reviewer_id)
+        assert actor is not None
+        with pytest.raises(Conflict):
+            protocol_service._insert(s, actor=actor, name=view.name, version=1, body=view.body)
+        # Giao dịch ngoài vẫn dùng được sau lỗi (savepoint).
+        assert s.get(m.Protocol, view.id) is not None
