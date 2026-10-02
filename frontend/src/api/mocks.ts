@@ -14,6 +14,9 @@ import type {
   Manifest,
   Me,
   ModelSummary,
+  ProtocolSummary,
+  ProtocolView,
+  ReviewComment,
   RunResultOutput as RunResult,
   RunView,
   SliceSummary,
@@ -52,10 +55,14 @@ function mockPhase5(pathname: string, query: URLSearchParams): unknown {
     '/models': 'model_summary',
     '/datasets': 'dataset_summary',
     '/attack-specs': 'attack_spec',
-    '/protocols': 'protocol_summary',
     '/compute-targets': 'compute_target_public',
   }
   if (pathname in simple) return listMocks(simple[pathname])
+  if (pathname === '/protocols') {
+    // Phase 8: bản `retired` chỉ có khi `include_retired=true` (như API).
+    const all = listMocks<ProtocolSummary>('protocol_summary')
+    return query.get('include_retired') === 'true' ? all : all.filter((p) => p.status !== 'retired')
+  }
   if (pathname === '/slices') {
     // Phase 6: mock không có danh sách ảnh; coi mọi slice khác là không giao.
     const disjointFrom = query.get('disjoint_from')
@@ -79,6 +86,10 @@ function mockPhase5(pathname: string, query: URLSearchParams): unknown {
   if (m) return first(where<ModelSummary>('model_summary', 'id', m[1]), pathname)
   m = match(`/dataset-versions/${id}`)
   if (m) return first(where<DatasetVersionSummary>('dataset_version_summary', 'id', m[1]), pathname)
+  m = match(`/protocols/${id}`)
+  if (m) return first(where<ProtocolView>('protocol_view', 'id', m[1]), pathname)
+  m = match(`/experiments/${id}/comments`)
+  if (m) return where<ReviewComment>('review_comment', 'experiment_id', m[1])
   m = match(`/experiments/${id}`)
   if (m) return first(where<ExperimentDetail>('experiment_detail', 'id', m[1]), pathname)
   m = match(`/experiments/${id}/runs`)

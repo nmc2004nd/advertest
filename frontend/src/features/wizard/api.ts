@@ -14,6 +14,7 @@ import type {
   ExperimentDetail,
   ModelSummary,
   ProtocolSummary,
+  ProtocolView,
   SliceSummary,
 } from '@/contracts/api'
 import { EXPERIMENTS_KEY } from '@/features/experiments/api'
@@ -28,6 +29,16 @@ const list =
 
 export const useProtocols = () =>
   useQuery({ queryKey: ['protocols'], queryFn: list<ProtocolSummary>('/protocols') })
+/** Phase 8: nội dung một version protocol (attack bắt buộc, slice tối thiểu). Không đổi sau khi
+ * tạo nên không cần tải lại. */
+export function useProtocol(id: string | null) {
+  return useQuery({
+    queryKey: ['protocols', id],
+    queryFn: () => apiGet<ProtocolView>(`/protocols/${id ?? ''}`),
+    enabled: id !== null,
+    staleTime: Infinity,
+  })
+}
 export const useModels = () =>
   useQuery({ queryKey: ['models'], queryFn: list<ModelSummary>('/models') })
 export const useDatasets = () =>

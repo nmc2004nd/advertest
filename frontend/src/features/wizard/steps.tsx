@@ -1,4 +1,4 @@
-import { TriangleAlert } from 'lucide-react'
+import { Lock, TriangleAlert } from 'lucide-react'
 import type { Dispatch, ReactNode } from 'react'
 
 import { LoadError } from '@/components/LoadError'
@@ -21,12 +21,14 @@ import {
   useComputeTargets,
   useDatasets,
   useModels,
+  useProtocol,
   useProtocols,
   useSlices,
   useTrainingSlices,
 } from './api'
 import { LevelChips } from './LevelChips'
 import { catalogPreset, suggestedLevels } from './levels'
+import { LOCK_LABEL, requiredLocks } from './protocol'
 import { targetClassesOf } from './search'
 import { ModeSwitch, SearchFields } from './SearchFields'
 import {
@@ -34,6 +36,7 @@ import {
   type AttackDraft,
   type Draft,
   estimateText,
+  lockOf,
   searchErrorKey,
   SEED,
   trainingSummary,
@@ -137,7 +140,43 @@ export function ProtocolStep({ draft, dispatch, errors }: StepProps) {
         ))}
       </div>
       <FieldErrorText message={errors.protocol_id} />
+      {draft.protocolId && <ProtocolDetail protocolId={draft.protocolId} />}
     </Loaded>
+  )
+}
+
+/** Phase 8: mục đích, attack bắt buộc và slice tối thiểu của protocol đang chọn. */
+function ProtocolDetail({ protocolId }: { protocolId: string }) {
+  const protocol = useProtocol(protocolId)
+  const specs = useAttackSpecs()
+  if (!protocol.data || !specs.data || protocol.data.status === 'dev') return null
+  const body = protocol.data.body
+  const { missing } = requiredLocks(body, specs.data)
+  return (
+    <div className="space-y-2 rounded-lg border p-3 text-sm" data-testid="protocol-chi-tiet">
+      <p>{body.description}</p>
+      <p className="text-muted-foreground">
+        Slice tối thiểu {body.min_slice_size} ảnh · {body.cases_to_review_per_attack} case review
+        mỗi attack{body.forbid_dirty_runs ? ' · cấm code chưa commit' : ''}
+      </p>
+      <ul className="space-y-1">
+        {body.required_attacks.map((a) => (
+          <li key={a.attack_spec_name} className="flex items-center gap-2">
+            <Lock aria-hidden="true" className="size-4 shrink-0" />
+            {a.attack_spec_name}:{' '}
+            {a.mode === 'grid'
+              ? `quét lưới, level ${(a.grid?.levels ?? []).join(', ')}`
+              : `tự tìm ngưỡng ${a.search?.threshold_kind} ${Math.round((a.search?.threshold ?? 0) * 100)}%`}
+          </li>
+        ))}
+      </ul>
+      {missing.length > 0 && (
+        <p role="alert" className="text-destructive">
+          Catalog không còn đúng version của: {missing.join(', ')}. Experiment theo protocol này sẽ
+          không tuân thủ được; liên hệ reviewer để tạo version protocol mới.
+        </p>
+      )}
+    </div>
   )
 }
 
@@ -174,6 +213,10 @@ export function DatasetStep({ draft, dispatch, errors }: StepProps) {
   const slices = useSlices(draft.datasetVersionId)
   const mappings = useClassMappings(draft.datasetVersionId, draft.modelId)
   const mappingList = mappings.data ?? []
+  // Phase 8: slice nhỏ hơn `min_slice_size` của protocol bị ẩn.
+  const allSlices = slices.data ?? []
+  const usable = allSlices.filter((s) => s.size >= (draft.minSliceSize ?? 0))
+  const hidden = allSlices.length - usable.length
   return (
     <div className="space-y-4">
       <section className="space-y-2">
@@ -208,7 +251,7 @@ export function DatasetStep({ draft, dispatch, errors }: StepProps) {
               <p className="text-sm text-muted-foreground">Dataset version này chưa có slice.</p>
             ) : (
               <div role="radiogroup" aria-label="Slice" className="grid gap-2 md:grid-cols-2">
-                {slices.data?.map((slice) => (
+                {usable.map((slice) => (
                   <ChoiceCard
                     key={slice.id}
                     selected={draft.sliceId === slice.id}
@@ -223,6 +266,11 @@ export function DatasetStep({ draft, dispatch, errors }: StepProps) {
               </div>
             )}
           </Loaded>
+          {hidden > 0 && (
+            <p className="text-sm text-muted-foreground" data-testid="slice-an">
+              Ẩn {hidden} slice nhỏ hơn {draft.minSliceSize} ảnh (protocol yêu cầu).
+            </p>
+          )}
           <FieldErrorText message={errors.slice_id} />
         </section>
       )}
@@ -406,6 +454,7 @@ export function AttackStep({
               {list.map((spec) => {
                 const index = draft.attacks.findIndex((a) => a.attackSpecId === spec.id)
                 const chosen = index >= 0 ? draft.attacks[index] : undefined
+                const lock = lockOf(draft, spec.id)
                 const incompatible = spec.requires_gradients && model?.supports_gradients === false
                 return (
                   <div key={spec.id} className="space-y-3 rounded-lg border p-3">
@@ -414,6 +463,7 @@ export function AttackStep({
                         type="checkbox"
                         className="size-5"
                         checked={chosen !== undefined}
+                        disabled={lock !== undefined}
                         onChange={() =>
                           dispatch({
                             type: 'toggleAttack',
@@ -427,6 +477,15 @@ export function AttackStep({
                         {spec.name}{' '}
                         <span className="text-sm text-muted-foreground">v{spec.version}</span>
                       </span>
+                      {lock && (
+                        <span
+                          className="ml-auto inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs"
+                          data-testid={`khoa-${spec.name}`}
+                        >
+                          <Lock aria-hidden="true" className="size-3" />
+                          {LOCK_LABEL}
+                        </span>
+                      )}
                     </label>
                     {incompatible && (
                       <p className="flex items-center gap-2 text-sm text-amber-800 dark:text-amber-300">
@@ -440,6 +499,7 @@ export function AttackStep({
                         chosen={chosen}
                         sliceSize={sliceSize}
                         dispatch={dispatch}
+                        protocolLocked={lock !== undefined}
                       />
                     )}
                     {chosen?.mode === 'search' && chosen.search && (
@@ -453,6 +513,7 @@ export function AttackStep({
                         dispatch={dispatch}
                         onInputError={(bad) => onLevelInputError(searchErrorKey(spec.id), bad)}
                         estimate={estimate}
+                        thresholdLocked={lock?.mode === 'search'}
                       />
                     )}
                     {chosen?.mode === 'grid' && (
@@ -461,6 +522,7 @@ export function AttackStep({
                           param={spec.primary_param}
                           levels={chosen.levels}
                           suggested={suggestedLevels(spec)}
+                          lockedLevels={lock?.levels}
                           onChange={(levels) =>
                             dispatch({ type: 'levels', attackSpecId: spec.id, levels })
                           }
