@@ -2,8 +2,9 @@
 
 - `protocols`: `created_at`; body của `dev-open` theo `ProtocolBody` v2
   (`contracts/mocks/protocol_body/dev_open.json`).
-- `experiments`: `submission_note`, `review_assignee_id`, `claimed_at`, `decided_at`
-  (`submitted_at`, `locked_at` có từ Phase 0). Trigger: người nhận review khác người tạo;
+- `experiments`: `review_submitted_at`, `submission_note`, `review_assignee_id`, `claimed_at`,
+  `decided_at` (`locked_at` có từ Phase 0; `submitted_at` của Phase 0 đã mang nghĩa thời điểm vào
+  hàng đợi từ Phase 5 nên không dùng lại). Trigger: người nhận review khác người tạo;
   experiment đã khóa (`locked_at`) chỉ đổi được trạng thái review và người nhận.
 - `runs`, `failure_cases`: không thêm hay sửa được khi experiment đã khóa.
 - `run_explanations`, `review_comments` (mới): `advertest_app` chỉ SELECT, INSERT.
@@ -205,6 +206,7 @@ def upgrade() -> None:
     )
 
     # ------------------------------------------------------------ experiments
+    op.add_column("experiments", sa.Column("review_submitted_at", TZ, nullable=True))
     op.add_column("experiments", sa.Column("submission_note", sa.Text(), nullable=True))
     op.add_column("experiments", sa.Column("review_assignee_id", sa.Uuid(), nullable=True))
     op.create_foreign_key(
@@ -396,6 +398,7 @@ def downgrade() -> None:
     )
     op.drop_column("experiments", "review_assignee_id")
     op.drop_column("experiments", "submission_note")
+    op.drop_column("experiments", "review_submitted_at")
 
     op.execute(
         sa.text(

@@ -349,6 +349,8 @@ class Experiment(Base):
     finished_at: Mapped[datetime | None]
     # Phase 8: gửi duyệt và nhận review. Trigger DB: người nhận khác người tạo; experiment đã khóa
     # (`locked_at`) chỉ đổi được trạng thái review và các cột nhận/quyết định.
+    # `submitted_at` (Phase 0) là thời điểm vào hàng đợi (Phase 5); gửi duyệt dùng cột riêng.
+    review_submitted_at: Mapped[datetime | None]
     submission_note: Mapped[str | None] = mapped_column(Text)
     review_assignee_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"))
     claimed_at: Mapped[datetime | None]

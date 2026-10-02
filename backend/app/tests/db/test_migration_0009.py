@@ -101,7 +101,7 @@ def _chain(owner_engine: Engine, status: enums.ExperimentStatus) -> Chain:
             reviewing = status != enums.ExperimentStatus.SUBMITTED_FOR_REVIEW
             exp.status = status
             exp.locked_at = datetime.now(UTC)
-            exp.submitted_at = datetime.now(UTC)
+            exp.review_submitted_at = datetime.now(UTC)
             exp.review_assignee_id = reviewer.id if reviewing else None
         return Chain(engineer.id, reviewer.id, exp.id, run.id, case.id, spec.id)
 
