@@ -128,6 +128,10 @@ def generate(
             with factory.begin() as session:
                 report = session.get(m.Report, report_id, with_for_update=True)
                 assert report is not None
+                # Tiến trình khác (sinh tiếp lúc khởi động) có thể đã sinh xong giữa hai giao
+                # dịch: không dựng, không lưu thêm file (review Group 3 #1).
+                if report.status != ReportStatus.GENERATING:
+                    return None
                 _attempt(session, stores, report, clock)
             return ReportStatus.READY
         except Exception as exc:  # lỗi bất kỳ của dựng, render, lưu: thử lại rồi ghi failed
@@ -136,6 +140,8 @@ def generate(
     with factory.begin() as session:
         report = session.get(m.Report, report_id, with_for_update=True)
         assert report is not None
+        if report.status != ReportStatus.GENERATING:
+            return None  # tiến trình khác đã sinh xong: không ghi đè bằng failed
         report.status = ReportStatus.FAILED
         audit.record(
             session,

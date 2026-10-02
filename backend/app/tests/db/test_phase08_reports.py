@@ -3,11 +3,12 @@ phần report của test_audit_phase08)."""
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import io
 import json
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -373,3 +374,53 @@ def test_resume_generating(
     with Session(app_engine) as s:
         row = s.get(m.Report, report.id)
         assert row is not None and row.status == ReportStatus.READY
+
+
+def test_other_process_finished_first(
+    approved: Any, buckets: Buckets, app_engine: Engine, owner_engine: Engine
+) -> None:
+    """Review Group 3 #1: tiến trình khác sinh xong trong lúc tiến trình này đang thử lại thì
+    không ghi failed, không lưu thêm file, không ném lỗi."""
+    _, detail, _, _ = approved(stores=_stores(buckets, fail=True))
+    report = _report(detail)
+    with Session(owner_engine) as s, s.begin():  # sinh lại: failed → generating
+        s.execute(
+            update(m.Report)
+            .where(m.Report.id == report.id)
+            .values(status=ReportStatus.GENERATING, attempts=0)
+        )
+    ready = {
+        "status": ReportStatus.READY, "snapshot_key": f"{report.id}/x/snapshot.json",
+        "json_key": f"{report.id}/x/report.json", "pdf_key": f"{report.id}/x/report.pdf",
+        "json_sha256": "a" * 64, "pdf_sha256": "b" * 64, "generated_at": T0,
+    }  # fmt: skip
+    puts: list[str] = []
+    real = sessionmaker(app_engine)
+
+    class OtherProcessFinishes:
+        """Giao dịch thứ 2 (dựng report) bắt đầu ngay sau khi tiến trình khác sinh xong; không ai
+        giữ khóa dòng report lúc đó (giao dịch đếm lần thử đã commit)."""
+
+        calls = 0
+
+        @contextlib.contextmanager
+        def begin(self) -> Iterator[Session]:
+            self.calls += 1
+            if self.calls == 2:
+                with Session(owner_engine) as s, s.begin():
+                    s.execute(update(m.Report).where(m.Report.id == report.id).values(**ready))
+            with real.begin() as session:
+                yield session
+
+    stores = report_service.Stores(
+        read_artifact=buckets.artifacts.get,
+        put=lambda key, data: puts.append(key),
+        get=buckets.reports.get,
+    )
+    factory: Any = OtherProcessFinishes()
+    assert report_service.generate(factory, stores, report.id) is None
+    with Session(app_engine) as s:
+        row = s.get(m.Report, report.id)
+        assert row is not None and row.status == ReportStatus.READY
+        assert row.json_sha256 == "a" * 64  # không bị ghi đè
+    assert puts == []  # không dựng, không lưu thêm file
