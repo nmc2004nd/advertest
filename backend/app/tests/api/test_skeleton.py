@@ -50,13 +50,10 @@ PUBLIC_AUTH_PATHS = {"/auth/request-access", "/auth/login", "/auth/password-rese
 # Phase 5 Group 2 cài đặt experiment, run, failure case, ảnh: test với DB ở
 # tests/db/test_experiment_api.py, test_failure_case_api.py.
 # Phase 8 Group 1 cài đặt /protocols* (tests/db/test_phase08_protocols.py), Group 2 cài đặt
-# /reviews* (tests/db/test_phase08_reviews.py).
+# /reviews* (tests/db/test_phase08_reviews.py), Group 3 cài đặt /reports*, /verify
+# (tests/db/test_phase08_reports.py). Còn /budget (Phase 9).
 SAMPLE_CALLS = [
-    ("get", "/reports"),
-    ("post", "/reports/" + RUN_ID + "/regenerate"),
-    ("get", "/reports/" + RUN_ID),
     ("get", "/budget"),
-    ("get", "/verify/" + RUN_ID),
 ]
 # Endpoint có body bắt buộc: gửi body hợp lệ lấy từ contracts/mocks.
 MOCKS = Path(__file__).resolve().parents[4] / "contracts" / "mocks"

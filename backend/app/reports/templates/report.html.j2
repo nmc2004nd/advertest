@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Report {{ s.report_id }}</title>
+<style>
+  @page {
+    size: A4;
+    margin: 18mm 16mm 22mm;
+    @bottom-center {
+      content: "Mã report {{ s.report_id }} · BẢN CHÍNH THỨC · Xác minh tại {{ verify_path }} · Trang " counter(page) "/" counter(pages);
+      font-family: "DejaVu Sans", "Noto Sans", sans-serif;
+      font-size: 7.5pt;
+      color: #444;
+    }
+  }
+  body { font-family: "DejaVu Sans", "Noto Sans", sans-serif; font-size: 9pt; color: #111; }
+  h1 { font-size: 16pt; margin: 0 0 4pt; }
+  h2 { font-size: 12pt; margin: 14pt 0 6pt; border-bottom: 1px solid #999; padding-bottom: 2pt; }
+  h3 { font-size: 10pt; margin: 10pt 0 4pt; }
+  table { border-collapse: collapse; width: 100%; margin: 4pt 0 8pt; }
+  th, td { border: 1px solid #bbb; padding: 2pt 4pt; text-align: left; vertical-align: top; }
+  th { background: #eee; }
+  .official { font-weight: bold; color: #0a5; letter-spacing: 1px; }
+  .muted { color: #555; }
+  .mono { font-family: "DejaVu Sans Mono", monospace; font-size: 7.5pt; word-break: break-all; }
+  .chart { width: 100%; max-height: 80mm; }
+  .case { display: inline-block; width: 31%; margin: 0 1% 8pt 0; vertical-align: top; }
+  .case img { width: 100%; }
+  .bad { color: #b00; } .good { color: #070; } .warn { color: #a60; }
+</style>
+</head>
+<body>
+<p class="official">BẢN CHÍNH THỨC</p>
+<h1>Report kiểm thử độ bền vững: {{ s.summary.experiment_name }}</h1>
+<p class="muted">Mã report <span class="mono">{{ s.report_id }}</span></p>
+
+<h2>1. Tóm tắt</h2>
+<table>
+  <tr><th>Kết luận về model</th><td>{{ verdict_text[s.summary.model_verdict] }}</td></tr>
+  <tr><th>Kết luận</th><td>{{ s.summary.conclusion }}</td></tr>
+  <tr><th>Biện pháp khắc phục</th><td>{{ s.summary.mitigation }}</td></tr>
+  {% if s.summary.inconclusive_justification %}
+  <tr><th>Giải trình tiêu chí chưa kết luận</th><td>{{ s.summary.inconclusive_justification }}</td></tr>
+  {% endif %}
+  <tr><th>Người tạo experiment</th><td>{{ s.summary.owner.full_name }}</td></tr>
+  <tr><th>Người duyệt</th><td>{{ s.summary.approved_by.full_name }}</td></tr>
+  <tr><th>Thời điểm duyệt (UTC)</th><td>{{ s.summary.approved_at.strftime("%Y-%m-%d %H:%M:%S") }}</td></tr>
+</table>
+
+<h2>2. Phạm vi và lưu ý bắt buộc</h2>
+<ul>
+{% for note in s.notes %}<li>{{ note.text }}</li>{% endfor %}
+</ul>
+
+<h2>3. Cấu hình</h2>
+{% set c = s.configuration %}
+<table>
+  <tr><th>Protocol</th><td>{{ c.protocol.name }} v{{ c.protocol.version }} <span class="mono">{{ c.protocol.body_sha256 }}</span></td></tr>
+  <tr><th>Model</th><td>{{ c.model.name }} <span class="mono">weights {{ c.model.weights_sha256 }}</span></td></tr>
+  <tr><th>Dataset version</th><td>{{ c.dataset_version.dataset_name }} <span class="mono">{{ c.dataset_version.manifest_sha256 }}</span></td></tr>
+  <tr><th>Slice</th><td>{{ c.slice.name }}, {{ c.slice.size }} ảnh <span class="mono">{{ c.slice.slice_sha256 or "" }}</span></td></tr>
+  <tr><th>Class mapping</th><td><span class="mono">{{ c.class_mapping.mapping_sha256 }}</span>{% if c.class_mapping.excluded_classes %}; class bị loại: {{ c.class_mapping.excluded_classes | join(", ") }}{% endif %}</td></tr>
+  <tr><th>Máy chạy</th><td>{{ c.compute_target.name }} ({{ c.compute_target.kind }}){% if c.gpu_model %}, {{ c.gpu_model }}{% endif %}</td></tr>
+  <tr><th>Cấu hình experiment</th><td class="mono">{{ c.config_sha256 }}</td></tr>
+</table>
+<table>
+  <tr><th>Attack</th><th>Version</th><th>Loại</th><th>Tham số</th><th>Bắt buộc</th><th>spec_sha256</th></tr>
+  {% for a in c.attack_specs %}
+  <tr><td>{{ a.name }}</td><td>{{ a.version }}</td><td>{{ a.kind }}</td><td>{{ a.param_name }} ({{ a.param_unit }})</td><td>{{ "có" if a.required else "không" }}</td><td class="mono">{{ a.spec_sha256 }}</td></tr>
+  {% endfor %}
+</table>
+
+<h2>4. Kết quả</h2>
+{% if s.results.clean_metrics %}
+<p>mAP sạch: mAP@0.5 = {{ "%.4f" | format(s.results.clean_metrics.map50) }}, mAP@0.5:0.95 = {{ "%.4f" | format(s.results.clean_metrics.map50_95) }}</p>
+{% endif %}
+<h3>Kết quả từng tiêu chí (tham khảo)</h3>
+<table>
+  <tr><th>#</th><th>Tiêu chí</th><th>Kết quả</th><th>Giá trị</th><th>Chi tiết</th></tr>
+  {% for r in s.results.criteria %}
+  {% set k = c.protocol.body.pass_criteria[r.index] %}
+  <tr>
+    <td>{{ r.index + 1 }}</td>
+    <td>{{ criterion_text(k) }}</td>
+    <td class="{{ status_class[r.status] }}">{{ status_text[r.status] }}</td>
+    <td>{{ "%.4g" | format(r.value) if r.value is not none else "—" }}</td>
+    <td>{{ r.detail }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% for g in s.results.grid %}
+<h3>Quét lưới: {{ g.attack_spec_name }}</h3>
+{% if charts[g.attack_spec_id] %}<img class="chart" src="{{ charts[g.attack_spec_id] }}" alt="Đường cong {{ g.attack_spec_name }}">{% endif %}
+<table>
+  <tr><th>Level</th><th>Trạng thái</th><th>mAP@0.5</th><th>Mức sụt tương đối</th><th>ASR</th></tr>
+  {% for p in g.points %}
+  <tr><td>{{ "%g" | format(p.level) }}</td><td>{{ p.status }}{% if p.early_stop_from_run_id %} (dừng sớm){% endif %}</td>
+    <td>{{ "%.4f" | format(p.map50) if p.map50 is not none else "—" }}</td>
+    <td>{{ "%.3f" | format(p.relative_drop) if p.relative_drop is not none else "—" }}</td>
+    <td>{{ "%.3f" | format(p.attack_success_rate) if p.attack_success_rate is not none else "—" }}</td></tr>
+  {% endfor %}
+</table>
+{% endfor %}
+{% if s.results.attack_ranking %}
+<h3>Xếp hạng attack gây hại (AUC)</h3>
+<table>
+  <tr><th>Attack</th><th>AUC mức sụt</th><th>Mức sụt lớn nhất</th><th>Độ phủ</th></tr>
+  {% for e in s.results.attack_ranking %}
+  <tr><td>{{ e.name }}</td><td>{{ "%.4f" | format(e.auc_drop) if e.auc_drop is not none else "—" }}</td>
+    <td>{{ "%.3f" | format(e.max_relative_drop) if e.max_relative_drop is not none else "—" }}</td>
+    <td>{{ "%.2f" | format(e.coverage) if e.coverage is not none else "—" }}</td></tr>
+  {% endfor %}
+</table>
+{% endif %}
+{% if s.results.searches %}
+<h3>Tự tìm ngưỡng</h3>
+<table>
+  <tr><th>Attack</th><th>Trạng thái</th><th>Ngưỡng</th><th>Khoảng (a, b]</th><th>Điểm gãy</th><th>KTC 95%</th><th>Số điểm</th></tr>
+  {% for r in s.results.searches %}
+  <tr><td>{{ spec_names.get(r.attack_spec_id, r.attack_spec_id) }}</td><td>{{ r.status }}{% if r.near_threshold %} (sát ngưỡng){% endif %}</td>
+    <td>{{ r.threshold_kind }} {{ "%g" | format(r.threshold) }}{% if r.class_filter %} ({{ r.class_filter }}){% endif %}</td>
+    <td>({{ "%g" | format(r.bracket[0]) }}, {{ "%g" | format(r.bracket[1]) }}]</td>
+    <td>{{ "%g" | format(r.breaking_point) if r.breaking_point is not none else ("> %g" | format(r.bracket[1]) if r.status == "not_reached" else "—") }}</td>
+    <td>{{ "[%g, %g]" | format(r.confidence_interval[0], r.confidence_interval[1]) if r.confidence_interval else "—" }}</td>
+    <td>{{ r.points_used }}/{{ r.max_points }}</td></tr>
+  {% endfor %}
+</table>
+{% endif %}
+
+<h2>5. Toàn bộ run</h2>
+<table>
+  <tr><th>Attack</th><th>Level</th><th>Phạm vi</th><th>Trạng thái</th><th>Lý do</th><th>Mức sụt</th><th>Thời gian (s)</th><th>Giải trình</th></tr>
+  {% for r in s.runs %}
+  <tr><td>{{ r.attack_spec_name }}</td><td>{{ "%g" | format(r.level) }}</td><td>{{ "tập con" if r.scope == "subset" else "toàn slice" }}</td>
+    <td>{{ r.status }}</td><td>{{ r.status_reason.message if r.status_reason else "" }}</td>
+    <td>{{ "%.3f" | format(r.metrics.relative_drop) if r.metrics and r.metrics.relative_drop is not none else "—" }}</td>
+    <td>{{ "%.1f" | format(r.processing_seconds) }}</td><td>{{ r.explanation or "" }}</td></tr>
+  {% endfor %}
+</table>
+
+<h2>6. Failure case đã review</h2>
+{% if not s.reviewed_cases %}<p class="muted">Không có.</p>{% endif %}
+{% for case in s.reviewed_cases %}
+<div class="case">
+  {% if thumbs[case.failure_case_id] %}<img src="{{ thumbs[case.failure_case_id] }}" alt="Case {{ case.image_id }} (đã làm mờ)">{% endif %}
+  <div>{{ case.attack_spec_name }} level {{ "%g" | format(case.level) }}, ảnh {{ case.image_id }}{% if case.required %} (bắt buộc){% endif %}</div>
+  <div>Điểm {{ "%g" | format(case.severity_score) }}: mất {{ case.lost_objects }}, mới sai {{ case.new_false_positives }}</div>
+  <div>Verdict v{{ case.verdict.version }}: {{ severity_text[case.verdict.severity] }}, {{ kind_text[case.verdict.kind] }}</div>
+  {% if case.verdict.mitigation %}<div>Khắc phục: {{ case.verdict.mitigation }}</div>{% endif %}
+</div>
+{% endfor %}
+
+<h2>7. Lịch sử</h2>
+<h3>Experiment liên quan (cùng model version và dataset version)</h3>
+{% if not s.history.related_experiments %}<p class="muted">Không có.</p>{% else %}
+<table>
+  <tr><th>Experiment</th><th>Protocol</th><th>Trạng thái</th><th>Người tạo</th><th>Tạo lúc (UTC)</th></tr>
+  {% for e in s.history.related_experiments %}
+  <tr><td>{{ e.name }}</td><td>{{ e.protocol.name }} v{{ e.protocol_version }}{% if e.dev %} (dev){% endif %}</td><td>{{ e.status }}</td>
+    <td>{{ e.owner.full_name }}</td><td>{{ e.created_at.strftime("%Y-%m-%d %H:%M") }}</td></tr>
+  {% endfor %}
+</table>
+{% endif %}
+<h3>Timeline review</h3>
+<table>
+  <tr><th>Thời điểm (UTC)</th><th>Sự kiện</th><th>Người thực hiện</th></tr>
+  {% for t in s.history.timeline %}
+  <tr><td>{{ t.at.strftime("%Y-%m-%d %H:%M:%S") }}</td><td>{{ timeline_text[t.action] }}</td><td>{{ t.actor.full_name }}</td></tr>
+  {% endfor %}
+</table>
+<p>Số bình luận: {{ s.history.comments_count }}</p>
+
+<h2>8. Tái lập</h2>
+<table>
+  <tr><th>Run</th><th>Fingerprint</th><th>Git commit</th><th>Thư viện</th><th>Docker image</th></tr>
+  {% for r in s.reproducibility %}
+  <tr><td class="mono">{{ r.run_id }}</td><td class="mono">{{ r.fingerprint or "—" }}</td>
+    <td class="mono">{{ r.git_commit or "—" }}{% if r.git_dirty %} <span class="bad">(code chưa commit)</span>{% endif %}</td>
+    <td>{% if r.lib_versions %}torch {{ r.lib_versions.torch }}, ART {{ r.lib_versions.art }}, ultralytics {{ r.lib_versions.ultralytics }}{% else %}—{% endif %}</td>
+    <td class="mono">{{ r.docker_image_digest or "—" }}</td></tr>
+  {% endfor %}
+</table>
+
+<h2>9. Tài nguyên</h2>
+<p>Thời gian xử lý đã dùng: {{ "%.0f" | format(s.resources.processing_seconds_used) }} giây; giới hạn: {{ s.resources.limit.value }} {{ "giây" if s.resources.limit.kind == "time" else s.resources.limit.kind }}.</p>
+</body>
+</html>

@@ -16,10 +16,25 @@ from datetime import datetime
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request, Response, Security, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    Query,
+    Request,
+    Response,
+    Security,
+    status,
+)
 from sqlalchemy.orm import Session
 
-from advertest_contracts.enums import ErrorCode, ExperimentStatus, ReviewQueueFilter, UserStatus
+from advertest_contracts.enums import (
+    ErrorCode,
+    ExperimentStatus,
+    ReviewDecision,
+    ReviewQueueFilter,
+    UserStatus,
+)
 from advertest_contracts.models import (
     AccessRequest,
     ApproveRequest,
@@ -75,6 +90,7 @@ from backend.app.api.deps import (
     get_artifact_reader,
     get_clock,
     get_sessionmaker,
+    get_storage,
     transaction,
 )
 from backend.app.api.errors import (
@@ -92,6 +108,7 @@ from backend.app.auth.deps import CurrentUser, Principal
 from backend.app.auth.permissions import guard
 from backend.app.db import models as m
 from backend.app.protocols import service as protocol_service
+from backend.app.reports import service as report_service
 from backend.app.reviews import service as review_service
 from backend.app.services import (
     artifacts,
@@ -457,6 +474,18 @@ def list_compute_targets(factory: Sessions, clock: Now) -> list[ComputeTargetPub
 Artifacts = Annotated[ArtifactReader, Depends(get_artifact_reader)]
 
 
+def get_report_stores() -> report_service.Stores:
+    """Bucket artifacts (manifest, thumbnail) và reports (Phase 8); kết nối mở khi dùng."""
+    return report_service.Stores(
+        read_artifact=lambda key: get_storage().buckets.artifacts.get(key),
+        put=lambda key, data: get_storage().buckets.reports.put(key, data),
+        get=lambda key: get_storage().buckets.reports.get(key),
+    )
+
+
+ReportStores = Annotated[report_service.Stores, Depends(get_report_stores)]
+
+
 def _actor(session: Session, user: Principal) -> m.User:
     actor = session.get(m.User, user.user_id)
     assert actor is not None  # current_user vừa đọc user này
@@ -765,18 +794,26 @@ def decide_review(
     user: CurrentUser,
     factory: Sessions,
     clock: Now,
+    stores: ReportStores,
+    background: BackgroundTasks,
 ) -> ExperimentDetail:
     """Thứ tự kiểm tra: không phải người đang nhận → 403; thiếu trường nhập → 422; checklist
     chưa đủ → 409 `checklist_incomplete` kèm `checklist`."""
     with transaction(factory) as session:
+        actor = _actor(session, user)
         review_service.decide(
-            session,
-            actor=_actor(session, user),
-            experiment_id=experiment_id,
-            body=body,
-            now=clock(),
+            session, actor=actor, experiment_id=experiment_id, body=body, now=clock()
         )
-        return experiment_views.detail(session, experiment_id)
+        report_id = None
+        if body.decision == ReviewDecision.APPROVE:
+            # Phase 8 Group 3: report sinh ở tác vụ nền sau khi giao dịch này commit.
+            experiment = session.get(m.Experiment, experiment_id)
+            assert experiment is not None
+            report_id = report_service.create_pending(session, experiment, actor.id).id
+        detail = experiment_views.detail(session, experiment_id)
+    if report_id is not None:
+        background.add_task(report_service.generate, factory, stores, report_id, clock)
+    return detail
 
 
 @router.post(
@@ -807,9 +844,10 @@ def add_case_verdict(
 
 
 @router.get("/reports", tags=["reports"], **guard(P.REPORT_READ))
-def list_reports() -> list[ReportView]:
+def list_reports(factory: Sessions) -> list[ReportView]:
     """Mới nhất trước."""
-    not_implemented()
+    with transaction(factory) as session:
+        return report_service.list_reports(session)
 
 
 REPORT_FILE_RESPONSES: dict[int | str, dict[str, Any]] = NOT_IMPLEMENTED_RESPONSE | {
@@ -831,9 +869,17 @@ REPORT_FILE_RESPONSES: dict[int | str, dict[str, Any]] = NOT_IMPLEMENTED_RESPONS
     responses=REPORT_FILE_RESPONSES,
     **guard(P.REPORT_EXPORT),
 )
-def get_report_file(token: str) -> Response:
+def get_report_file(token: str, stores: ReportStores, clock: Now) -> Response:
     """File PDF hoặc JSON theo token do `/reports/{id}/download` cấp."""
-    not_implemented()
+    data, media_type, filename = report_service.read_file(stores, token, clock())
+    return Response(
+        content=data,
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "private, no-store",
+        },
+    )
 
 
 @router.get(
@@ -842,8 +888,9 @@ def get_report_file(token: str) -> Response:
     responses=PHASE8_RESPONSES,
     **guard(P.REPORT_READ),
 )
-def get_report(report_id: UUID) -> ReportDetail:
-    not_implemented()
+def get_report(report_id: UUID, factory: Sessions, stores: ReportStores) -> ReportDetail:
+    with transaction(factory) as session:
+        return report_service.detail(session, stores, report_id)
 
 
 @router.get(
@@ -852,9 +899,18 @@ def get_report(report_id: UUID) -> ReportDetail:
     responses=PHASE8_RESPONSES,
     **guard(P.REPORT_EXPORT),
 )
-def download_report(report_id: UUID, format: Literal["pdf", "json"]) -> ReportDownload:
+def download_report(
+    report_id: UUID,
+    format: Literal["pdf", "json"],
+    user: CurrentUser,
+    factory: Sessions,
+    clock: Now,
+) -> ReportDownload:
     """URL tạm thời tới file đã lưu (409 khi report chưa `ready`); ghi `report.downloaded`."""
-    not_implemented()
+    with transaction(factory) as session:
+        return report_service.download(
+            session, actor=_actor(session, user), report_id=report_id, fmt=format, now=clock()
+        )
 
 
 @router.post(
@@ -863,9 +919,18 @@ def download_report(report_id: UUID, format: Literal["pdf", "json"]) -> ReportDo
     responses=PHASE8_RESPONSES,
     **guard(P.REPORT_EXPORT),
 )
-def regenerate_report(report_id: UUID) -> ReportView:
+def regenerate_report(
+    report_id: UUID,
+    factory: Sessions,
+    stores: ReportStores,
+    clock: Now,
+    background: BackgroundTasks,
+) -> ReportView:
     """Chỉ khi `failed` (409 nếu khác); giữ nguyên `report_id`."""
-    not_implemented()
+    with transaction(factory) as session:
+        view = report_service.regenerate(session, report_id)
+    background.add_task(report_service.generate, factory, stores, report_id, clock)
+    return view
 
 
 @router.get("/budget", tags=["budget"], **guard(P.BUDGET_MANAGE))
@@ -899,6 +964,7 @@ verify_router = APIRouter(responses=NOT_IMPLEMENTED_RESPONSE | VALIDATION_ERROR_
     tags=["verify"],
     responses={status.HTTP_404_NOT_FOUND: {"model": ErrorResponse, "description": "Không có"}},
 )
-def verify_report(report_id: UUID) -> VerifyInfo:
+def verify_report(report_id: UUID, factory: Sessions) -> VerifyInfo:
     """Chỉ report `ready`; report không có hoặc chưa `ready` → 404."""
-    not_implemented()
+    with transaction(factory) as session:
+        return report_service.verify_info(session, report_id)

@@ -25,6 +25,7 @@ from backend.app.storage import (
     BUCKET_ARTIFACTS,
     BUCKET_DATASETS,
     BUCKET_MODELS,
+    BUCKET_REPORTS,
     Buckets,
     make_s3_client,
 )
@@ -92,7 +93,7 @@ def admin(db: Session) -> m.User:
 
 @pytest.fixture(scope="session")
 def buckets() -> Buckets:
-    """MinIO tạm của `make test-db`, đủ 3 bucket mà backend dùng."""
+    """MinIO tạm của `make test-db`, đủ 4 bucket mà backend dùng."""
     client = make_s3_client(
         _url("ADVERTEST_TEST_MINIO_ENDPOINT"),
         _url("ADVERTEST_TEST_MINIO_ACCESS_KEY"),
@@ -100,7 +101,7 @@ def buckets() -> Buckets:
     )
     raw: Any = client
     existing = {b["Name"] for b in raw.list_buckets().get("Buckets", [])}
-    for name in (BUCKET_MODELS, BUCKET_DATASETS, BUCKET_ARTIFACTS):
+    for name in (BUCKET_MODELS, BUCKET_DATASETS, BUCKET_ARTIFACTS, BUCKET_REPORTS):
         if name not in existing:
             raw.create_bucket(Bucket=name)
     return Buckets.from_client(client)

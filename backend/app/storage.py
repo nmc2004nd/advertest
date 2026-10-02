@@ -17,6 +17,7 @@ from ml_core.store import MinioStore, S3Client
 BUCKET_MODELS = "models"
 BUCKET_DATASETS = "datasets"
 BUCKET_ARTIFACTS = "artifacts"
+BUCKET_REPORTS = "reports"  # Phase 8: snapshot, JSON, PDF của report chính thức
 
 
 def make_s3_client(
@@ -40,6 +41,7 @@ class Buckets:
     models: MinioStore
     datasets: MinioStore
     artifacts: MinioStore
+    reports: MinioStore
 
     @classmethod
     def from_client(cls, client: S3Client) -> Buckets:
@@ -47,6 +49,7 @@ class Buckets:
             models=MinioStore(client, BUCKET_MODELS),
             datasets=MinioStore(client, BUCKET_DATASETS),
             artifacts=MinioStore(client, BUCKET_ARTIFACTS),
+            reports=MinioStore(client, BUCKET_REPORTS),
         )
 
 

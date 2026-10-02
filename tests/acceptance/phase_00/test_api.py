@@ -56,6 +56,8 @@ IMPLEMENTED_GROUPS = {
     "/experiments", "/runs", "/failure-cases",
     # Phase 8 Group 2: hàng đợi và vòng review (người dùng cho phép sửa, 2026-10-02).
     "/reviews",
+    # Phase 8 Group 3: report và trang xác minh công khai (người dùng cho phép sửa, 2026-10-02).
+    "/reports", "/verify",
 }  # fmt: skip
 # Endpoint công khai, không cần phiên (requirements.md Phase 4, mục Bảo vệ endpoint).
 PUBLIC_PATHS = ("/health", "/verify", "/auth/request-access", "/auth/login", "/auth/password-reset")

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -16,13 +17,43 @@ from backend.app.api.deps import get_sessionmaker
 from backend.app.api.errors import install_error_handlers
 from backend.app.auth.csrf import CsrfMiddleware
 from backend.app.auth.permissions import check_route_permissions
+from backend.app.reports import service as report_service
 from backend.app.services import notifications
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Kiểm tra lại lúc khởi động: bắt cả route được thêm sau create_app().
     check_route_permissions(app)
+    # Phase 8: report kẹt ở `generating` (tác vụ nền bị ngắt khi API dừng) được sinh tiếp, chạy
+    # ở thread riêng để không chặn khởi động. Chỉ khi đã cấu hình MinIO.
+    resume = (
+        asyncio.create_task(asyncio.to_thread(_resume_reports))
+        if os.environ.get("MINIO_ENDPOINT")
+        else None
+    )
+    try:
+        async with _email_delivery():
+            yield
+    finally:
+        if resume is not None:
+            await resume
+
+
+def _resume_reports() -> None:
+    try:
+        count = report_service.resume_generating(get_sessionmaker(), public.get_report_stores())
+    except Exception:  # khởi động không được hỏng vì DB hay MinIO tạm lỗi; chỉ ghi log
+        logger.exception("Không sinh tiếp được report đang generating")
+        return
+    if count:
+        logger.info("Đã sinh tiếp %d report đang generating", count)
+
+
+@asynccontextmanager
+async def _email_delivery() -> AsyncIterator[None]:
     # Phase 5: gửi email từ outbox khi đã cấu hình SMTP; chưa cấu hình thì email nằm chờ.
     smtp = notifications.SmtpConfig.from_env()
     if smtp is None:
