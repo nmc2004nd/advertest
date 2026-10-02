@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "run_id": "c93450a2-8ae3-533e-8e6c-bdb68c19d3f1",
+  "fingerprint": "147f2e7c2fabea10ac1c117a5ed8a75412fdcc63de8ee498a53289058fce515a",
+  "fingerprint_inputs": {
+    "config_sha256": "813150ad5cc124991064aaa9d82f978970bbfeebb43cd8fddf74c13f3faa3a08",
+    "weights_sha256": "436b0ea8b820172a2eafa1e02a70c302d737f3f55e2223566ac55fd20fae7e44",
+    "dataset_version_sha256": "7f51d03be9016fe968c288e4a093721350bc371e373d5dc298e10de145bab104",
+    "slice_id": "569c7b5d-35d2-5404-9a52-0de97971e46f",
+    "slice_sha256": "2cbf4a6420298ef9ab12504b56b307b150b4231121f6d35a893aa9fd227d6d37",
+    "attack_spec_sha256": "c96cbc20a4c2320986b30d8f8178c1a642e36549008fca6cf491752bfec4955d",
+    "params": {
+      "area_ratio": 0.25
+    },
+    "seed": 42,
+    "git_commit": "85abc30000000000000000000000000000000000",
+    "git_dirty": false,
+    "lib_versions": {
+      "torch": "2.14.0",
+      "art": "1.20.1",
+      "ultralytics": "8.4.163",
+      "torchmetrics": "1.9.0",
+      "numpy": "2.4.6"
+    },
+    "docker_image_digest": "sha256:7e18c2d4932528cb9b9e2746811cc15a8e75e64d05ec07169c6e9f79ad1e4532",
+    "patch_key": "2cdf575d7be1e89f75474b2ddb7897bab50f6097352be1ce691c5dd38c8fc935"
+  },
+  "environment": {
+    "compute_target_id": "8679be42-13ce-51fb-876b-ca6d4d3f3c74",
+    "gpu_model": "NVIDIA GeForce RTX 3050 Laptop GPU",
+    "cuda_version": "12.6",
+    "driver_version": "560.35"
+  },
+  "created_at": "2026-09-28T02:15:00Z"
+}

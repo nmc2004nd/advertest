@@ -155,16 +155,18 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 
 **Demo:** một experiment quét toàn bộ catalog, ra bảng xếp hạng attack gây hại nhất; failure case hiển thị với ảnh đã làm mờ.
 
-## Phase 7 — Tự tìm ngưỡng
+## Phase 7 — Tự tìm ngưỡng ✅ Hoàn thành (2026-10-02), còn tồn đọng
 
 **Mục tiêu:** tìm điểm gãy theo ngưỡng suy giảm.
 
-- [ ] Thuật toán quét thô → chia đôi → xác nhận trên toàn slice.
-- [ ] Tính trước số điểm tối đa để ước lượng chi phí tối đa.
-- [ ] Khoảng tin cậy bootstrap.
-- [ ] Các trạng thái kết quả tìm kiếm.
-- [ ] Wizard: chế độ "Tự tìm ngưỡng".
-- [ ] Biểu đồ điểm gãy và so sánh điểm gãy giữa các attack.
+> Tồn đọng (người dùng cho phép đóng phase): manual check trên KITTI 300 ảnh chưa làm (máy phát triển không có KITTI đầy đủ, không GPU; hướng dẫn trong `CHANGELOG.md`, Phase 7 Group 7); hai câu hỏi mở (`subset_size` 100, số mẫu bootstrap 200) chờ số liệu đó; mục "(Từ Phase 2, 6)" bên dưới kiểm cùng manual check. Migration 0006 không downgrade được khi có `cost_profiles` của spec Phase 6 (cần agent backend sửa).
+
+- [x] Thuật toán quét thô → chia đôi → xác nhận trên toàn slice.
+- [x] Tính trước số điểm tối đa để ước lượng chi phí tối đa.
+- [x] Khoảng tin cậy bootstrap.
+- [x] Các trạng thái kết quả tìm kiếm.
+- [x] Wizard: chế độ "Tự tìm ngưỡng".
+- [x] Biểu đồ điểm gãy và so sánh điểm gãy giữa các attack.
 - [ ] (Từ Phase 2, 6) Khoảng tìm kiếm mặc định cho PGD phải bắt đầu dưới 1/255; ngưỡng sụt 20% nằm dưới mức eps nhỏ nhất đã đo. Thay cho mục "lưới mịn ở eps nhỏ" chưa làm ở Phase 6.
 
 **Demo:** chọn ngưỡng sụt 20% cho PGD, hệ thống trả về điểm gãy kèm khoảng tin cậy.
