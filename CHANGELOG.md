@@ -6,7 +6,22 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 7 — Tự tìm ngưỡng
 
-**Trạng thái:** ✅ hoàn thành 2026-10-02, còn tồn đọng (manual check trên KITTI và hai câu hỏi mở; người dùng cho phép đóng phase). Group 0–7 đã merge.
+**Trạng thái:** ✅ hoàn thành 2026-10-02, còn tồn đọng (số liệu manual check chưa ghi, hai câu hỏi mở; người dùng cho phép đóng phase). Group 0–7 đã merge.
+
+### Replan sau Phase 7 — 2026-10-02
+- Câu hỏi mở của Phase 7 chưa có câu trả lời (chờ số liệu manual check); giữ giá trị mặc định.
+- Phase 8 `requirements.md`: `min_breaking_point` so level với cả `bracket` (level trong khoảng → `inconclusive`); `required_attacks` dạng tìm ngưỡng thêm `min_bootstrap_samples` (mặc định 200) và tuân thủ đòi `bootstrap_samples` không thấp hơn (chặn né KTC); `max_drop_at_level` chỉ dùng run toàn slice; protocol phải vừa `MAX_RUNS` (quét lưới cộng `max_points`); Context Phase 7 (run tập con trong report, nhãn "> {hi/max}%", số điểm và số mẫu bootstrap trong report). `validation.md` Phase 8 sửa và thêm mục tương ứng.
+- `roadmap.md`: Phase 8 thêm sửa migration 0006 và test email phụ thuộc ngày; Phase 9 thêm giữ chỗ ngân sách theo `max_total_seconds`.
+- Người dùng chấp nhận toàn bộ đề xuất.
+
+### Phase 7 — Tổng kết (phase-close) — 2026-10-02
+- **Giao được:** tự tìm ngưỡng theo attack (quét thô trên tập con → chia đôi → xác nhận và dịch khoảng trên toàn slice; 6 trạng thái; level 0 tổng hợp; chạy tiếp từ `SearchResult` sau gián đoạn); `max_points` tính trước, chi phí tối đa trong ước lượng, trần `MAX_RUNS = 50` tính cả `max_points`; ba loại ngưỡng, có hoặc không `class_filter`; KTC bootstrap từ prediction đã lưu (không gọi model), `near_threshold`; tập con cố định theo `hash(seed, image_id)`, `eval_image_ids_sha256` trong fingerprint (run toàn slice trúng cache quét lưới); run động qua `POST /internal/worker/experiments/{id}/runs`; wizard có công tắc theo attack, form `zod` cùng luật backend, chi phí "tối đa" ở bước 5 và 6, nháp `v2` cũ mở được; tab Kết quả có mục "Điểm gãy" (thẻ tóm tắt, tiến độ, quỹ đạo, so sánh chuẩn hóa), điện thoại chạm thẻ mở toàn màn hình; xếp hạng và đường cong Phase 6 chỉ gồm attack quét lưới.
+- **Contract:** Group 0 (`SearchConfig`, `SearchResult`, `TrajectoryPoint`, `SearchEstimate`, `scope`/`search_order`/`predictions_key` của run, `eval_image_ids_sha256`, endpoint run động và kết quả tìm ngưỡng), đề xuất 001 (`artifact-url` đọc `predictions.json` của run đã kết thúc khi bootstrap). Người dùng chấp nhận.
+- **Số liệu cuối (máy phát triển, CPU):** `make check` pass (1335 test Python, 314 Vitest, 331 test nghiệm thu không cần DB); `make test-db` 471 pass, 1 fail (test email Phase 5 phụ thuộc ngày, có từ trước); `make test-e2e` 78/78, 6,4 phút. CI xanh (người dùng xác nhận). Số đo trên fixture 5 ảnh: xem Group 7.
+- **`validation.md`:** Automated Tests đủ; Manual Checks 7/7 (người dùng xác nhận đã làm và đạt); Definition of Done 3/5 (số liệu so sánh với quét lưới chưa ghi; hai câu hỏi mở chưa có câu trả lời ghi lại).
+- **Câu hỏi mở:** `subset_size` 100 và 200 mẫu bootstrap: manual check đã làm nhưng số liệu chưa ghi, nên chưa trả lời; giữ giá trị mặc định.
+- **Tồn đọng (người dùng cho phép đóng phase, cập nhật sau):** số liệu manual check trên KITTI 300 ảnh (điểm gãy và KTC của PGD L∞ so với đoạn đường cong quét lưới cắt 20%, `points_used`/`max_points`, thời gian thực so với "tối đa", fog, `class_filter = person`, mức lệch tập con so với kết quả cuối, thời gian bootstrap 200 mẫu, thiết bị điện thoại); câu trả lời cho hai câu hỏi mở; mục roadmap "(Từ Phase 2, 6)" khoảng tìm kiếm PGD dưới 1/255 kiểm cùng số liệu đó; migration 0006 không downgrade được khi có `cost_profiles` của spec Phase 6 (giao agent backend; sau đó bỏ `DROP OWNED BY` trong `tests/acceptance/phase_07/conftest.py`); test email Phase 5 phụ thuộc ngày (chưa có người nhận).
+- **Lưu ý:** Group 0, 7, review, merge và phase-close do agent làm thay người duyệt theo ủy quyền của người dùng; review và test nghiệm thu do chính agent đã viết code thực hiện nên không độc lập.
 
 ### Phase 7 — Group 7 (người duyệt) — 2026-10-02
 #### Test nghiệm thu (task 32)

@@ -33,7 +33,7 @@ Cuối phase: engineer gửi duyệt; một reviewer khác review và chấp nh�
 | Field | Type | Notes |
 |---|---|---|
 | `description` | string | Mục đích của protocol |
-| `required_attacks` | list | Mỗi phần tử: `attack_spec_name`, `spec_sha256`, `mode`; với `grid`: `levels` bắt buộc phải có; với `search`: `threshold_kind`, `threshold`, `class_filter`, `lo`, `hi`, `max_tol` |
+| `required_attacks` | list | Mỗi phần tử: `attack_spec_name`, `spec_sha256`, `mode`; với `grid`: `levels` bắt buộc phải có; với `search`: `threshold_kind`, `threshold`, `class_filter`, `lo`, `hi`, `max_tol`, `min_bootstrap_samples` (mặc định 200) |
 | `min_slice_size` | int | |
 | `pass_criteria` | list | Mỗi phần tử: `kind` (`max_drop_at_level` / `min_breaking_point`), `attack_spec_name`, `level`, `threshold_kind`, `threshold`, `class_filter` |
 | `cases_to_review_per_attack` | int | Mặc định 5 |
@@ -99,12 +99,13 @@ Ràng buộc DB:
 
 - Nội dung một version không bao giờ thay đổi sau khi tạo.
 - Kiểm tra khi tạo: attack spec tồn tại và `spec_sha256` khớp; `pass_criteria` chỉ tham chiếu attack có trong `required_attacks`, `min_breaking_point` chỉ dùng với attack ở chế độ tìm ngưỡng; `patch` không được ở chế độ tìm ngưỡng.
+- Số level quét lưới bắt buộc cộng Σ `max_points` của các attack tìm ngưỡng bắt buộc (tính với `tol = max_tol`, `coarse_n` mặc định, có giai đoạn tập con) không vượt `MAX_RUNS = 50` (Phase 7), nếu không thì không experiment nào tuân thủ được → `422`.
 
 ### Tuân thủ protocol khi tạo experiment
 Experiment gắn protocol `active` phải thỏa mọi điều sau, nếu không → `422` kèm `compliance[]`:
 - mỗi attack bắt buộc có mặt với đúng `spec_sha256` và `mode`;
 - quét lưới: chứa mọi level bắt buộc (có thể thêm level khác);
-- tìm ngưỡng: cùng `threshold_kind`, `threshold`, `class_filter`; dải bao phủ `[lo, hi]` của protocol; `tol ≤ max_tol`;
+- tìm ngưỡng: cùng `threshold_kind`, `threshold`, `class_filter`; dải bao phủ `[lo, hi]` của protocol; `tol ≤ max_tol`; `bootstrap_samples ≥ min_bootstrap_samples` (không có khoảng tin cậy thì tiêu chí không bao giờ `inconclusive` do KTC);
 - slice có ít nhất `min_slice_size` ảnh;
 - model hỗ trợ gradient nếu có attack bắt buộc cần gradient.
 
@@ -136,8 +137,8 @@ Khi gửi: trạng thái `submitted_for_review`, `submitted_at`; experiment bị
 ### Đánh giá tiêu chí (tự động, chỉ mang tính tham khảo)
 | `kind` | `pass` | `fail` | `inconclusive` |
 |---|---|---|---|
-| `max_drop_at_level` | Đại lượng tại level ≤ ngưỡng | > ngưỡng | Không có run `completed` ở level đó, hoặc run `partial` |
-| `min_breaking_point` | `found`/`non_monotonic` với điểm gãy ≥ level, hoặc `not_reached` | Điểm gãy < level, hoặc `below_min` | `near_threshold`, `stopped_limit`, `failed`, hoặc khoảng tin cậy của điểm gãy chứa level |
+| `max_drop_at_level` | Đại lượng tại level ≤ ngưỡng | > ngưỡng | Không có run toàn slice (`scope = full`) `completed` ở level đó, hoặc run `partial` |
+| `min_breaking_point` | `found`/`non_monotonic` với cận dưới của `bracket` ≥ level, hoặc `not_reached` | Điểm gãy (= cận trên của `bracket`) < level, hoặc `below_min` | `near_threshold`, `stopped_limit`, `failed`, level nằm trong `bracket` (a < level < b), hoặc khoảng tin cậy của điểm gãy chứa level |
 
 ### Danh sách kiểm tra trước khi chấp nhận
 `approve` chỉ thành công khi mọi mục thỏa, nếu không → `409` kèm `checklist`:
@@ -224,6 +225,10 @@ Ghi các action: `protocol.created`, `protocol.versioned`, `protocol.retired`, `
 - `mission.md` nguyên tắc 1 (tách quyền), 2 (tiêu chí chốt trước), 3 (bất biến, truy vết), 7 (con người quyết định), 8 (chỉ là kiểm thử), 9 (riêng tư).
 - `tech-stack.md` mục 4 (WeasyPrint, email), 4.1 (quyền), 4.4 (tái lập).
 - Phase 0: trigger người review ≠ người tạo, quyền DB. Phase 3: protocol `dev`. Phase 4: phiên, ma trận quyền. Phase 5: wizard, `CaseViewer`, email outbox. Phase 6: xếp hạng AUC, làm mờ. Phase 7: kết quả tìm ngưỡng, khoảng tin cậy.
+- Phase 7 (ảnh hưởng thiết kế, replan 2026-10-02):
+  - `breaking_point` là cận trên `b` của `bracket`; giao điểm thật nằm trong (a, b], nên tiêu chí `min_breaking_point` so level với cả khoảng.
+  - Run tập con (`scope = subset`) có trong mục "Toàn bộ run" kèm nhãn phạm vi, nhưng không dùng cho tiêu chí hay đường cong quét lưới; nhãn `not_reached` trên biểu đồ so sánh là "> {hi/max}%"; kết quả tìm ngưỡng trong report ghi cả `bracket`, `points_used`/`max_points` và số mẫu bootstrap.
+  - Run động đếm vào `MAX_RUNS = 50` qua `max_points` (PGD mặc định trên slice 300 ảnh: 21 điểm).
 - Phase 6 (ảnh hưởng thiết kế):
   - Case tạo trước Phase 6 không có `anonymization`, nên `display_mode = hidden_unanonymized` và `artifacts = null`. Report chỉ nhúng thumbnail của case có `anonymization.applied`; case bắt buộc review cần quy tắc riêng cho case bị ẩn.
   - Mục "phương pháp làm mờ" của report lấy từ `anonymization.method`/`version` (`rule_v1`: theo box, không dùng model phát hiện mặt).

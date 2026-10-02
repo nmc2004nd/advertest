@@ -19,7 +19,8 @@
 ### Tuân thủ khi tạo — `test_compliance.py`
 - [ ] Thiếu attack bắt buộc, sai `spec_sha256`, sai `mode` → `422` kèm mục `compliance` tương ứng không thỏa.
 - [ ] Quét lưới thiếu một level bắt buộc → `422`; thêm level ngoài protocol → cho phép.
-- [ ] Tìm ngưỡng với ngưỡng khác protocol, dải hẹp hơn, hoặc `tol > max_tol` → `422`.
+- [ ] Tìm ngưỡng với ngưỡng khác protocol, dải hẹp hơn, `tol > max_tol`, hoặc `bootstrap_samples` dưới mức của protocol → `422`.
+- [ ] Protocol có attack bắt buộc vượt `MAX_RUNS` (quét lưới cộng `max_points`) → `422`; `max_drop_at_level` bỏ qua run tập con.
 - [ ] Slice nhỏ hơn `min_slice_size` → `422`.
 - [ ] Model không hỗ trợ gradient với attack bắt buộc cần gradient → `422`.
 - [ ] Ước lượng trả `compliance[]` giống với kết quả kiểm tra khi tạo.
@@ -51,7 +52,7 @@
 
 ### Tiêu chí — `test_criteria.py`
 - [ ] `max_drop_at_level`: dưới ngưỡng → `pass`; trên ngưỡng → `fail`; không có run `completed` ở level hoặc run `partial` → `inconclusive`.
-- [ ] `min_breaking_point`: điểm gãy ≥ level → `pass`; `not_reached` → `pass`; điểm gãy < level → `fail`; `below_min` → `fail`; `near_threshold`, `stopped_limit`, `failed`, hoặc khoảng tin cậy chứa level → `inconclusive`.
+- [ ] `min_breaking_point`: cận dưới `bracket` ≥ level → `pass`; `not_reached` → `pass`; điểm gãy < level → `fail`; `below_min` → `fail`; level trong `bracket`, `near_threshold`, `stopped_limit`, `failed`, hoặc khoảng tin cậy chứa level → `inconclusive`.
 - [ ] `class_filter` được áp dụng đúng.
 
 ### Quyết định — `test_decision.py`
