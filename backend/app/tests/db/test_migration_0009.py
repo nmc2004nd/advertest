@@ -16,6 +16,8 @@ from sqlalchemy.exc import DBAPIError, IntegrityError, ProgrammingError
 from sqlalchemy.orm import Session
 
 from advertest_contracts import enums
+from advertest_contracts.models import AttackSpecBody, compute_spec_sha256
+from attacks.registry import get_spec, load_catalog
 from backend.app.db import models as m
 
 pytestmark = pytest.mark.db
@@ -49,9 +51,18 @@ def _chain(owner_engine: Engine, status: enums.ExperimentStatus) -> Chain:
         s.flush()
         model = m.Model(name=f"m-{tag}", created_by=engineer.id)
         dataset = m.Dataset(name="d", created_by=engineer.id)
+        # Spec hợp lệ (bản sao fgsm đổi tên): các test đọc catalog chạy sau trên cùng DB.
+        body = {
+            k: v
+            for k, v in get_spec(load_catalog(), name="fgsm")
+            .model_dump(mode="json", include=set(AttackSpecBody.model_fields))
+            .items()
+        }
+        body["name"] = f"a{tag}"
         spec = m.AttackSpecRow(
-            name=f"a{tag}", version=1, kind=enums.AttackKind.ATTACK,
-            access=enums.AttackAccess.WHITE_BOX, spec={}, spec_sha256=_sha(),
+            name=body["name"], version=1, kind=enums.AttackKind.ATTACK,
+            access=enums.AttackAccess.WHITE_BOX, spec=body,
+            spec_sha256=compute_spec_sha256(body),
         )  # fmt: skip
         protocol = m.Protocol(
             name=f"p-{tag}", version=1, body={}, body_sha256=SHA, created_by=reviewer.id
