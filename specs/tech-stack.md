@@ -123,7 +123,7 @@ Tầng sweep, metric, backend và frontend không được phụ thuộc vào vi
 | Phiên đăng nhập | Phiên phía server: cookie httpOnly chứa token ngẫu nhiên, DB lưu sha256 của token (Phase 4) | Vô hiệu hóa tài khoản, đổi role và đăng xuất phải có hiệu lực ngay; với JWT vẫn phải tra DB mỗi request |
 | Report PDF | WeasyPrint (render HTML → PDF ở server) | |
 | Mẫu report | Jinja2 (Phase 8) | Render HTML của report trước khi chuyển PDF |
-| Biểu đồ report | matplotlib (Phase 8), PNG nhúng vào PDF | Frontend vẫn dùng Recharts; ảnh trong PDF phải sinh ở server. Image cần thư viện hệ thống của WeasyPrint (pango) và font có dấu tiếng Việt; phiên bản pin ở Group 3 Phase 8 |
+| Biểu đồ report | matplotlib (Phase 8), PNG nhúng vào PDF | Frontend vẫn dùng Recharts; ảnh trong PDF phải sinh ở server. Image cần thư viện hệ thống của WeasyPrint (pango) và font có dấu tiếng Việt (DejaVu); phiên bản ở mục 11 |
 | Email | SMTP | Thông báo run xong, chờ duyệt, ngân sách |
 | Hàng đợi | Bảng job trong Postgres, worker lấy qua API | Không dùng Celery/Redis: quy mô nhỏ, ít hạ tầng |
 
@@ -287,6 +287,8 @@ Nguồn sự thật là `pyproject.toml` + `uv.lock` (Python) và `frontend/pack
 | psycopg / argon2-cffi | 3.3.6 / 25.1.0 |
 | boto3 / httpx | 1.43.103 / 0.28.1 (httpx là dependency chính từ Phase 3: client của worker) |
 | uvicorn | 0.54.0 |
+| weasyprint / jinja2 / matplotlib | 70.0 / 3.1.6 / 3.11.2 (Phase 8, report; image cài thêm `libpango-1.0-0`, `libpangoft2-1.0-0`, `libharfbuzz-subset0`, `fonts-dejavu-core`) |
+| pypdf | 6.19.0 (Phase 8, chỉ nhóm dev: đọc chữ trong PDF ở test) |
 | Image | `python:3.11-slim`, `postgres:17-alpine`, `node:22-alpine`, `cgr.dev/chainguard/minio@sha256:6a1d0b45c8669726bba580ced0bfa4cb9fdeed1ed636dfabd81d1577beb6937b`, `cgr.dev/chainguard/minio-client@sha256:b2bd7824d23d3e3b15bedd7e87fbc3be29d2e213307b4f901e4a1d92356dc20f` |
 | Postgres (image) | `postgres:17-alpine` |
 | ruff / mypy / pytest | 0.16.9 / 2.3.1 / 9.1.1 |

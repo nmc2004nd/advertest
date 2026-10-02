@@ -184,6 +184,33 @@ Ràng buộc DB:
   - quyết định: email cho người tạo, ghi quyết định và kết luận về model, link `/experiments/{id}`;
   - không có ảnh hay dữ liệu dataset.
 
+### Chốt ở Group 3 (2026-10-02)
+
+- **Tạo và sinh report:**
+  - report `generating` được tạo trong cùng giao dịch với quyết định `approve`, rồi sinh bằng `BackgroundTasks` sau khi commit;
+  - mỗi lần thử ghi `reports/<report_id>/a<n>/{snapshot.json, report.json, report.pdf}` (store không cho ghi đè);
+  - `report.json` là `canonical_json(snapshot)`;
+  - xem report trong ứng dụng đọc `snapshot.json` đã lưu, không dựng lại.
+- **Thử lại:**
+  - tối đa 3 lần cho mỗi lượt sinh, `attempts` cộng dồn qua các lần sinh lại;
+  - lỗi cuối ghi vào audit `report.generation_failed`; `report.generated` và `report.generation_failed` có actor null (hệ thống);
+  - trước khi dựng và trước khi ghi `failed`, kiểm tra lại `status = generating`, để tiến trình khác đã sinh xong không bị ghi đè (review Group 3).
+- **Sinh tiếp khi khởi động:** khi đã cấu hình MinIO, API sinh tiếp report còn `generating` ở thread riêng, không chặn khởi động.
+- **Tải xuống:**
+  - `ReportDownload.url` là `/reports/files/<token>`: token HMAC 10 phút, cùng khóa `ARTIFACT_TOKEN_SECRET` với link ảnh nhưng khác tiền tố ký;
+  - route file đòi `report.export`, trả `Content-Disposition: attachment` và `Cache-Control: private, no-store`;
+  - token sai, bị sửa hoặc hết hạn → `404`;
+  - audit `report.downloaded` ghi khi cấp URL.
+- **Nội dung snapshot:**
+  - lịch sử chỉ gồm experiment tạo trước `decided_at`; timeline lấy từ `audit_log`;
+  - case đã review là mọi case có verdict (bắt buộc hoặc không), chỉ case đã làm mờ, thumbnail là `adversarial_thumb` (thiếu thì `adversarial_png`);
+  - mục tái lập đọc manifest trong MinIO; thiếu hay sai schema thì `fingerprint`, `git_dirty` lấy từ DB, các trường khác để null;
+  - GPU lấy từ manifest, không có thì lấy từ compute target.
+- **PDF:**
+  - khổ A4, font DejaVu Sans;
+  - chân trang mỗi trang là "Mã report … · BẢN CHÍNH THỨC · Xác minh tại /verify/<id> · Trang x/y";
+  - mỗi attack quét lưới có một biểu đồ mức sụt tương đối theo level.
+
 ## Behaviour
 
 ### Protocol
