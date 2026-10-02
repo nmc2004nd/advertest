@@ -4,6 +4,77 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ---
 
+## Phase 8 — Protocol, review và report
+
+**Trạng thái:** đang làm. Group 0 xong (chờ merge).
+
+### Phase 8 — Group 0 (người duyệt) — 2026-10-02
+#### Contract
+- **`ProtocolBody` v2** (`schema_version = 2`, bỏ `review_severity_threshold`):
+  - trường mới: `description`, `required_attacks` (`attack_spec_name`, `spec_sha256`, `mode`, `grid.levels` hoặc `search` gồm `max_tol` và `min_bootstrap_samples`), `pass_criteria` (`kind`, `attack_spec_name`, `level`, ngưỡng), `cases_to_review_per_attack` (mặc định 5), `forbid_dirty_runs` (mặc định `true`);
+  - kiểm tra chéo ngay trong contract: tên attack không trùng; tiêu chí tham chiếu attack có thật; `max_drop_at_level` tại level bắt buộc của attack quét lưới; `min_breaking_point` cùng ngưỡng tìm kiếm, `lo < level ≤ hi`;
+  - danh sách được rỗng (để `dev-open` hợp lệ); `ProtocolCreate` và `ProtocolVersionCreate` bắt buộc có ít nhất một attack và một tiêu chí.
+- **Enum:** `CaseVerdictKind`, `ModelVerdict`, `CriterionKind`, `CriterionStatus`, `ReportStatus`, `CommentTargetType`, `ComplianceCode`, `ChecklistCode`, `SubmitCheckCode`, `ReviewQueueFilter`, `ReportNoteCode`. `ErrorCode` thêm `not_compliant`, `experiment_locked`, `checklist_incomplete`.
+- **Schema:**
+  - protocol: `ProtocolCreate`, `ProtocolVersionCreate`, `ProtocolView`;
+  - gửi duyệt và review: `SubmitForReview`, `CaseVerdictInput`/`View`, `ReviewDecisionInput`, `ReviewCommentCreate`, `ReviewComment`, `ReviewQueueItem`;
+  - report: `ReportView`, `ReportDetail`, `ReportSnapshot` (9 mục), `ReportDownload`, `VerifyInfo`;
+  - schema lồng: `ComplianceItem`, `ChecklistItem`, `SubmitCheckItem`, `CriterionResult`, `RequiredCase`, `RunExplanation`, `ReviewView`.
+- **Mở rộng schema cũ:** `ExperimentDetail` thêm `compliance`, `submit_check`, `runs_requiring_explanation`, `review`, `report`. `EstimateResponse` thêm `compliance`. `ErrorBody` thêm `compliance`, `checklist`.
+- **Ma trận quyền:** `review.comment` cho engineer và reviewer. Đã cập nhật bảng trong requirements Phase 4, test nghiệm thu Phase 4 và test contract.
+- **Endpoint khung (`501`, đủ `x-permission`)** cho mọi endpoint trong `requirements.md` mục "Chốt ở Group 0". `GET /protocols` có `include_retired` (đã cài đặt).
+- **`tech-stack.md`:** thêm Jinja2 và matplotlib (pin phiên bản ở Group 3). Câu hỏi mở về matplotlib đã đóng.
+#### Mock
+- **Protocol:**
+  - `protocol_body`: `default` (kitti-baseline v2), `search` (kitti-search, có tìm ngưỡng, cho phép code chưa commit), `dev_open` (body mới cho migration);
+  - `protocol_view`: đủ ba trạng thái;
+  - `protocol_summary`: khớp với `protocol_view`. `active.json` nay là kitti-baseline v2, v1 đã `retired`.
+- **`experiment_detail/review_*`:**
+  - trước gửi duyệt: `completed` sẵn sàng gửi, `completed` bị chặn (code chưa commit, case bị ẩn);
+  - đang review: chờ nhận, đang review thiếu verdict, đang review đủ verdict;
+  - đã quyết định: `changes_requested`, `rejected`, `approved` với report `ready`/`generating`/`failed`;
+  - `criteria_results` đủ ba trạng thái, `checklist` có bản thiếu và bản đủ.
+- **Mock `completed` cũ (gắn dev-open):** thêm `submit_check` báo protocol `dev`.
+- **Report:** `report_snapshot` `approved_grid` (đủ 9 mục, mọi trạng thái run, lịch sử có experiment `dev-open`) và `search_dirty` (có tìm ngưỡng, ghi chú `git_dirty`), cùng mock hàng đợi, bình luận, verdict, tải report, `verify_info`.
+- **`me`:** mock của engineer và reviewer có thêm `review.comment`.
+- **Script sinh mock:** chỉ nằm trong scratchpad, không commit. Mock được dựng qua model Pydantic nên luôn validate được.
+#### Quyết định (người dùng chọn ở Group 0, đã ghi vào `requirements.md` mục "Chốt ở Group 0")
+1. Tạo version mới thì version cũ tự chuyển `retired`; chỉ được tạo version từ bản mới nhất (`409` nếu không).
+2. Mỗi attack chỉ một chế độ trong protocol, giống luật Phase 5. Ví dụ ở Manual Checks đổi thành tìm ngưỡng PGD L2.
+#### Quyết định của người duyệt khi làm Group 0
+- **Ghi verdict qua `POST /reviews/{experiment_id}/cases/{case_id}/verdicts`**, thay cho `POST /failure-cases/{id}/verdicts`: test kiến trúc Phase 3 cấm API người dùng có endpoint ghi dưới `/failure-cases`, và tôi không nới test đó.
+- **`ExperimentDetail` thêm `submit_check`, `runs_requiring_explanation`** cho hộp gửi duyệt: frontend không tự biết được `git_dirty` hay case bị ẩn. Contract chỉ kiểm một chiều (chỉ có khi `completed`), để backend Phase 5–7 chưa điền vẫn hợp lệ trước Group 2.
+- **Tải report qua route có token `GET /reports/files/{token}` (`report.export`)**, không dùng `/artifacts/{token}`: route artifact chỉ ký khóa `runs/` và đòi `experiment.read`.
+- **`/verify/{id}`** trả `404` khi report không có hoặc chưa `ready`.
+- **Frontend `src/api/messages.ts`:** thêm thông điệp cho 3 mã lỗi mới (`Record<ErrorCode, string>` bắt buộc đủ mã), giống tiền lệ Phase 7 Group 0 sửa `status-config.ts`.
+#### Sửa test cũ (người duyệt)
+- **Test contract:** `test_models.py` (`test_protocol_body` theo v2), `test_phase07_models.py` (`PassCriterion` có thêm trường), `test_enums.py`, `test_permissions.py`.
+- **Test nghiệm thu (bảng enum, bảng quyền):** Phase 0 `test_contracts.py` (mã lỗi Phase 8), Phase 4 `test_permissions_matrix.py` (`review.comment`).
+- **Test backend:** `test_skeleton.py` (body của `POST /protocols` là `ProtocolCreate`), `test_route_protection_db.py` (18 permission có route).
+- **Test mới:** `contracts/python/tests/test_phase08_models.py`.
+#### Số liệu
+- `make check` pass: 1431 test Python, 314 Vitest, 334 test nghiệm thu không cần DB.
+- `make test-db`: 486 pass, 1 fail (`phase_05/test_email.py::test_smtp_failure_retried_then_failed_without_touching_experiment`, test phụ thuộc ngày có từ trước, giao ở task 37).
+#### Lưu ý
+- Group 0 do agent làm thay người duyệt theo ủy quyền của người dùng; review sau đó không độc lập.
+- Việc cho Group 1:
+  - migration ghi body `dev-open` mới;
+  - bảng `reports` có thêm quyền `UPDATE` kèm trigger (kickoff);
+  - cột `case_verdicts.verdict` (Phase 0, `NOT NULL`) không còn trong contract, nên migration cần quyết định xóa cột hay cho null.
+
+### Phase 8 — Kickoff — 2026-10-02
+Người dùng chốt 6 câu hỏi (ghi vào `requirements.md`, `plan.md`, `validation.md`):
+1. `reports` được `UPDATE` kèm trigger, dòng đã `ready` là bất biến, `report_id` không đổi khi sinh lại.
+2. Khi approve: sai người → `403`; thiếu trường nhập → `422`; `checklist` chỉ gồm điều kiện trạng thái → `409`.
+3. Level `early_stop` dùng đại lượng của run kích hoạt.
+4. Mục Lịch sử của report có cả experiment `dev-open` cùng model version và dataset version.
+5. Gửi duyệt bị chặn (`409`) khi có case bắt buộc bị ẩn.
+6. Lời giải trình chỉ gửi kèm `submit`.
+
+Bổ sung độ phủ: sửa downgrade migration 0006, bỏ `DROP OWNED BY`, sửa test email phụ thuộc ngày, xem lại số failure case mỗi run, lưu ý eps trên ảnh letterbox float, sinh tiếp report kẹt ở `generating`, test bình luận và kiểm `spec_sha256`.
+
+---
+
 ## Phase 7 — Tự tìm ngưỡng
 
 **Trạng thái:** ✅ hoàn thành 2026-10-02, còn tồn đọng (số liệu manual check chưa ghi, hai câu hỏi mở; người dùng cho phép đóng phase). Group 0–7 đã merge.

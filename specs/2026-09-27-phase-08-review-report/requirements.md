@@ -70,6 +70,57 @@ Trường `review_severity_threshold` của Phase 0 bị bỏ.
 
 **Ma trận quyền:** thêm `review.comment` cho engineer và reviewer. Bảng trong test nghiệm thu Phase 4 được cập nhật tương ứng.
 
+### Chốt ở Group 0 (2026-10-02)
+
+Chi tiết contract (nguồn sự thật: `contracts/python/advertest_contracts/models.py`, mock trong `contracts/mocks/`):
+
+- **`ProtocolBody`** có `schema_version = 2`. `RequiredAttack` gồm `attack_spec_name`, `spec_sha256`, `mode` và `grid` (`levels`, không trùng) hoặc `search` (`RequiredSearch`: `threshold_kind`, `threshold`, `class_filter`, `lo`, `hi`, `max_tol` < `hi − lo`, `min_bootstrap_samples` 0–1000, mặc định 200). `PassCriterion` thêm `kind` (`CriterionKind`), `attack_spec_name`, `level`.
+- **Kiểm tra ngay trong contract (422 `validation_error`):**
+  - `attack_spec_name` không trùng trong một protocol (mỗi attack một chế độ, như Phase 5 không cho hai attack cùng spec);
+  - tiêu chí chỉ tham chiếu attack có trong `required_attacks`;
+  - `max_drop_at_level` chỉ dùng với attack quét lưới, `level` phải là một level bắt buộc;
+  - `min_breaking_point` chỉ dùng với attack tìm ngưỡng, cùng `threshold_kind`, `threshold`, `class_filter` với `search`, và `lo < level ≤ hi`.
+  - Kiểm tra cần catalog (spec tồn tại, `spec_sha256`, patch không tìm ngưỡng, dải trong `primary_param`, `MAX_RUNS`) ở backend (422 `invalid_request`).
+- **Danh sách rỗng:** `required_attacks` và `pass_criteria` được rỗng để `dev-open` hợp lệ. Migration ghi body của `dev-open` đúng như `contracts/mocks/protocol_body/dev_open.json` và cập nhật `body_sha256`. `ProtocolCreate` (`name`, `body`) và `ProtocolVersionCreate` (`body`) bắt buộc có ít nhất một attack và một tiêu chí.
+- **Version protocol:** `POST /protocols/{id}/versions` chỉ tạo được từ version mới nhất của `name` (khác → `409`); version cũ chuyển `retired` trong cùng giao dịch, nên mỗi `name` có tối đa một bản `active`. Ghi `protocol.versioned`, và `protocol.retired` cho bản cũ.
+- **`ProtocolView`** (`GET /protocols/{id}`, kết quả tạo/version/retire): `id`, `name`, `version`, `status`, `body`, `body_sha256` (= `sha256_of(body)`), `created_by` (null chỉ với `dev`), `created_at`. `GET /protocols?include_retired=true` thêm bản `retired` cho trang `/protocols`.
+- **Endpoint (khung `501` ở Group 0):**
+
+  | Endpoint | Permission | Trả về |
+  |---|---|---|
+  | `POST /experiments/{id}/submit` (`SubmitForReview`) | `experiment.submit_review` | `ExperimentDetail` |
+  | `GET /experiments/{id}/comments` | `experiment.read` | `ReviewComment[]`, cũ nhất trước |
+  | `POST /experiments/{id}/comments` (`ReviewCommentCreate`) | `review.comment` | `ReviewComment` (201) |
+  | `GET /reviews?status=waiting\|mine\|decided&sort=submitted_at\|max_drop` | `review.decide` | `ReviewQueueItem[]` |
+  | `POST /reviews/{experiment_id}/claim`, `/release` | `review.decide` | `ExperimentDetail` |
+  | `POST /reviews/{experiment_id}/decision` (`ReviewDecisionInput`) | `review.decide` | `ExperimentDetail` |
+  | `POST /reviews/{experiment_id}/cases/{case_id}/verdicts` (`CaseVerdictInput`) | `review.decide` | `CaseVerdictView` (201) |
+  | `GET /failure-cases/{case_id}/verdicts` | `experiment.read` | `CaseVerdictView[]`, mới nhất trước |
+  | `GET /reports` | `report.read` | `ReportView[]` |
+  | `GET /reports/{id}` | `report.read` | `ReportDetail` (`report`, `snapshot` khi `ready`) |
+  | `GET /reports/{id}/download?format=pdf\|json` | `report.export` | `ReportDownload` (`url`, `expires_at`, `sha256`, `filename`) |
+  | `GET /reports/files/{token}` | `report.export` | Đúng file đã lưu |
+  | `POST /reports/{id}/regenerate` | `report.export` | `ReportView` |
+  | `GET /verify/{report_id}` | công khai | `VerifyInfo`; report không có hoặc chưa `ready` → `404` |
+
+  Ghi verdict nằm dưới `/reviews` chứ không ở `POST /failure-cases/{id}/verdicts`: test kiến trúc Phase 3 cấm API người dùng có endpoint ghi dưới `/runs` và `/failure-cases`. Case không thuộc experiment → `404`.
+- **Lỗi:** `ErrorCode` thêm `not_compliant` (422, `error.compliance` đủ mọi mục), `experiment_locked` (409), `checklist_incomplete` (409, `error.checklist`). `ErrorBody` thêm `compliance`, `checklist` (bỏ khỏi body khi null).
+- **Enum mã:** `ComplianceCode`, `ChecklistCode` (`protocol_not_dev`, `required_cases_reviewed`), `SubmitCheckCode`, `CommentTargetType`, `CriterionKind`, `ReviewQueueFilter`, `ReportNoteCode`. `ComplianceItem` thêm `attack_spec_name` (null với mục không theo attack).
+- **`ExperimentDetail`:**
+  - `compliance[]`;
+  - `submit_check[]` và `runs_requiring_explanation[]`: chỉ khi `completed`, cho hộp gửi duyệt; backend Phase 8 luôn điền `submit_check` khi `completed`;
+  - `review` (`ReviewView`): có khi và chỉ khi đã gửi duyệt. Gồm `submitted_at`, `submission_note`, `run_explanations`, `assignee`, `claimed_at`, quyết định, `criteria_results`, `checklist`, `required_cases` (kèm `current_verdict`, `display_mode`), `comments_count`;
+  - `report`: chỉ khi `approved`.
+  - Người nhận review khác người tạo (kiểm cả trong contract).
+- **`ReviewDecisionInput`:** `approve` thiếu `model_verdict` hoặc `mitigation` → 422 ngay ở contract. Thiếu `inconclusive_justification` khi có tiêu chí `inconclusive` → 422 ở backend.
+- **`ReportSnapshot`:**
+  - các khóa `summary`, `notes`, `configuration`, `results`, `runs`, `reviewed_cases`, `history`, `reproducibility`, `resources`, tương ứng 9 mục;
+  - `notes` luôn có `test_environment_only` và `input_space`; có `git_dirty` khi và chỉ khi có run `git_dirty` (protocol phải cho phép);
+  - `reviewed_cases` chỉ gồm case `anonymization.applied`;
+  - `history.timeline` gồm `experiment.submitted`, `review.claimed`, `review.released`, `review.decided`;
+  - file JSON là `canonical_json(snapshot)`.
+- **`ReportView`:** `generated_at`, `json_sha256`, `pdf_sha256` có khi và chỉ khi `ready`; có `model_verdict`, `experiment_name`.
+
 ### Thay đổi DB
 
 | Bảng | Thay đổi |
@@ -135,7 +186,7 @@ Khi gửi: trạng thái `submitted_for_review`, `submitted_at`; experiment bị
 - Reviewer có thể review thêm case khác.
 
 ### Verdict
-- `POST /failure-cases/{id}/verdicts` (`review.decide`, người đang nhận): tạo verdict version mới; version mới nhất là hiện hành; mọi version được giữ.
+- `POST /reviews/{experiment_id}/cases/{case_id}/verdicts` (`review.decide`, người đang nhận; chốt ở Group 0): tạo verdict version mới; version mới nhất là hiện hành; mọi version được giữ.
 - `mitigation` bắt buộc khi `kind = safety_relevant`.
 
 ### Đánh giá tiêu chí (tự động, chỉ mang tính tham khảo)
@@ -250,4 +301,4 @@ Ghi các action: `protocol.created`, `protocol.versioned`, `protocol.retired`, `
 - [x] `max_drop_at_level` với level bị `skipped` (`early_stop`): dùng đại lượng của run kích hoạt như xếp hạng Phase 6 (kickoff 2026-10-02, xem mục Đánh giá tiêu chí).
 
 - [ ] `cases_to_review_per_attack` mặc định 5 có phù hợp không.
-- [ ] Có cần thêm matplotlib vào `tech-stack.md` hay vẽ biểu đồ report bằng SVG tự sinh (mặc định: matplotlib, ghi vào `tech-stack.md` ở Group 0).
+- [x] Có cần thêm matplotlib vào `tech-stack.md` hay vẽ biểu đồ report bằng SVG tự sinh: matplotlib, đã ghi vào `tech-stack.md` cùng Jinja2 ở Group 0 (2026-10-02).

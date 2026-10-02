@@ -12,7 +12,7 @@
 ### Protocol — `test_protocols.py`
 - [ ] Reviewer tạo protocol → `active`, version 1, có `audit_log`.
 - [ ] Engineer hoặc admin tạo protocol → `403`.
-- [ ] Tạo version mới → bản ghi mới; nội dung version cũ không đổi (so sánh hash).
+- [ ] Tạo version mới → bản ghi mới; nội dung version cũ không đổi (so sánh hash); version cũ chuyển `retired`; tạo version từ bản không phải mới nhất → `409`.
 - [ ] Không có endpoint nào sửa nội dung một version đã tạo.
 - [ ] Tiêu chí tham chiếu attack không có trong `required_attacks`, `min_breaking_point` với attack quét lưới, hoặc patch ở chế độ tìm ngưỡng → `422`.
 - [ ] Attack spec không tồn tại hoặc `spec_sha256` không khớp → `422`.
@@ -105,7 +105,7 @@
 
 ## Manual Checks
 
-- [ ] Tạo một protocol thật cho KITTI (ví dụ: PGD L∞ quét lưới eps 2/4/8, tìm ngưỡng PGD với sụt 20%, fog severity 1–5, tiêu chí `max_drop_at_level` và `min_breaking_point`); chạy trọn luồng với hai tài khoản trên laptop.
+- [ ] Tạo một protocol thật cho KITTI (ví dụ: PGD L∞ quét lưới eps 2/4/8, tìm ngưỡng PGD L2 với sụt 20% (mỗi attack một chế độ, chốt ở Group 0), fog severity 1–5, tiêu chí `max_drop_at_level` và `min_breaking_point`); chạy trọn luồng với hai tài khoản trên laptop.
 - [ ] Đọc toàn bộ PDF: đủ 9 mục, số liệu khớp với giao diện, biểu đồ rõ, ảnh đã làm mờ, lưu ý bắt buộc đầy đủ, tiếng Việt hiển thị đúng dấu.
 - [ ] Mở PDF và trang xác minh trên điện thoại thật.
 - [ ] **Thử gian lận** bằng tài khoản engineer và ghi kết quả vào `CHANGELOG.md`:
