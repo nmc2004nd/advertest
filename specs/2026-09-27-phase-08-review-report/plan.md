@@ -58,6 +58,8 @@
 
 ## Group 5 — Frontend: reviewer `[agent: frontend-review]`
 
+> File được sửa (người dùng duyệt ở kế hoạch Group 5 và trong phiên): `frontend/src/features/reviews/`, `frontend/src/features/protocols/`, `frontend/src/router.tsx`, `frontend/src/nav/config.ts`, `frontend/src/pages/HomePage.tsx`, `frontend/src/api/mocks.ts`, `frontend/src/layout/AppShell.tsx` (sửa lỗi Phase 4), test tương ứng; `frontend/e2e/phase_04/onboarding.spec.ts` (người dùng cho phép).
+
 27. Trang `/reviews` với ba nhóm và cách sắp xếp.
 28. Trang `/reviews/:id`: nhận/trả lại, tuân thủ, tiêu chí, danh sách kiểm tra, run kèm giải trình, biểu đồ, case bắt buộc với tiến độ, bình luận, khung quyết định.
 29. Trang `/reviews/:id/cases/:caseId`: mở rộng `CaseViewer` với form verdict, lịch sử verdict, phím tắt, bảng phím tắt, bottom sheet và vuốt trên điện thoại.
