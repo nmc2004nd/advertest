@@ -237,6 +237,17 @@ Ràng buộc DB:
 - **Quyết định:** ba nút đều qua hộp xác nhận; "Yêu cầu sửa" và "Từ chối" chỉ cần kết luận; "Chấp nhận" khóa kèm danh sách lý do (checklist của server, rồi các ô bắt buộc).
 - **Form protocol:** kiểm tra cùng luật với contract trước khi gửi; lỗi `422` của server hiện tại đúng ô khi ánh xạ được, còn lại (ví dụ lỗi của cả `body`) hiện ở đầu form; tạo version mới điền sẵn nội dung version mới nhất và khóa tên.
 
+### Chốt ở Group 6 (2026-10-02)
+
+- **Điều hướng:** mục "Report" theo `report.read` (mọi role), đứng sau "Protocol"; tab Review của experiment đã chấp nhận có link tới report.
+- **Trang report:**
+  - hiện đủ 9 mục của snapshot đã lưu, dải "BẢN CHÍNH THỨC" kèm mã report, hai hash và link `/verify/{id}`;
+  - ảnh case không nhúng (snapshot chỉ có khóa lưu trữ): mỗi case đã review dẫn tới `/failure-cases/{id}`, nơi ảnh chưa làm mờ vẫn bị ẩn;
+  - mã trạng thái và phạm vi run hiện bằng nhãn tiếng Việt (review Group 6);
+  - report `generating`: trang và danh sách tải lại 3 giây một lần tới khi `ready` hoặc `failed`.
+- **Tải:** mỗi lần bấm xin URL mới (`/reports/{id}/download`), nên mỗi lần đều ghi `report.downloaded`; chỉ hiện với `report.export`, cùng nút "Sinh lại" khi `failed`.
+- **Xác minh:** hash tính bằng `crypto.subtle`; không có Web Crypto (trang không mở qua HTTPS hoặc `localhost`) thì trang báo cần HTTPS, không có SHA-256 tự viết dự phòng; hash so không phân biệt hoa thường với cả `pdf_sha256` và `json_sha256`.
+
 ## Behaviour
 
 ### Protocol
