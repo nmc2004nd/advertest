@@ -182,12 +182,14 @@ Mọi trạng thái bất thường (`failed`, `skipped`, `stopped_limit`, `canc
 | Biểu đồ | Recharts |
 | Routing | React Router |
 | Zoom ảnh | `react-zoom-pan-pinch` |
+| Font | Be Vietnam Pro, tự host qua `@fontsource/be-vietnam-pro` |
 | Sinh type từ contract/OpenAPI | `openapi-typescript` (devDependency) |
 | Form | `react-hook-form` + `zod` (Phase 4): validation nhất quán cho form của mọi phase |
 | E2E | `@playwright/test` (devDependency, Phase 4), 3 viewport 390×844, 820×1180, 1440×900 |
 
 ### 5.1. Quy ước frontend
 
+- Mọi quyết định thị giác (màu, font, khoảng cách, lớp overlay, câu chữ) theo `specs/design.md`.
 - Mobile-first. Breakpoint: điện thoại < 768px, tablet 768–1279px, desktop ≥ 1280px.
 - Box vẽ phía client trên canvas từ JSON, scale theo `devicePixelRatio`.
 - Trạng thái luôn hiển thị bằng màu + icon + chữ, dùng một component badge chung.
@@ -220,6 +222,8 @@ Mọi trạng thái bất thường (`failed`, `skipped`, `stopped_limit`, `canc
 | Unit test | pytest, Vitest | CI |
 | Test nghiệm thu | pytest trong `tests/acceptance/` | CI |
 | E2E giao diện | Playwright, 3 viewport, chạy tuần tự (`workers: 1`, các kịch bản dùng chung DB); bản build gọi API qua `/api` (`VITE_API_BASE_URL=/api`) | CI hoặc local (`make test-e2e`) |
+| Truy cập | `@axe-core/playwright` | CI |
+| Hiệu năng trang công khai | Lighthouse CI (`@lhci/cli`) | CI hoặc local |
 | Smoke test GPU | Script chạy tay | Máy có GPU |
 
 Quy ước:

@@ -33,7 +33,9 @@
 | 8 | Protocol, review, report | backend, frontend | 5 | 7 |
 | 9 | Máy thuê và ngân sách | backend | 3, 5 | 10 |
 | 10 | Dataset riêng | ml-core, frontend | 5 | 9 |
-| 11 | Hoàn thiện, responsive, hardening | frontend | 7, 8, 9, 10 | — |
+| 11a | Landing page | frontend-landing | 8 | 9, 10 |
+| 11b | Giao diện ứng dụng | frontend, backend-report | 11a | 9, 10 |
+| 11c | Hoàn thiện: so sánh, bảo mật, tài liệu | frontend, backend | 9, 10, 11b | — |
 
 Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tuần 2 gồm phase 3–6, tuần 3 gồm phase 7–9, tuần 4 gồm phase 10–11. Nếu chỉ có 3 tuần, xem mục "Thứ tự cắt giảm".
 
@@ -223,23 +225,38 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 
 **Demo:** upload một dataset YOLO, map class, chạy experiment trên đó.
 
-## Phase 11 — Hoàn thiện
+## Phase 11a — Landing page
+
+**Mục tiêu:** trang giới thiệu công khai tại `/` với demo "điểm gãy" tương tác, theo vùng B của `design.md`. Không đổi giao diện các trang khác.
+
+- [ ] Token và font cô lập trong landing; module `layers.ts`.
+- [ ] Demo điểm gãy dựa trên số liệu thật (`demo-data.json`).
+- [ ] Trang landing 9 section, ô xác minh report, responsive, sáng/tối theo hệ thống.
+
+**Demo:** người chưa biết dự án xem landing 30 giây và giải thích được "điểm gãy" là gì.
+
+## Phase 11b — Giao diện ứng dụng
+
+**Mục tiêu:** áp dụng `design.md` cho toàn bộ ứng dụng, không đổi hành vi.
+
+- [ ] Token toàn cục, nút chuyển sáng/tối; bỏ phạm vi cô lập của landing.
+- [ ] Khung ứng dụng, bảng, wizard, danh sách, hàng đợi review, protocol, admin theo vùng C.
+- [ ] Chi tiết experiment: dải kết luận, lưới biểu đồ nhỏ.
+- [ ] Trình xem case theo vùng A; không gian review hai cột.
+- [ ] Gom và viết lại câu chữ vào `copy/vi.ts` (trước đó: chuyển test E2E sang tìm phần tử theo role, nhãn hoặc `data-testid`).
+- [ ] Đăng nhập, yêu cầu truy cập, chờ duyệt, xác minh theo vùng B.
+- [ ] Font và màu của report PDF (không đổi nội dung và hash).
+
+**Demo:** toàn bộ luồng ở hai chế độ sáng và tối, trên desktop và điện thoại.
+
+## Phase 11c — Hoàn thiện
 
 **Mục tiêu:** sẵn sàng demo và bảo vệ.
 
-- [ ] Rà soát responsive trên cả 3 nhóm màn hình; E2E Playwright.
-- [ ] Kiểm thử trên điện thoại Android và iPhone thật.
-- [ ] Trang giới thiệu hoàn chỉnh.
 - [ ] So sánh nhiều experiment.
-- [ ] Rà soát bảo mật: quyền endpoint, token worker, cấu hình Tailscale.
+- [ ] Rà soát bảo mật: quyền endpoint, token worker, cấu hình mạng.
 - [ ] Tài liệu cài đặt và vận hành.
-- [ ] (Từ Phase 4) `/docs`, `/redoc`, `/openapi.json` đang công khai; compose tin cả mạng Docker trong `TRUSTED_PROXIES` (chỉ hợp cho dev; bản triển khai đặt IP reverse proxy); ô chọn người thực hiện trên trang audit tối đa 100 người dùng.
-- [ ] (Từ Phase 8) Biểu tượng khóa của chip level trong wizard dùng `aria-label` trên `span` không có role (review Group 4 #1).
-- [ ] (Từ Phase 8) Lối vào để reviewer review thêm failure case ngoài danh sách bắt buộc (API đã cho phép; review Group 5 #2).
-- [ ] (Từ Phase 8) Thông báo deprecation `Column.copy()` trong migration 0009; WeasyPrint cảnh báo thiếu HarfBuzz-Subset (cài thêm vào image API).
-- [ ] (Từ Phase 5) Box trên canvas của trình xem case chưa đọc được bằng trình đọc màn hình; nháp wizard có model/slice đã xóa chỉ được báo qua `422`.
-- [ ] (Từ Phase 5, 6) CLI `advertest` lẫn thông báo của Ultralytics vào stdout ở lần import đầu (`scripts/e2e.sh` đang né).
-- [ ] (Từ Phase 0) Pin image nền và GitHub Action theo digest/SHA; tài liệu cài đặt nhắc đổi mật khẩu `change-me-*` và việc `make check` cần mạng ở lần đầu.
+- [ ] Kiểm thử toàn ứng dụng trên điện thoại Android và iPhone thật.
 
 **Demo:** trọn luồng từ yêu cầu truy cập đến report đã xác minh, trên desktop và điện thoại.
 
@@ -250,7 +267,7 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 Cắt theo thứ tự sau:
 1. Pseudo-label cho dữ liệu không nhãn.
 2. So sánh nhiều experiment.
-3. Trang giới thiệu làm đẹp.
+3. Phase 11b (giao diện ứng dụng).
 4. Khoảng tin cậy bootstrap và giai đoạn tìm trên tập nhỏ của phase 7 (giữ lõi quét thô → chia đôi).
 5. Trang admin chỉ để dạng bảng CRUD thô.
 

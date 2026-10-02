@@ -6,8 +6,9 @@ Dự án phát triển theo spec-driven development. Spec là nguồn sự thậ
 
 1. `specs/mission.md` — mục đích và **nguyên tắc không được vi phạm** (mục 4)
 2. `specs/tech-stack.md` — công nghệ, quy ước dữ liệu, cấu trúc repo, luật cho agent
-3. `specs/roadmap.md` — phase nào đang làm, phụ thuộc
-4. Spec của phase được giao: `specs/YYYY-MM-DD-phase-NN-*/` (`requirements.md`, `plan.md`, `validation.md`)
+3. `specs/design.md` — **bắt buộc với mọi việc liên quan giao diện**: vùng phong cách, màu, chữ, lớp overlay, câu chữ
+4. `specs/roadmap.md` — phase nào đang làm, phụ thuộc
+5. Spec của phase được giao: `specs/YYYY-MM-DD-phase-NN-*/` (`requirements.md`, `plan.md`, `validation.md`)
 
 ## Quyền sở hữu thư mục
 
@@ -18,6 +19,7 @@ Dự án phát triển theo spec-driven development. Spec là nguồn sự thậ
 | `backend` và các agent con | `backend/app/`, `backend/admin_cli/`, `backend/migrations/`, `backend/alembic.ini`, `docker/`; `pyproject.toml` và `uv.lock` chỉ khi thêm dependency đã được duyệt |
 | `worker` | `backend/worker/` |
 | `frontend` và các agent con | `frontend/` |
+| `frontend-landing` | `frontend/src/features/landing/`, `frontend/src/design/`, `frontend/src/copy/` (thu hẹp thêm theo `plan.md` Phase 11a) |
 | Người duyệt (con người) | `specs/`, `contracts/`, `tests/acceptance/`, `CLAUDE.md` |
 
 `plan.md` của mỗi phase có thể thu hẹp thêm phạm vi; khi đó `plan.md` được ưu tiên.
