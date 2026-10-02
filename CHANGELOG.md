@@ -6,7 +6,51 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 8 — Protocol, review và report
 
-**Trạng thái:** đang làm. Group 0–6 đã merge (2026-10-02).
+**Trạng thái:** Group 0–7 đã merge (2026-10-02); chờ manual check của người dùng, chưa đánh dấu hoàn thành.
+
+### Phase 8 — Group 7 (người duyệt, người dùng giao) — 2026-10-02
+#### Thêm
+- **Test nghiệm thu `tests/acceptance/phase_08/` (task 34), 94 test, 9 file theo `validation.md`:**
+  - protocol, tuân thủ, gửi duyệt và khóa, tách quyền, verdict, tiêu chí, quyết định, report, audit;
+  - dữ liệu dựng qua API công khai và worker CPU thật (case được làm mờ thật);
+  - tình huống khó tạo được giả lập ngay trong worker: dựng attack lỗi, thời gian xử lý vượt giới hạn, code chưa commit;
+  - các trạng thái tìm ngưỡng hiếm (sát ngưỡng, khoảng tin cậy chứa level…) kiểm bằng hàm đánh giá với `SearchResult` của contract.
+- **E2E `frontend/e2e/phase_08/` (task 34), 12 kịch bản (4 × 3 kích thước màn hình):**
+  - trọn luồng qua giao diện: tạo protocol → wizard theo protocol → gửi duyệt → nhận review → verdict bằng phím tắt (desktop, tablet) hoặc vuốt và bottom sheet (điện thoại) → chấp nhận → report → tải PDF → `/verify` ra "Khớp", sửa 1 byte ra "Không khớp", chọn file không phát request nào mang nội dung file;
+  - yêu cầu sửa rồi "Nhân bản để sửa";
+  - engineer không thấy nút tải report;
+  - người có cả hai role không thấy experiment của mình;
+  - không cuộn ngang.
+#### Sửa
+- **`scripts/e2e.sh`:** tạo thêm bucket `reports` như `minio-init` của compose; trước đây report trong E2E không sinh được.
+- **Task 37:**
+  - test email Phase 5 lấy mốc từ `next_attempt_at` (giờ DB) nên không còn phụ thuộc ngày chạy;
+  - số failure case mỗi run giữ 20.
+#### Quyết định (người dùng chốt)
+- **`DROP OWNED BY`:** giữ làm cách dựng DB test chính thức cho Phase 7, 8. Run Phase 6 vẫn chặn `downgrade base` của migration 0006, và migration không xóa dữ liệu thật khi downgrade. Đã ghi `validation.md` mục Chung, `roadmap.md`.
+- **Thứ tự 403/422:** `403` đứng trước kiểm tra nghiệp vụ (thiếu `inconclusive_justification`). Body sai schema của contract là `422` của framework, kiểm trước mọi thứ: thiếu `conclusion`, `approve` thiếu `mitigation`/`model_verdict`, verdict `safety_relevant` thiếu `mitigation`. Đã ghi `validation.md` mục Nhận review và tách quyền.
+- **Câu hỏi mở:** `cases_to_review_per_attack` giữ mặc định 5 (`requirements.md` Open Questions).
+#### Thử gian lận (task 36): bằng test tự động gọi API thật bằng tài khoản engineer, mọi cách đều bị chặn
+- **Gọi trực tiếp API ra quyết định, ghi verdict:** `403` (`test_review_separation.py::test_non_reviewer_cannot_decide`).
+- **Tải report:** `403` (`test_report.py::test_only_report_export_downloads`).
+- **Sửa experiment sau khi gửi duyệt:** hủy và gửi lại trả `409 experiment_locked`; sửa trường hay thêm run thẳng trong DB bị trigger chặn (`test_submit_lock.py::test_locked_after_submit`).
+- **Gửi duyệt với run chạy từ code chưa commit:** `409` (`test_dirty_runs_blocked_when_protocol_forbids`).
+- **Bỏ bớt attack bắt buộc hoặc giảm level:** `422 not_compliant` (`test_compliance.py`).
+- **Chạy lại nhiều lần rồi chỉ gửi duyệt lần đẹp nhất:** report liệt kê mọi experiment cùng model và dataset, kể cả `completed` không gửi, `cancelled` và `dev-open` (`test_report.py::test_history_lists_related_experiments`).
+- **Sửa file report rồi xác minh:** "Không khớp" (E2E trọn luồng).
+#### Số liệu
+- `make check` pass.
+- `make test-db`: 694 test pass (23,5 phút).
+- `make test-e2e`: 90/90 pass (8,1 phút).
+#### Tồn đọng (chưa đánh dấu Phase 8 hoàn thành)
+- **Manual check cần người thật:**
+  - luồng thật trên KITTI với hai tài khoản (máy dev không có GPU);
+  - đọc toàn bộ PDF;
+  - PDF và `/verify` trên điện thoại thật qua HTTPS;
+  - đọc email gửi reviewer và engineer;
+  - phím tắt và vuốt trên thiết bị thật;
+  - lỗi `MAX_RUNS` của form protocol.
+- **Tính độc lập:** test nghiệm thu và E2E do cùng agent đã viết code Group 1–6 viết; người dùng nên tự đọc lại hoặc chạy `phase-review` ở phiên khác.
 
 ### Phase 8 — Group 6 (frontend-report) — 2026-10-02
 #### Thêm

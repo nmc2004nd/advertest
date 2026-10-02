@@ -409,5 +409,5 @@ Ghi các action: `protocol.created`, `protocol.versioned`, `protocol.retired`, `
 
 - [x] `max_drop_at_level` với level bị `skipped` (`early_stop`): dùng đại lượng của run kích hoạt như xếp hạng Phase 6 (kickoff 2026-10-02, xem mục Đánh giá tiêu chí).
 
-- [ ] `cases_to_review_per_attack` mặc định 5 có phù hợp không.
+- [x] `cases_to_review_per_attack` mặc định 5 có phù hợp không: giữ 5 (người dùng chốt ở Group 7, 2026-10-02); xem lại khi có số liệu chạy KITTI thật. Số failure case mỗi run giữ 20 (đủ cho 5 case bắt buộc mỗi attack lấy trên mọi run của attack).
 - [x] Có cần thêm matplotlib vào `tech-stack.md` hay vẽ biểu đồ report bằng SVG tự sinh: matplotlib, đã ghi vào `tech-stack.md` cùng Jinja2 ở Group 0 (2026-10-02).
