@@ -49,8 +49,9 @@ PUBLIC_AUTH_PATHS = {"/auth/request-access", "/auth/login", "/auth/password-rese
 # tests/db/test_catalog_api.py.
 # Phase 5 Group 2 cài đặt experiment, run, failure case, ảnh: test với DB ở
 # tests/db/test_experiment_api.py, test_failure_case_api.py.
+# Phase 8 Group 1 cài đặt /protocols* (tests/db/test_phase08_protocols.py).
 SAMPLE_CALLS = [
-    ("post", "/protocols"),
+    ("post", "/reviews/" + RUN_ID + "/claim"),
     ("get", "/reviews"),
     ("get", "/reports/" + RUN_ID),
     ("get", "/budget"),
@@ -59,7 +60,6 @@ SAMPLE_CALLS = [
 # Endpoint có body bắt buộc: gửi body hợp lệ lấy từ contracts/mocks.
 MOCKS = Path(__file__).resolve().parents[4] / "contracts" / "mocks"
 BODIES = {
-    "/protocols": "protocol_create/default.json",
     "/internal/worker/heartbeat": "heartbeat_request/default.json",
     "/internal/worker/runs/" + RUN_ID + "/artifact-url": "artifact_url_request/put_candidate.json",
     "/internal/worker/runs/" + RUN_ID + "/start": "run_start_request/gpu_local.json",
