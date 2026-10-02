@@ -31,9 +31,13 @@ Không có thay đổi contract.
 | `points` | Danh sách `{level, relative_drop}` từ kết quả quét lưới hoặc quỹ đạo tìm ngưỡng, sắp tăng dần theo `level` |
 | `breaking_point` | Điểm gãy đã tìm được |
 | `objects` | 4–6 object của cảnh minh họa, mỗi cái: `kind` (`car` / `truck` / `person`), box `[x1, y1, x2, y2]` trong khung 640×360, `lost_at` (level mà object biến mất; `null` nếu không mất trong dải) |
-| `source` | `model`, `dataset`, `slice_size`, `experiment_id`, `run_date` |
+| `source` | `kind` (`experiment` / `smoke`), `model`, `dataset`, `slice_size`, `experiment_id`, `run_date` |
 
 Ràng buộc: tại mọi điểm trong `points`, tỉ lệ object có `lost_at ≤ level` lệch không quá 0.2 so với `relative_drop` tại điểm đó.
+
+Khi `source.kind = experiment`, `experiment_id` là UUID và `run_date` là thời gian UTC của experiment nguồn.
+
+Khi `source.kind = smoke`, `experiment_id` và `run_date` là `null`; giao diện phải ghi rõ "Dữ liệu minh họa tạm thời". Smoke chỉ được dùng để phát triển Group 1–3 và phải được thay bằng dữ liệu PGD L∞ KITTI 300 trước Group 4.
 
 ## Behaviour
 
@@ -41,6 +45,7 @@ Ràng buộc: tại mọi điểm trong `points`, tỉ lệ object có `lost_at 
 - Token màu, chữ, khoảng cách, bo góc theo `design.md` mục 3–5, khai báo dưới phạm vi phần tử gốc của landing (ví dụ lớp `.zone-landing`), cho cả chế độ sáng và tối qua `prefers-color-scheme`.
 - **Không** sửa theme toàn cục của shadcn/ui hay Tailwind; không đổi font của các trang khác.
 - Font Be Vietnam Pro tự host qua `@fontsource/be-vietnam-pro`, chỉ được tải khi vào landing (tách theo route).
+- Ba dependency của phase được người duyệt pin và commit trong Group 0 trước khi giao code cho `frontend-landing`.
 - Không có request tới domain ngoài origin của ứng dụng.
 
 ### Module lớp overlay
@@ -68,7 +73,8 @@ Ràng buộc: tại mọi điểm trong `points`, tỉ lệ object có `lost_at 
 ### Yêu cầu chung
 - Bố cục một cột chính căn trái, độ dài dòng văn bản ≤ 72 ký tự, theo vùng B.
 - Câu chữ của landing nằm trong `frontend/src/copy/vi.ts` (nhóm `landing`), viết theo `design.md` mục 7.
-- `<title>`, `meta description`, `og:title`, `og:description` cho route `/`.
+- Khi route `/` được mount, đặt `<title>`, `meta description`, `og:title`, `og:description`; khi rời route, khôi phục các giá trị trước đó để metadata của trang khác không bị thay đổi.
+- Phase 11a không tạo `og:image`; ảnh Open Graph được hoãn tới giai đoạn triển khai.
 - Không có ảnh bitmap; demo hoàn toàn bằng SVG và CSS.
 - Responsive theo `tech-stack.md` mục 5.1; không có thanh cuộn ngang ở 375 px; thanh trượt dùng được bằng ngón tay.
 - Độ tương phản chữ đạt WCAG AA ở cả hai chế độ; viền focus nhìn thấy được.
@@ -80,6 +86,10 @@ Ràng buộc: tại mọi điểm trong `points`, tỉ lệ object có `lost_at 
 - **Demo dùng số liệu thật, cảnh vẽ bằng SVG.** *Lý do:* số liệu thật biến demo thành bằng chứng; SVG tránh vấn đề quyền riêng tư và giấy phép ảnh, và tải nhanh.
 - **Làm `layers.ts` ngay từ phase này.** *Lý do:* ý nghĩa của cyan và magenta trên landing phải giống hệt trong trình xem case sau này; có một nguồn duy nhất từ đầu.
 - **Landing theo chế độ sáng/tối của hệ thống.** *Lý do:* đủ cho trang công khai; nút chuyển thủ công thuộc về khung ứng dụng ở Phase 11b.
+- **Nguồn demo là PGD L∞ trên slice KITTI 300 ảnh của Phase 7.** Group 0 xuất các điểm đo và định danh experiment thật vào `demo-data.json`.
+- **Metadata được cô lập theo vòng đời route.** Landing đặt metadata khi mount và khôi phục khi unmount, giống nguyên tắc cô lập token và font.
+- **Chưa tạo ảnh Open Graph.** Phase 11a chỉ cung cấp metadata dạng chữ; asset chia sẻ mạng xã hội được quyết định khi biết môi trường triển khai.
+- **Cho phép dữ liệu smoke trong lúc phát triển.** Smoke phải tuân thủ cùng schema và ràng buộc đường cong/object, được ghi nhãn rõ, và không được dùng để nghiệm thu hoặc đóng phase.
 
 ## Context
 
@@ -89,5 +99,5 @@ Ràng buộc: tại mọi điểm trong `points`, tỉ lệ object có `lost_at 
 
 ## Open Questions
 
-- [ ] Dùng experiment nào làm nguồn số liệu cho demo (đề xuất: PGD L∞ trên slice KITTI 300 ảnh đã chạy ở Phase 7).
-- [ ] Có cần ảnh Open Graph riêng ngay bây giờ hay để đến lúc triển khai (Phase 8b).
+- [x] Dùng PGD L∞ trên slice KITTI 300 ảnh của Phase 7.
+- [x] Không tạo ảnh Open Graph trong Phase 11a; để tới lúc triển khai.

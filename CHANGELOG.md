@@ -6,7 +6,14 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 8 — Protocol, review và report
 
-**Trạng thái:** Group 0–7 đã merge (2026-10-02). Manual Checks đạt (người dùng xác nhận khi phase-close 2026-10-02; thử gian lận bằng test tự động gọi API thật). Còn chờ Automated Tests pass trên CI (đã thêm pango, harfbuzz, DejaVu vào `ci.yml`; người dùng push) rồi mới đánh dấu hoàn thành.
+**Trạng thái:** ✅ Hoàn thành 2026-10-02 theo xác nhận của người dùng. Group 0–7 đã merge; Manual Checks đạt; mục Automated Tests pass trên CI được giữ chưa đánh dấu để test lại và cập nhật sau.
+
+### Phase 8 — Tổng kết (phase-close) — 2026-10-02
+
+- **Giao được:** protocol có version và kiểm tra tuân thủ; gửi duyệt và khóa experiment; tách quyền reviewer; verdict có version; tiêu chí và checklist; report PDF/JSON bất biến sau khi `ready`; trang xác minh công khai; audit toàn bộ vòng đời.
+- **Nghiệm thu local:** `make check` pass; `make test-db` 694 test pass; `make test-e2e` 90/90 pass. Manual Checks và các thử nghiệm gian lận đã đạt theo xác nhận của người dùng.
+- **Ngoại lệ khi đóng phase:** người dùng yêu cầu đóng Phase 8 nhưng giữ ô CI chưa đánh dấu. GitHub Actions run 59 tại commit đóng Phase 8 còn fail ở job DB/nghiệm thu; run 62 trên `main` còn fail `ruff format --check` tại `scripts/export_demo_data.py` (file thêm sau Phase 8). Cần chạy lại CI và ghi kết quả vào đây.
+- **Replan:** các hệ quả cho Phase 9 đã có trong roadmap (định dạng giới hạn ngân sách; report ghi chi phí quyết toán so với ngân sách); Phase 10 đã có luật chặn gửi duyệt với case `hidden_unanonymized`. Hai phase này chưa có thư mục feature spec, nên giữ các yêu cầu chuyển tiếp trong roadmap cho tới kickoff.
 
 ### Phase 8 — Group 7 (người duyệt, người dùng giao) — 2026-10-02
 #### Thêm
@@ -42,8 +49,8 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 - `make check` pass.
 - `make test-db`: 694 test pass (23,5 phút).
 - `make test-e2e`: 90/90 pass (8,1 phút).
-#### Tồn đọng (chưa đánh dấu Phase 8 hoàn thành)
-- **Manual check cần người thật:**
+#### Tồn đọng tại thời điểm Group 7
+- **Manual check cần người thật** (sau đó đã làm và đạt theo xác nhận của người dùng khi phase-close):
   - luồng thật trên KITTI với hai tài khoản (máy dev không có GPU);
   - đọc toàn bộ PDF;
   - PDF và `/verify` trên điện thoại thật qua HTTPS;

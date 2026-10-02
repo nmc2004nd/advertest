@@ -123,4 +123,4 @@
 - [x] Toàn bộ Manual Checks đã thực hiện; mọi thử nghiệm gian lận đều bị chặn.
 - [x] Người duyệt đã chấp nhận thay đổi contract, ma trận quyền và `tech-stack.md`.
 - [x] Câu hỏi mở đã có câu trả lời.
-- [ ] `CHANGELOG.md` và `roadmap.md` đã cập nhật; Phase 8 được đánh dấu hoàn thành.
+- [x] `CHANGELOG.md` và `roadmap.md` đã cập nhật; Phase 8 được đánh dấu hoàn thành.

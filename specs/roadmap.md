@@ -30,7 +30,7 @@
 | 5 ✅ | Wizard tạo experiment, theo dõi tiến độ | frontend, backend | 3, 4 | 6 |
 | 6 ✅ | Đủ catalog, quét lưới, làm mờ ảnh | attack, ml-core, backend, frontend | 3, 5 | — |
 | 7 | Tự tìm ngưỡng | attack, frontend | 5, 6 | 8 |
-| 8 | Protocol, review, report | backend, frontend | 5 | 7 |
+| 8 ✅ | Protocol, review, report | backend, frontend | 5 | 7 |
 | 9 | Máy thuê và ngân sách | backend | 3, 5 | 10 |
 | 10 | Dataset riêng | ml-core, frontend | 5 | 9 |
 | 11a | Landing page | frontend-landing | 8 | 9, 10 |
@@ -173,9 +173,11 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 
 **Demo:** chọn ngưỡng sụt 20% cho PGD, hệ thống trả về điểm gãy kèm khoảng tin cậy.
 
-## Phase 8 — Protocol, review và report
+## Phase 8 — Protocol, review và report ✅ Hoàn thành (2026-10-02), còn tồn đọng CI
 
 **Mục tiêu:** quy trình duyệt độc lập, chống gian lận.
+
+> Tồn đọng (người dùng cho phép đóng phase, cập nhật sau): mục Automated Tests pass trên CI vẫn để trống. Run 59 tại commit đóng Phase 8 fail job DB/nghiệm thu; run 62 trên `main` fail `ruff format --check` ở `scripts/export_demo_data.py` (thay đổi sau Phase 8). Cần chạy lại CI và ghi kết quả vào `CHANGELOG.md` cùng `validation.md`.
 
 - [x] Reviewer tạo protocol (có version); experiment bắt buộc gắn protocol.
 - [x] Khóa experiment khi gửi duyệt.
@@ -188,7 +190,7 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 - [x] (Từ Phase 2) Report ghi rõ eps tính trên ảnh letterbox dạng float (không lượng tử hóa 8-bit); số failure case mỗi run giữ 20 (Group 7).
 - [x] (Từ Phase 7) Migration 0006 `downgrade` xóa `cost_profiles` của spec `not_applicable` trước (Group 1); test email Phase 5 hết phụ thuộc ngày (Group 7). `DROP OWNED BY` giữ lại làm cách dựng DB test chính thức cho Phase 7, 8: run Phase 6 vẫn chặn `downgrade base`, và migration không xóa dữ liệu thật (người dùng chốt ở Group 7).
 - [x] Manual check: luồng thật trên KITTI với hai tài khoản, đọc PDF, PDF và `/verify` trên điện thoại thật, đọc email (người dùng xác nhận 2026-10-02); thử gian lận bằng test tự động gọi API thật (người dùng chấp nhận).
-- [ ] Automated Tests pass trên CI (đã pass trên máy dev; chưa push).
+- [ ] Automated Tests pass trên CI (để trống theo quyết định phase-close ngày 2026-10-02; test lại và cập nhật sau).
 
 **Demo:** engineer gửi duyệt; reviewer khác review và approve; xuất report; trang xác minh báo khớp.
 
