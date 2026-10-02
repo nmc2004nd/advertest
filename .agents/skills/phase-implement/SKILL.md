@@ -8,7 +8,8 @@ description: Thực hiện một group trong plan.md của một phase AdverTest
 ## Tương thích Codex
 
 - Khi tài liệu dưới đây nói `AskUserQuestion`, dùng công cụ hỏi lựa chọn của Codex nếu khả dụng; nếu không, hỏi trực tiếp một câu ngắn rồi dừng. Bỏ qua tên trường và giới hạn riêng của công cụ Claude; luôn theo schema công cụ Codex hiện tại.
-- Không tự commit, push hoặc merge. Các chỉ dẫn commit bên dưới chỉ áp dụng khi người dùng yêu cầu rõ việc commit.
+- Tự tạo hoặc chuyển sang nhánh `phaseNN-<agent>` trước khi implement và tự commit sau mỗi task hoàn chỉnh, giống workflow Claude của dự án.
+- Không merge vào `main` hoặc push nếu người dùng chưa xác nhận rõ. Xác nhận kế hoạch implement không đồng thời là xác nhận merge/push.
 - Đọc thêm `specs/design.md` cho mọi phần việc liên quan giao diện.
 
 Bạn là **một** agent với phạm vi hẹp. Giá trị của bạn nằm ở chỗ làm đúng phần được giao, không mở rộng, và để lại bằng chứng rõ ràng. Mọi quyết định mà spec chưa nói thuộc về người duyệt, không thuộc về bạn.
@@ -23,7 +24,16 @@ Từ phần đầu `plan.md` của phase và bảng quyền sở hữu trong `CL
 
 - Đọc `CLAUDE.md`, `specs/mission.md`, `specs/tech-stack.md`, và toàn bộ spec của phase.
 - Group 0 và các group mà group này phụ thuộc đã merge chưa?
-- `git status` sạch, đang ở đúng nhánh hoặc worktree (quy ước tên nhánh: `phaseNN-<agent>`)?
+- `git status` sạch và không có thay đổi chưa commit của người dùng?
+
+Sau khi các điều kiện trên đạt, chuẩn bị nhánh `phaseNN-<agent>`:
+
+1. Nếu đang ở đúng nhánh thì tiếp tục.
+2. Nếu nhánh đã tồn tại cục bộ, chạy `git switch phaseNN-<agent>`.
+3. Nếu nhánh chưa tồn tại, chạy `git switch -c phaseNN-<agent>` từ base hiện tại đã được duyệt.
+4. Báo tên nhánh đang dùng trong kế hoạch.
+
+Nếu working tree không sạch, không tự stash, reset, commit hoặc mang thay đổi sang nhánh khác; nêu các file đang thay đổi và hỏi người dùng. Nếu lệnh chuyển/tạo nhánh có nguy cơ ghi đè thay đổi hoặc branch name đang trỏ tới công việc khác, dừng và hỏi.
 
 Nếu một điều kiện không thỏa: nêu rõ bằng văn bản điều kiện nào và bằng chứng, rồi hỏi bằng `AskUserQuestion` với các lựa chọn phù hợp, ví dụ "Dừng, chờ điều kiện thỏa (Khuyến nghị)" / "Chỉ làm các task không phụ thuộc" (liệt kê task trong mô tả). Không tự tiếp tục.
 
@@ -59,7 +69,7 @@ Chỉ bỏ qua bước hỏi khi người dùng đã nói rõ "kế hoạch đã
 1. **Chạy test nghiệm thu liên quan trước**, ghi lại test nào đang fail. Đây là mốc để chứng minh công việc của bạn làm chúng pass.
 2. Làm **từng task một** theo thứ tự đã duyệt. Sau mỗi task:
    - chạy test unit và test nghiệm thu liên quan;
-   - nếu người dùng đã yêu cầu commit, commit với message `phaseNN(<agent>): <task ngắn gọn>`.
+   - commit với message `phaseNN(<agent>): <task ngắn gọn>`.
 3. Viết test unit cho code của bạn trong thư mục của bạn khi logic không tầm thường.
 
 ### Luật cứng (không có ngoại lệ)
@@ -72,7 +82,7 @@ Chỉ bỏ qua bước hỏi khi người dùng đã nói rõ "kế hoạch đã
 
 ### Khi nào dừng lại hỏi
 
-Trong các tình huống dưới đây, dừng công việc, giữ phần đã chạy được (chỉ commit nếu người dùng đã yêu cầu), trình bày bối cảnh bằng văn bản, rồi hỏi bằng `AskUserQuestion` theo quy tắc trong `CLAUDE.md`:
+Trong các tình huống dưới đây, dừng công việc, commit phần đã chạy được nếu nó ở trạng thái hợp lệ và độc lập với phần bị chặn, trình bày bối cảnh bằng văn bản, rồi hỏi bằng `AskUserQuestion` theo quy tắc trong `CLAUDE.md`:
 
 | Tình huống | Nội dung câu hỏi |
 |---|---|

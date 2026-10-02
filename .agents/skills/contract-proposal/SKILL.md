@@ -8,13 +8,13 @@ description: Viết đề xuất thay đổi contract của AdverTest (schema, e
 ## Tương thích Codex
 
 - Khi tài liệu dưới đây nói `AskUserQuestion`, dùng công cụ hỏi lựa chọn của Codex nếu khả dụng; nếu không, hỏi trực tiếp một câu ngắn rồi dừng. Bỏ qua tên trường và giới hạn riêng của công cụ Claude; luôn theo schema công cụ Codex hiện tại.
-- Không tự commit, push hoặc merge. Chỉ thực hiện các thao tác Git làm thay đổi lịch sử khi người dùng yêu cầu rõ; nếu không, giữ nguyên thay đổi đang có và báo trạng thái.
+- Tự commit phần WIP đang ở trạng thái chạy được trước khi lập đề xuất, giống workflow Claude. Không merge hoặc push nếu người dùng chưa xác nhận rõ.
 
 `contracts/` là thỏa thuận giữa các agent làm song song. Nếu một agent tự sửa, các agent khác đang code theo bản cũ sẽ lệch mà không biết. Vì vậy agent không sửa contract; agent viết đề xuất để người duyệt quyết định và cập nhật ở Group 0.
 
 ## 1. Dừng công việc đang làm
 
-Giữ nguyên phần việc đang dở ở trạng thái chạy được. Nếu người dùng đã yêu cầu commit, dùng message `phaseNN(<agent>): wip trước đề xuất contract`. Không commit code phụ thuộc vào contract chưa được duyệt.
+Commit phần việc đang dở nếu nó ở trạng thái chạy được, với message `phaseNN(<agent>): wip trước đề xuất contract`. Không commit code phụ thuộc vào contract chưa được duyệt.
 
 ## 2. Viết file đề xuất
 
