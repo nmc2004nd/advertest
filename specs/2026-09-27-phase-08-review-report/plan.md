@@ -40,6 +40,8 @@
 
 ## Group 3 — Backend: report `[agent: backend-report]`
 
+> File được sửa (người dùng duyệt ở kế hoạch Group 3): `backend/app/reports/`, `backend/app/api/public.py`, `backend/app/main.py`, `backend/app/storage.py`, `backend/app/services/experiment_views.py`, `docker/api/Dockerfile`, `pyproject.toml`, `uv.lock`, test trong `backend/app/tests/`.
+
 19. Dựng `ReportSnapshot` từ DB và MinIO (gồm lịch sử experiment liên quan, kể cả `dev-open`; mọi run; case đã review; lưu ý eps tính trên ảnh letterbox float, không lượng tử 8-bit).
 20. Mẫu HTML Jinja2 cho 9 mục; biểu đồ matplotlib thành PNG; chân trang.
 21. Render PDF bằng WeasyPrint; tính hash; lưu vào bucket `reports`.

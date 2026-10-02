@@ -6,7 +6,32 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 8 — Protocol, review và report
 
-**Trạng thái:** đang làm. Group 0, 1, 2 đã merge (2026-10-02).
+**Trạng thái:** đang làm. Group 0–3 đã merge (2026-10-02).
+
+### Phase 8 — Group 3 (backend-report) — 2026-10-02
+#### Thêm
+- **`backend/app/reports/` (task 19–23):**
+  - `snapshot.py` dựng `ReportSnapshot` đủ 9 mục (lịch sử gồm `dev-open`; mọi run kèm giải trình; case đã làm mờ; tái lập từ manifest; lưu ý theo nội dung report);
+  - `render.py` render HTML Jinja2 → PDF WeasyPrint, biểu đồ matplotlib, thumbnail đã làm mờ, chân trang mọi trang;
+  - `service.py`:
+    - sinh nền sau `approve`, thử lại 3 lần, sinh lại khi `failed` (giữ `report_id`), sinh tiếp lúc khởi động;
+    - tải bằng token HMAC 10 phút, có audit;
+    - `/verify` chỉ trả report `ready`;
+  - `views.py` cho `ExperimentDetail.report`.
+- **Dependency:** `weasyprint 70.0`, ghi rõ `jinja2 3.1.6`, `matplotlib 3.11.2`; `pypdf 6.19.0` chỉ trong nhóm dev (người dùng chọn). Bucket `reports` thêm vào `Buckets`.
+- **Image:** thêm pango, harfbuzz, font DejaVu; sinh sẵn cache font; fontconfig ghi cache vào `/tmp`. Đã kiểm: render PDF tiếng Việt chạy được trong container.
+- **Test:** `test_phase08_reports.py` (14 test DB), `tests/reports/test_render.py` (7 test unit).
+#### Sửa test cũ
+- `test_skeleton.py`: chỉ còn `/budget` là endpoint khung.
+- Test nghiệm thu Phase 0 thêm `/reports`, `/verify` vào nhóm đã cài đặt (người duyệt, người dùng cho phép).
+#### Review (phase-review, 2026-10-02)
+- **#1 (người dùng chọn sửa trước khi merge):** `generate` kiểm tra lại `status` trước khi dựng và trước khi ghi `failed`, nên tiến trình khác đã sinh xong không làm sinh file rác hay lỗi trigger. Có test (không có phần sửa thì test fail).
+- **Ghi nhận:** test render trong CI cần pango trên runner `ubuntu-latest`; quyết định ngầm đã ghi vào `requirements.md` mục "Chốt ở Group 3".
+- Review và phần sửa do cùng một agent làm (không độc lập).
+#### Số liệu
+- `make check` pass: 1476 test Python, 314 Vitest, 331 test nghiệm thu không cần DB.
+- `make test-db`: 599 pass, 1 fail (test email Phase 5 có từ trước, task 37).
+- Render report 4 trang trên CPU: khoảng 1 giây. Đã mở xem PDF mẫu: tiếng Việt đúng dấu, đủ 9 mục, biểu đồ rõ.
 
 ### Phase 8 — Group 2 (backend-review) — 2026-10-02
 #### Thêm
