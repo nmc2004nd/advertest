@@ -68,6 +68,8 @@
 
 ## Group 6 — Frontend: report và xác minh `[agent: frontend-report]`
 
+> File được sửa (người dùng duyệt ở kế hoạch Group 6): `frontend/src/features/reports/`, `frontend/src/router.tsx`, `frontend/src/nav/config.ts`, `frontend/src/api/mocks.ts`, `frontend/src/features/experiments/ReviewTab.tsx`, test tương ứng; `frontend/e2e/phase_04/onboarding.spec.ts` (người dùng cho phép).
+
 32. Trang `/reports`, `/reports/:id` (hiển thị snapshot), nút tải cho reviewer.
 33. Trang công khai `/verify/:id` tính SHA-256 trong trình duyệt bằng Web Crypto.
 

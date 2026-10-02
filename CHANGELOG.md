@@ -6,7 +6,31 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 8 — Protocol, review và report
 
-**Trạng thái:** đang làm. Group 0–5 đã merge (2026-10-02).
+**Trạng thái:** đang làm. Group 0–6 đã merge (2026-10-02).
+
+### Phase 8 — Group 6 (frontend-report) — 2026-10-02
+#### Thêm
+- **`/reports` (task 32):** danh sách mới nhất trước; bảng trên desktop, thẻ trên điện thoại; tự cập nhật khi có report đang sinh.
+- **`/reports/:id` (task 32):**
+  - đủ 9 mục snapshot, dải "BẢN CHÍNH THỨC", mã report, hai hash, link xác minh;
+  - nút "Tải PDF", "Tải JSON" và "Sinh lại" (khi `failed`) chỉ cho `report.export`.
+- **`/verify/:id` (task 33):** trang công khai; SHA-256 tính bằng Web Crypto trong trình duyệt, file không gửi đi; "Khớp" hoặc "Không khớp" kèm hash vừa tính; báo cần HTTPS khi không có Web Crypto.
+- **Điều hướng và liên kết:** mục "Report" (`report.read`); link "Report chính thức" trong tab Review.
+- **Mock (`api/mocks.ts`):** `/reports`, `/reports/{id}`, `/reports/{id}/download`, `/verify/{id}`.
+- **Test:** `reports/reports.test.tsx` (12): vector chuẩn SHA-256; hash file mẫu so với giá trị tính độc lập bằng Python; `fetch` bị chặn không được gọi.
+#### Sửa test cũ
+- `pages/app-pages.test.tsx`, `e2e/phase_04/onboarding.spec.ts`: thêm mục "Report" (engineer 6 mục; trên điện thoại "Thêm" có 3 mục).
+#### Review (phase-review, 2026-10-02)
+- Không có phát hiện chặn.
+- **#1 (nên sửa, sửa trước khi merge):** trang report hiện mã tiếng Anh thô cho trạng thái tìm ngưỡng và phạm vi run. Sửa bằng `StatusBadge` và nhãn tiếng Việt; có test.
+- **Ghi nhận:** giới hạn loại ngân sách hiện chuỗi số thô (Phase 9 định dạng tiền); mục validation "không gửi request chứa nội dung file" mới kiểm ở mức hàm, Group 7 kiểm thêm bằng E2E.
+- Quyết định ngầm đã ghi vào `requirements.md` mục "Chốt ở Group 6".
+- Review và phần sửa do cùng một agent làm (không độc lập).
+#### Số liệu
+- `make check` pass: 372 Vitest, 331 test nghiệm thu.
+- `make test-e2e` 78/78 (6,8 phút, chạy trước phần sửa #1; phần sửa chỉ đổi nhãn trên trang report, E2E không đi qua trang này); `pnpm verify:build` pass.
+#### Tồn đọng
+- Kiểm tra tay: tải PDF thật rồi xác minh (Khớp, sửa 1 byte thì Không khớp); `/verify` trên điện thoại qua HTTPS; "Sinh lại" và tự cập nhật khi report đang sinh với backend thật.
 
 ### Phase 8 — Group 5 (frontend-review) — 2026-10-02
 #### Thêm
