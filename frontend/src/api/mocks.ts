@@ -16,7 +16,9 @@ import type {
   ModelSummary,
   ProtocolSummary,
   ProtocolView,
+  CaseVerdictView,
   ReviewComment,
+  ReviewQueueItem,
   RunResultOutput as RunResult,
   RunView,
   SliceSummary,
@@ -86,6 +88,20 @@ function mockPhase5(pathname: string, query: URLSearchParams): unknown {
   if (m) return first(where<ModelSummary>('model_summary', 'id', m[1]), pathname)
   m = match(`/dataset-versions/${id}`)
   if (m) return first(where<DatasetVersionSummary>('dataset_version_summary', 'id', m[1]), pathname)
+  if (pathname === '/reviews') {
+    // Phase 8: nhóm theo trạng thái như API (`waiting`, `mine`, `decided`).
+    const group = query.get('status') ?? 'waiting'
+    const want: Record<string, string[]> = {
+      waiting: ['submitted_for_review'],
+      mine: ['in_review'],
+      decided: ['approved', 'changes_requested', 'rejected'],
+    }
+    return listMocks<ReviewQueueItem>('review_queue_item').filter((i) =>
+      (want[group] ?? []).includes(i.experiment.status),
+    )
+  }
+  m = match(`/failure-cases/${id}/verdicts`)
+  if (m) return where<CaseVerdictView>('case_verdict_view', 'failure_case_id', m[1])
   m = match(`/protocols/${id}`)
   if (m) return first(where<ProtocolView>('protocol_view', 'id', m[1]), pathname)
   m = match(`/experiments/${id}/comments`)

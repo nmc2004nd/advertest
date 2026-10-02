@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { NavItem } from '@/nav/config'
 
-import { BottomTabs, SideNav } from './AppShell'
+import { BottomTabs, MoreLinks, SideNav } from './AppShell'
 
 function items(n: number): NavItem[] {
   return Array.from({ length: n }, (_, i) => ({
@@ -38,6 +38,13 @@ describe('BottomTabs (điện thoại)', () => {
     const html = render(<BottomTabs items={items(6)} />)
     expect(html.match(/href="\/muc-/g)).toHaveLength(3)
     expect(html).toContain('Thêm')
+  })
+
+  it('mục trong "Thêm" hiện link với class đúng (không bọc Slot làm hỏng className)', () => {
+    const html = render(<MoreLinks items={items(6).slice(3)} onNavigate={() => undefined} />)
+    expect(html.match(/href="\/muc-/g)).toHaveLength(3)
+    expect(html).toContain('min-h-11')
+    expect(html).not.toContain('isActive')
   })
 
   it('không có mục nào thì không hiện thanh tab', () => {

@@ -16,6 +16,7 @@ import { expectLabelledControls, render } from '@/test-utils'
 
 import { AccountPage } from './AccountPage'
 import { HomePage } from './HomePage'
+import { REVIEWS_KEY } from '@/features/reviews/api'
 
 const pendingPage = listMocks<UserAdminPage>('user_admin_page').find((p) => !p.next_cursor)
 
@@ -36,12 +37,15 @@ describe('/home', () => {
     expect(html).toContain('href="/admin/users"')
   })
 
-  it('engineer thấy khối experiment (Phase 5); reviewer vẫn "Sắp có"; không thấy khối admin', () => {
+  it('engineer thấy khối experiment (Phase 5); reviewer thấy hàng đợi (Phase 8); không thấy khối admin', () => {
     const mine = listMocks<ExperimentPage>('experiment_page').find((p) => p.items.length > 0)
     const html = render(<HomePage />, '/home', 'engineer_reviewer', [
       [[...EXPERIMENTS_KEY, 'mine-recent'], mine],
+      [[...REVIEWS_KEY, 'waiting', 'submitted_at'], []],
+      [[...REVIEWS_KEY, 'mine', 'submitted_at'], []],
     ])
-    expect(html.match(/Sắp có/g)).toHaveLength(1)
+    expect(html).not.toContain('Sắp có')
+    expect(html).toContain('experiment chờ nhận review')
     expect(html).toContain('href="/experiments/new"')
     expect(html).toContain('Đang chạy hoặc chờ')
     expect(html).toContain('Kết thúc gần đây')
@@ -55,17 +59,20 @@ describe('/home', () => {
   })
 })
 
-describe('điều hướng (Phase 5 Group 6: bật Experiment và Tạo experiment)', () => {
-  it('engineer có Tạo experiment; reviewer không; admin thêm trang quản trị', () => {
+describe('điều hướng (Phase 5 Group 6: Experiment, Tạo experiment; Phase 8: Duyệt, Protocol)', () => {
+  it('engineer có Tạo experiment; reviewer có Duyệt; mọi role xem Protocol; admin thêm trang quản trị', () => {
     expect(visibleNav(mockMe('engineer')).map((i) => i.path)).toEqual([
       '/home',
       '/experiments',
       '/experiments/new',
+      '/protocols',
       '/account',
     ])
     expect(visibleNav(mockMe('reviewer')).map((i) => i.path)).toEqual([
       '/home',
       '/experiments',
+      '/reviews',
+      '/protocols',
       '/account',
     ])
     expect(visibleNav(mockMe('admin')).map((i) => i.path)).toEqual([
@@ -74,6 +81,7 @@ describe('điều hướng (Phase 5 Group 6: bật Experiment và Tạo experime
       '/admin/users',
       '/admin/audit',
       '/admin/attacks',
+      '/protocols',
       '/account',
     ])
   })
