@@ -78,18 +78,18 @@
 
 ## Manual Checks
 
-- [ ] Trên KITTI 300 ảnh: tìm ngưỡng PGD L∞ với `relative_drop` 0.2, dải 0–32, `tol` mặc định (0.125). So với đường cong quét lưới PGD L∞ ở Phase 5/6: điểm gãy nằm trong khoảng mà đường cong quét lưới cắt ngưỡng 20%.
-- [ ] Ghi số điểm thực tế đã dùng, thời gian thực tế so với chi phí tối đa hiển thị.
-- [ ] Tìm ngưỡng `fog` (rời rạc) với ngưỡng 0.2; kết quả hợp lý với kết quả quét lưới severity 1–5.
-- [ ] Tìm ngưỡng với `class_filter = person` và so với toàn bộ class; ghi nhận khác biệt.
-- [ ] So sánh điểm gãy trên tập con (100 ảnh) với kết quả cuối: ghi mức lệch để trả lời câu hỏi mở về `subset_size`.
-- [ ] Đo thời gian bootstrap 200 mẫu trên worker.
-- [ ] Xem thẻ tóm tắt và biểu đồ quỹ đạo trên điện thoại thật.
+- [x] Trên KITTI 300 ảnh: tìm ngưỡng PGD L∞ với `relative_drop` 0.2, dải 0–32, `tol` mặc định (0.125). So với đường cong quét lưới PGD L∞ ở Phase 5/6: điểm gãy nằm trong khoảng mà đường cong quét lưới cắt ngưỡng 20%.
+- [x] Ghi số điểm thực tế đã dùng, thời gian thực tế so với chi phí tối đa hiển thị.
+- [x] Tìm ngưỡng `fog` (rời rạc) với ngưỡng 0.2; kết quả hợp lý với kết quả quét lưới severity 1–5.
+- [x] Tìm ngưỡng với `class_filter = person` và so với toàn bộ class; ghi nhận khác biệt.
+- [x] So sánh điểm gãy trên tập con (100 ảnh) với kết quả cuối: ghi mức lệch để trả lời câu hỏi mở về `subset_size`.
+- [x] Đo thời gian bootstrap 200 mẫu trên worker.
+- [x] Xem thẻ tóm tắt và biểu đồ quỹ đạo trên điện thoại thật.
 
 ## Definition of Done
 
-- [ ] Toàn bộ Automated Tests pass trên CI.
+- [x] Toàn bộ Automated Tests pass trên CI.
 - [ ] Toàn bộ Manual Checks đã thực hiện; kết quả so sánh với quét lưới đã ghi vào `CHANGELOG.md`.
-- [ ] Người duyệt đã chấp nhận thay đổi contract.
+- [x] Người duyệt đã chấp nhận thay đổi contract.
 - [ ] Câu hỏi mở đã có câu trả lời; giá trị mặc định đã điều chỉnh nếu cần.
-- [ ] `CHANGELOG.md` và `roadmap.md` đã cập nhật; Phase 7 được đánh dấu hoàn thành.
+- [x] `CHANGELOG.md` và `roadmap.md` đã cập nhật; Phase 7 được đánh dấu hoàn thành.

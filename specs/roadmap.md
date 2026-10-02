@@ -159,7 +159,7 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 
 **Mục tiêu:** tìm điểm gãy theo ngưỡng suy giảm.
 
-> Tồn đọng (người dùng cho phép đóng phase): manual check trên KITTI 300 ảnh chưa làm (máy phát triển không có KITTI đầy đủ, không GPU; hướng dẫn trong `CHANGELOG.md`, Phase 7 Group 7); hai câu hỏi mở (`subset_size` 100, số mẫu bootstrap 200) chờ số liệu đó; mục "(Từ Phase 2, 6)" bên dưới kiểm cùng manual check. Migration 0006 không downgrade được khi có `cost_profiles` của spec Phase 6 (cần agent backend sửa).
+> Tồn đọng (người dùng cho phép đóng phase, cập nhật sau): manual check đã làm và đạt (người dùng xác nhận), nhưng số liệu chưa ghi vào `CHANGELOG.md` (danh sách ở mục Tổng kết Phase 7); hai câu hỏi mở (`subset_size` 100, số mẫu bootstrap 200) chờ số liệu đó; mục "(Từ Phase 2, 6)" bên dưới kiểm cùng số liệu đó. Migration 0006 không downgrade được khi có `cost_profiles` của spec Phase 6 (cần agent backend sửa). CI xanh (người dùng xác nhận, 2026-10-02).
 
 - [x] Thuật toán quét thô → chia đôi → xác nhận trên toàn slice.
 - [x] Tính trước số điểm tối đa để ước lượng chi phí tối đa.
@@ -184,6 +184,7 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 - [ ] Report PDF/JSON sinh ở server, lưu sha256; trang `/verify/:id`.
 - [ ] Audit log cho toàn bộ vòng đời experiment.
 - [ ] (Từ Phase 2) Report ghi rõ eps tính trên ảnh letterbox dạng float (không lượng tử hóa 8-bit); xem lại số failure case mỗi run (mặc định 20).
+- [ ] (Từ Phase 7) Sửa migration 0006: `downgrade` xóa `cost_profiles` của spec `not_applicable` trước; sau đó bỏ `DROP OWNED BY` trong `tests/acceptance/phase_07/conftest.py`. Sửa test email Phase 5 phụ thuộc ngày.
 
 **Demo:** engineer gửi duyệt; reviewer khác review và approve; xuất report; trang xác minh báo khớp.
 
@@ -198,6 +199,7 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 - [ ] Theo dõi uptime và thời gian chạy không; cảnh báo.
 - [ ] Worker từ xa qua Tailscale.
 - [ ] Trang admin: compute targets, ngân sách và quota.
+- [ ] (Từ Phase 7) Giữ chỗ ngân sách theo chi phí tối đa (`max_total_seconds`) khi có attack tìm ngưỡng; quyết toán theo thời gian thực.
 - [ ] (Từ Phase 3) User MinIO riêng cho api thay cho root (máy thuê làm lộ phạm vi của khóa rõ hơn); profile `gpu` và calibration trên GPU nếu chưa làm.
 
 **Demo:** thuê máy vài giờ, chạy experiment có trần ngân sách thấp, xác nhận dừng đúng và quyết toán đúng.
