@@ -6,7 +6,7 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 8 — Protocol, review và report
 
-**Trạng thái:** đang làm. Group 0 xong (chờ merge).
+**Trạng thái:** đang làm. Group 0 đã merge (2026-10-02).
 
 ### Phase 8 — Group 0 (người duyệt) — 2026-10-02
 #### Contract
@@ -68,6 +68,7 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 - **Ghi nhận, giao Group 1:** test cho `include_retired`; body `dev-open` trong migration khớp mock.
 - **Ghi nhận, giao frontend Group 4:** router mock trả cả protocol `retired` cho `/protocols`.
 - **Ghi nhận, chấp nhận:** mock experiment review không có `run_view`; `GET /reports` và `GET /reviews` không phân trang.
+- Sau khi sửa: `make check` pass (1436 test Python, 314 Vitest, 334 test nghiệm thu không cần DB). Không chạy lại `make test-db` vì phần sửa chỉ đụng contract và mock.
 - Review và phần sửa do cùng một agent làm (không độc lập).
 
 ### Phase 8 — Kickoff — 2026-10-02
