@@ -23,7 +23,12 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # Postgres không bỏ được giá trị enum; bỏ spec dùng giá trị này rồi tạo lại kiểu.
+    # Postgres không bỏ được giá trị enum; bỏ spec dùng giá trị này rồi tạo lại kiểu. Cost profile
+    # (calibration của worker) trỏ tới spec nên xóa trước (Phase 8 task 7a).
+    op.execute(
+        "DELETE FROM cost_profiles WHERE attack_spec_id IN"
+        " (SELECT id FROM attack_specs WHERE access = 'not_applicable')"
+    )
     op.execute("DELETE FROM attack_specs WHERE access = 'not_applicable'")
     op.execute("ALTER TYPE attack_access RENAME TO attack_access_old")
     op.execute("CREATE TYPE attack_access AS ENUM ('white_box', 'black_box')")

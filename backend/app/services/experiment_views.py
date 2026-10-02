@@ -16,11 +16,18 @@ from uuid import UUID
 from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
 
-from advertest_contracts.enums import EvalScope, ExperimentStatus, RunPhase, RunStatus
+from advertest_contracts.enums import (
+    EvalScope,
+    ExperimentStatus,
+    ProtocolStatus,
+    RunPhase,
+    RunStatus,
+)
 from advertest_contracts.models import (
     AttackRankingEntry,
     AttackSpec,
     CloneWarning,
+    ComplianceItem,
     ComputeTargetRef,
     ExperimentClone,
     ExperimentConfig,
@@ -45,6 +52,7 @@ from advertest_contracts.models import (
 from backend.app import storage
 from backend.app.api import pagination
 from backend.app.db import models as m
+from backend.app.protocols import compliance
 from backend.app.services import searches
 from backend.app.services.errors import NotFound
 from backend.app.services.estimate import queue_position
@@ -203,6 +211,27 @@ def detail(session: Session, experiment_id: UUID) -> ExperimentDetail:
         clean_metrics=MapPair.model_validate(clean) if clean is not None else None,
         attack_ranking=_ranking(session, config, runs),
         search_results=searches.results(session, experiment.id),
+        compliance=_compliance(session, experiment, config, protocol),
+    )
+
+
+def _compliance(
+    session: Session, experiment: m.Experiment, config: ExperimentConfig, protocol: m.Protocol
+) -> list[ComplianceItem]:
+    """Phase 8: tuân thủ protocol version đã gắn (protocol đã `retired` sau khi tạo vẫn hợp lệ)."""
+    if protocol.status == ProtocolStatus.DEV:
+        return []
+    specs = _specs(session, {attack.attack_spec_id for attack in config.attacks})
+    model = session.get(m.ModelVersion, experiment.model_version_id)
+    slice_row = session.get(m.Slice, experiment.slice_id)
+    assert model is not None and slice_row is not None  # khóa ngoại của experiment
+    return compliance.evaluate(
+        session,
+        protocol=protocol,
+        attacks=[(attack, specs[attack.attack_spec_id]) for attack in config.attacks],
+        slice_size=len(slice_row.image_ids),
+        supports_gradients=model.supports_gradients,
+        for_creation=False,
     )
 
 

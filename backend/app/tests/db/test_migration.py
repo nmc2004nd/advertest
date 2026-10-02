@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import Engine
 
 pytestmark = pytest.mark.db
+MOCKS = Path(__file__).resolve().parents[4] / "contracts" / "mocks"
 
 
 def test_upgrade_downgrade_upgrade(alembic_config: Config, owner_engine: Engine) -> None:
@@ -39,4 +42,9 @@ def test_dev_open_protocol_seeded(app_engine: Engine) -> None:
                 " WHERE name = 'dev-open'"
             )
         ).one()
-    assert row == ("2edcdef5-0d3a-5d5f-98ac-b02637fa6718", "dev", None, {})
+    # Phase 8 (migration 0009): body theo ProtocolBody v2, giống mock của contract.
+    from advertest_contracts.models import ProtocolBody
+
+    mock = MOCKS / "protocol_body" / "dev_open.json"
+    assert row[:3] == ("2edcdef5-0d3a-5d5f-98ac-b02637fa6718", "dev", None)
+    assert ProtocolBody.model_validate(row[3]) == ProtocolBody.model_validate_json(mock.read_text())

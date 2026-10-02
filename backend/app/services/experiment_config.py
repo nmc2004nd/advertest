@@ -27,12 +27,14 @@ from advertest_contracts.enums import (
 from advertest_contracts.models import (
     AttackConfig,
     AttackSpec,
+    ComplianceItem,
     ExperimentCreate,
     FieldError,
     PrimaryParam,
     RunMetrics,
 )
 from backend.app.db import models as m
+from backend.app.protocols import compliance
 from backend.app.services.errors import InvalidConfig
 from ml_core.search.bounds import search_bounds
 
@@ -56,6 +58,8 @@ class CheckedConfig:
     training_slices: dict[UUID, m.Slice] = field(default_factory=dict)
     # Phase 7: giới hạn số điểm của attack tìm ngưỡng, theo attack_spec_id.
     max_points: dict[UUID, int] = field(default_factory=dict)
+    # Phase 8: tuân thủ protocol (rỗng với protocol dev).
+    compliance: list[ComplianceItem] = field(default_factory=list)
 
     @property
     def images(self) -> int:
@@ -76,7 +80,7 @@ def _format_level(value: float) -> str:
     return f"{value:g}"
 
 
-def _level_errors(param: PrimaryParam, levels: list[float], path: str) -> list[FieldError]:
+def level_errors(param: PrimaryParam, levels: list[float], path: str) -> list[FieldError]:
     errors: list[FieldError] = []
     unit = f" {param.unit}" if param.unit else ""
     if param.type == "discrete" and param.values is not None:
@@ -103,8 +107,14 @@ def _level_errors(param: PrimaryParam, levels: list[float], path: str) -> list[F
     return errors
 
 
-def check(session: Session, body: ExperimentCreate) -> CheckedConfig:
-    """Trả cấu hình đã kiểm tra, hoặc ném `InvalidConfig` với mọi lỗi tìm được."""
+def check(
+    session: Session, body: ExperimentCreate, *, enforce_compliance: bool = True
+) -> CheckedConfig:
+    """Trả cấu hình đã kiểm tra, hoặc ném `InvalidConfig` với mọi lỗi tìm được.
+
+    Phase 8: cấu hình hợp lệ thì tính tuân thủ protocol (`CheckedConfig.compliance`). Khi tạo
+    experiment (`enforce_compliance`), không tuân thủ → `InvalidConfig` mã `not_compliant` kèm
+    mọi mục; ước lượng chỉ trả danh sách để wizard hiển thị."""
     errors: list[FieldError] = []
     not_supported = False
 
@@ -157,7 +167,7 @@ def check(session: Session, body: ExperimentCreate) -> CheckedConfig:
             continue
         assert attack.grid is not None  # mode = grid: schema bắt buộc có grid
         levels = attack.grid.levels
-        errors.extend(_level_errors(spec.primary_param, levels, f"{prefix}.grid.levels"))
+        errors.extend(level_errors(spec.primary_param, levels, f"{prefix}.grid.levels"))
         total_runs += len(levels)
         path = f"{prefix}.training_slice_id"
         if spec.requires_training:
@@ -283,6 +293,23 @@ def check(session: Session, body: ExperimentCreate) -> CheckedConfig:
         raise InvalidConfig(f"Cấu hình experiment không hợp lệ ({len(errors)} lỗi)", errors, code)
     assert model is not None and slice_row is not None and mapping is not None
     assert protocol is not None and target is not None
+    items = compliance.evaluate(
+        session,
+        protocol=protocol,
+        attacks=list(zip(body.attacks, specs, strict=True)),
+        slice_size=len(slice_row.image_ids),
+        supports_gradients=model.supports_gradients,
+        for_creation=True,
+    )
+    if enforce_compliance and not compliance.satisfied(items):
+        missing = sum(1 for item in items if not item.satisfied)
+        raise InvalidConfig(
+            f"Cấu hình chưa tuân thủ protocol {protocol.name} v{protocol.version}"
+            f" ({missing} mục chưa thỏa)",
+            [],
+            ErrorCode.NOT_COMPLIANT,
+            compliance=items,
+        )
     return CheckedConfig(
         body,
         model,
@@ -293,6 +320,7 @@ def check(session: Session, body: ExperimentCreate) -> CheckedConfig:
         specs,
         {row.id: row for _, _, row in training},
         max_points,
+        items,
     )
 
 

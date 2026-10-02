@@ -91,6 +91,7 @@ from backend.app.auth import sessions
 from backend.app.auth.deps import CurrentUser, Principal
 from backend.app.auth.permissions import guard
 from backend.app.db import models as m
+from backend.app.protocols import service as protocol_service
 from backend.app.services import (
     artifacts,
     catalog,
@@ -391,8 +392,9 @@ PHASE8_RESPONSES: dict[int | str, dict[str, Any]] = NOT_IMPLEMENTED_RESPONSE | {
     responses=PHASE8_RESPONSES,
     **guard(P.PROTOCOL_READ),
 )
-def get_protocol(protocol_id: UUID) -> ProtocolView:
-    not_implemented()
+def get_protocol(protocol_id: UUID, factory: Sessions) -> ProtocolView:
+    with transaction(factory) as session:
+        return protocol_service.get(session, protocol_id)
 
 
 @router.post(
@@ -402,10 +404,12 @@ def get_protocol(protocol_id: UUID) -> ProtocolView:
     responses=PHASE8_RESPONSES,
     **guard(P.PROTOCOL_MANAGE),
 )
-def create_protocol(body: ProtocolCreate) -> ProtocolView:
+def create_protocol(body: ProtocolCreate, user: CurrentUser, factory: Sessions) -> ProtocolView:
     """Tạo protocol `active` version 1 (422 khi attack spec không có, `spec_sha256` không khớp,
     patch ở chế độ tìm ngưỡng, hoặc vượt `MAX_RUNS`)."""
-    not_implemented()
+    # 409 khi đã có protocol cùng tên (dùng tạo version mới).
+    with transaction(factory) as session:
+        return protocol_service.create(session, actor=_actor(session, user), body=body)
 
 
 @router.post(
@@ -415,10 +419,15 @@ def create_protocol(body: ProtocolCreate) -> ProtocolView:
     responses=PHASE8_RESPONSES,
     **guard(P.PROTOCOL_MANAGE),
 )
-def create_protocol_version(protocol_id: UUID, body: ProtocolVersionCreate) -> ProtocolView:
+def create_protocol_version(
+    protocol_id: UUID, body: ProtocolVersionCreate, user: CurrentUser, factory: Sessions
+) -> ProtocolView:
     """Version mới cùng `name` từ version mới nhất (409 nếu không phải); version cũ chuyển
     `retired` trong cùng giao dịch."""
-    not_implemented()
+    with transaction(factory) as session:
+        return protocol_service.create_version(
+            session, actor=_actor(session, user), protocol_id=protocol_id, body=body
+        )
 
 
 @router.post(
@@ -427,9 +436,12 @@ def create_protocol_version(protocol_id: UUID, body: ProtocolVersionCreate) -> P
     responses=PHASE8_RESPONSES,
     **guard(P.PROTOCOL_MANAGE),
 )
-def retire_protocol(protocol_id: UUID) -> ProtocolView:
+def retire_protocol(protocol_id: UUID, user: CurrentUser, factory: Sessions) -> ProtocolView:
     """`active` → `retired` (409 với trạng thái khác)."""
-    not_implemented()
+    with transaction(factory) as session:
+        return protocol_service.retire(
+            session, actor=_actor(session, user), protocol_id=protocol_id
+        )
 
 
 @router.get("/compute-targets", tags=["compute-targets"], **guard(P.COMPUTE_TARGET_READ))
@@ -502,7 +514,8 @@ def create_experiment(
 def estimate_experiment(body: ExperimentCreate, factory: Sessions) -> EstimateResponse:
     """Kiểm tra cấu hình như khi tạo; không tạo gì."""
     with transaction(factory) as session:
-        return estimate.estimate_config(session, experiment_config.check(session, body))
+        checked = experiment_config.check(session, body, enforce_compliance=False)
+        return estimate.estimate_config(session, checked)
 
 
 @router.get(

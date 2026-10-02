@@ -27,6 +27,8 @@ EXPECTED_TABLES = {
     "email_outbox",
     # Phase 6
     "patches",
+    # Phase 8
+    "run_explanations", "review_comments",
 }  # fmt: skip
 APPEND_ONLY = [
     "audit_log", "case_verdicts", "reviews", "reports", "ledger_entries", "auth_events",
@@ -51,6 +53,11 @@ PG_ENUMS = {
     "protocol_status": enums.ProtocolStatus,
     "auth_event_kind": m.AuthEventKind,
     "email_status": m.EmailStatus,
+    # Phase 8.
+    "case_verdict_kind": enums.CaseVerdictKind,
+    "model_verdict": enums.ModelVerdict,
+    "report_status": enums.ReportStatus,
+    "comment_target_type": enums.CommentTargetType,
 }
 
 SHA = "a" * 64
