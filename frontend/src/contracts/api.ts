@@ -732,11 +732,7 @@ export interface paths {
          */
         get: operations["list_case_verdicts_failure_cases__case_id__verdicts_get"];
         put?: never;
-        /**
-         * Add Case Verdict
-         * @description Chỉ người đang nhận review (403); tạo version mới.
-         */
-        post: operations["add_case_verdict_failure_cases__case_id__verdicts_post"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -840,6 +836,28 @@ export interface paths {
          *     chưa đủ → 409 `checklist_incomplete` kèm `checklist`.
          */
         post: operations["decide_review_reviews__experiment_id__decision_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reviews/{experiment_id}/cases/{case_id}/verdicts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Case Verdict
+         * @description Chỉ người đang nhận review (403); case phải thuộc experiment (404); tạo version mới.
+         *     Đặt dưới `/reviews` vì API người dùng không có endpoint ghi dưới `/failure-cases`
+         *     (test kiến trúc Phase 3).
+         */
+        post: operations["add_case_verdict_reviews__experiment_id__cases__case_id__verdicts_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7962,86 +7980,6 @@ export interface operations {
             };
         };
     };
-    add_case_verdict_failure_cases__case_id__verdicts_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                case_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CaseVerdictInput"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CaseVerdictView"];
-                };
-            };
-            /** @description Thiếu phiên hợp lệ */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Thiếu permission */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Không tìm thấy */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Sai trạng thái */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ) */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Chưa cài đặt */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
     get_artifact_artifacts__token__get: {
         parameters: {
             query?: never;
@@ -8343,6 +8281,87 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ExperimentDetail"];
+                };
+            };
+            /** @description Thiếu phiên hợp lệ */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Thiếu permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Không tìm thấy */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Sai trạng thái */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Chưa cài đặt */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    add_case_verdict_reviews__experiment_id__cases__case_id__verdicts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: string;
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CaseVerdictInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaseVerdictView"];
                 };
             };
             /** @description Thiếu phiên hợp lệ */

@@ -57,6 +57,8 @@ ENUMS = {
         "account_disabled", "rate_limited", "csrf_failed", "validation_error",
         # Phase 5 (requirements.md Phase 5, ErrorCode bổ sung; internal_error: plan.md task 1a).
         "not_supported_yet", "queue_limit_reached", "internal_error",
+        # Phase 8 (requirements.md Phase 8, Chốt ở Group 0).
+        "not_compliant", "experiment_locked", "checklist_incomplete",
     },
     "ProtocolStatus": {"active", "retired", "dev"},
     # Phase 5: cách hiển thị ảnh failure case.

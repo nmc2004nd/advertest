@@ -643,18 +643,6 @@ def list_case_verdicts(case_id: UUID) -> list[CaseVerdictView]:
     not_implemented()
 
 
-@router.post(
-    "/failure-cases/{case_id}/verdicts",
-    tags=["failure-cases"],
-    status_code=status.HTTP_201_CREATED,
-    responses=PHASE8_RESPONSES,
-    **guard(P.REVIEW_DECIDE),
-)
-def add_case_verdict(case_id: UUID, body: CaseVerdictInput) -> CaseVerdictView:
-    """Chỉ người đang nhận review (403); tạo version mới."""
-    not_implemented()
-
-
 @router.get(
     "/artifacts/{token}",
     tags=["artifacts"],
@@ -732,6 +720,20 @@ def release_review(experiment_id: UUID) -> ExperimentDetail:
 def decide_review(experiment_id: UUID, body: ReviewDecisionInput) -> ExperimentDetail:
     """Thứ tự kiểm tra: không phải người đang nhận → 403; thiếu trường nhập → 422; checklist
     chưa đủ → 409 `checklist_incomplete` kèm `checklist`."""
+    not_implemented()
+
+
+@router.post(
+    "/reviews/{experiment_id}/cases/{case_id}/verdicts",
+    tags=["reviews"],
+    status_code=status.HTTP_201_CREATED,
+    responses=PHASE8_RESPONSES,
+    **guard(P.REVIEW_DECIDE),
+)
+def add_case_verdict(experiment_id: UUID, case_id: UUID, body: CaseVerdictInput) -> CaseVerdictView:
+    """Chỉ người đang nhận review (403); case phải thuộc experiment (404); tạo version mới.
+    Đặt dưới `/reviews` vì API người dùng không có endpoint ghi dưới `/failure-cases`
+    (test kiến trúc Phase 3)."""
     not_implemented()
 
 
