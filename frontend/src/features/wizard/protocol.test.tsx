@@ -81,12 +81,9 @@ describe('reducer với protocol', () => {
       requiresTraining: false,
     })
     expect(toggled).toBe(draft)
-    const moded = reducer(draft, {
-      type: 'mode',
-      attackSpecId: fgsm.id,
-      mode: 'search',
-      defaults: requiredLocks(search.body, specs).locks[1].search!,
-    })
+    const defaults = requiredLocks(search.body, specs).locks.find((l) => l.search)?.search
+    if (!defaults) throw new Error('Thiếu cấu hình tìm ngưỡng trong mock')
+    const moded = reducer(draft, { type: 'mode', attackSpecId: fgsm.id, mode: 'search', defaults })
     expect(moded).toBe(draft)
   })
 
