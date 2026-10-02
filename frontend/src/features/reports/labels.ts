@@ -1,5 +1,5 @@
 /** Nhãn của report (plan task 32). */
-import type { ReportStatus, ReportTimelineEvent } from '@/contracts/api'
+import type { ReportRun, ReportStatus, ReportTimelineEvent } from '@/contracts/api'
 
 /** Dải trên trang report, cùng chữ với chân trang PDF. */
 export const OFFICIAL = 'BẢN CHÍNH THỨC'
@@ -22,3 +22,9 @@ export const percent = (value: number | null | undefined): string =>
 
 export const decimal = (value: number | null | undefined, digits = 3): string =>
   value === null || value === undefined ? '—' : value.toFixed(digits)
+
+/** Phạm vi run (Phase 7): tập con trong giai đoạn tìm kiếm, toàn slice cho kết quả cuối. */
+export const SCOPE_LABEL: Record<ReportRun['scope'], string> = {
+  full: 'Toàn slice',
+  subset: 'Tập con',
+}

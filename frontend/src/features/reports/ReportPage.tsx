@@ -21,7 +21,14 @@ import { criterionText } from '@/features/reviews/decision'
 import { KIND_LABEL, SEVERITY_LABEL } from '@/features/reviews/verdict'
 
 import { useDownloadReport, useRegenerateReport, useReport } from './api'
-import { decimal, OFFICIAL, percent, REPORT_STATUS_LABEL, TIMELINE_LABEL } from './labels'
+import {
+  decimal,
+  OFFICIAL,
+  percent,
+  REPORT_STATUS_LABEL,
+  SCOPE_LABEL,
+  TIMELINE_LABEL,
+} from './labels'
 
 function Section({ n, title, children }: { n: number; title: string; children: ReactNode }) {
   return (
@@ -233,8 +240,8 @@ export function SnapshotView({ snapshot }: { snapshot: ReportSnapshot }) {
                   {s.bracket && ` trong (${s.bracket[0]}, ${s.bracket[1]}]`}
                   {s.confidence_interval &&
                     ` · khoảng tin cậy [${s.confidence_interval[0]}, ${s.confidence_interval[1]}]`}
-                  {` · ${s.status ?? '—'}`}
                 </p>
+                {s.status && <StatusBadge kind="search" status={s.status} />}
               </li>
             ))}
           </ul>
@@ -269,7 +276,7 @@ export function SnapshotView({ snapshot }: { snapshot: ReportSnapshot }) {
             <tr key={run.run_id}>
               <td className={td}>{run.attack_spec_name}</td>
               <td className={td}>{run.level}</td>
-              <td className={td}>{run.scope}</td>
+              <td className={td}>{SCOPE_LABEL[run.scope]}</td>
               <td className={td}>
                 <StatusBadge kind="run" status={run.status} />
               </td>

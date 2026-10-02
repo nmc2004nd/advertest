@@ -3,7 +3,13 @@ import { Route, Routes } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { listMocks } from '@/api/mocks'
-import type { ExperimentDetail, ReportDetail, ReportView, VerifyInfo } from '@/contracts/api'
+import type {
+  ExperimentDetail,
+  ReportDetail,
+  ReportSnapshot,
+  ReportView,
+  VerifyInfo,
+} from '@/contracts/api'
 import { experimentKey } from '@/features/experiments/api'
 import { ExperimentDetailPage } from '@/features/experiments/ExperimentDetailPage'
 import { expectLabelledControls, render } from '@/test-utils'
@@ -145,6 +151,22 @@ describe('trang report', () => {
     for (const note of snapshot.notes) expect(html).toContain(note.text)
     for (const run of snapshot.runs) expect(html).toContain(run.attack_spec_name)
     expect(html).toContain(snapshot.summary.conclusion)
+  })
+
+  it('mã trạng thái tìm ngưỡng và phạm vi run hiện bằng tiếng Việt (review Group 6, #1)', () => {
+    const glob = import.meta.glob<ReportSnapshot>(
+      '../../../../contracts/mocks/report_snapshot/search_dirty.json',
+      { eager: true, import: 'default' },
+    )
+    const snapshot = Object.values(glob)[0]
+    expect(snapshot.results.searches.length).toBeGreaterThan(0)
+    expect(snapshot.runs.some((r) => r.scope === 'subset')).toBe(true)
+    const html = reportPage({ report: ready.report, snapshot }, 'reviewer')
+    expect(html).toContain('Toàn slice')
+    expect(html).toContain('Tập con')
+    expect(html).toContain('data-kind="search"')
+    expect(html).not.toMatch(/>(full|subset)</)
+    for (const s of snapshot.results.searches) expect(html).not.toContain(` · ${s.status}`)
   })
 
   it('reviewer (report.export) thấy nút tải; engineer và admin không thấy', () => {
