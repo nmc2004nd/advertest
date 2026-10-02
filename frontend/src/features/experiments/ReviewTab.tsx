@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router'
 
 import { formatDateTime } from '@/admin/format'
 import { errorMessage } from '@/api/messages'
@@ -9,6 +10,7 @@ import { LoadError } from '@/components/LoadError'
 import { StatusBadge } from '@/components/status/StatusBadge'
 import { Button } from '@/components/ui/button'
 import type { ExperimentDetail, ReviewComment, RunView } from '@/contracts/api'
+import { REPORT_STATUS_LABEL } from '@/features/reports/labels'
 
 import { runLabel } from './format'
 import { useAddComment, useComments } from './review-api'
@@ -104,6 +106,17 @@ export function ReviewTab({ experiment, runs }: { experiment: ExperimentDetail; 
           {review.mitigation && <p>Biện pháp khắc phục: {review.mitigation}</p>}
           {review.inconclusive_justification && (
             <p>Giải trình tiêu chí chưa kết luận: {review.inconclusive_justification}</p>
+          )}
+          {experiment.report && (
+            // Phase 8 Group 6: report chính thức của experiment đã chấp nhận.
+            <p data-testid="link-report">
+              <Link to={`/reports/${experiment.report.id}`} className="font-medium underline">
+                Report chính thức
+              </Link>{' '}
+              <span className="text-muted-foreground">
+                ({REPORT_STATUS_LABEL[experiment.report.status]})
+              </span>
+            </p>
           )}
         </section>
       )}

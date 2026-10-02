@@ -55,8 +55,9 @@ test('admin duyệt với role engineer; người dùng vào /home, điều hư�
   const nav = visibleNav(user, info)
   await expect(nav).toBeVisible()
   // Phase 5 Group 6: engineer có thêm "Experiment" và "Tạo experiment" (plan.md Phase 5, task 37).
-  // Phase 8 Group 5: thêm "Protocol" (protocol.read); trên điện thoại 5 mục nên thanh tab còn
-  // 3 mục đầu, "Protocol" và "Tài khoản" nằm trong "Thêm" (người dùng cho phép sửa, 2026-10-02).
+  // Phase 8 Group 5, 6: thêm "Protocol" (protocol.read) và "Report" (report.read); trên điện thoại
+  // 6 mục nên thanh tab còn 3 mục đầu, phần còn lại nằm trong "Thêm" (người dùng cho phép sửa,
+  // 2026-10-02).
   await expect(nav.getByRole('link', { name: 'Trang chủ' })).toBeVisible()
   await expect(nav.getByRole('link', { name: 'Experiment', exact: true })).toBeVisible()
   await expect(nav.getByRole('link', { name: 'Tạo experiment' })).toBeVisible()
@@ -66,12 +67,14 @@ test('admin duyệt với role engineer; người dùng vào /home, điều hư�
     await expect(nav.getByRole('link')).toHaveCount(3)
     await nav.getByRole('button', { name: 'Thêm' }).click()
     const more = user.getByRole('dialog')
-    await expect(more.getByRole('link')).toHaveCount(2)
+    await expect(more.getByRole('link')).toHaveCount(3)
     await expect(more.getByRole('link', { name: 'Protocol' })).toBeVisible()
+    await expect(more.getByRole('link', { name: 'Report' })).toBeVisible()
     await expect(more.getByRole('link', { name: 'Tài khoản' })).toBeVisible()
   } else {
-    await expect(nav.getByRole('link')).toHaveCount(5)
+    await expect(nav.getByRole('link')).toHaveCount(6)
     await expect(nav.getByRole('link', { name: 'Protocol' })).toBeVisible()
+    await expect(nav.getByRole('link', { name: 'Report' })).toBeVisible()
     await expect(nav.getByRole('link', { name: 'Tài khoản' })).toBeVisible()
   }
 })
