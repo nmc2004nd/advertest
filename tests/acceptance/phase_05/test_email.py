@@ -63,7 +63,10 @@ def test_smtp_failure_retried_then_failed_without_touching_experiment(
             attempts.append(outbox.to)
             raise ConnectionRefusedError(111, "Connection refused")
 
-    now = [api.clock.now + timedelta(days=1)]
+    # Mốc đầu là lúc email tới hạn gửi (`next_attempt_at` mặc định `now()` của DB, giờ thật),
+    # không phải đồng hồ giả: test không phụ thuộc ngày chạy (Phase 8 task 37).
+    (queued,) = _emails(app_engine, email)
+    now = [queued.next_attempt_at + timedelta(minutes=1)]
     for _ in range(10):  # đủ để qua mọi mốc backoff
         notifications.deliver_once(sessionmaker(app_engine), broken, lambda: now[0])
         now[0] += timedelta(minutes=10)

@@ -63,8 +63,9 @@ SUBSET = 3  # < 5 ảnh của slice fixture
 def owner_engine(alembic_config: Config) -> Iterator[Engine]:
     """DB sạch rồi `upgrade head`, như Phase 5 nhưng xóa bằng `DROP OWNED BY` thay cho `downgrade
     base`: chạy chung phiên sau Phase 6, `downgrade` của migration 0006 (xóa spec
-    `not_applicable`) vướng khóa ngoại từ `cost_profiles` mà test Phase 6 đã tạo cho các spec đó
-    (lỗi của 0006, báo cáo Group 7 Phase 7)."""
+    `not_applicable`) vướng run Phase 6 trỏ tới các spec đó. Migration không xóa dữ liệu thật khi
+    downgrade, nên dựng DB test bằng `DROP OWNED BY` là cách chính thức (Phase 8 task 37, người
+    dùng chốt 2026-10-02)."""
     engine = create_engine(P5.env("ADVERTEST_TEST_OWNER_URL"))
     with engine.begin() as conn:
         conn.execute(text("DROP OWNED BY advertest_owner"))
