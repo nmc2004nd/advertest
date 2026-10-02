@@ -3408,6 +3408,11 @@ export interface components {
             /** Param Unit */
             param_unit: string;
             /**
+             * Requires Training
+             * @description Patch (Phase 6): cần note patch_fixed_position
+             */
+            requires_training: boolean;
+            /**
              * Required
              * @description Là attack bắt buộc của protocol
              */

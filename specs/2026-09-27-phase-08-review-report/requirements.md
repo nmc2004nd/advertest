@@ -112,10 +112,10 @@ Chi tiết contract (nguồn sự thật: `contracts/python/advertest_contracts/
   - `review` (`ReviewView`): có khi và chỉ khi đã gửi duyệt. Gồm `submitted_at`, `submission_note`, `run_explanations`, `assignee`, `claimed_at`, quyết định, `criteria_results`, `checklist`, `required_cases` (kèm `current_verdict`, `display_mode`), `comments_count`;
   - `report`: chỉ khi `approved`.
   - Người nhận review khác người tạo (kiểm cả trong contract).
-- **`ReviewDecisionInput`:** `approve` thiếu `model_verdict` hoặc `mitigation` → 422 ngay ở contract. Thiếu `inconclusive_justification` khi có tiêu chí `inconclusive` → 422 ở backend.
+- **`ReviewDecisionInput`:** `approve` thiếu `model_verdict` hoặc `mitigation` → 422 ngay ở contract. Thiếu `inconclusive_justification` khi có tiêu chí `inconclusive` → 422 ở backend. `changes_requested` và `reject` được gửi kèm `model_verdict`, `mitigation`, `inconclusive_justification` (ví dụ gợi ý mitigation khi yêu cầu sửa); backend lưu và `ReviewView` trả lại (review Group 0).
 - **`ReportSnapshot`:**
   - các khóa `summary`, `notes`, `configuration`, `results`, `runs`, `reviewed_cases`, `history`, `reproducibility`, `resources`, tương ứng 9 mục;
-  - `notes` luôn có `test_environment_only` và `input_space`; có `git_dirty` khi và chỉ khi có run `git_dirty` (protocol phải cho phép);
+  - `notes` luôn có `test_environment_only` và `input_space`; bắt buộc thêm `anonymization` khi có `reviewed_cases`, `excluded_classes` khi class mapping loại class, `occlusion_stress` khi có attack `occlusion`, `patch_fixed_position` khi có attack `requires_training` (patch; `ReportAttackSpec` có trường này) (review Group 0); có `git_dirty` khi và chỉ khi có run `git_dirty` (protocol phải cho phép);
   - `reviewed_cases` chỉ gồm case `anonymization.applied`;
   - `history.timeline` gồm `experiment.submitted`, `review.claimed`, `review.released`, `review.decided`;
   - file JSON là `canonical_json(snapshot)`.

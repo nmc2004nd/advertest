@@ -144,6 +144,7 @@
         "spec_sha256": "a6d81b6643af13e1d2f7983ce51340f54c26629304f1fdd98b954c236c1e735f",
         "param_name": "eps",
         "param_unit": "1/255",
+        "requires_training": false,
         "required": true
       },
       {
@@ -154,6 +155,7 @@
         "spec_sha256": "68fe8f72f176fe27981eadfe8b5e98bb36b8e85fc41c97b5702e2e149f52d72c",
         "param_name": "eps",
         "param_unit": "1/255",
+        "requires_training": false,
         "required": true
       },
       {
@@ -164,6 +166,7 @@
         "spec_sha256": "fb54ce834934be1340423f2fb4283b37766e2c1ca74a8fceea9b762e64f7351e",
         "param_name": "eps",
         "param_unit": "L2",
+        "requires_training": false,
         "required": false
       }
     ],

@@ -62,6 +62,14 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
   - bảng `reports` có thêm quyền `UPDATE` kèm trigger (kickoff);
   - cột `case_verdicts.verdict` (Phase 0, `NOT NULL`) không còn trong contract, nên migration cần quyết định xóa cột hay cho null.
 
+#### Review (phase-review, 2026-10-02)
+- **#1 (người dùng chọn sửa trước khi merge):** `ReportSnapshot` bắt buộc thêm lưu ý theo nội dung report. Có case đã review → `anonymization`; class mapping loại class → `excluded_classes`; có attack occlusion → `occlusion_stress`; có attack `requires_training` (patch) → `patch_fixed_position`. `ReportAttackSpec` thêm `requires_training`. Có test mới.
+- **#2 (người dùng chấp nhận, ghi vào `requirements.md`):** `changes_requested` và `reject` được gửi kèm `model_verdict`, `mitigation`, `inconclusive_justification`; backend lưu lại.
+- **Ghi nhận, giao Group 1:** test cho `include_retired`; body `dev-open` trong migration khớp mock.
+- **Ghi nhận, giao frontend Group 4:** router mock trả cả protocol `retired` cho `/protocols`.
+- **Ghi nhận, chấp nhận:** mock experiment review không có `run_view`; `GET /reports` và `GET /reviews` không phân trang.
+- Review và phần sửa do cùng một agent làm (không độc lập).
+
 ### Phase 8 — Kickoff — 2026-10-02
 Người dùng chốt 6 câu hỏi (ghi vào `requirements.md`, `plan.md`, `validation.md`):
 1. `reports` được `UPDATE` kèm trigger, dòng đã `ready` là bất biến, `report_id` không đổi khi sinh lại.

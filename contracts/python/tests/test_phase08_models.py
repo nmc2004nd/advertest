@@ -324,3 +324,33 @@ def test_review_comment_permission() -> None:
     assert Permission.REVIEW_COMMENT in ROLE_PERMISSIONS[Role.ENGINEER]
     assert Permission.REVIEW_COMMENT in ROLE_PERMISSIONS[Role.REVIEWER]
     assert Permission.REVIEW_COMMENT not in ROLE_PERMISSIONS[Role.ADMIN]
+
+
+@pytest.mark.parametrize(
+    ("code", "change"),
+    [
+        ("anonymization", None),
+        ("excluded_classes", None),
+        ("occlusion_stress", {"kind": "occlusion"}),
+        ("patch_fixed_position", {"requires_training": True}),
+    ],
+)
+def test_report_snapshot_conditional_notes(code: str, change: dict[str, Any] | None) -> None:
+    """Lưu ý bắt buộc theo nội dung (review Group 0 #1): case đã review → phương pháp làm mờ;
+    class bị loại; occlusion; patch."""
+    snap = mock("report_snapshot", "approved_grid")
+    snap["notes"] = [n for n in snap["notes"] if n["code"] != code]
+    if change is not None:
+        snap["configuration"]["attack_specs"][0].update(change)
+    invalid(ReportSnapshot, snap, code)
+
+
+def test_report_snapshot_conditional_notes_not_needed() -> None:
+    snap = mock("report_snapshot", "search_dirty")
+    assert snap["reviewed_cases"] == []
+    snap["notes"] = [
+        n
+        for n in snap["notes"]
+        if n["code"] not in {"anonymization", "occlusion_stress", "patch_fixed_position"}
+    ]
+    ReportSnapshot.model_validate(snap)

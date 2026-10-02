@@ -10615,6 +10615,11 @@
             "type": "string",
             "title": "Param Unit"
           },
+          "requires_training": {
+            "type": "boolean",
+            "title": "Requires Training",
+            "description": "Patch (Phase 6): cần note patch_fixed_position"
+          },
           "required": {
             "type": "boolean",
             "title": "Required",
@@ -10631,6 +10636,7 @@
           "spec_sha256",
           "param_name",
           "param_unit",
+          "requires_training",
           "required"
         ],
         "title": "ReportAttackSpec"

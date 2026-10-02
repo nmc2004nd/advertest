@@ -2851,6 +2851,7 @@ class ReportAttackSpec(_Model):
     spec_sha256: Sha256Hex
     param_name: str
     param_unit: str
+    requires_training: bool = Field(description="Patch (Phase 6): cần note patch_fixed_position")
     required: bool = Field(description="Là attack bắt buộc của protocol")
 
 
@@ -3010,6 +3011,20 @@ class ReportSnapshot(_Model):
             raise ValueError("notes không được trùng code")
         if not set(codes) >= _MANDATORY_NOTES:
             raise ValueError("notes thiếu lưu ý bắt buộc (test_environment_only, input_space)")
+        specs = self.configuration.attack_specs
+        conditional = {
+            ReportNoteCode.ANONYMIZATION: bool(self.reviewed_cases),
+            ReportNoteCode.OCCLUSION_STRESS: any(s.kind == AttackKind.OCCLUSION for s in specs),
+            ReportNoteCode.PATCH_FIXED_POSITION: any(s.requires_training for s in specs),
+            ReportNoteCode.EXCLUDED_CLASSES: bool(
+                self.configuration.class_mapping.excluded_classes
+            ),
+        }
+        missing = [
+            code.value for code, needed in conditional.items() if needed and code not in codes
+        ]
+        if missing:
+            raise ValueError(f"notes thiếu lưu ý bắt buộc theo nội dung report: {missing}")
         run_ids = [r.run_id for r in self.runs]
         if len(set(run_ids)) != len(run_ids):
             raise ValueError("runs không được trùng")
