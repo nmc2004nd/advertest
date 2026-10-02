@@ -1,7 +1,7 @@
 {
-  "id": "e3bff0f7-a35c-512c-9a16-9d524e95cfa5",
+  "id": "48404c1f-448f-582f-b5ba-6f056348ac59",
   "name": "kitti-baseline",
-  "version": 1,
+  "version": 2,
   "status": "active",
-  "body_sha256": "7facca1b835dfa5cb07a26f234d1d6573360a8825369660e068806d7c96629ab"
+  "body_sha256": "bcb2c15c76c388df4e77e9c9ad6ef7e8535d5a8c8fa92d43964fc9648159ce90"
 }

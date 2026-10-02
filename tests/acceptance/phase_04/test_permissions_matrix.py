@@ -7,7 +7,8 @@ import pytest
 from advertest_contracts.enums import Role
 from advertest_contracts.permissions import ROLE_PERMISSIONS, Permission
 
-# Bảng "Ma trận quyền" của specs/2026-09-27-phase-04-auth-rbac/requirements.md (E, R, A).
+# Bảng "Ma trận quyền" của specs/2026-09-27-phase-04-auth-rbac/requirements.md (E, R, A); Phase 8
+# thêm review.comment (requirements.md Phase 8, Ma trận quyền).
 TABLE = """
 experiment.read           E R A
 experiment.create         E . .
@@ -23,6 +24,7 @@ attack_catalog.manage     . . A
 protocol.read             E R A
 protocol.manage           . R .
 review.decide             . R .
+review.comment            E R .
 report.export             . R .
 report.read               E R A
 user.manage               . . A

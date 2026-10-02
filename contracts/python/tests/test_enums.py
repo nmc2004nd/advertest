@@ -65,6 +65,10 @@ EXPECTED = {
         "not_supported_yet",
         "queue_limit_reached",
         "internal_error",
+        # Phase 8.
+        "not_compliant",
+        "experiment_locked",
+        "checklist_incomplete",
     },
     # Phase 3: protocol phát triển dev-open.
     "ProtocolStatus": {"active", "retired", "dev"},
@@ -76,6 +80,44 @@ EXPECTED = {
     # Phase 7: giai đoạn tìm ngưỡng, tập ảnh của run.
     "SearchStage": {"coarse", "bisect_subset", "confirm", "bisect_full", "done"},
     "EvalScope": {"full", "subset"},
+    # Phase 8: protocol, review, report (requirements.md mục Enum mới; Group 0 thêm các enum mã).
+    "CaseVerdictKind": {"safety_relevant", "acceptable", "annotation_issue"},
+    "ModelVerdict": {"meets_criteria", "does_not_meet", "conditional"},
+    "CriterionKind": {"max_drop_at_level", "min_breaking_point"},
+    "CriterionStatus": {"pass", "fail", "inconclusive"},
+    "ReportStatus": {"generating", "ready", "failed"},
+    "CommentTargetType": {"experiment", "run", "failure_case"},
+    "ComplianceCode": {
+        "protocol_active",
+        "attack_present",
+        "spec_sha256",
+        "mode",
+        "grid_levels",
+        "search_threshold",
+        "search_range",
+        "search_tol",
+        "search_bootstrap",
+        "min_slice_size",
+        "model_gradients",
+    },
+    "ChecklistCode": {"protocol_not_dev", "required_cases_reviewed"},
+    "SubmitCheckCode": {
+        "experiment_completed",
+        "protocol_not_dev",
+        "runs_final",
+        "no_dirty_runs",
+        "required_cases_visible",
+    },
+    "ReviewQueueFilter": {"waiting", "mine", "decided"},
+    "ReportNoteCode": {
+        "test_environment_only",
+        "input_space",
+        "occlusion_stress",
+        "patch_fixed_position",
+        "anonymization",
+        "git_dirty",
+        "excluded_classes",
+    },
 }
 
 

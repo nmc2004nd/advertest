@@ -1,0 +1,63 @@
+{
+  "body": {
+    "schema_version": 2,
+    "description": "Kiểm thử cơ bản trên KITTI (v2): thêm PGD L∞ eps 8 và tiêu chí tại eps 8.",
+    "required_attacks": [
+      {
+        "attack_spec_name": "fgsm",
+        "spec_sha256": "a6d81b6643af13e1d2f7983ce51340f54c26629304f1fdd98b954c236c1e735f",
+        "mode": "grid",
+        "grid": {
+          "levels": [
+            2,
+            4,
+            8
+          ]
+        },
+        "search": null
+      },
+      {
+        "attack_spec_name": "pgd_linf",
+        "spec_sha256": "68fe8f72f176fe27981eadfe8b5e98bb36b8e85fc41c97b5702e2e149f52d72c",
+        "mode": "grid",
+        "grid": {
+          "levels": [
+            2,
+            4,
+            8
+          ]
+        },
+        "search": null
+      }
+    ],
+    "min_slice_size": 300,
+    "pass_criteria": [
+      {
+        "kind": "max_drop_at_level",
+        "attack_spec_name": "fgsm",
+        "level": 4,
+        "threshold_kind": "relative_drop",
+        "threshold": 0.5,
+        "class_filter": null
+      },
+      {
+        "kind": "max_drop_at_level",
+        "attack_spec_name": "pgd_linf",
+        "level": 2,
+        "threshold_kind": "relative_drop",
+        "threshold": 0.3,
+        "class_filter": null
+      },
+      {
+        "kind": "max_drop_at_level",
+        "attack_spec_name": "pgd_linf",
+        "level": 8,
+        "threshold_kind": "relative_drop",
+        "threshold": 0.9,
+        "class_filter": null
+      }
+    ],
+    "cases_to_review_per_attack": 5,
+    "forbid_dirty_runs": true
+  }
+}

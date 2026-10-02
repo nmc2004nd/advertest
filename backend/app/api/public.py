@@ -19,13 +19,15 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, Request, Response, Security, status
 from sqlalchemy.orm import Session
 
-from advertest_contracts.enums import ErrorCode, ExperimentStatus, UserStatus
+from advertest_contracts.enums import ErrorCode, ExperimentStatus, ReviewQueueFilter, UserStatus
 from advertest_contracts.models import (
     AccessRequest,
     ApproveRequest,
     AttackSpec,
     AttackSpecAdminPage,
     AuditLogPage,
+    CaseVerdictInput,
+    CaseVerdictView,
     ClassMappingSummary,
     ComputeTargetPublic,
     DatasetSummary,
@@ -44,14 +46,25 @@ from advertest_contracts.models import (
     PasswordChange,
     PasswordResetConsume,
     PasswordResetLink,
-    ProtocolBody,
+    ProtocolCreate,
     ProtocolSummary,
+    ProtocolVersionCreate,
+    ProtocolView,
     RejectRequest,
+    ReportDetail,
+    ReportDownload,
+    ReportView,
+    ReviewComment,
+    ReviewCommentCreate,
+    ReviewDecisionInput,
+    ReviewQueueItem,
     RolesUpdate,
     RunView,
     SliceSummary,
+    SubmitForReview,
     UserAdminPage,
     UserAdminView,
+    VerifyInfo,
 )
 from advertest_contracts.permissions import AUTHENTICATED
 from advertest_contracts.permissions import Permission as P
@@ -357,14 +370,65 @@ def list_attack_specs_admin(
 
 
 @router.get("/protocols", tags=["protocols"], **guard(P.PROTOCOL_READ))
-def list_protocols(factory: Sessions) -> list[ProtocolSummary]:
-    """Protocol trạng thái `active` và `dev`."""
+def list_protocols(factory: Sessions, include_retired: bool = False) -> list[ProtocolSummary]:
+    """Protocol trạng thái `active` và `dev`; `include_retired=true` thêm `retired` (trang
+    `/protocols` của reviewer, Phase 8)."""
     with transaction(factory) as session:
-        return catalog.list_protocols(session)
+        return catalog.list_protocols(session, include_retired=include_retired)
 
 
-@router.post("/protocols", tags=["protocols"], **guard(P.PROTOCOL_MANAGE))
-def create_protocol(body: ProtocolBody) -> None:
+# Phase 8 Group 0: khung (501) cho protocol, gửi duyệt, review, report và xác minh; Group 1-3
+# cài đặt (requirements.md Phase 8, Behaviour).
+PHASE8_RESPONSES: dict[int | str, dict[str, Any]] = NOT_IMPLEMENTED_RESPONSE | {
+    status.HTTP_404_NOT_FOUND: {"model": ErrorResponse, "description": "Không tìm thấy"},
+    status.HTTP_409_CONFLICT: {"model": ErrorResponse, "description": "Sai trạng thái"},
+}
+
+
+@router.get(
+    "/protocols/{protocol_id}",
+    tags=["protocols"],
+    responses=PHASE8_RESPONSES,
+    **guard(P.PROTOCOL_READ),
+)
+def get_protocol(protocol_id: UUID) -> ProtocolView:
+    not_implemented()
+
+
+@router.post(
+    "/protocols",
+    tags=["protocols"],
+    status_code=status.HTTP_201_CREATED,
+    responses=PHASE8_RESPONSES,
+    **guard(P.PROTOCOL_MANAGE),
+)
+def create_protocol(body: ProtocolCreate) -> ProtocolView:
+    """Tạo protocol `active` version 1 (422 khi attack spec không có, `spec_sha256` không khớp,
+    patch ở chế độ tìm ngưỡng, hoặc vượt `MAX_RUNS`)."""
+    not_implemented()
+
+
+@router.post(
+    "/protocols/{protocol_id}/versions",
+    tags=["protocols"],
+    status_code=status.HTTP_201_CREATED,
+    responses=PHASE8_RESPONSES,
+    **guard(P.PROTOCOL_MANAGE),
+)
+def create_protocol_version(protocol_id: UUID, body: ProtocolVersionCreate) -> ProtocolView:
+    """Version mới cùng `name` từ version mới nhất (409 nếu không phải); version cũ chuyển
+    `retired` trong cùng giao dịch."""
+    not_implemented()
+
+
+@router.post(
+    "/protocols/{protocol_id}/retire",
+    tags=["protocols"],
+    responses=PHASE8_RESPONSES,
+    **guard(P.PROTOCOL_MANAGE),
+)
+def retire_protocol(protocol_id: UUID) -> ProtocolView:
+    """`active` → `retired` (409 với trạng thái khác)."""
     not_implemented()
 
 
@@ -492,6 +556,40 @@ def clone_experiment(experiment_id: UUID, factory: Sessions) -> ExperimentClone:
         return experiment_views.clone(session, experiment_id)
 
 
+@router.post(
+    "/experiments/{experiment_id}/submit",
+    tags=["experiments"],
+    responses=PHASE8_RESPONSES,
+    **guard(P.EXPERIMENT_SUBMIT_REVIEW),
+)
+def submit_experiment(experiment_id: UUID, body: SubmitForReview) -> ExperimentDetail:
+    """Chỉ chủ sở hữu (403); điều kiện sai → 409, thiếu giải trình → 422; khóa experiment."""
+    not_implemented()
+
+
+@router.get(
+    "/experiments/{experiment_id}/comments",
+    tags=["experiments"],
+    responses=PHASE8_RESPONSES,
+    **guard(P.EXPERIMENT_READ),
+)
+def list_comments(experiment_id: UUID) -> list[ReviewComment]:
+    """Cũ nhất trước."""
+    not_implemented()
+
+
+@router.post(
+    "/experiments/{experiment_id}/comments",
+    tags=["experiments"],
+    status_code=status.HTTP_201_CREATED,
+    responses=PHASE8_RESPONSES,
+    **guard(P.REVIEW_COMMENT),
+)
+def add_comment(experiment_id: UUID, body: ReviewCommentCreate) -> ReviewComment:
+    """Chỉ khi `submitted_for_review` hoặc `in_review` (409); chỉ thêm, không sửa, không xóa."""
+    not_implemented()
+
+
 @router.get(
     "/runs/{run_id}", tags=["runs"], responses=NOT_FOUND_RESPONSE, **guard(P.EXPERIMENT_READ)
 )
@@ -535,6 +633,29 @@ def get_failure_case(case_id: UUID, factory: Sessions, clock: Now) -> FailureCas
 
 
 @router.get(
+    "/failure-cases/{case_id}/verdicts",
+    tags=["failure-cases"],
+    responses=PHASE8_RESPONSES,
+    **guard(P.EXPERIMENT_READ),
+)
+def list_case_verdicts(case_id: UUID) -> list[CaseVerdictView]:
+    """Mọi version, mới nhất trước."""
+    not_implemented()
+
+
+@router.post(
+    "/failure-cases/{case_id}/verdicts",
+    tags=["failure-cases"],
+    status_code=status.HTTP_201_CREATED,
+    responses=PHASE8_RESPONSES,
+    **guard(P.REVIEW_DECIDE),
+)
+def add_case_verdict(case_id: UUID, body: CaseVerdictInput) -> CaseVerdictView:
+    """Chỉ người đang nhận review (403); tạo version mới."""
+    not_implemented()
+
+
+@router.get(
     "/artifacts/{token}",
     tags=["artifacts"],
     response_class=Response,
@@ -571,12 +692,108 @@ def get_artifact(token: str, read: Artifacts, clock: Now) -> Response:
 
 
 @router.get("/reviews", tags=["reviews"], **guard(P.REVIEW_DECIDE))
-def list_reviews() -> None:
+def list_reviews(
+    status: ReviewQueueFilter = ReviewQueueFilter.WAITING,
+    sort: Literal["submitted_at", "max_drop"] = "submitted_at",
+) -> list[ReviewQueueItem]:
+    """Hàng đợi review, loại experiment do người gọi tạo. `submitted_at`: cũ nhất trước;
+    `max_drop`: `max_relative_drop` giảm dần, null xếp cuối."""
     not_implemented()
 
 
-@router.get("/reports/{report_id}", tags=["reports"], **guard(P.REPORT_READ))
-def get_report(report_id: UUID) -> None:
+@router.post(
+    "/reviews/{experiment_id}/claim",
+    tags=["reviews"],
+    responses=PHASE8_RESPONSES,
+    **guard(P.REVIEW_DECIDE),
+)
+def claim_review(experiment_id: UUID) -> ExperimentDetail:
+    """`submitted_for_review` → `in_review` (409 với trạng thái khác); người tạo → 403."""
+    not_implemented()
+
+
+@router.post(
+    "/reviews/{experiment_id}/release",
+    tags=["reviews"],
+    responses=PHASE8_RESPONSES,
+    **guard(P.REVIEW_DECIDE),
+)
+def release_review(experiment_id: UUID) -> ExperimentDetail:
+    """Chỉ người đang nhận (403); trở về `submitted_for_review`."""
+    not_implemented()
+
+
+@router.post(
+    "/reviews/{experiment_id}/decision",
+    tags=["reviews"],
+    responses=PHASE8_RESPONSES,
+    **guard(P.REVIEW_DECIDE),
+)
+def decide_review(experiment_id: UUID, body: ReviewDecisionInput) -> ExperimentDetail:
+    """Thứ tự kiểm tra: không phải người đang nhận → 403; thiếu trường nhập → 422; checklist
+    chưa đủ → 409 `checklist_incomplete` kèm `checklist`."""
+    not_implemented()
+
+
+@router.get("/reports", tags=["reports"], **guard(P.REPORT_READ))
+def list_reports() -> list[ReportView]:
+    """Mới nhất trước."""
+    not_implemented()
+
+
+REPORT_FILE_RESPONSES: dict[int | str, dict[str, Any]] = NOT_IMPLEMENTED_RESPONSE | {
+    status.HTTP_200_OK: {
+        "content": {"application/pdf": {}, "application/json": {}},
+        "description": "Đúng file report đã lưu",
+    },
+    status.HTTP_404_NOT_FOUND: {
+        "model": ErrorResponse,
+        "description": "Token sai, bị sửa hoặc hết hạn",
+    },
+}
+
+
+@router.get(
+    "/reports/files/{token}",
+    tags=["reports"],
+    response_class=Response,
+    responses=REPORT_FILE_RESPONSES,
+    **guard(P.REPORT_EXPORT),
+)
+def get_report_file(token: str) -> Response:
+    """File PDF hoặc JSON theo token do `/reports/{id}/download` cấp."""
+    not_implemented()
+
+
+@router.get(
+    "/reports/{report_id}",
+    tags=["reports"],
+    responses=PHASE8_RESPONSES,
+    **guard(P.REPORT_READ),
+)
+def get_report(report_id: UUID) -> ReportDetail:
+    not_implemented()
+
+
+@router.get(
+    "/reports/{report_id}/download",
+    tags=["reports"],
+    responses=PHASE8_RESPONSES,
+    **guard(P.REPORT_EXPORT),
+)
+def download_report(report_id: UUID, format: Literal["pdf", "json"]) -> ReportDownload:
+    """URL tạm thời tới file đã lưu (409 khi report chưa `ready`); ghi `report.downloaded`."""
+    not_implemented()
+
+
+@router.post(
+    "/reports/{report_id}/regenerate",
+    tags=["reports"],
+    responses=PHASE8_RESPONSES,
+    **guard(P.REPORT_EXPORT),
+)
+def regenerate_report(report_id: UUID) -> ReportView:
+    """Chỉ khi `failed` (409 nếu khác); giữ nguyên `report_id`."""
     not_implemented()
 
 
@@ -606,6 +823,11 @@ def list_audit_log(
 verify_router = APIRouter(responses=NOT_IMPLEMENTED_RESPONSE | VALIDATION_ERROR_RESPONSE)
 
 
-@verify_router.get("/verify/{report_id}", tags=["verify"])
-def verify_report(report_id: UUID) -> None:
+@verify_router.get(
+    "/verify/{report_id}",
+    tags=["verify"],
+    responses={status.HTTP_404_NOT_FOUND: {"model": ErrorResponse, "description": "Không có"}},
+)
+def verify_report(report_id: UUID) -> VerifyInfo:
+    """Chỉ report `ready`; report không có hoặc chưa `ready` → 404."""
     not_implemented()

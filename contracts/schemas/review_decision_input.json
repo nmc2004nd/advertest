@@ -1,0 +1,84 @@
+{
+  "$defs": {
+    "ModelVerdict": {
+      "description": "Kết luận của reviewer về model; tách khỏi quyết định chấp nhận bài test (Phase 8).",
+      "enum": [
+        "meets_criteria",
+        "does_not_meet",
+        "conditional"
+      ],
+      "title": "ModelVerdict",
+      "type": "string"
+    },
+    "ReviewDecision": {
+      "enum": [
+        "approve",
+        "changes_requested",
+        "reject"
+      ],
+      "title": "ReviewDecision",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "`POST /reviews/{experiment_id}/decision`. Thiếu trường nhập → 422 (kickoff Phase 8); thiếu\n`inconclusive_justification` khi có tiêu chí inconclusive cũng 422 (kiểm ở backend).",
+  "properties": {
+    "decision": {
+      "$ref": "#/$defs/ReviewDecision"
+    },
+    "model_verdict": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ModelVerdict"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Bắt buộc khi approve"
+    },
+    "conclusion": {
+      "description": "Kết luận; lý do với changes_requested và reject",
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Conclusion",
+      "type": "string"
+    },
+    "mitigation": {
+      "anyOf": [
+        {
+          "maxLength": 4000,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Bắt buộc khi approve",
+      "title": "Mitigation"
+    },
+    "inconclusive_justification": {
+      "anyOf": [
+        {
+          "maxLength": 4000,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Inconclusive Justification"
+    }
+  },
+  "required": [
+    "decision",
+    "conclusion"
+  ],
+  "title": "ReviewDecisionInput",
+  "type": "object"
+}

@@ -1,0 +1,18 @@
+{
+  "id": "2edcdef5-0d3a-5d5f-98ac-b02637fa6718",
+  "name": "dev-open",
+  "version": 1,
+  "status": "dev",
+  "body": {
+    "schema_version": 2,
+    "description": "Protocol phát triển: không có attack bắt buộc, không bao giờ gửi duyệt.",
+    "required_attacks": [],
+    "min_slice_size": 1,
+    "pass_criteria": [],
+    "cases_to_review_per_attack": 5,
+    "forbid_dirty_runs": true
+  },
+  "body_sha256": "55bfd18a8a25c5e02f9dfe58477b9ca1d7c20c878d60db4262e90fc6830df800",
+  "created_by": null,
+  "created_at": "2026-09-28T00:00:00Z"
+}

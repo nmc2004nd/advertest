@@ -109,5 +109,17 @@
   "clean_metrics": {
     "map50": 0.512,
     "map50_95": 0.298
-  }
+  },
+  "submit_check": [
+    {
+      "code": "experiment_completed",
+      "satisfied": true,
+      "detail": "Đã hoàn thành"
+    },
+    {
+      "code": "protocol_not_dev",
+      "satisfied": false,
+      "detail": "Protocol dev-open không gửi duyệt được"
+    }
+  ]
 }

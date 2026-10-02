@@ -1,0 +1,67 @@
+{
+  "id": "e5daa3b6-1e0d-5680-b98b-c6ca56f4464c",
+  "name": "kitti-search",
+  "version": 1,
+  "status": "active",
+  "body": {
+    "schema_version": 2,
+    "description": "Điểm gãy của PGD L∞ ở mức sụt 20% và FGSM quét lưới; cho phép code chưa commit khi thử nghiệm nội bộ.",
+    "required_attacks": [
+      {
+        "attack_spec_name": "fgsm",
+        "spec_sha256": "a6d81b6643af13e1d2f7983ce51340f54c26629304f1fdd98b954c236c1e735f",
+        "mode": "grid",
+        "grid": {
+          "levels": [
+            2,
+            4,
+            8
+          ]
+        },
+        "search": null
+      },
+      {
+        "attack_spec_name": "pgd_linf",
+        "spec_sha256": "68fe8f72f176fe27981eadfe8b5e98bb36b8e85fc41c97b5702e2e149f52d72c",
+        "mode": "search",
+        "grid": null,
+        "search": {
+          "threshold_kind": "relative_drop",
+          "threshold": 0.2,
+          "class_filter": null,
+          "lo": 0,
+          "hi": 32,
+          "max_tol": 0.25,
+          "min_bootstrap_samples": 200
+        }
+      }
+    ],
+    "min_slice_size": 300,
+    "pass_criteria": [
+      {
+        "kind": "max_drop_at_level",
+        "attack_spec_name": "fgsm",
+        "level": 4,
+        "threshold_kind": "relative_drop",
+        "threshold": 0.5,
+        "class_filter": null
+      },
+      {
+        "kind": "min_breaking_point",
+        "attack_spec_name": "pgd_linf",
+        "level": 0.25,
+        "threshold_kind": "relative_drop",
+        "threshold": 0.2,
+        "class_filter": null
+      }
+    ],
+    "cases_to_review_per_attack": 3,
+    "forbid_dirty_runs": false
+  },
+  "body_sha256": "ac5c2133cab15b3ebd05981c7e35359721109b8a1e45b8130dcc2b4b5da16195",
+  "created_by": {
+    "id": "0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e05",
+    "full_name": "Trần Minh Quân"
+  },
+  "created_at": "2026-10-02T08:30:00Z"
+}

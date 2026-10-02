@@ -27,14 +27,24 @@ from advertest_contracts.enums import (
     AttackAccess,
     AttackKind,
     CaseSeverity,
+    CaseVerdictKind,
+    ChecklistCode,
+    CommentTargetType,
+    ComplianceCode,
     ComputeKind,
+    CriterionKind,
+    CriterionStatus,
     DisplayMode,
     ErrorCode,
     EvalScope,
     ExperimentStatus,
     LimitKind,
+    ModelVerdict,
     PerturbationImageKind,
     ProtocolStatus,
+    ReportNoteCode,
+    ReportStatus,
+    ReviewDecision,
     Role,
     RunMode,
     RunPhase,
@@ -43,6 +53,7 @@ from advertest_contracts.enums import (
     SearchStatus,
     SkipReason,
     StopReason,
+    SubmitCheckCode,
     ThresholdKind,
     UserStatus,
 )
@@ -1541,12 +1552,47 @@ class FieldError(_Model):
     message: str = Field(min_length=1)
 
 
+class ComplianceItem(_Model):
+    """Một mục tuân thủ protocol (Phase 8): trong ước lượng, ExperimentDetail và lỗi 422
+    `not_compliant` khi tạo experiment."""
+
+    code: ComplianceCode
+    attack_spec_name: str | None = Field(
+        default=None, description="Attack bắt buộc của mục này; null với mục không theo attack"
+    )
+    satisfied: bool
+    detail: str = Field(min_length=1)
+
+
+class ChecklistItem(_Model):
+    """Một điều kiện trạng thái trước khi chấp nhận (Phase 8)."""
+
+    code: ChecklistCode
+    satisfied: bool
+    detail: str = Field(min_length=1)
+
+
+class SubmitCheckItem(_Model):
+    """Một điều kiện gửi duyệt (Phase 8)."""
+
+    code: SubmitCheckCode
+    satisfied: bool
+    detail: str = Field(min_length=1)
+
+
 class ErrorBody(_Model):
     code: ErrorCode
     message: str = Field(min_length=1)
     fields: list[FieldError] | None = Field(
         default=None,
         description="Chỉ có ở lỗi 422 gắn được với trường cụ thể; không có thì bỏ khỏi body",
+    )
+    compliance: list[ComplianceItem] | None = Field(
+        default=None,
+        description="Phase 8: chỉ có ở lỗi 422 not_compliant (mọi mục, kể cả mục đã thỏa)",
+    )
+    checklist: list[ChecklistItem] | None = Field(
+        default=None, description="Phase 8: chỉ có ở lỗi 409 checklist_incomplete"
     )
 
 
@@ -1578,41 +1624,146 @@ class HealthResponse(_Model):
         return self
 
 
-# ---------------------------------------------------------------- ProtocolBody
+# ---------------------------------------------------------------- ProtocolBody (Phase 8)
+
+AttackSpecName = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]*$")]
+LongText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=4000)]
+
+
+class RequiredGrid(_Model):
+    levels: list[float] = Field(
+        min_length=1, description="Level tối thiểu phải chạy; experiment được thêm level khác"
+    )
+
+    @model_validator(mode="after")
+    def _check(self) -> RequiredGrid:
+        if len(set(self.levels)) != len(self.levels):
+            raise ValueError("grid.levels không được trùng")
+        return self
+
+
+class RequiredSearch(_Model):
+    """Cấu hình tìm ngưỡng tối thiểu: experiment phải cùng ngưỡng, dải bao phủ [lo, hi],
+    `tol ≤ max_tol`, `bootstrap_samples ≥ min_bootstrap_samples` (requirements.md Phase 8)."""
+
+    threshold_kind: ThresholdKind
+    threshold: float = Field(gt=0, le=1)
+    class_filter: str | None = Field(default=None, min_length=1, description="Một class đích")
+    lo: float
+    hi: float
+    max_tol: PositiveFloat
+    min_bootstrap_samples: int = Field(
+        default=200,
+        ge=0,
+        le=1000,
+        description="0 cho phép không tính khoảng tin cậy (tiêu chí khi đó không bao giờ"
+        " inconclusive do khoảng tin cậy)",
+    )
+
+    @model_validator(mode="after")
+    def _check(self) -> RequiredSearch:
+        if self.lo >= self.hi:
+            raise ValueError("search.lo phải nhỏ hơn hi")
+        if self.max_tol >= self.hi - self.lo:
+            raise ValueError("search.max_tol phải nhỏ hơn hi - lo")
+        return self
 
 
 class RequiredAttack(_Model):
-    attack_spec_id: UUID
-    spec_sha256: Sha256Hex
+    """Attack bắt buộc. Một protocol không có hai attack cùng `attack_spec_name` (Phase 5: một
+    experiment không có hai attack cùng spec). Kiểm tra cần catalog (spec tồn tại, `spec_sha256`
+    khớp, patch không ở chế độ tìm ngưỡng, dải trong `primary_param`) ở backend."""
+
+    attack_spec_name: AttackSpecName
+    spec_sha256: Sha256Hex = Field(description="Chốt đúng version spec")
     mode: RunMode
-    grid: GridConfig | None = Field(default=None, description="Các level tối thiểu phải chạy")
-    search: SearchConfig | None = Field(default=None, description="Cấu hình tìm kiếm tối thiểu")
+    grid: RequiredGrid | None = None
+    search: RequiredSearch | None = None
 
     @model_validator(mode="after")
     def _check(self) -> RequiredAttack:
-        _check_mode(self.mode, self.grid, self.search)
+        if self.mode == RunMode.GRID and (self.grid is None or self.search is not None):
+            raise ValueError("mode = grid cần grid và không có search")
+        if self.mode == RunMode.SEARCH and (self.search is None or self.grid is not None):
+            raise ValueError("mode = search cần search và không có grid")
         return self
 
 
 class PassCriterion(_Model):
+    """Tiêu chí đạt (requirements.md Phase 8, bảng Đánh giá tiêu chí).
+
+    - `max_drop_at_level`: attack quét lưới; đại lượng `threshold_kind` (theo `class_filter`) tại
+      `level` (một level bắt buộc) ≤ `threshold`.
+    - `min_breaking_point`: attack tìm ngưỡng; điểm gãy của chính lần tìm ngưỡng bắt buộc (cùng
+      `threshold_kind`, `threshold`, `class_filter`) ≥ `level`, với `lo < level ≤ hi`.
+    """
+
+    kind: CriterionKind
+    attack_spec_name: AttackSpecName
+    level: float
     threshold_kind: ThresholdKind
-    threshold: float
+    threshold: float = Field(gt=0, le=1)
     class_filter: str | None = Field(
         default=None,
         min_length=1,
-        description="Một class đích; cùng kiểu với SearchConfig.class_filter (Phase 7) để Phase 8"
-        " điền cấu hình tìm ngưỡng từ protocol",
+        description="Một class đích; cùng kiểu với SearchConfig.class_filter (Phase 7)",
     )
+
+
+def _check_criterion(criterion: PassCriterion, attack: RequiredAttack | None, i: int) -> None:
+    where = f"pass_criteria.{i}"
+    if attack is None:
+        raise ValueError(
+            f"{where}: attack {criterion.attack_spec_name} không có trong required_attacks"
+        )
+    if criterion.kind == CriterionKind.MAX_DROP_AT_LEVEL:
+        if attack.grid is None:
+            raise ValueError(f"{where}: max_drop_at_level chỉ dùng với attack quét lưới")
+        if criterion.level not in attack.grid.levels:
+            raise ValueError(f"{where}: level phải là một level bắt buộc của attack")
+        return
+    if attack.search is None:
+        raise ValueError(f"{where}: min_breaking_point chỉ dùng với attack tìm ngưỡng")
+    search = attack.search
+    if (criterion.threshold_kind, criterion.threshold, criterion.class_filter) != (
+        search.threshold_kind,
+        search.threshold,
+        search.class_filter,
+    ):
+        raise ValueError(
+            f"{where}: min_breaking_point phải cùng threshold_kind, threshold, class_filter với"
+            " cấu hình tìm ngưỡng bắt buộc"
+        )
+    if not search.lo < criterion.level <= search.hi:
+        raise ValueError(f"{where}: level phải thỏa lo < level ≤ hi của tìm ngưỡng")
 
 
 class ProtocolBody(_Model):
-    schema_version: Literal[1] = 1
-    required_attacks: list[RequiredAttack] = Field(min_length=1)
+    """Nội dung một version protocol; không bao giờ thay đổi sau khi tạo (Phase 8 thay bản Phase 0,
+    bỏ `review_severity_threshold`). Danh sách rỗng chỉ dùng cho protocol `dev` (dev-open);
+    `ProtocolCreate` bắt buộc có attack và tiêu chí."""
+
+    schema_version: Literal[2] = 2
+    description: LongText = Field(description="Mục đích của protocol")
+    required_attacks: list[RequiredAttack]
     min_slice_size: PositiveInt
-    pass_criteria: list[PassCriterion] = Field(min_length=1)
-    review_severity_threshold: CaseSeverity = Field(
-        description="Case từ mức này trở lên bắt buộc có verdict"
+    pass_criteria: list[PassCriterion]
+    cases_to_review_per_attack: PositiveInt = Field(
+        default=5,
+        description="Số failure case có severity_score cao nhất của mỗi attack bắt buộc phải có"
+        " verdict",
     )
+    forbid_dirty_runs: bool = Field(default=True, description="Cấm run có git_dirty = true")
+
+    @model_validator(mode="after")
+    def _check(self) -> ProtocolBody:
+        names = [a.attack_spec_name for a in self.required_attacks]
+        if len(set(names)) != len(names):
+            raise ValueError("required_attacks không được trùng attack_spec_name")
+        by_name = {a.attack_spec_name: a for a in self.required_attacks}
+        for i, criterion in enumerate(self.pass_criteria):
+            _check_criterion(criterion, by_name.get(criterion.attack_spec_name), i)
+        return self
 
 
 # ---------------------------------------------------------------- Xác thực và quản trị (Phase 4)
@@ -1897,6 +2048,11 @@ class EstimateResponse(_Model):
         description="Phase 7: tổng ước lượng được của trường hợp xấu nhất (run quét lưới và"
         " max_seconds) lớn hơn giới hạn thời gian; chỉ cảnh báo, không chặn tạo experiment",
     )
+    compliance: list[ComplianceItem] = Field(
+        default_factory=list,
+        description="Phase 8: tuân thủ protocol, giống kết quả kiểm tra khi tạo; rỗng với protocol"
+        " dev",
+    )
 
     @model_validator(mode="after")
     def _check(self) -> EstimateResponse:
@@ -2049,6 +2205,57 @@ class ExperimentDetail(ExperimentSummary):
         description="Phase 7: SearchResult mới nhất của từng attack tìm ngưỡng đã có điểm (cập nhật"
         " khi đang chạy)",
     )
+    compliance: list[ComplianceItem] = Field(
+        default_factory=list,
+        description="Phase 8: tuân thủ protocol version đã gắn; rỗng với protocol dev",
+    )
+    submit_check: list[SubmitCheckItem] | None = Field(
+        default=None,
+        description="Phase 8: điều kiện gửi duyệt; chỉ có khi status = completed (backend Phase 8"
+        " luôn điền khi completed)",
+    )
+    runs_requiring_explanation: list[UUID] = Field(
+        default_factory=list,
+        description="Phase 8: run của attack bắt buộc không completed (trừ skipped do cached,"
+        " early_stop) phải có lời giải trình khi gửi duyệt; chỉ có khi status = completed",
+    )
+    review: ReviewView | None = Field(
+        default=None,
+        description="Phase 8: có khi và chỉ khi experiment đã gửi duyệt (submitted_for_review,"
+        " in_review, approved, changes_requested, rejected)",
+    )
+    report: ReportView | None = Field(
+        default=None, description="Phase 8: report chính thức; chỉ có khi status = approved"
+    )
+
+    @model_validator(mode="after")
+    def _check_review(self) -> ExperimentDetail:
+        completed = self.status == ExperimentStatus.COMPLETED
+        if self.submit_check is not None and not completed:
+            raise ValueError("submit_check chỉ có khi status = completed")
+        if self.runs_requiring_explanation and not completed:
+            raise ValueError("runs_requiring_explanation chỉ có khi status = completed")
+        if (self.review is not None) != (self.status in _REVIEW_STATUSES):
+            raise ValueError("review có khi và chỉ khi experiment đã gửi duyệt")
+        if self.report is not None:
+            if self.status != ExperimentStatus.APPROVED:
+                raise ValueError("report chỉ có khi status = approved")
+            if self.report.experiment_id != self.id:
+                raise ValueError("report phải thuộc experiment này")
+        review = self.review
+        if review is not None:
+            expected = _REVIEW_DECISION_STATUS.get(review.decision)
+            if expected is not None and expected != self.status:
+                raise ValueError("review.decision không khớp status")
+            if review.decision is None and self.status not in _OPEN_REVIEW:
+                raise ValueError("experiment đã quyết định phải có review.decision")
+            if (review.assignee is not None) != (self.status != _WAITING_REVIEW):
+                raise ValueError(
+                    "review.assignee có khi và chỉ khi status khác submitted_for_review"
+                )
+            if review.assignee is not None and review.assignee.id == self.owner.id:
+                raise ValueError("người nhận review không được là người tạo experiment")
+        return self
 
     @model_validator(mode="after")
     def _check_detail(self) -> ExperimentDetail:
@@ -2272,3 +2479,568 @@ class AttackSpecAdminView(AttackSpec):
 
 class AttackSpecAdminPage(Page[AttackSpecAdminView]):
     pass
+
+
+# ---------------------------------------------------------------- Phase 8: protocol, review, report
+
+ProtocolName = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)
+]
+
+_WAITING_REVIEW = ExperimentStatus.SUBMITTED_FOR_REVIEW
+_OPEN_REVIEW = frozenset({ExperimentStatus.SUBMITTED_FOR_REVIEW, ExperimentStatus.IN_REVIEW})
+_REVIEW_DECISION_STATUS: dict[ReviewDecision | None, ExperimentStatus] = {
+    ReviewDecision.APPROVE: ExperimentStatus.APPROVED,
+    ReviewDecision.CHANGES_REQUESTED: ExperimentStatus.CHANGES_REQUESTED,
+    ReviewDecision.REJECT: ExperimentStatus.REJECTED,
+}
+_REVIEW_STATUSES = _OPEN_REVIEW | frozenset(_REVIEW_DECISION_STATUS.values())
+
+
+def _require_content(body: ProtocolBody) -> ProtocolBody:
+    if not body.required_attacks:
+        raise ValueError("protocol cần ít nhất một attack bắt buộc")
+    if not body.pass_criteria:
+        raise ValueError("protocol cần ít nhất một tiêu chí đạt")
+    return body
+
+
+class ProtocolCreate(_Model):
+    """`POST /protocols`: tạo protocol `active` version 1."""
+
+    name: ProtocolName
+    body: Annotated[ProtocolBody, AfterValidator(_require_content)]
+
+
+class ProtocolVersionCreate(_Model):
+    """`POST /protocols/{id}/versions`: version mới cùng `name`, chỉ tạo từ version mới nhất (409
+    nếu không); version cũ chuyển `retired` trong cùng giao dịch (kickoff Group 0)."""
+
+    body: Annotated[ProtocolBody, AfterValidator(_require_content)]
+
+
+class ProtocolView(_Model):
+    id: UUID
+    name: str
+    version: PositiveInt
+    status: ProtocolStatus
+    body: ProtocolBody
+    body_sha256: Sha256Hex = Field(description="sha256_of(body)")
+    created_by: UserRef | None = Field(description="null với protocol dev (dev-open)")
+    created_at: UtcDatetime
+
+    @model_validator(mode="after")
+    def _check(self) -> ProtocolView:
+        if self.body_sha256 != sha256_of(self.body):
+            raise ValueError("body_sha256 không khớp nội dung body")
+        if (self.created_by is None) != (self.status == ProtocolStatus.DEV):
+            raise ValueError("created_by là null khi và chỉ khi status = dev")
+        return self
+
+
+class SubmitForReview(_Model):
+    """`POST /experiments/{id}/submit`. Lời giải trình chỉ gửi kèm ở đây (kickoff Phase 8)."""
+
+    note: LongText | None = None
+    run_explanations: dict[UUID, LongText] = Field(
+        default_factory=dict, description="run_id → lời giải trình"
+    )
+
+
+class RunExplanation(_Model):
+    run_id: UUID
+    author: UserRef
+    text: str = Field(min_length=1)
+    created_at: UtcDatetime
+
+
+class CaseVerdictInput(_Model):
+    severity: CaseSeverity
+    kind: CaseVerdictKind
+    mitigation: LongText | None = Field(
+        default=None, description="Bắt buộc khi kind = safety_relevant"
+    )
+
+    @model_validator(mode="after")
+    def _check(self) -> CaseVerdictInput:
+        if self.kind == CaseVerdictKind.SAFETY_RELEVANT and self.mitigation is None:
+            raise ValueError("kind = safety_relevant bắt buộc có mitigation")
+        return self
+
+
+class CaseVerdictView(CaseVerdictInput):
+    """Một version verdict; version lớn nhất là hiện hành, mọi version được giữ."""
+
+    failure_case_id: UUID
+    version: PositiveInt
+    reviewer: UserRef
+    created_at: UtcDatetime
+
+
+class CriterionResult(_Model):
+    """Kết quả tự động (chỉ tham khảo) của `pass_criteria[index]`."""
+
+    index: NonNegativeInt = Field(description="Chỉ số trong body.pass_criteria của protocol")
+    status: CriterionStatus
+    value: float | None = Field(
+        description="max_drop_at_level: đại lượng tại level; min_breaking_point: điểm gãy (cận"
+        " trên bracket); null khi không có"
+    )
+    detail: str = Field(min_length=1)
+
+
+class RequiredCase(_Model):
+    """Case bắt buộc review: top `cases_to_review_per_attack` theo `severity_score` của mỗi
+    attack bắt buộc (cùng điểm theo `image_id`)."""
+
+    failure_case_id: UUID
+    run_id: UUID
+    attack_spec_name: str
+    level: float
+    image_id: str = Field(min_length=1)
+    severity_score: float = Field(gt=0)
+    display_mode: DisplayMode
+    current_verdict: CaseVerdictView | None
+
+    @model_validator(mode="after")
+    def _check(self) -> RequiredCase:
+        verdict = self.current_verdict
+        if verdict is not None and verdict.failure_case_id != self.failure_case_id:
+            raise ValueError("current_verdict phải thuộc failure case này")
+        return self
+
+
+class ReviewDecisionInput(_Model):
+    """`POST /reviews/{experiment_id}/decision`. Thiếu trường nhập → 422 (kickoff Phase 8); thiếu
+    `inconclusive_justification` khi có tiêu chí inconclusive cũng 422 (kiểm ở backend)."""
+
+    decision: ReviewDecision
+    model_verdict: ModelVerdict | None = Field(default=None, description="Bắt buộc khi approve")
+    conclusion: LongText = Field(description="Kết luận; lý do với changes_requested và reject")
+    mitigation: LongText | None = Field(default=None, description="Bắt buộc khi approve")
+    inconclusive_justification: LongText | None = None
+
+    @model_validator(mode="after")
+    def _check(self) -> ReviewDecisionInput:
+        if self.decision == ReviewDecision.APPROVE and (
+            self.model_verdict is None or self.mitigation is None
+        ):
+            raise ValueError("approve bắt buộc có model_verdict và mitigation")
+        return self
+
+
+class ReviewCommentCreate(_Model):
+    target_type: CommentTargetType
+    target_id: UUID = Field(
+        description="ID experiment, run hoặc failure case thuộc experiment (422 nếu không thuộc)"
+    )
+    body: LongText
+
+
+class ReviewComment(_Model):
+    id: UUID
+    experiment_id: UUID
+    author: UserRef
+    body: str = Field(min_length=1)
+    target_type: CommentTargetType
+    target_id: UUID
+    created_at: UtcDatetime
+
+    @model_validator(mode="after")
+    def _check(self) -> ReviewComment:
+        on_experiment = self.target_type == CommentTargetType.EXPERIMENT
+        if on_experiment and self.target_id != self.experiment_id:
+            raise ValueError("bình luận gắn experiment phải có target_id = experiment_id")
+        return self
+
+
+class ReviewView(_Model):
+    """Trạng thái review của experiment (`ExperimentDetail.review`)."""
+
+    submitted_at: UtcDatetime
+    submission_note: str | None
+    run_explanations: list[RunExplanation]
+    assignee: UserRef | None = Field(description="Người đang nhận hoặc đã quyết định")
+    claimed_at: UtcDatetime | None
+    decision: ReviewDecision | None
+    decided_at: UtcDatetime | None
+    model_verdict: ModelVerdict | None
+    conclusion: str | None
+    mitigation: str | None
+    inconclusive_justification: str | None
+    criteria_results: list[CriterionResult] = Field(
+        description="Khi chưa quyết định: tính tại thời điểm đọc; sau quyết định: bản đã lưu"
+    )
+    checklist: list[ChecklistItem] = Field(
+        description="Điều kiện trạng thái trước khi chấp nhận; sau quyết định: bản đã lưu"
+    )
+    required_cases: list[RequiredCase]
+    comments_count: NonNegativeInt
+
+    @model_validator(mode="after")
+    def _check(self) -> ReviewView:
+        if (self.assignee is None) != (self.claimed_at is None):
+            raise ValueError("assignee và claimed_at cùng null hoặc cùng có giá trị")
+        decided = self.decision is not None
+        if decided != (self.decided_at is not None) or decided != (self.conclusion is not None):
+            raise ValueError("decision, decided_at, conclusion cùng null hoặc cùng có giá trị")
+        if decided and self.assignee is None:
+            raise ValueError("review đã quyết định phải có assignee")
+        if not decided and (
+            self.model_verdict is not None
+            or self.mitigation is not None
+            or self.inconclusive_justification is not None
+        ):
+            raise ValueError(
+                "model_verdict, mitigation, inconclusive_justification chỉ có sau quyết định"
+            )
+        if self.decision == ReviewDecision.APPROVE and (
+            self.model_verdict is None or self.mitigation is None
+        ):
+            raise ValueError("approve phải có model_verdict và mitigation")
+        if len({r.index for r in self.criteria_results}) != len(self.criteria_results):
+            raise ValueError("criteria_results không được trùng index")
+        ids = [c.failure_case_id for c in self.required_cases]
+        if len(set(ids)) != len(ids):
+            raise ValueError("required_cases không được trùng")
+        return self
+
+
+class ReviewQueueItem(_Model):
+    """Một dòng của hàng đợi `GET /reviews` (không gồm experiment do người gọi tạo)."""
+
+    experiment: ExperimentSummary
+    protocol: ProtocolRef
+    submitted_at: UtcDatetime
+    assignee: UserRef | None
+    claimed_at: UtcDatetime | None
+    decision: ReviewDecision | None
+    decided_at: UtcDatetime | None
+    max_relative_drop: float | None = Field(
+        description="relative_drop lớn nhất trên run toàn slice có metric; null khi không có"
+    )
+    required_cases_total: NonNegativeInt
+    required_cases_reviewed: NonNegativeInt
+
+    @model_validator(mode="after")
+    def _check(self) -> ReviewQueueItem:
+        if self.experiment.status not in _REVIEW_STATUSES:
+            raise ValueError("hàng đợi chỉ gồm experiment đã gửi duyệt")
+        if self.required_cases_reviewed > self.required_cases_total:
+            raise ValueError("required_cases_reviewed không được vượt required_cases_total")
+        if (self.assignee is None) != (self.claimed_at is None):
+            raise ValueError("assignee và claimed_at cùng null hoặc cùng có giá trị")
+        if (self.decision is None) != (self.decided_at is None):
+            raise ValueError("decision và decided_at cùng null hoặc cùng có giá trị")
+        return self
+
+
+class ReportView(_Model):
+    id: UUID
+    experiment_id: UUID
+    experiment_name: str
+    status: ReportStatus
+    model_verdict: ModelVerdict
+    approved_by: UserRef
+    approved_at: UtcDatetime
+    generated_at: UtcDatetime | None = Field(description="Có khi và chỉ khi status = ready")
+    json_sha256: Sha256Hex | None = Field(description="Có khi và chỉ khi status = ready")
+    pdf_sha256: Sha256Hex | None = Field(description="Có khi và chỉ khi status = ready")
+
+    @model_validator(mode="after")
+    def _check(self) -> ReportView:
+        ready = self.status == ReportStatus.READY
+        values = (self.generated_at, self.json_sha256, self.pdf_sha256)
+        if any((v is None) == ready for v in values):
+            raise ValueError("generated_at, json_sha256, pdf_sha256 có khi và chỉ khi ready")
+        return self
+
+
+class ReportDownload(_Model):
+    """`GET /reports/{id}/download?format=`: URL tạm thời tới đúng file đã lưu."""
+
+    format: Literal["pdf", "json"]
+    url: Annotated[str, StringConstraints(pattern=r"^/reports/files/[A-Za-z0-9._~-]+$")]
+    expires_at: UtcDatetime
+    sha256: Sha256Hex = Field(description="json_sha256 hoặc pdf_sha256 của report")
+    filename: str = Field(pattern=r"^[A-Za-z0-9._-]+\.(pdf|json)$")
+
+
+class VerifyInfo(_Model):
+    """`GET /verify/{report_id}` (công khai): không có tên người hay nội dung report."""
+
+    report_id: UUID
+    issued_at: UtcDatetime
+    json_sha256: Sha256Hex
+    pdf_sha256: Sha256Hex
+
+
+# ---------------------------------------------------------------- ReportSnapshot
+
+
+class ReportNote(_Model):
+    code: ReportNoteCode
+    text: str = Field(min_length=1)
+
+
+class ReportSummary(_Model):
+    """Mục 1: tóm tắt."""
+
+    experiment_id: UUID
+    experiment_name: str
+    owner: UserRef
+    model_verdict: ModelVerdict
+    conclusion: str = Field(min_length=1)
+    mitigation: str = Field(min_length=1)
+    inconclusive_justification: str | None
+    approved_by: UserRef
+    approved_at: UtcDatetime
+
+    @model_validator(mode="after")
+    def _check(self) -> ReportSummary:
+        if self.approved_by.id == self.owner.id:
+            raise ValueError("người duyệt không được là người tạo experiment")
+        return self
+
+
+class ReportProtocol(_Model):
+    id: UUID
+    name: str
+    version: PositiveInt
+    body_sha256: Sha256Hex
+    body: ProtocolBody
+
+    @model_validator(mode="after")
+    def _check(self) -> ReportProtocol:
+        if self.body_sha256 != sha256_of(self.body):
+            raise ValueError("body_sha256 không khớp nội dung body")
+        return self
+
+
+class ReportModel(_Model):
+    id: UUID = Field(description="ID của model version")
+    name: str
+    weights_sha256: Sha256Hex
+
+
+class ReportDatasetVersion(_Model):
+    id: UUID
+    dataset_name: str
+    manifest_sha256: Sha256Hex
+    anonymized: bool
+
+
+class ReportSlice(_Model):
+    id: UUID
+    name: str
+    slice_sha256: Sha256Hex | None
+    size: PositiveInt
+
+
+class ReportClassMapping(_Model):
+    id: UUID
+    mapping_sha256: Sha256Hex
+    excluded_classes: list[str] = Field(description="Class gốc bị loại khỏi metric")
+
+
+class ReportAttackSpec(_Model):
+    id: UUID
+    name: str
+    version: PositiveInt
+    kind: AttackKind
+    spec_sha256: Sha256Hex
+    param_name: str
+    param_unit: str
+    required: bool = Field(description="Là attack bắt buộc của protocol")
+
+
+class ReportConfiguration(_Model):
+    """Mục 3: cấu hình."""
+
+    protocol: ReportProtocol
+    model: ReportModel
+    dataset_version: ReportDatasetVersion
+    slice: ReportSlice
+    class_mapping: ReportClassMapping
+    attack_specs: list[ReportAttackSpec] = Field(min_length=1)
+    compute_target: ComputeTargetRef
+    gpu_model: str | None = Field(description="null khi chạy trên CPU")
+    config_sha256: Sha256Hex
+
+
+class ReportGridPoint(_Model):
+    level: float
+    run_id: UUID
+    status: RunStatus
+    map50: UnitFloat | None = Field(description="mAP@0.5 sau tấn công; null khi không có metric")
+    relative_drop: float | None
+    attack_success_rate: UnitFloat | None
+    early_stop_from_run_id: UUID | None = Field(
+        description="Run kích hoạt dừng sớm khi level bị skipped do early_stop"
+    )
+
+
+class ReportGridAttack(_Model):
+    attack_spec_id: UUID
+    attack_spec_name: str
+    points: list[ReportGridPoint] = Field(description="Theo level tăng dần; chỉ run toàn slice")
+
+
+class ReportResults(_Model):
+    """Mục 4: kết quả."""
+
+    clean_metrics: MapPair | None
+    grid: list[ReportGridAttack]
+    attack_ranking: list[AttackRankingEntry]
+    searches: list[SearchResult] = Field(description="Kết quả cuối của từng attack tìm ngưỡng")
+    criteria: list[CriterionResult] = Field(
+        description="Theo thứ tự configuration.protocol.body.pass_criteria"
+    )
+
+
+class ReportRun(_Model):
+    """Mục 5: mọi run, kể cả failed, skipped, stopped_limit, cancelled và run tập con."""
+
+    run_id: UUID
+    attack_spec_id: UUID
+    attack_spec_name: str
+    level: float
+    scope: EvalScope
+    search_order: NonNegativeInt | None
+    status: RunStatus
+    status_reason: StatusReason | None
+    metrics: RunMetrics | None
+    processing_seconds: Seconds
+    explanation: str | None = Field(description="Lời giải trình khi gửi duyệt")
+
+
+class ReportCase(_Model):
+    """Mục 6: failure case đã review (chỉ case đã làm mờ)."""
+
+    failure_case_id: UUID
+    run_id: UUID
+    attack_spec_name: str
+    level: float
+    image_id: str = Field(min_length=1)
+    severity_score: float = Field(gt=0)
+    lost_objects: NonNegativeInt
+    new_false_positives: NonNegativeInt
+    required: bool = Field(description="Là case bắt buộc review")
+    anonymization: CaseAnonymization
+    thumbnail_key: ObjectKey = Field(description="Thumbnail ảnh sau tấn công đã làm mờ")
+    verdict: CaseVerdictView
+
+    @model_validator(mode="after")
+    def _check(self) -> ReportCase:
+        if not self.anonymization.applied:
+            raise ValueError("report chỉ chứa case đã làm mờ (anonymization.applied)")
+        if self.verdict.failure_case_id != self.failure_case_id:
+            raise ValueError("verdict phải thuộc failure case này")
+        return self
+
+
+class ReportRelatedExperiment(_Model):
+    id: UUID
+    name: str
+    status: ExperimentStatus
+    owner: UserRef
+    protocol: ProtocolRef
+    protocol_version: PositiveInt
+    dev: bool = Field(description="Gắn protocol dev (dev-open)")
+    created_at: UtcDatetime
+
+
+class ReportTimelineEvent(_Model):
+    action: Literal["experiment.submitted", "review.claimed", "review.released", "review.decided"]
+    actor: UserRef
+    at: UtcDatetime
+
+
+class ReportHistory(_Model):
+    """Mục 7: experiment khác cùng model version và dataset version, gắn protocol này (mọi
+    version) hoặc protocol dev, tạo trước thời điểm duyệt; timeline review."""
+
+    related_experiments: list[ReportRelatedExperiment]
+    timeline: list[ReportTimelineEvent] = Field(min_length=1, description="Theo thời gian")
+    comments_count: NonNegativeInt
+
+
+class ReportReproRun(_Model):
+    """Mục 8: tái lập; các trường null khi run chưa bắt đầu (không có manifest)."""
+
+    run_id: UUID
+    fingerprint: Sha256Hex | None
+    git_commit: GitCommit | None
+    git_dirty: bool | None
+    lib_versions: LibVersions | None
+    docker_image_digest: DockerDigest | None
+    cached_from_run_id: UUID | None
+
+
+class ReportResources(_Model):
+    """Mục 9: tài nguyên (Phase 8 chỉ ghi thời gian xử lý; tiền ở Phase 9)."""
+
+    processing_seconds_used: Seconds
+    limit: Limit
+
+
+_MANDATORY_NOTES = frozenset({ReportNoteCode.TEST_ENVIRONMENT_ONLY, ReportNoteCode.INPUT_SPACE})
+
+
+class ReportSnapshot(_Model):
+    """Toàn bộ nội dung report; file JSON là `canonical_json` của snapshot, `json_sha256` là
+    sha256 của file đó."""
+
+    schema_version: Literal[1] = 1
+    report_id: UUID
+    summary: ReportSummary
+    notes: list[ReportNote] = Field(description="Mục 2: phạm vi và lưu ý bắt buộc")
+    configuration: ReportConfiguration
+    results: ReportResults
+    runs: list[ReportRun] = Field(min_length=1)
+    reviewed_cases: list[ReportCase]
+    history: ReportHistory
+    reproducibility: list[ReportReproRun]
+    resources: ReportResources
+
+    @model_validator(mode="after")
+    def _check(self) -> ReportSnapshot:
+        codes = [note.code for note in self.notes]
+        if len(set(codes)) != len(codes):
+            raise ValueError("notes không được trùng code")
+        if not set(codes) >= _MANDATORY_NOTES:
+            raise ValueError("notes thiếu lưu ý bắt buộc (test_environment_only, input_space)")
+        run_ids = [r.run_id for r in self.runs]
+        if len(set(run_ids)) != len(run_ids):
+            raise ValueError("runs không được trùng")
+        if [r.run_id for r in self.reproducibility] != run_ids:
+            raise ValueError("reproducibility phải theo đúng thứ tự runs")
+        if any(c.run_id not in set(run_ids) for c in self.reviewed_cases):
+            raise ValueError("reviewed_cases phải thuộc runs của report")
+        criteria = self.configuration.protocol.body.pass_criteria
+        if [c.index for c in self.results.criteria] != list(range(len(criteria))):
+            raise ValueError("results.criteria phải đủ và theo thứ tự pass_criteria")
+        dirty = any(r.git_dirty for r in self.reproducibility)
+        if dirty != (ReportNoteCode.GIT_DIRTY in codes):
+            raise ValueError("note git_dirty có khi và chỉ khi có run git_dirty")
+        if dirty and self.configuration.protocol.body.forbid_dirty_runs:
+            raise ValueError("protocol forbid_dirty_runs không cho run git_dirty")
+        return self
+
+
+class ReportDetail(_Model):
+    """`GET /reports/{id}`: xem report trong ứng dụng (không có URL tải)."""
+
+    report: ReportView
+    snapshot: ReportSnapshot | None = Field(description="Có khi và chỉ khi status = ready")
+
+    @model_validator(mode="after")
+    def _check(self) -> ReportDetail:
+        if (self.snapshot is not None) != (self.report.status == ReportStatus.READY):
+            raise ValueError("snapshot có khi và chỉ khi report ready")
+        if self.snapshot is not None and self.snapshot.report_id != self.report.id:
+            raise ValueError("snapshot.report_id phải bằng report.id")
+        return self
+
+
+ExperimentDetail.model_rebuild()

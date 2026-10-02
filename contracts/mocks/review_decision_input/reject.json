@@ -1,0 +1,7 @@
+{
+  "decision": "reject",
+  "model_verdict": null,
+  "conclusion": "Slice không đại diện cho điều kiện vận hành.",
+  "mitigation": null,
+  "inconclusive_justification": null
+}

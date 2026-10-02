@@ -1,0 +1,9 @@
+{
+  "schema_version": 2,
+  "description": "Protocol phát triển: không có attack bắt buộc, không bao giờ gửi duyệt.",
+  "required_attacks": [],
+  "min_slice_size": 1,
+  "pass_criteria": [],
+  "cases_to_review_per_attack": 5,
+  "forbid_dirty_runs": true
+}

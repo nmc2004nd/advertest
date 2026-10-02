@@ -1,0 +1,34 @@
+{
+  "additionalProperties": false,
+  "description": "`GET /verify/{report_id}` (công khai): không có tên người hay nội dung report.",
+  "properties": {
+    "report_id": {
+      "format": "uuid",
+      "title": "Report Id",
+      "type": "string"
+    },
+    "issued_at": {
+      "format": "date-time",
+      "title": "Issued At",
+      "type": "string"
+    },
+    "json_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Json Sha256",
+      "type": "string"
+    },
+    "pdf_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Pdf Sha256",
+      "type": "string"
+    }
+  },
+  "required": [
+    "report_id",
+    "issued_at",
+    "json_sha256",
+    "pdf_sha256"
+  ],
+  "title": "VerifyInfo",
+  "type": "object"
+}

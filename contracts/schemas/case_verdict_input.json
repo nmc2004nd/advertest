@@ -1,0 +1,54 @@
+{
+  "$defs": {
+    "CaseSeverity": {
+      "enum": [
+        "critical",
+        "major",
+        "minor",
+        "acceptable"
+      ],
+      "title": "CaseSeverity",
+      "type": "string"
+    },
+    "CaseVerdictKind": {
+      "description": "Loại verdict của một failure case (Phase 8).",
+      "enum": [
+        "safety_relevant",
+        "acceptable",
+        "annotation_issue"
+      ],
+      "title": "CaseVerdictKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "severity": {
+      "$ref": "#/$defs/CaseSeverity"
+    },
+    "kind": {
+      "$ref": "#/$defs/CaseVerdictKind"
+    },
+    "mitigation": {
+      "anyOf": [
+        {
+          "maxLength": 4000,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Bắt buộc khi kind = safety_relevant",
+      "title": "Mitigation"
+    }
+  },
+  "required": [
+    "severity",
+    "kind"
+  ],
+  "title": "CaseVerdictInput",
+  "type": "object"
+}

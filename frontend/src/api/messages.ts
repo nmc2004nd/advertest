@@ -21,6 +21,9 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
   queue_limit_reached:
     'Bạn đã có 3 experiment đang chờ. Hãy chờ một experiment chạy xong rồi tạo tiếp.',
   internal_error: 'Máy chủ gặp lỗi. Vui lòng thử lại sau.',
+  not_compliant: 'Cấu hình chưa tuân thủ protocol đã chọn.',
+  experiment_locked: 'Experiment đã gửi duyệt nên bị khóa, không sửa được.',
+  checklist_incomplete: 'Chưa đủ điều kiện để chấp nhận.',
 }
 
 export const UNKNOWN_ERROR_MESSAGE = 'Đã có lỗi xảy ra. Vui lòng thử lại.'

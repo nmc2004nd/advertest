@@ -1,0 +1,753 @@
+{
+  "schema_version": 1,
+  "report_id": "7abb24d9-e912-5b26-ac18-8f94ae9f70d4",
+  "summary": {
+    "experiment_id": "fae1c862-5afc-5525-ae25-51f98ad4713f",
+    "experiment_name": "PGD/FGSM theo kitti-baseline (approved)",
+    "owner": {
+      "id": "0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e02",
+      "full_name": "Nguyễn Văn An"
+    },
+    "model_verdict": "does_not_meet",
+    "conclusion": "Bài test làm đúng protocol. Model không đạt: PGD L∞ eps 2/255 làm mAP@0.5 sụt hơn 30%.",
+    "mitigation": "Adversarial training hoặc lọc đầu vào trước khi triển khai; kiểm thử lại.",
+    "inconclusive_justification": "Tiêu chí PGD eps 8 không kết luận do run lỗi hết bộ nhớ; hai tiêu chí còn lại đủ để kết luận.",
+    "approved_by": {
+      "id": "0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e03",
+      "full_name": "Đỗ Thu Hà"
+    },
+    "approved_at": "2026-10-02T10:00:00Z"
+  },
+  "notes": [
+    {
+      "code": "test_environment_only",
+      "text": "Kết quả chỉ có giá trị trong môi trường kiểm thử trên dữ liệu và mô phỏng; không dùng làm căn cứ triển khai thật khi chưa được validate bằng quy trình khác."
+    },
+    {
+      "code": "input_space",
+      "text": "eps và corruption tính trên ảnh đầu vào của model (letterbox 640×640, dạng float trong [0, 1], không lượng tử hóa 8-bit)."
+    },
+    {
+      "code": "occlusion_stress",
+      "text": "Occlusion là phép thử chịu tải, không mô phỏng vật che khuất thật."
+    },
+    {
+      "code": "patch_fixed_position",
+      "text": "Patch đặt ở vị trí cố định trên ảnh."
+    },
+    {
+      "code": "anonymization",
+      "text": "Mặt người và biển số được làm mờ ở tầng hiển thị bằng rule_v1 (theo bounding box, không dùng model phát hiện mặt); dữ liệu đưa vào model không đổi."
+    },
+    {
+      "code": "excluded_classes",
+      "text": "Class bị loại khỏi metric: Misc, DontCare."
+    },
+    {
+      "code": "git_dirty",
+      "text": "1 run chạy từ code chưa commit (protocol cho phép); kết quả có thể không tái lập được."
+    }
+  ],
+  "configuration": {
+    "protocol": {
+      "id": "e5daa3b6-1e0d-5680-b98b-c6ca56f4464c",
+      "name": "kitti-search",
+      "version": 1,
+      "body_sha256": "ac5c2133cab15b3ebd05981c7e35359721109b8a1e45b8130dcc2b4b5da16195",
+      "body": {
+        "schema_version": 2,
+        "description": "Điểm gãy của PGD L∞ ở mức sụt 20% và FGSM quét lưới; cho phép code chưa commit khi thử nghiệm nội bộ.",
+        "required_attacks": [
+          {
+            "attack_spec_name": "fgsm",
+            "spec_sha256": "a6d81b6643af13e1d2f7983ce51340f54c26629304f1fdd98b954c236c1e735f",
+            "mode": "grid",
+            "grid": {
+              "levels": [
+                2,
+                4,
+                8
+              ]
+            },
+            "search": null
+          },
+          {
+            "attack_spec_name": "pgd_linf",
+            "spec_sha256": "68fe8f72f176fe27981eadfe8b5e98bb36b8e85fc41c97b5702e2e149f52d72c",
+            "mode": "search",
+            "grid": null,
+            "search": {
+              "threshold_kind": "relative_drop",
+              "threshold": 0.2,
+              "class_filter": null,
+              "lo": 0,
+              "hi": 32,
+              "max_tol": 0.25,
+              "min_bootstrap_samples": 200
+            }
+          }
+        ],
+        "min_slice_size": 300,
+        "pass_criteria": [
+          {
+            "kind": "max_drop_at_level",
+            "attack_spec_name": "fgsm",
+            "level": 4,
+            "threshold_kind": "relative_drop",
+            "threshold": 0.5,
+            "class_filter": null
+          },
+          {
+            "kind": "min_breaking_point",
+            "attack_spec_name": "pgd_linf",
+            "level": 0.25,
+            "threshold_kind": "relative_drop",
+            "threshold": 0.2,
+            "class_filter": null
+          }
+        ],
+        "cases_to_review_per_attack": 3,
+        "forbid_dirty_runs": false
+      }
+    },
+    "model": {
+      "id": "81686f0e-32b6-5806-819c-3b0e37072342",
+      "name": "yolov8n-coco",
+      "weights_sha256": "436b0ea8b820172a2eafa1e02a70c302d737f3f55e2223566ac55fd20fae7e44"
+    },
+    "dataset_version": {
+      "id": "39c7d6d2-0e33-5a02-8d62-67d6d521793b",
+      "dataset_name": "kitti",
+      "manifest_sha256": "7f51d03be9016fe968c288e4a093721350bc371e373d5dc298e10de145bab104",
+      "anonymized": false
+    },
+    "slice": {
+      "id": "0ed10c11-0bc2-5615-a171-4a08748dfda9",
+      "name": "kitti-moderate-300",
+      "slice_sha256": "2cbf4a6420298ef9ab12504b56b307b150b4231121f6d35a893aa9fd227d6d37",
+      "size": 300
+    },
+    "class_mapping": {
+      "id": "4c239faf-34f6-5144-a3d5-f0328b0881ac",
+      "mapping_sha256": "30492aeeb586f1a0ff6098e9085c4f34fae2b7d23c7f83b81767ba5a4c1f9651",
+      "excluded_classes": [
+        "Misc",
+        "DontCare"
+      ]
+    },
+    "attack_specs": [
+      {
+        "id": "8d15422d-f111-5c7e-96eb-e704767e6218",
+        "name": "fgsm",
+        "version": 1,
+        "kind": "attack",
+        "spec_sha256": "a6d81b6643af13e1d2f7983ce51340f54c26629304f1fdd98b954c236c1e735f",
+        "param_name": "eps",
+        "param_unit": "1/255",
+        "required": true
+      },
+      {
+        "id": "449774ff-ded0-5909-b549-90a1e410bd62",
+        "name": "pgd_linf",
+        "version": 1,
+        "kind": "attack",
+        "spec_sha256": "68fe8f72f176fe27981eadfe8b5e98bb36b8e85fc41c97b5702e2e149f52d72c",
+        "param_name": "eps",
+        "param_unit": "1/255",
+        "required": true
+      },
+      {
+        "id": "9b1a8ccf-9447-5e5c-b4d3-1fa5cf5de7b8",
+        "name": "pgd_l2",
+        "version": 1,
+        "kind": "attack",
+        "spec_sha256": "fb54ce834934be1340423f2fb4283b37766e2c1ca74a8fceea9b762e64f7351e",
+        "param_name": "eps",
+        "param_unit": "L2",
+        "required": false
+      }
+    ],
+    "compute_target": {
+      "id": "8679be42-13ce-51fb-876b-ca6d4d3f3c74",
+      "name": "local-dev",
+      "kind": "local"
+    },
+    "gpu_model": "NVIDIA GeForce RTX 3050 Laptop GPU",
+    "config_sha256": "6bc534d8daf0c0e9d68b14400b136bbe5f6c42dd01b13838c731445880078b95"
+  },
+  "results": {
+    "clean_metrics": {
+      "map50": 0.512,
+      "map50_95": 0.298
+    },
+    "grid": [
+      {
+        "attack_spec_id": "8d15422d-f111-5c7e-96eb-e704767e6218",
+        "attack_spec_name": "fgsm",
+        "points": [
+          {
+            "level": 2,
+            "run_id": "6484eb2f-f46a-563b-99a5-152175dcea42",
+            "status": "completed",
+            "map50": 0.401,
+            "relative_drop": 0.2168,
+            "attack_success_rate": 0.21,
+            "early_stop_from_run_id": null
+          },
+          {
+            "level": 4,
+            "run_id": "1a8b0e9b-5c72-5133-85b7-6c5987ac284c",
+            "status": "completed",
+            "map50": 0.322,
+            "relative_drop": 0.3711,
+            "attack_success_rate": 0.36,
+            "early_stop_from_run_id": null
+          },
+          {
+            "level": 8,
+            "run_id": "5cbb7028-3c63-50cb-abde-ba8a8029adf0",
+            "status": "completed",
+            "map50": 0.214,
+            "relative_drop": 0.582,
+            "attack_success_rate": 0.55,
+            "early_stop_from_run_id": null
+          }
+        ]
+      },
+      {
+        "attack_spec_id": "9b1a8ccf-9447-5e5c-b4d3-1fa5cf5de7b8",
+        "attack_spec_name": "pgd_l2",
+        "points": [
+          {
+            "level": 1,
+            "run_id": "080287cd-8235-5f25-a14d-a5c108ce103b",
+            "status": "stopped_limit",
+            "map50": null,
+            "relative_drop": null,
+            "attack_success_rate": null,
+            "early_stop_from_run_id": null
+          }
+        ]
+      }
+    ],
+    "attack_ranking": [
+      {
+        "attack_spec_id": "8d15422d-f111-5c7e-96eb-e704767e6218",
+        "name": "fgsm",
+        "kind": "attack",
+        "auc_drop": 0.9126,
+        "max_relative_drop": 0.977,
+        "levels_evaluated": 3,
+        "levels_early_stopped": 2,
+        "coverage": 1,
+        "partial": false
+      },
+      {
+        "attack_spec_id": "9da1d4ea-78da-5d61-8b5c-981884d5b010",
+        "name": "snow",
+        "kind": "corruption",
+        "auc_drop": 0.364,
+        "max_relative_drop": 0.6301,
+        "levels_evaluated": 3,
+        "levels_early_stopped": 0,
+        "coverage": 1,
+        "partial": false
+      },
+      {
+        "attack_spec_id": "e3edcb22-e3bc-505a-92f4-9e30186fe26f",
+        "name": "bbox_occlusion",
+        "kind": "occlusion",
+        "auc_drop": 0.285,
+        "max_relative_drop": 0.71,
+        "levels_evaluated": 3,
+        "levels_early_stopped": 0,
+        "coverage": 1,
+        "partial": false
+      }
+    ],
+    "searches": [
+      {
+        "schema_version": 1,
+        "experiment_id": "872ccaa0-8ee6-56c8-a7d7-edc6ddbc4410",
+        "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+        "stage": "done",
+        "status": "found",
+        "threshold_kind": "relative_drop",
+        "threshold": 0.2,
+        "class_filter": null,
+        "metric_kind": "map50",
+        "breaking_point": 0.5,
+        "bracket": [
+          0.375,
+          0.5
+        ],
+        "confidence_interval": [
+          0.41,
+          0.5
+        ],
+        "near_threshold": false,
+        "max_points": 23,
+        "points_used": 12,
+        "message": null,
+        "trajectory": [
+          {
+            "order": 0,
+            "level": 0,
+            "scope": "subset",
+            "drop": 0,
+            "drop_ci": null,
+            "synthetic": true,
+            "run_id": null
+          },
+          {
+            "order": 1,
+            "level": 8,
+            "scope": "subset",
+            "drop": 0.962,
+            "drop_ci": null,
+            "synthetic": false,
+            "run_id": "8feb669c-a52b-5aaf-94ac-c79b1d27d77b"
+          },
+          {
+            "order": 2,
+            "level": 16,
+            "scope": "subset",
+            "drop": 0.988,
+            "drop_ci": null,
+            "synthetic": false,
+            "run_id": "ea605121-91d4-515a-8b86-6072dc49ea96"
+          },
+          {
+            "order": 3,
+            "level": 24,
+            "scope": "subset",
+            "drop": 0.991,
+            "drop_ci": null,
+            "synthetic": false,
+            "run_id": "a79843c2-fd6c-5e6c-9130-693d0a4f4f6d"
+          },
+          {
+            "order": 4,
+            "level": 32,
+            "scope": "subset",
+            "drop": 0.995,
+            "drop_ci": null,
+            "synthetic": false,
+            "run_id": "4074f919-16f6-5cc9-b650-51787473482f"
+          },
+          {
+            "order": 5,
+            "level": 4,
+            "scope": "subset",
+            "drop": 0.931,
+            "drop_ci": null,
+            "synthetic": false,
+            "run_id": "365eb541-78ba-570f-b6a7-b0ee87e17e90"
+          },
+          {
+            "order": 6,
+            "level": 2,
+            "scope": "subset",
+            "drop": 0.862,
+            "drop_ci": null,
+            "synthetic": false,
+            "run_id": "337b5616-f0a2-5ecb-bfe7-91702d3b8237"
+          },
+          {
+            "order": 7,
+            "level": 1,
+            "scope": "subset",
+            "drop": 0.551,
+            "drop_ci": null,
+            "synthetic": false,
+            "run_id": "a25c26e1-c9ef-5993-8934-359a1b3f85fe"
+          },
+          {
+            "order": 8,
+            "level": 0.5,
+            "scope": "subset",
+            "drop": 0.243,
+            "drop_ci": null,
+            "synthetic": false,
+            "run_id": "789fc8c0-58da-5a21-b198-90ce80693211"
+          },
+          {
+            "order": 9,
+            "level": 0.25,
+            "scope": "subset",
+            "drop": 0.108,
+            "drop_ci": null,
+            "synthetic": false,
+            "run_id": "d4ec43dc-f26f-56b2-ab88-cc80948bf31c"
+          },
+          {
+            "order": 10,
+            "level": 0.375,
+            "scope": "subset",
+            "drop": 0.171,
+            "drop_ci": null,
+            "synthetic": false,
+            "run_id": "ae4f629b-64d7-5a73-aeae-952cbeae2bb8"
+          },
+          {
+            "order": 11,
+            "level": 0.375,
+            "scope": "full",
+            "drop": 0.162,
+            "drop_ci": [
+              0.131,
+              0.193
+            ],
+            "synthetic": false,
+            "run_id": "89e31b9b-33c7-5957-a4ce-33574e74e601"
+          },
+          {
+            "order": 12,
+            "level": 0.5,
+            "scope": "full",
+            "drop": 0.231,
+            "drop_ci": [
+              0.204,
+              0.259
+            ],
+            "synthetic": false,
+            "run_id": "e4c72f6d-7c52-5ef7-a705-c7184973076b"
+          }
+        ]
+      }
+    ],
+    "criteria": [
+      {
+        "index": 0,
+        "status": "pass",
+        "value": 0.3711,
+        "detail": "relative_drop tại eps 4 là 0.371 ≤ 0.5"
+      },
+      {
+        "index": 1,
+        "status": "pass",
+        "value": 0.5,
+        "detail": "Điểm gãy trong (0.375, 0.5], cận dưới 0.375 ≥ 0.25; KTC 95% [0.41, 0.5] không chứa 0.25"
+      }
+    ]
+  },
+  "runs": [
+    {
+      "run_id": "6484eb2f-f46a-563b-99a5-152175dcea42",
+      "attack_spec_id": "8d15422d-f111-5c7e-96eb-e704767e6218",
+      "attack_spec_name": "fgsm",
+      "level": 2,
+      "scope": "full",
+      "search_order": null,
+      "status": "completed",
+      "status_reason": null,
+      "metrics": {
+        "clean": {
+          "map50": 0.512,
+          "map50_95": 0.298
+        },
+        "attacked": {
+          "map50": 0.401,
+          "map50_95": 0.2005
+        },
+        "relative_drop": 0.2168,
+        "absolute_drop": 0.111,
+        "attack_success_rate": 0.21,
+        "per_class": null,
+        "partial": false
+      },
+      "processing_seconds": 57.1,
+      "explanation": null
+    },
+    {
+      "run_id": "1a8b0e9b-5c72-5133-85b7-6c5987ac284c",
+      "attack_spec_id": "8d15422d-f111-5c7e-96eb-e704767e6218",
+      "attack_spec_name": "fgsm",
+      "level": 4,
+      "scope": "full",
+      "search_order": null,
+      "status": "completed",
+      "status_reason": null,
+      "metrics": {
+        "clean": {
+          "map50": 0.512,
+          "map50_95": 0.298
+        },
+        "attacked": {
+          "map50": 0.322,
+          "map50_95": 0.161
+        },
+        "relative_drop": 0.3711,
+        "absolute_drop": 0.19,
+        "attack_success_rate": 0.36,
+        "per_class": null,
+        "partial": false
+      },
+      "processing_seconds": 56.8,
+      "explanation": null
+    },
+    {
+      "run_id": "5cbb7028-3c63-50cb-abde-ba8a8029adf0",
+      "attack_spec_id": "8d15422d-f111-5c7e-96eb-e704767e6218",
+      "attack_spec_name": "fgsm",
+      "level": 8,
+      "scope": "full",
+      "search_order": null,
+      "status": "completed",
+      "status_reason": null,
+      "metrics": {
+        "clean": {
+          "map50": 0.512,
+          "map50_95": 0.298
+        },
+        "attacked": {
+          "map50": 0.214,
+          "map50_95": 0.107
+        },
+        "relative_drop": 0.582,
+        "absolute_drop": 0.298,
+        "attack_success_rate": 0.55,
+        "per_class": null,
+        "partial": false
+      },
+      "processing_seconds": 57.4,
+      "explanation": null
+    },
+    {
+      "run_id": "080287cd-8235-5f25-a14d-a5c108ce103b",
+      "attack_spec_id": "9b1a8ccf-9447-5e5c-b4d3-1fa5cf5de7b8",
+      "attack_spec_name": "pgd_l2",
+      "level": 1,
+      "scope": "full",
+      "search_order": null,
+      "status": "stopped_limit",
+      "status_reason": {
+        "code": "time",
+        "message": "Chưa chạy: experiment đã chạm trần thời gian."
+      },
+      "metrics": null,
+      "processing_seconds": 0,
+      "explanation": null
+    },
+    {
+      "run_id": "789fc8c0-58da-5a21-b198-90ce80693211",
+      "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+      "attack_spec_name": "pgd_linf",
+      "level": 0.5,
+      "scope": "subset",
+      "search_order": 8,
+      "status": "completed",
+      "status_reason": null,
+      "metrics": {
+        "clean": {
+          "map50": 0.531,
+          "map50_95": 0.309
+        },
+        "attacked": {
+          "map50": 0.402,
+          "map50_95": 0.221
+        },
+        "relative_drop": 0.243,
+        "absolute_drop": 0.129,
+        "attack_success_rate": 0.288,
+        "per_class": {
+          "car": {
+            "clean_ap50": 0.648,
+            "attacked_ap50": 0.497,
+            "attack_success_rate": 0.262
+          },
+          "person": {
+            "clean_ap50": 0.493,
+            "attacked_ap50": 0.361,
+            "attack_success_rate": 0.334
+          },
+          "truck": {
+            "clean_ap50": 0.452,
+            "attacked_ap50": 0.348,
+            "attack_success_rate": 0.25
+          }
+        },
+        "partial": false
+      },
+      "processing_seconds": 41.7,
+      "explanation": null
+    }
+  ],
+  "reviewed_cases": [],
+  "history": {
+    "related_experiments": [
+      {
+        "id": "2dc3af5b-7630-5355-9be1-5b1b34ad2dbb",
+        "name": "PGD/FGSM thử lần 1",
+        "status": "completed",
+        "owner": {
+          "id": "0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e02",
+          "full_name": "Nguyễn Văn An"
+        },
+        "protocol": {
+          "id": "e3bff0f7-a35c-512c-9a16-9d524e95cfa5",
+          "name": "kitti-baseline",
+          "status": "retired"
+        },
+        "protocol_version": 1,
+        "dev": false,
+        "created_at": "2026-09-30T02:00:00Z"
+      },
+      {
+        "id": "6b243e87-b1d2-58c8-a2af-0bceef064043",
+        "name": "PGD/FGSM thử lần 2",
+        "status": "cancelled",
+        "owner": {
+          "id": "0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e04",
+          "full_name": "Hoàng Gia Khánh"
+        },
+        "protocol": {
+          "id": "48404c1f-448f-582f-b5ba-6f056348ac59",
+          "name": "kitti-baseline",
+          "status": "active"
+        },
+        "protocol_version": 2,
+        "dev": false,
+        "created_at": "2026-10-01T02:00:00Z"
+      },
+      {
+        "id": "c22f67c0-e184-5d74-a3df-43aff5b9e82e",
+        "name": "PGD và FGSM trên KITTI 300",
+        "status": "completed",
+        "owner": {
+          "id": "0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e02",
+          "full_name": "Nguyễn Văn An"
+        },
+        "protocol": {
+          "id": "2edcdef5-0d3a-5d5f-98ac-b02637fa6718",
+          "name": "dev-open",
+          "status": "dev"
+        },
+        "protocol_version": 1,
+        "dev": true,
+        "created_at": "2026-09-29T08:00:00Z"
+      }
+    ],
+    "timeline": [
+      {
+        "action": "experiment.submitted",
+        "actor": {
+          "id": "0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e02",
+          "full_name": "Nguyễn Văn An"
+        },
+        "at": "2026-10-02T09:00:00Z"
+      },
+      {
+        "action": "review.claimed",
+        "actor": {
+          "id": "0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e05",
+          "full_name": "Trần Minh Quân"
+        },
+        "at": "2026-10-02T09:05:00Z"
+      },
+      {
+        "action": "review.released",
+        "actor": {
+          "id": "0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e05",
+          "full_name": "Trần Minh Quân"
+        },
+        "at": "2026-10-02T09:08:00Z"
+      },
+      {
+        "action": "review.claimed",
+        "actor": {
+          "id": "0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e03",
+          "full_name": "Đỗ Thu Hà"
+        },
+        "at": "2026-10-02T09:10:00Z"
+      },
+      {
+        "action": "review.decided",
+        "actor": {
+          "id": "0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e03",
+          "full_name": "Đỗ Thu Hà"
+        },
+        "at": "2026-10-02T10:00:00Z"
+      }
+    ],
+    "comments_count": 2
+  },
+  "reproducibility": [
+    {
+      "run_id": "6484eb2f-f46a-563b-99a5-152175dcea42",
+      "fingerprint": "8125a75476b5f211e16d08bc508ae9a0df186d54d2c925077a9a898c7854a845",
+      "git_commit": "85abc30000000000000000000000000000000000",
+      "git_dirty": false,
+      "lib_versions": {
+        "torch": "2.14.0",
+        "art": "1.20.1",
+        "ultralytics": "8.4.163",
+        "torchmetrics": "1.9.0",
+        "numpy": "2.4.6"
+      },
+      "docker_image_digest": "sha256:7e18c2d4932528cb9b9e2746811cc15a8e75e64d05ec07169c6e9f79ad1e4532",
+      "cached_from_run_id": null
+    },
+    {
+      "run_id": "1a8b0e9b-5c72-5133-85b7-6c5987ac284c",
+      "fingerprint": "d1a9ef2fa36b4c5999953efe79fbf7ed51fd88618ca04b1f8c485f02b3e97e20",
+      "git_commit": "85abc30000000000000000000000000000000000",
+      "git_dirty": false,
+      "lib_versions": {
+        "torch": "2.14.0",
+        "art": "1.20.1",
+        "ultralytics": "8.4.163",
+        "torchmetrics": "1.9.0",
+        "numpy": "2.4.6"
+      },
+      "docker_image_digest": "sha256:7e18c2d4932528cb9b9e2746811cc15a8e75e64d05ec07169c6e9f79ad1e4532",
+      "cached_from_run_id": null
+    },
+    {
+      "run_id": "5cbb7028-3c63-50cb-abde-ba8a8029adf0",
+      "fingerprint": "591ea8b067aad12a193e204a509b771f578b48bf5ed0c0937724a8a993a04896",
+      "git_commit": "85abc30000000000000000000000000000000000",
+      "git_dirty": false,
+      "lib_versions": {
+        "torch": "2.14.0",
+        "art": "1.20.1",
+        "ultralytics": "8.4.163",
+        "torchmetrics": "1.9.0",
+        "numpy": "2.4.6"
+      },
+      "docker_image_digest": "sha256:7e18c2d4932528cb9b9e2746811cc15a8e75e64d05ec07169c6e9f79ad1e4532",
+      "cached_from_run_id": null
+    },
+    {
+      "run_id": "080287cd-8235-5f25-a14d-a5c108ce103b",
+      "fingerprint": null,
+      "git_commit": null,
+      "git_dirty": null,
+      "lib_versions": null,
+      "docker_image_digest": null,
+      "cached_from_run_id": null
+    },
+    {
+      "run_id": "789fc8c0-58da-5a21-b198-90ce80693211",
+      "fingerprint": "67e029fa9cd9d405562185e732f0eb2542c38c8f5542c71da9c7281fb716866e",
+      "git_commit": "85abc30000000000000000000000000000000000",
+      "git_dirty": true,
+      "lib_versions": {
+        "torch": "2.14.0",
+        "art": "1.20.1",
+        "ultralytics": "8.4.163",
+        "torchmetrics": "1.9.0",
+        "numpy": "2.4.6"
+      },
+      "docker_image_digest": "sha256:7e18c2d4932528cb9b9e2746811cc15a8e75e64d05ec07169c6e9f79ad1e4532",
+      "cached_from_run_id": null
+    }
+  ],
+  "resources": {
+    "processing_seconds_used": 7200,
+    "limit": {
+      "kind": "time",
+      "value": "7200"
+    }
+  }
+}

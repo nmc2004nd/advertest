@@ -1,0 +1,7 @@
+{
+  "decision": "approve",
+  "model_verdict": "does_not_meet",
+  "conclusion": "Bài test làm đúng protocol. Model không đạt: PGD L∞ eps 2/255 làm mAP@0.5 sụt hơn 30%.",
+  "mitigation": "Adversarial training hoặc lọc đầu vào trước khi triển khai; kiểm thử lại.",
+  "inconclusive_justification": "Tiêu chí PGD eps 8 không kết luận do run lỗi hết bộ nhớ; hai tiêu chí còn lại đủ để kết luận."
+}

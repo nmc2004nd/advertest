@@ -1,0 +1,15 @@
+{
+  "id": "c423da05-d3cb-59c2-b83f-3668b04bf975",
+  "experiment_id": "243e906c-e360-540d-a76d-8f360cb8700b",
+  "experiment_name": "PGD/FGSM theo kitti-baseline (approved)",
+  "status": "ready",
+  "model_verdict": "does_not_meet",
+  "approved_by": {
+    "id": "0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e03",
+    "full_name": "Đỗ Thu Hà"
+  },
+  "approved_at": "2026-10-02T10:00:00Z",
+  "generated_at": "2026-10-02T10:00:20Z",
+  "json_sha256": "3f1c5a0e8d2b7c4f6a9e1d0b5c8a7f2e4d6b9c1a3e5f7d9b2c4a6e8f0d1b3c5a",
+  "pdf_sha256": "9b2d4f6a8c0e1b3d5f7a9c2e4b6d8f0a1c3e5b7d9f2a4c6e8b0d1f3a5c7e9b2d"
+}

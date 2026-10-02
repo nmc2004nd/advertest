@@ -326,5 +326,17 @@
       "coverage": 0.0625,
       "partial": false
     }
+  ],
+  "submit_check": [
+    {
+      "code": "experiment_completed",
+      "satisfied": true,
+      "detail": "Đã hoàn thành"
+    },
+    {
+      "code": "protocol_not_dev",
+      "satisfied": false,
+      "detail": "Protocol dev-open không gửi duyệt được"
+    }
   ]
 }

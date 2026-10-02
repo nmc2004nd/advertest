@@ -16,6 +16,7 @@
         "protocol.read",
         "protocol.manage",
         "review.decide",
+        "review.comment",
         "report.export",
         "report.read",
         "user.manage",

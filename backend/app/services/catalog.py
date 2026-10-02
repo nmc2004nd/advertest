@@ -163,11 +163,12 @@ def list_attack_specs(session: Session) -> list[AttackSpec]:
     ]
 
 
-def list_protocols(session: Session) -> list[ProtocolSummary]:
-    """Protocol `active` và `dev` (không trả `retired`)."""
+def list_protocols(session: Session, *, include_retired: bool = False) -> list[ProtocolSummary]:
+    """Protocol `active` và `dev`; `retired` chỉ khi `include_retired` (Phase 8)."""
+    statuses = set(LISTED_PROTOCOLS) | ({ProtocolStatus.RETIRED} if include_retired else set())
     rows = session.scalars(
         select(m.Protocol)
-        .where(m.Protocol.status.in_(LISTED_PROTOCOLS))
+        .where(m.Protocol.status.in_(statuses))
         .order_by(m.Protocol.name, m.Protocol.version)
     )
     return [

@@ -50,6 +50,7 @@ Phase này chỉ phụ thuộc Phase 0 và chạy song song được với Phase
 | `protocol.read` | ✓ | ✓ | ✓ |
 | `protocol.manage` | | ✓ | |
 | `review.decide` | | ✓ | |
+| `review.comment` (Phase 8) | ✓ | ✓ | |
 | `report.export` | | ✓ | |
 | `report.read` | ✓ | ✓ | ✓ |
 | `user.manage` | | | ✓ |

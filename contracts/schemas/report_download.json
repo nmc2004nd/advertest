@@ -1,0 +1,44 @@
+{
+  "additionalProperties": false,
+  "description": "`GET /reports/{id}/download?format=`: URL tạm thời tới đúng file đã lưu.",
+  "properties": {
+    "format": {
+      "enum": [
+        "pdf",
+        "json"
+      ],
+      "title": "Format",
+      "type": "string"
+    },
+    "url": {
+      "pattern": "^/reports/files/[A-Za-z0-9._~-]+$",
+      "title": "Url",
+      "type": "string"
+    },
+    "expires_at": {
+      "format": "date-time",
+      "title": "Expires At",
+      "type": "string"
+    },
+    "sha256": {
+      "description": "json_sha256 hoặc pdf_sha256 của report",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Sha256",
+      "type": "string"
+    },
+    "filename": {
+      "pattern": "^[A-Za-z0-9._-]+\\.(pdf|json)$",
+      "title": "Filename",
+      "type": "string"
+    }
+  },
+  "required": [
+    "format",
+    "url",
+    "expires_at",
+    "sha256",
+    "filename"
+  ],
+  "title": "ReportDownload",
+  "type": "object"
+}

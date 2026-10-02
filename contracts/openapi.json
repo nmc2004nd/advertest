@@ -1730,18 +1730,35 @@
           "protocols"
         ],
         "summary": "List Protocols",
-        "description": "Protocol trạng thái `active` và `dev`.",
+        "description": "Protocol trạng thái `active` và `dev`; `include_retired=true` thêm `retired` (trang\n`/protocols` của reviewer, Phase 8).",
         "operationId": "list_protocols_protocols_get",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "include_retired",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Retired"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
+                  "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/ProtocolSummary"
                   },
-                  "type": "array",
                   "title": "Response List Protocols Protocols Get"
                 }
               }
@@ -1788,11 +1805,6 @@
             }
           }
         },
-        "security": [
-          {
-            "userSession": []
-          }
-        ],
         "x-permission": "protocol.read"
       },
       "post": {
@@ -1800,23 +1812,31 @@
           "protocols"
         ],
         "summary": "Create Protocol",
+        "description": "Tạo protocol `active` version 1 (422 khi attack spec không có, `spec_sha256` không khớp,\npatch ở chế độ tìm ngưỡng, hoặc vượt `MAX_RUNS`).",
         "operationId": "create_protocol_protocols_post",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ProtocolBody"
+                "$ref": "#/components/schemas/ProtocolCreate"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolView"
+                }
               }
             }
           },
@@ -1859,13 +1879,337 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sai trạng thái",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         },
+        "x-permission": "protocol.manage"
+      }
+    },
+    "/protocols/{protocol_id}": {
+      "get": {
+        "tags": [
+          "protocols"
+        ],
+        "summary": "Get Protocol",
+        "operationId": "get_protocol_protocols__protocol_id__get",
         "security": [
           {
             "userSession": []
           }
         ],
+        "parameters": [
+          {
+            "name": "protocol_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Protocol Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolView"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sai trạng thái",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-permission": "protocol.read"
+      }
+    },
+    "/protocols/{protocol_id}/versions": {
+      "post": {
+        "tags": [
+          "protocols"
+        ],
+        "summary": "Create Protocol Version",
+        "description": "Version mới cùng `name` từ version mới nhất (409 nếu không phải); version cũ chuyển\n`retired` trong cùng giao dịch.",
+        "operationId": "create_protocol_version_protocols__protocol_id__versions_post",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "protocol_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Protocol Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProtocolVersionCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolView"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sai trạng thái",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-permission": "protocol.manage"
+      }
+    },
+    "/protocols/{protocol_id}/retire": {
+      "post": {
+        "tags": [
+          "protocols"
+        ],
+        "summary": "Retire Protocol",
+        "description": "`active` → `retired` (409 với trạng thái khác).",
+        "operationId": "retire_protocol_protocols__protocol_id__retire_post",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "protocol_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Protocol Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolView"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sai trạng thái",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
         "x-permission": "protocol.manage"
       }
     },
@@ -2623,6 +2967,328 @@
         "x-permission": "experiment.create"
       }
     },
+    "/experiments/{experiment_id}/submit": {
+      "post": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Submit Experiment",
+        "description": "Chỉ chủ sở hữu (403); điều kiện sai → 409, thiếu giải trình → 422; khóa experiment.",
+        "operationId": "submit_experiment_experiments__experiment_id__submit_post",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitForReview"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExperimentDetail"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sai trạng thái",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-permission": "experiment.submit_review"
+      }
+    },
+    "/experiments/{experiment_id}/comments": {
+      "get": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "List Comments",
+        "description": "Cũ nhất trước.",
+        "operationId": "list_comments_experiments__experiment_id__comments_get",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReviewComment"
+                  },
+                  "title": "Response List Comments Experiments  Experiment Id  Comments Get"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sai trạng thái",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-permission": "experiment.read"
+      },
+      "post": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Add Comment",
+        "description": "Chỉ khi `submitted_for_review` hoặc `in_review` (409); chỉ thêm, không sửa, không xóa.",
+        "operationId": "add_comment_experiments__experiment_id__comments_post",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewCommentCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewComment"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sai trạng thái",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-permission": "review.comment"
+      }
+    },
     "/runs/{run_id}": {
       "get": {
         "tags": [
@@ -2984,6 +3650,218 @@
         "x-permission": "experiment.read"
       }
     },
+    "/failure-cases/{case_id}/verdicts": {
+      "get": {
+        "tags": [
+          "failure-cases"
+        ],
+        "summary": "List Case Verdicts",
+        "description": "Mọi version, mới nhất trước.",
+        "operationId": "list_case_verdicts_failure_cases__case_id__verdicts_get",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CaseVerdictView"
+                  },
+                  "title": "Response List Case Verdicts Failure Cases  Case Id  Verdicts Get"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sai trạng thái",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-permission": "experiment.read"
+      },
+      "post": {
+        "tags": [
+          "failure-cases"
+        ],
+        "summary": "Add Case Verdict",
+        "description": "Chỉ người đang nhận review (403); tạo version mới.",
+        "operationId": "add_case_verdict_failure_cases__case_id__verdicts_post",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CaseVerdictInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaseVerdictView"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sai trạng thái",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-permission": "review.decide"
+      }
+    },
     "/artifacts/{token}": {
       "get": {
         "tags": [
@@ -3076,13 +3954,427 @@
           "reviews"
         ],
         "summary": "List Reviews",
+        "description": "Hàng đợi review, loại experiment do người gọi tạo. `submitted_at`: cũ nhất trước;\n`max_drop`: `max_relative_drop` giảm dần, null xếp cuối.",
         "operationId": "list_reviews_reviews_get",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/ReviewQueueFilter",
+              "default": "waiting"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "submitted_at",
+                "max_drop"
+              ],
+              "type": "string",
+              "default": "submitted_at",
+              "title": "Sort"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReviewQueueItem"
+                  },
+                  "title": "Response List Reviews Reviews Get"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-permission": "review.decide"
+      }
+    },
+    "/reviews/{experiment_id}/claim": {
+      "post": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Claim Review",
+        "description": "`submitted_for_review` → `in_review` (409 với trạng thái khác); người tạo → 403.",
+        "operationId": "claim_review_reviews__experiment_id__claim_post",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExperimentDetail"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sai trạng thái",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-permission": "review.decide"
+      }
+    },
+    "/reviews/{experiment_id}/release": {
+      "post": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Release Review",
+        "description": "Chỉ người đang nhận (403); trở về `submitted_for_review`.",
+        "operationId": "release_review_reviews__experiment_id__release_post",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExperimentDetail"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sai trạng thái",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-permission": "review.decide"
+      }
+    },
+    "/reviews/{experiment_id}/decision": {
+      "post": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Decide Review",
+        "description": "Thứ tự kiểm tra: không phải người đang nhận → 403; thiếu trường nhập → 422; checklist\nchưa đủ → 409 `checklist_incomplete` kèm `checklist`.",
+        "operationId": "decide_review_reviews__experiment_id__decision_post",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewDecisionInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExperimentDetail"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sai trạng thái",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-permission": "review.decide"
+      }
+    },
+    "/reports": {
+      "get": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "List Reports",
+        "description": "Mới nhất trước.",
+        "operationId": "list_reports_reports_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReportView"
+                  },
+                  "type": "array",
+                  "title": "Response List Reports Reports Get"
+                }
               }
             }
           },
@@ -3132,7 +4424,93 @@
             "userSession": []
           }
         ],
-        "x-permission": "review.decide"
+        "x-permission": "report.read"
+      }
+    },
+    "/reports/files/{token}": {
+      "get": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Get Report File",
+        "description": "File PDF hoặc JSON theo token do `/reports/{id}/download` cấp.",
+        "operationId": "get_report_file_reports_files__token__get",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Đúng file report đã lưu",
+            "content": {
+              "application/pdf": {},
+              "application/json": {}
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Token sai, bị sửa hoặc hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-permission": "report.export"
       }
     },
     "/reports/{report_id}": {
@@ -3164,7 +4542,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/ReportDetail"
+                }
               }
             }
           },
@@ -3207,9 +4587,242 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sai trạng thái",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         },
         "x-permission": "report.read"
+      }
+    },
+    "/reports/{report_id}/download": {
+      "get": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Download Report",
+        "description": "URL tạm thời tới file đã lưu (409 khi report chưa `ready`); ghi `report.downloaded`.",
+        "operationId": "download_report_reports__report_id__download_get",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Report Id"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "pdf",
+                "json"
+              ],
+              "type": "string",
+              "title": "Format"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportDownload"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sai trạng thái",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-permission": "report.export"
+      }
+    },
+    "/reports/{report_id}/regenerate": {
+      "post": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Regenerate Report",
+        "description": "Chỉ khi `failed` (409 nếu khác); giữ nguyên `report_id`.",
+        "operationId": "regenerate_report_reports__report_id__regenerate_post",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Report Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportView"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sai trạng thái",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-permission": "report.export"
       }
     },
     "/budget": {
@@ -3486,6 +5099,7 @@
           "verify"
         ],
         "summary": "Verify Report",
+        "description": "Chỉ report `ready`; report không có hoặc chưa `ready` → 404.",
         "operationId": "verify_report_verify__report_id__get",
         "parameters": [
           {
@@ -3504,7 +5118,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyInfo"
+                }
               }
             }
           },
@@ -3520,6 +5136,16 @@
           },
           "422": {
             "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không có",
             "content": {
               "application/json": {
                 "schema": {
@@ -5466,6 +7092,135 @@
         ],
         "title": "CaseSeverity"
       },
+      "CaseVerdictInput": {
+        "properties": {
+          "severity": {
+            "$ref": "#/components/schemas/CaseSeverity"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/CaseVerdictKind"
+          },
+          "mitigation": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mitigation",
+            "description": "Bắt buộc khi kind = safety_relevant"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "severity",
+          "kind"
+        ],
+        "title": "CaseVerdictInput"
+      },
+      "CaseVerdictKind": {
+        "type": "string",
+        "enum": [
+          "safety_relevant",
+          "acceptable",
+          "annotation_issue"
+        ],
+        "title": "CaseVerdictKind",
+        "description": "Loại verdict của một failure case (Phase 8)."
+      },
+      "CaseVerdictView": {
+        "properties": {
+          "severity": {
+            "$ref": "#/components/schemas/CaseSeverity"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/CaseVerdictKind"
+          },
+          "mitigation": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mitigation",
+            "description": "Bắt buộc khi kind = safety_relevant"
+          },
+          "failure_case_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Failure Case Id"
+          },
+          "version": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Version"
+          },
+          "reviewer": {
+            "$ref": "#/components/schemas/UserRef"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "severity",
+          "kind",
+          "failure_case_id",
+          "version",
+          "reviewer",
+          "created_at"
+        ],
+        "title": "CaseVerdictView",
+        "description": "Một version verdict; version lớn nhất là hiện hành, mọi version được giữ."
+      },
+      "ChecklistCode": {
+        "type": "string",
+        "enum": [
+          "protocol_not_dev",
+          "required_cases_reviewed"
+        ],
+        "title": "ChecklistCode",
+        "description": "Điều kiện trạng thái phía server trước khi chấp nhận (Phase 8, kickoff: chỉ gồm điều kiện\ntrạng thái; trường nhập thiếu là 422, sai người là 403)."
+      },
+      "ChecklistItem": {
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ChecklistCode"
+          },
+          "satisfied": {
+            "type": "boolean",
+            "title": "Satisfied"
+          },
+          "detail": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Detail"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "satisfied",
+          "detail"
+        ],
+        "title": "ChecklistItem",
+        "description": "Một điều kiện trạng thái trước khi chấp nhận (Phase 8)."
+      },
       "ClassMapping": {
         "properties": {
           "schema_version": {
@@ -5693,6 +7448,70 @@
           "message"
         ],
         "title": "CloneWarning"
+      },
+      "CommentTargetType": {
+        "type": "string",
+        "enum": [
+          "experiment",
+          "run",
+          "failure_case"
+        ],
+        "title": "CommentTargetType"
+      },
+      "ComplianceCode": {
+        "type": "string",
+        "enum": [
+          "protocol_active",
+          "attack_present",
+          "spec_sha256",
+          "mode",
+          "grid_levels",
+          "search_threshold",
+          "search_range",
+          "search_tol",
+          "search_bootstrap",
+          "min_slice_size",
+          "model_gradients"
+        ],
+        "title": "ComplianceCode",
+        "description": "Mục kiểm tra tuân thủ protocol khi ước lượng, tạo experiment và gửi duyệt (Phase 8)."
+      },
+      "ComplianceItem": {
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ComplianceCode"
+          },
+          "attack_spec_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attack Spec Name",
+            "description": "Attack bắt buộc của mục này; null với mục không theo attack"
+          },
+          "satisfied": {
+            "type": "boolean",
+            "title": "Satisfied"
+          },
+          "detail": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Detail"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "satisfied",
+          "detail"
+        ],
+        "title": "ComplianceItem",
+        "description": "Một mục tuân thủ protocol (Phase 8): trong ước lượng, ExperimentDetail và lỗi 422\n`not_compliant` khi tạo experiment."
       },
       "ComputeKind": {
         "type": "string",
@@ -5939,6 +7758,63 @@
         "title": "CostProfile",
         "description": "Chi phí đo bằng calibration, riêng cho từng (compute target, model, attack)."
       },
+      "CriterionKind": {
+        "type": "string",
+        "enum": [
+          "max_drop_at_level",
+          "min_breaking_point"
+        ],
+        "title": "CriterionKind"
+      },
+      "CriterionResult": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Index",
+            "description": "Chỉ số trong body.pass_criteria của protocol"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CriterionStatus"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value",
+            "description": "max_drop_at_level: đại lượng tại level; min_breaking_point: điểm gãy (cận trên bracket); null khi không có"
+          },
+          "detail": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Detail"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "index",
+          "status",
+          "value",
+          "detail"
+        ],
+        "title": "CriterionResult",
+        "description": "Kết quả tự động (chỉ tham khảo) của `pass_criteria[index]`."
+      },
+      "CriterionStatus": {
+        "type": "string",
+        "enum": [
+          "pass",
+          "fail",
+          "inconclusive"
+        ],
+        "title": "CriterionStatus"
+      },
       "DatasetSummary": {
         "properties": {
           "id": {
@@ -6174,6 +8050,36 @@
             ],
             "title": "Fields",
             "description": "Chỉ có ở lỗi 422 gắn được với trường cụ thể; không có thì bỏ khỏi body"
+          },
+          "compliance": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ComplianceItem"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compliance",
+            "description": "Phase 8: chỉ có ở lỗi 422 not_compliant (mọi mục, kể cả mục đã thỏa)"
+          },
+          "checklist": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ChecklistItem"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checklist",
+            "description": "Phase 8: chỉ có ở lỗi 409 checklist_incomplete"
           }
         },
         "additionalProperties": false,
@@ -6202,7 +8108,10 @@
           "validation_error",
           "not_supported_yet",
           "queue_limit_reached",
-          "internal_error"
+          "internal_error",
+          "not_compliant",
+          "experiment_locked",
+          "checklist_incomplete"
         ],
         "title": "ErrorCode"
       },
@@ -6292,6 +8201,14 @@
             "title": "Max Exceeds Limit",
             "description": "Phase 7: tổng ước lượng được của trường hợp xấu nhất (run quét lưới và max_seconds) lớn hơn giới hạn thời gian; chỉ cảnh báo, không chặn tạo experiment",
             "default": false
+          },
+          "compliance": {
+            "items": {
+              "$ref": "#/components/schemas/ComplianceItem"
+            },
+            "type": "array",
+            "title": "Compliance",
+            "description": "Phase 8: tuân thủ protocol, giống kết quả kiểm tra khi tạo; rỗng với protocol dev"
           }
         },
         "additionalProperties": false,
@@ -6770,6 +8687,60 @@
             "type": "array",
             "title": "Search Results",
             "description": "Phase 7: SearchResult mới nhất của từng attack tìm ngưỡng đã có điểm (cập nhật khi đang chạy)"
+          },
+          "compliance": {
+            "items": {
+              "$ref": "#/components/schemas/ComplianceItem"
+            },
+            "type": "array",
+            "title": "Compliance",
+            "description": "Phase 8: tuân thủ protocol version đã gắn; rỗng với protocol dev"
+          },
+          "submit_check": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SubmitCheckItem"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submit Check",
+            "description": "Phase 8: điều kiện gửi duyệt; chỉ có khi status = completed (backend Phase 8 luôn điền khi completed)"
+          },
+          "runs_requiring_explanation": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Runs Requiring Explanation",
+            "description": "Phase 8: run của attack bắt buộc không completed (trừ skipped do cached, early_stop) phải có lời giải trình khi gửi duyệt; chỉ có khi status = completed"
+          },
+          "review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewView"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Phase 8: có khi và chỉ khi experiment đã gửi duyệt (submitted_for_review, in_review, approved, changes_requested, rejected)"
+          },
+          "report": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportView"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Phase 8: report chính thức; chỉ có khi status = approved"
           }
         },
         "additionalProperties": false,
@@ -7895,13 +9866,37 @@
         ],
         "title": "ModelSummary"
       },
+      "ModelVerdict": {
+        "type": "string",
+        "enum": [
+          "meets_criteria",
+          "does_not_meet",
+          "conditional"
+        ],
+        "title": "ModelVerdict",
+        "description": "Kết luận của reviewer về model; tách khỏi quyết định chấp nhận bài test (Phase 8)."
+      },
       "PassCriterion": {
         "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/CriterionKind"
+          },
+          "attack_spec_name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "title": "Attack Spec Name"
+          },
+          "level": {
+            "type": "number",
+            "title": "Level"
+          },
           "threshold_kind": {
             "$ref": "#/components/schemas/ThresholdKind"
           },
           "threshold": {
             "type": "number",
+            "maximum": 1.0,
+            "exclusiveMinimum": 0.0,
             "title": "Threshold"
           },
           "class_filter": {
@@ -7915,16 +9910,20 @@
               }
             ],
             "title": "Class Filter",
-            "description": "Một class đích; cùng kiểu với SearchConfig.class_filter (Phase 7) để Phase 8 điền cấu hình tìm ngưỡng từ protocol"
+            "description": "Một class đích; cùng kiểu với SearchConfig.class_filter (Phase 7)"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
+          "kind",
+          "attack_spec_name",
+          "level",
           "threshold_kind",
           "threshold"
         ],
-        "title": "PassCriterion"
+        "title": "PassCriterion",
+        "description": "Tiêu chí đạt (requirements.md Phase 8, bảng Đánh giá tiêu chí).\n\n- `max_drop_at_level`: attack quét lưới; đại lượng `threshold_kind` (theo `class_filter`) tại\n  `level` (một level bắt buộc) ≤ `threshold`.\n- `min_breaking_point`: attack tìm ngưỡng; điểm gãy của chính lần tìm ngưỡng bắt buộc (cùng\n  `threshold_kind`, `threshold`, `class_filter`) ≥ `level`, với `lo < level ≤ hi`."
       },
       "PasswordChange": {
         "properties": {
@@ -8140,6 +10139,7 @@
           "protocol.read",
           "protocol.manage",
           "review.decide",
+          "review.comment",
           "report.export",
           "report.read",
           "user.manage",
@@ -8314,16 +10314,22 @@
         "properties": {
           "schema_version": {
             "type": "integer",
-            "const": 1,
+            "const": 2,
             "title": "Schema Version",
-            "default": 1
+            "default": 2
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Description",
+            "description": "Mục đích của protocol"
           },
           "required_attacks": {
             "items": {
               "$ref": "#/components/schemas/RequiredAttack"
             },
             "type": "array",
-            "minItems": 1,
             "title": "Required Attacks"
           },
           "min_slice_size": {
@@ -8336,23 +10342,53 @@
               "$ref": "#/components/schemas/PassCriterion"
             },
             "type": "array",
-            "minItems": 1,
             "title": "Pass Criteria"
           },
-          "review_severity_threshold": {
-            "$ref": "#/components/schemas/CaseSeverity",
-            "description": "Case từ mức này trở lên bắt buộc có verdict"
+          "cases_to_review_per_attack": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Cases To Review Per Attack",
+            "description": "Số failure case có severity_score cao nhất của mỗi attack bắt buộc phải có verdict",
+            "default": 5
+          },
+          "forbid_dirty_runs": {
+            "type": "boolean",
+            "title": "Forbid Dirty Runs",
+            "description": "Cấm run có git_dirty = true",
+            "default": true
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
+          "description",
           "required_attacks",
           "min_slice_size",
-          "pass_criteria",
-          "review_severity_threshold"
+          "pass_criteria"
         ],
-        "title": "ProtocolBody"
+        "title": "ProtocolBody",
+        "description": "Nội dung một version protocol; không bao giờ thay đổi sau khi tạo (Phase 8 thay bản Phase 0,\nbỏ `review_severity_threshold`). Danh sách rỗng chỉ dùng cho protocol `dev` (dev-open);\n`ProtocolCreate` bắt buộc có attack và tiêu chí."
+      },
+      "ProtocolCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "body": {
+            "$ref": "#/components/schemas/ProtocolBody"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "body"
+        ],
+        "title": "ProtocolCreate",
+        "description": "`POST /protocols`: tạo protocol `active` version 1."
       },
       "ProtocolRef": {
         "properties": {
@@ -8423,6 +10459,79 @@
         ],
         "title": "ProtocolSummary"
       },
+      "ProtocolVersionCreate": {
+        "properties": {
+          "body": {
+            "$ref": "#/components/schemas/ProtocolBody"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "body"
+        ],
+        "title": "ProtocolVersionCreate",
+        "description": "`POST /protocols/{id}/versions`: version mới cùng `name`, chỉ tạo từ version mới nhất (409\nnếu không); version cũ chuyển `retired` trong cùng giao dịch (kickoff Group 0)."
+      },
+      "ProtocolView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "version": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Version"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProtocolStatus"
+          },
+          "body": {
+            "$ref": "#/components/schemas/ProtocolBody"
+          },
+          "body_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Body Sha256",
+            "description": "sha256_of(body)"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null với protocol dev (dev-open)"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "version",
+          "status",
+          "body",
+          "body_sha256",
+          "created_by",
+          "created_at"
+        ],
+        "title": "ProtocolView"
+      },
       "QueueEstimate": {
         "properties": {
           "position": {
@@ -8462,17 +10571,1191 @@
         ],
         "title": "RejectRequest"
       },
-      "RequiredAttack": {
+      "ReportAttackSpec": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "version": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Version"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/AttackKind"
+          },
+          "spec_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Spec Sha256"
+          },
+          "param_name": {
+            "type": "string",
+            "title": "Param Name"
+          },
+          "param_unit": {
+            "type": "string",
+            "title": "Param Unit"
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required",
+            "description": "Là attack bắt buộc của protocol"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "version",
+          "kind",
+          "spec_sha256",
+          "param_name",
+          "param_unit",
+          "required"
+        ],
+        "title": "ReportAttackSpec"
+      },
+      "ReportCase": {
+        "properties": {
+          "failure_case_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Failure Case Id"
+          },
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "attack_spec_name": {
+            "type": "string",
+            "title": "Attack Spec Name"
+          },
+          "level": {
+            "type": "number",
+            "title": "Level"
+          },
+          "image_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Image Id"
+          },
+          "severity_score": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Severity Score"
+          },
+          "lost_objects": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Lost Objects"
+          },
+          "new_false_positives": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "New False Positives"
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required",
+            "description": "Là case bắt buộc review"
+          },
+          "anonymization": {
+            "$ref": "#/components/schemas/CaseAnonymization"
+          },
+          "thumbnail_key": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]*(/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$",
+            "title": "Thumbnail Key",
+            "description": "Thumbnail ảnh sau tấn công đã làm mờ"
+          },
+          "verdict": {
+            "$ref": "#/components/schemas/CaseVerdictView"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "failure_case_id",
+          "run_id",
+          "attack_spec_name",
+          "level",
+          "image_id",
+          "severity_score",
+          "lost_objects",
+          "new_false_positives",
+          "required",
+          "anonymization",
+          "thumbnail_key",
+          "verdict"
+        ],
+        "title": "ReportCase",
+        "description": "Mục 6: failure case đã review (chỉ case đã làm mờ)."
+      },
+      "ReportClassMapping": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "mapping_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Mapping Sha256"
+          },
+          "excluded_classes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Excluded Classes",
+            "description": "Class gốc bị loại khỏi metric"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "mapping_sha256",
+          "excluded_classes"
+        ],
+        "title": "ReportClassMapping"
+      },
+      "ReportConfiguration": {
+        "properties": {
+          "protocol": {
+            "$ref": "#/components/schemas/ReportProtocol"
+          },
+          "model": {
+            "$ref": "#/components/schemas/ReportModel"
+          },
+          "dataset_version": {
+            "$ref": "#/components/schemas/ReportDatasetVersion"
+          },
+          "slice": {
+            "$ref": "#/components/schemas/ReportSlice"
+          },
+          "class_mapping": {
+            "$ref": "#/components/schemas/ReportClassMapping"
+          },
+          "attack_specs": {
+            "items": {
+              "$ref": "#/components/schemas/ReportAttackSpec"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Attack Specs"
+          },
+          "compute_target": {
+            "$ref": "#/components/schemas/ComputeTargetRef"
+          },
+          "gpu_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gpu Model",
+            "description": "null khi chạy trên CPU"
+          },
+          "config_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Config Sha256"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "protocol",
+          "model",
+          "dataset_version",
+          "slice",
+          "class_mapping",
+          "attack_specs",
+          "compute_target",
+          "gpu_model",
+          "config_sha256"
+        ],
+        "title": "ReportConfiguration",
+        "description": "Mục 3: cấu hình."
+      },
+      "ReportDatasetVersion": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "dataset_name": {
+            "type": "string",
+            "title": "Dataset Name"
+          },
+          "manifest_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Manifest Sha256"
+          },
+          "anonymized": {
+            "type": "boolean",
+            "title": "Anonymized"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "dataset_name",
+          "manifest_sha256",
+          "anonymized"
+        ],
+        "title": "ReportDatasetVersion"
+      },
+      "ReportDetail": {
+        "properties": {
+          "report": {
+            "$ref": "#/components/schemas/ReportView"
+          },
+          "snapshot": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportSnapshot"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Có khi và chỉ khi status = ready"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "report",
+          "snapshot"
+        ],
+        "title": "ReportDetail",
+        "description": "`GET /reports/{id}`: xem report trong ứng dụng (không có URL tải)."
+      },
+      "ReportDownload": {
+        "properties": {
+          "format": {
+            "type": "string",
+            "enum": [
+              "pdf",
+              "json"
+            ],
+            "title": "Format"
+          },
+          "url": {
+            "type": "string",
+            "pattern": "^/reports/files/[A-Za-z0-9._~-]+$",
+            "title": "Url"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Sha256",
+            "description": "json_sha256 hoặc pdf_sha256 của report"
+          },
+          "filename": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._-]+\\.(pdf|json)$",
+            "title": "Filename"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "format",
+          "url",
+          "expires_at",
+          "sha256",
+          "filename"
+        ],
+        "title": "ReportDownload",
+        "description": "`GET /reports/{id}/download?format=`: URL tạm thời tới đúng file đã lưu."
+      },
+      "ReportGridAttack": {
         "properties": {
           "attack_spec_id": {
             "type": "string",
             "format": "uuid",
             "title": "Attack Spec Id"
           },
+          "attack_spec_name": {
+            "type": "string",
+            "title": "Attack Spec Name"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/ReportGridPoint"
+            },
+            "type": "array",
+            "title": "Points",
+            "description": "Theo level tăng dần; chỉ run toàn slice"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "attack_spec_id",
+          "attack_spec_name",
+          "points"
+        ],
+        "title": "ReportGridAttack"
+      },
+      "ReportGridPoint": {
+        "properties": {
+          "level": {
+            "type": "number",
+            "title": "Level"
+          },
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStatus"
+          },
+          "map50": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Map50",
+            "description": "mAP@0.5 sau tấn công; null khi không có metric"
+          },
+          "relative_drop": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relative Drop"
+          },
+          "attack_success_rate": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attack Success Rate"
+          },
+          "early_stop_from_run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Early Stop From Run Id",
+            "description": "Run kích hoạt dừng sớm khi level bị skipped do early_stop"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "level",
+          "run_id",
+          "status",
+          "map50",
+          "relative_drop",
+          "attack_success_rate",
+          "early_stop_from_run_id"
+        ],
+        "title": "ReportGridPoint"
+      },
+      "ReportHistory": {
+        "properties": {
+          "related_experiments": {
+            "items": {
+              "$ref": "#/components/schemas/ReportRelatedExperiment"
+            },
+            "type": "array",
+            "title": "Related Experiments"
+          },
+          "timeline": {
+            "items": {
+              "$ref": "#/components/schemas/ReportTimelineEvent"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Timeline",
+            "description": "Theo thời gian"
+          },
+          "comments_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Comments Count"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "related_experiments",
+          "timeline",
+          "comments_count"
+        ],
+        "title": "ReportHistory",
+        "description": "Mục 7: experiment khác cùng model version và dataset version, gắn protocol này (mọi\nversion) hoặc protocol dev, tạo trước thời điểm duyệt; timeline review."
+      },
+      "ReportModel": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "ID của model version"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "weights_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Weights Sha256"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "weights_sha256"
+        ],
+        "title": "ReportModel"
+      },
+      "ReportNote": {
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ReportNoteCode"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Text"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "text"
+        ],
+        "title": "ReportNote"
+      },
+      "ReportNoteCode": {
+        "type": "string",
+        "enum": [
+          "test_environment_only",
+          "input_space",
+          "occlusion_stress",
+          "patch_fixed_position",
+          "anonymization",
+          "git_dirty",
+          "excluded_classes"
+        ],
+        "title": "ReportNoteCode",
+        "description": "Lưu ý bắt buộc ở mục 2 của report (Phase 8, requirements.md mục Report)."
+      },
+      "ReportProtocol": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "version": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Version"
+          },
+          "body_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Body Sha256"
+          },
+          "body": {
+            "$ref": "#/components/schemas/ProtocolBody"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "version",
+          "body_sha256",
+          "body"
+        ],
+        "title": "ReportProtocol"
+      },
+      "ReportRelatedExperiment": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ExperimentStatus"
+          },
+          "owner": {
+            "$ref": "#/components/schemas/UserRef"
+          },
+          "protocol": {
+            "$ref": "#/components/schemas/ProtocolRef"
+          },
+          "protocol_version": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Protocol Version"
+          },
+          "dev": {
+            "type": "boolean",
+            "title": "Dev",
+            "description": "Gắn protocol dev (dev-open)"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "status",
+          "owner",
+          "protocol",
+          "protocol_version",
+          "dev",
+          "created_at"
+        ],
+        "title": "ReportRelatedExperiment"
+      },
+      "ReportReproRun": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "fingerprint": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fingerprint"
+          },
+          "git_commit": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{40}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Git Commit"
+          },
+          "git_dirty": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Git Dirty"
+          },
+          "lib_versions": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LibVersions"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "docker_image_digest": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(none|sha256:[0-9a-f]{64})$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Docker Image Digest"
+          },
+          "cached_from_run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cached From Run Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run_id",
+          "fingerprint",
+          "git_commit",
+          "git_dirty",
+          "lib_versions",
+          "docker_image_digest",
+          "cached_from_run_id"
+        ],
+        "title": "ReportReproRun",
+        "description": "Mục 8: tái lập; các trường null khi run chưa bắt đầu (không có manifest)."
+      },
+      "ReportResources": {
+        "properties": {
+          "processing_seconds_used": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Processing Seconds Used"
+          },
+          "limit": {
+            "$ref": "#/components/schemas/Limit-Output"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "processing_seconds_used",
+          "limit"
+        ],
+        "title": "ReportResources",
+        "description": "Mục 9: tài nguyên (Phase 8 chỉ ghi thời gian xử lý; tiền ở Phase 9)."
+      },
+      "ReportResults": {
+        "properties": {
+          "clean_metrics": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MapPair"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "grid": {
+            "items": {
+              "$ref": "#/components/schemas/ReportGridAttack"
+            },
+            "type": "array",
+            "title": "Grid"
+          },
+          "attack_ranking": {
+            "items": {
+              "$ref": "#/components/schemas/AttackRankingEntry"
+            },
+            "type": "array",
+            "title": "Attack Ranking"
+          },
+          "searches": {
+            "items": {
+              "$ref": "#/components/schemas/SearchResult"
+            },
+            "type": "array",
+            "title": "Searches",
+            "description": "Kết quả cuối của từng attack tìm ngưỡng"
+          },
+          "criteria": {
+            "items": {
+              "$ref": "#/components/schemas/CriterionResult"
+            },
+            "type": "array",
+            "title": "Criteria",
+            "description": "Theo thứ tự configuration.protocol.body.pass_criteria"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "clean_metrics",
+          "grid",
+          "attack_ranking",
+          "searches",
+          "criteria"
+        ],
+        "title": "ReportResults",
+        "description": "Mục 4: kết quả."
+      },
+      "ReportRun": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "attack_spec_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Attack Spec Id"
+          },
+          "attack_spec_name": {
+            "type": "string",
+            "title": "Attack Spec Name"
+          },
+          "level": {
+            "type": "number",
+            "title": "Level"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/EvalScope"
+          },
+          "search_order": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search Order"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStatus"
+          },
+          "status_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StatusReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "metrics": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunMetrics"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "processing_seconds": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Processing Seconds"
+          },
+          "explanation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explanation",
+            "description": "Lời giải trình khi gửi duyệt"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run_id",
+          "attack_spec_id",
+          "attack_spec_name",
+          "level",
+          "scope",
+          "search_order",
+          "status",
+          "status_reason",
+          "metrics",
+          "processing_seconds",
+          "explanation"
+        ],
+        "title": "ReportRun",
+        "description": "Mục 5: mọi run, kể cả failed, skipped, stopped_limit, cancelled và run tập con."
+      },
+      "ReportSlice": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "slice_sha256": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slice Sha256"
+          },
+          "size": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Size"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "slice_sha256",
+          "size"
+        ],
+        "title": "ReportSlice"
+      },
+      "ReportSnapshot": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Schema Version",
+            "default": 1
+          },
+          "report_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Report Id"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/ReportSummary"
+          },
+          "notes": {
+            "items": {
+              "$ref": "#/components/schemas/ReportNote"
+            },
+            "type": "array",
+            "title": "Notes",
+            "description": "Mục 2: phạm vi và lưu ý bắt buộc"
+          },
+          "configuration": {
+            "$ref": "#/components/schemas/ReportConfiguration"
+          },
+          "results": {
+            "$ref": "#/components/schemas/ReportResults"
+          },
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/ReportRun"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Runs"
+          },
+          "reviewed_cases": {
+            "items": {
+              "$ref": "#/components/schemas/ReportCase"
+            },
+            "type": "array",
+            "title": "Reviewed Cases"
+          },
+          "history": {
+            "$ref": "#/components/schemas/ReportHistory"
+          },
+          "reproducibility": {
+            "items": {
+              "$ref": "#/components/schemas/ReportReproRun"
+            },
+            "type": "array",
+            "title": "Reproducibility"
+          },
+          "resources": {
+            "$ref": "#/components/schemas/ReportResources"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "report_id",
+          "summary",
+          "notes",
+          "configuration",
+          "results",
+          "runs",
+          "reviewed_cases",
+          "history",
+          "reproducibility",
+          "resources"
+        ],
+        "title": "ReportSnapshot",
+        "description": "Toàn bộ nội dung report; file JSON là `canonical_json` của snapshot, `json_sha256` là\nsha256 của file đó."
+      },
+      "ReportStatus": {
+        "type": "string",
+        "enum": [
+          "generating",
+          "ready",
+          "failed"
+        ],
+        "title": "ReportStatus"
+      },
+      "ReportSummary": {
+        "properties": {
+          "experiment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Experiment Id"
+          },
+          "experiment_name": {
+            "type": "string",
+            "title": "Experiment Name"
+          },
+          "owner": {
+            "$ref": "#/components/schemas/UserRef"
+          },
+          "model_verdict": {
+            "$ref": "#/components/schemas/ModelVerdict"
+          },
+          "conclusion": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Conclusion"
+          },
+          "mitigation": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Mitigation"
+          },
+          "inconclusive_justification": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inconclusive Justification"
+          },
+          "approved_by": {
+            "$ref": "#/components/schemas/UserRef"
+          },
+          "approved_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Approved At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "experiment_id",
+          "experiment_name",
+          "owner",
+          "model_verdict",
+          "conclusion",
+          "mitigation",
+          "inconclusive_justification",
+          "approved_by",
+          "approved_at"
+        ],
+        "title": "ReportSummary",
+        "description": "Mục 1: tóm tắt."
+      },
+      "ReportTimelineEvent": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "experiment.submitted",
+              "review.claimed",
+              "review.released",
+              "review.decided"
+            ],
+            "title": "Action"
+          },
+          "actor": {
+            "$ref": "#/components/schemas/UserRef"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "action",
+          "actor",
+          "at"
+        ],
+        "title": "ReportTimelineEvent"
+      },
+      "ReportView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "experiment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Experiment Id"
+          },
+          "experiment_name": {
+            "type": "string",
+            "title": "Experiment Name"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ReportStatus"
+          },
+          "model_verdict": {
+            "$ref": "#/components/schemas/ModelVerdict"
+          },
+          "approved_by": {
+            "$ref": "#/components/schemas/UserRef"
+          },
+          "approved_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Approved At"
+          },
+          "generated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generated At",
+            "description": "Có khi và chỉ khi status = ready"
+          },
+          "json_sha256": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Json Sha256",
+            "description": "Có khi và chỉ khi status = ready"
+          },
+          "pdf_sha256": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pdf Sha256",
+            "description": "Có khi và chỉ khi status = ready"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "experiment_id",
+          "experiment_name",
+          "status",
+          "model_verdict",
+          "approved_by",
+          "approved_at",
+          "generated_at",
+          "json_sha256",
+          "pdf_sha256"
+        ],
+        "title": "ReportView"
+      },
+      "RequiredAttack": {
+        "properties": {
+          "attack_spec_name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "title": "Attack Spec Name"
+          },
           "spec_sha256": {
             "type": "string",
             "pattern": "^[0-9a-f]{64}$",
-            "title": "Spec Sha256"
+            "title": "Spec Sha256",
+            "description": "Chốt đúng version spec"
           },
           "mode": {
             "$ref": "#/components/schemas/RunMode"
@@ -8480,34 +11763,583 @@
           "grid": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/GridConfig"
+                "$ref": "#/components/schemas/RequiredGrid"
               },
               {
                 "type": "null"
               }
-            ],
-            "description": "Các level tối thiểu phải chạy"
+            ]
           },
           "search": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/SearchConfig"
+                "$ref": "#/components/schemas/RequiredSearch"
               },
               {
                 "type": "null"
               }
-            ],
-            "description": "Cấu hình tìm kiếm tối thiểu"
+            ]
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "attack_spec_id",
+          "attack_spec_name",
           "spec_sha256",
           "mode"
         ],
-        "title": "RequiredAttack"
+        "title": "RequiredAttack",
+        "description": "Attack bắt buộc. Một protocol không có hai attack cùng `attack_spec_name` (Phase 5: một\nexperiment không có hai attack cùng spec). Kiểm tra cần catalog (spec tồn tại, `spec_sha256`\nkhớp, patch không ở chế độ tìm ngưỡng, dải trong `primary_param`) ở backend."
+      },
+      "RequiredCase": {
+        "properties": {
+          "failure_case_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Failure Case Id"
+          },
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "attack_spec_name": {
+            "type": "string",
+            "title": "Attack Spec Name"
+          },
+          "level": {
+            "type": "number",
+            "title": "Level"
+          },
+          "image_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Image Id"
+          },
+          "severity_score": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Severity Score"
+          },
+          "display_mode": {
+            "$ref": "#/components/schemas/DisplayMode"
+          },
+          "current_verdict": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CaseVerdictView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "failure_case_id",
+          "run_id",
+          "attack_spec_name",
+          "level",
+          "image_id",
+          "severity_score",
+          "display_mode",
+          "current_verdict"
+        ],
+        "title": "RequiredCase",
+        "description": "Case bắt buộc review: top `cases_to_review_per_attack` theo `severity_score` của mỗi\nattack bắt buộc (cùng điểm theo `image_id`)."
+      },
+      "RequiredGrid": {
+        "properties": {
+          "levels": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Levels",
+            "description": "Level tối thiểu phải chạy; experiment được thêm level khác"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "levels"
+        ],
+        "title": "RequiredGrid"
+      },
+      "RequiredSearch": {
+        "properties": {
+          "threshold_kind": {
+            "$ref": "#/components/schemas/ThresholdKind"
+          },
+          "threshold": {
+            "type": "number",
+            "maximum": 1.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Threshold"
+          },
+          "class_filter": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Class Filter",
+            "description": "Một class đích"
+          },
+          "lo": {
+            "type": "number",
+            "title": "Lo"
+          },
+          "hi": {
+            "type": "number",
+            "title": "Hi"
+          },
+          "max_tol": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Max Tol"
+          },
+          "min_bootstrap_samples": {
+            "type": "integer",
+            "maximum": 1000.0,
+            "minimum": 0.0,
+            "title": "Min Bootstrap Samples",
+            "description": "0 cho phép không tính khoảng tin cậy (tiêu chí khi đó không bao giờ inconclusive do khoảng tin cậy)",
+            "default": 200
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "threshold_kind",
+          "threshold",
+          "lo",
+          "hi",
+          "max_tol"
+        ],
+        "title": "RequiredSearch",
+        "description": "Cấu hình tìm ngưỡng tối thiểu: experiment phải cùng ngưỡng, dải bao phủ [lo, hi],\n`tol ≤ max_tol`, `bootstrap_samples ≥ min_bootstrap_samples` (requirements.md Phase 8)."
+      },
+      "ReviewComment": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "experiment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Experiment Id"
+          },
+          "author": {
+            "$ref": "#/components/schemas/UserRef"
+          },
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Body"
+          },
+          "target_type": {
+            "$ref": "#/components/schemas/CommentTargetType"
+          },
+          "target_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Target Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "experiment_id",
+          "author",
+          "body",
+          "target_type",
+          "target_id",
+          "created_at"
+        ],
+        "title": "ReviewComment"
+      },
+      "ReviewCommentCreate": {
+        "properties": {
+          "target_type": {
+            "$ref": "#/components/schemas/CommentTargetType"
+          },
+          "target_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Target Id",
+            "description": "ID experiment, run hoặc failure case thuộc experiment (422 nếu không thuộc)"
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Body"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "target_type",
+          "target_id",
+          "body"
+        ],
+        "title": "ReviewCommentCreate"
+      },
+      "ReviewDecision": {
+        "type": "string",
+        "enum": [
+          "approve",
+          "changes_requested",
+          "reject"
+        ],
+        "title": "ReviewDecision"
+      },
+      "ReviewDecisionInput": {
+        "properties": {
+          "decision": {
+            "$ref": "#/components/schemas/ReviewDecision"
+          },
+          "model_verdict": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelVerdict"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Bắt buộc khi approve"
+          },
+          "conclusion": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Conclusion",
+            "description": "Kết luận; lý do với changes_requested và reject"
+          },
+          "mitigation": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mitigation",
+            "description": "Bắt buộc khi approve"
+          },
+          "inconclusive_justification": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inconclusive Justification"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "decision",
+          "conclusion"
+        ],
+        "title": "ReviewDecisionInput",
+        "description": "`POST /reviews/{experiment_id}/decision`. Thiếu trường nhập → 422 (kickoff Phase 8); thiếu\n`inconclusive_justification` khi có tiêu chí inconclusive cũng 422 (kiểm ở backend)."
+      },
+      "ReviewQueueFilter": {
+        "type": "string",
+        "enum": [
+          "waiting",
+          "mine",
+          "decided"
+        ],
+        "title": "ReviewQueueFilter",
+        "description": "Nhóm của hàng đợi review (`GET /reviews?status=`)."
+      },
+      "ReviewQueueItem": {
+        "properties": {
+          "experiment": {
+            "$ref": "#/components/schemas/ExperimentSummary"
+          },
+          "protocol": {
+            "$ref": "#/components/schemas/ProtocolRef"
+          },
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Submitted At"
+          },
+          "assignee": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "claimed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Claimed At"
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewDecision"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "max_relative_drop": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Relative Drop",
+            "description": "relative_drop lớn nhất trên run toàn slice có metric; null khi không có"
+          },
+          "required_cases_total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Required Cases Total"
+          },
+          "required_cases_reviewed": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Required Cases Reviewed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "experiment",
+          "protocol",
+          "submitted_at",
+          "assignee",
+          "claimed_at",
+          "decision",
+          "decided_at",
+          "max_relative_drop",
+          "required_cases_total",
+          "required_cases_reviewed"
+        ],
+        "title": "ReviewQueueItem",
+        "description": "Một dòng của hàng đợi `GET /reviews` (không gồm experiment do người gọi tạo)."
+      },
+      "ReviewView": {
+        "properties": {
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Submitted At"
+          },
+          "submission_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submission Note"
+          },
+          "run_explanations": {
+            "items": {
+              "$ref": "#/components/schemas/RunExplanation"
+            },
+            "type": "array",
+            "title": "Run Explanations"
+          },
+          "assignee": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Người đang nhận hoặc đã quyết định"
+          },
+          "claimed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Claimed At"
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewDecision"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "model_verdict": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelVerdict"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "conclusion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conclusion"
+          },
+          "mitigation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mitigation"
+          },
+          "inconclusive_justification": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inconclusive Justification"
+          },
+          "criteria_results": {
+            "items": {
+              "$ref": "#/components/schemas/CriterionResult"
+            },
+            "type": "array",
+            "title": "Criteria Results",
+            "description": "Khi chưa quyết định: tính tại thời điểm đọc; sau quyết định: bản đã lưu"
+          },
+          "checklist": {
+            "items": {
+              "$ref": "#/components/schemas/ChecklistItem"
+            },
+            "type": "array",
+            "title": "Checklist",
+            "description": "Điều kiện trạng thái trước khi chấp nhận; sau quyết định: bản đã lưu"
+          },
+          "required_cases": {
+            "items": {
+              "$ref": "#/components/schemas/RequiredCase"
+            },
+            "type": "array",
+            "title": "Required Cases"
+          },
+          "comments_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Comments Count"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "submitted_at",
+          "submission_note",
+          "run_explanations",
+          "assignee",
+          "claimed_at",
+          "decision",
+          "decided_at",
+          "model_verdict",
+          "conclusion",
+          "mitigation",
+          "inconclusive_justification",
+          "criteria_results",
+          "checklist",
+          "required_cases",
+          "comments_count"
+        ],
+        "title": "ReviewView",
+        "description": "Trạng thái review của experiment (`ExperimentDetail.review`)."
       },
       "Role": {
         "type": "string",
@@ -8661,6 +12493,37 @@
         ],
         "title": "RunCounts",
         "description": "Số run theo từng `RunStatus`."
+      },
+      "RunExplanation": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "author": {
+            "$ref": "#/components/schemas/UserRef"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Text"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run_id",
+          "author",
+          "text",
+          "created_at"
+        ],
+        "title": "RunExplanation"
       },
       "RunMetrics": {
         "properties": {
@@ -9991,6 +13854,77 @@
         ],
         "title": "StopReason"
       },
+      "SubmitCheckCode": {
+        "type": "string",
+        "enum": [
+          "experiment_completed",
+          "protocol_not_dev",
+          "runs_final",
+          "no_dirty_runs",
+          "required_cases_visible"
+        ],
+        "title": "SubmitCheckCode",
+        "description": "Điều kiện gửi duyệt (Phase 8, `POST /experiments/{id}/submit`), hiển thị trong hộp gửi\nduyệt trước khi gửi."
+      },
+      "SubmitCheckItem": {
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/SubmitCheckCode"
+          },
+          "satisfied": {
+            "type": "boolean",
+            "title": "Satisfied"
+          },
+          "detail": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Detail"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "satisfied",
+          "detail"
+        ],
+        "title": "SubmitCheckItem",
+        "description": "Một điều kiện gửi duyệt (Phase 8)."
+      },
+      "SubmitForReview": {
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "run_explanations": {
+            "additionalProperties": {
+              "type": "string",
+              "maxLength": 4000,
+              "minLength": 1
+            },
+            "propertyNames": {
+              "format": "uuid"
+            },
+            "type": "object",
+            "title": "Run Explanations",
+            "description": "run_id → lời giải trình"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SubmitForReview",
+        "description": "`POST /experiments/{id}/submit`. Lời giải trình chỉ gửi kèm ở đây (kickoff Phase 8)."
+      },
       "ThresholdKind": {
         "type": "string",
         "enum": [
@@ -10309,6 +14243,40 @@
           "disabled"
         ],
         "title": "UserStatus"
+      },
+      "VerifyInfo": {
+        "properties": {
+          "report_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Report Id"
+          },
+          "issued_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Issued At"
+          },
+          "json_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Json Sha256"
+          },
+          "pdf_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Pdf Sha256"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "report_id",
+          "issued_at",
+          "json_sha256",
+          "pdf_sha256"
+        ],
+        "title": "VerifyInfo",
+        "description": "`GET /verify/{report_id}` (công khai): không có tên người hay nội dung report."
       },
       "WorkerDirective": {
         "properties": {

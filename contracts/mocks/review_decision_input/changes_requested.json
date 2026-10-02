@@ -1,0 +1,7 @@
+{
+  "decision": "changes_requested",
+  "model_verdict": null,
+  "conclusion": "Run PGD eps 8 lỗi; chạy lại trên máy đủ VRAM rồi gửi duyệt lại.",
+  "mitigation": null,
+  "inconclusive_justification": null
+}
