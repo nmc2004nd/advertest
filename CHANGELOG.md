@@ -6,7 +6,33 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 8 — Protocol, review và report
 
-**Trạng thái:** đang làm. Group 0, 1 đã merge (2026-10-02).
+**Trạng thái:** đang làm. Group 0, 1, 2 đã merge (2026-10-02).
+
+### Phase 8 — Group 2 (backend-review) — 2026-10-02
+#### Thêm
+- **`backend/app/reviews/` (task 11–18):**
+  - gửi duyệt: điều kiện và giải trình; đặt `locked_at`, `review_submitted_at`; email cho reviewer;
+  - `ensure_unlocked` kiểm ở hủy experiment, API worker, tạo run động;
+  - nhận / trả lại review; hàng đợi `waiting`/`mine`/`decided`, sắp theo thời gian gửi hoặc mức sụt lớn nhất;
+  - case bắt buộc top-N theo attack; verdict có version;
+  - đánh giá tiêu chí (`criteria.py`, hàm thuần);
+  - checklist và quyết định (`403` → `422` → `409 checklist_incomplete`), lưu tiêu chí và checklist vào `reviews`, email cho engineer;
+  - bình luận chỉ thêm; audit đủ các action trong `requirements.md`;
+  - `ExperimentDetail` thêm `submit_check`, `runs_requiring_explanation`, `review`.
+- **Migration `0010`:** `runs.git_dirty`, ghi lúc run bắt đầu.
+- **Test:** `test_phase08_reviews.py` (34 test DB), `tests/reviews/test_criteria.py` (22 test unit).
+#### Sửa
+- **Downgrade `0009`:** xóa thêm `reviews`, `case_verdicts`. Nếu không, khi test khác hạ cấp về `base`, migration `0002` không xóa được `failure_cases` và khoảng 200 test lỗi dây chuyền.
+- **`max_relative_drop`:** bỏ metric JSON `null` (cột JSONB không lưu SQL `NULL`).
+- **Test của agent:** dữ liệu `test_migration_0009.py` hợp lệ; `test_skeleton.py`, `test_route_protection_db.py` coi `/reviews` là đã cài đặt.
+- **Test nghiệm thu (người duyệt, người dùng cho phép):** Phase 0 thêm `/reviews` vào nhóm đã cài đặt; Phase 4 chờ `review.decide` trả `200`.
+#### Review (phase-review, 2026-10-02)
+- Không có phát hiện chặn.
+- Ghi nhận: hàng đợi tốn N+1 truy vấn (Phase 11); quyết định ngầm đã ghi vào `requirements.md` mục "Chốt ở Group 2".
+- Review do cùng agent đã viết code thực hiện (không độc lập).
+#### Số liệu
+- `make check` pass: 1473 test Python, 314 Vitest, 333 test nghiệm thu không cần DB.
+- `make test-db` chạy đầy đủ trước khi sửa test nghiệm thu: 583 pass, 3 fail (2 test nghiệm thu đã sửa sau đó, chạy riêng pass; 1 là test email Phase 5 có từ trước, giao ở task 37).
 
 ### Phase 8 — Group 1 (backend-review) — 2026-10-02
 #### Thêm

@@ -158,6 +158,32 @@ Ràng buộc DB:
 - Trigger Phase 0 (người review ≠ người tạo) vẫn giữ; thêm tương tự cho `experiments.review_assignee_id`.
 - `reports` (Phase 0: chỉ thêm) được cấp thêm `UPDATE`, không có `DELETE`. Trigger chỉ cho sửa `status`, `attempts`, các cột key và hash, và chỉ khi dòng hiện tại có `status ≠ ready`; dòng đã `ready` là bất biến. Sinh lại cập nhật đúng dòng đó nên `report_id` không đổi (kickoff 2026-10-02).
 
+### Chốt ở Group 2 (2026-10-02)
+
+- **`runs.git_dirty`** (migration 0010): lấy từ `fingerprint_inputs.git_dirty` khi run bắt đầu, cả run trúng cache. Null với run chưa bắt đầu hoặc bắt đầu trước 0010; null được coi là không dirty. Đây là lựa chọn của người dùng ở kế hoạch Group 2, thay cho việc đọc manifest trên MinIO.
+- **Khóa:**
+  - `ensure_unlocked` kiểm ở hủy experiment, ở mọi API của worker ghi run và ở tạo run động → `409 experiment_locked`;
+  - gửi duyệt lại một experiment đã khóa cũng trả `409 experiment_locked`.
+- **Gửi duyệt:**
+  - thứ tự kiểm tra: không phải chủ sở hữu → `403`; điều kiện trong `submit_check` hoặc không còn tuân thủ protocol → `409`; giải trình thiếu hoặc thừa (cho run không cần) → `422`, đường dẫn `run_explanations.<run_id>`;
+  - case bắt buộc phải có `display_mode = normal`: case chưa làm mờ cũng chặn gửi duyệt khi server bật `DEV_ALLOW_UNBLURRED`, vì report chỉ nhận case đã làm mờ;
+  - `submit_check` của protocol `dev` chỉ có hai mục `experiment_completed`, `protocol_not_dev`.
+- **Verdict và quyết định:** thứ tự kiểm tra là đã quyết định → `409`; không phải người đang nhận (hoặc là người tạo) → `403`; case không thuộc experiment → `404`. Chưa ai nhận review (`submitted_for_review`) thì ghi verdict hay ra quyết định → `403`.
+- **Case bắt buộc:** với mỗi attack bắt buộc, top N theo `severity_score` giảm dần trên mọi run của attack đó (kể cả run tập con), cùng điểm theo `image_id`, rồi theo id.
+- **Tiêu chí:**
+  - `max_drop_at_level` chỉ dùng run toàn slice; run `skipped` do `cached` (có metric chép từ run gốc) được dùng như run `completed`;
+  - `min_breaking_point` xét theo thứ tự: trạng thái → `near_threshold` → khoảng tin cậy chứa level → so cận dưới và cận trên của `bracket`; `level = b` → `inconclusive`.
+- **Hàng đợi:**
+  - `decided` gồm mọi experiment đã quyết định, trừ của người gọi (người dùng chọn);
+  - `max_relative_drop` lấy trên run toàn slice có metric;
+  - sắp `submitted_at` từ cũ đến mới; sắp `max_drop` giảm dần, null xếp cuối.
+- **Bình luận:** mọi người có `review.comment` (engineer, reviewer) đều bình luận được, không chỉ chủ sở hữu và người nhận review.
+- **Audit:** `case_verdict.recorded` gắn với failure case, `run_explanation.added` gắn với run; `experiment.submitted`, `review.*` gắn với experiment.
+- **Email:**
+  - gửi duyệt: email cho mọi reviewer `active` trừ người tạo, link `/reviews/{id}`;
+  - quyết định: email cho người tạo, ghi quyết định và kết luận về model, link `/experiments/{id}`;
+  - không có ảnh hay dữ liệu dataset.
+
 ## Behaviour
 
 ### Protocol
