@@ -6,8 +6,10 @@ FROM python:3.11-slim
 COPY --from=ghcr.io/astral-sh/uv:0.12.19 /uv /usr/local/bin/uv
 
 # Thư viện hệ thống cho opencv-python (ultralytics import cv2 khi nạp; api import qua ml_core).
+# Phase 8: WeasyPrint (report PDF) cần pango, harfbuzz và font có dấu tiếng Việt (DejaVu).
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 libxcb1 \
+        libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 ARG TORCH=cpu
