@@ -229,6 +229,7 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 - [ ] Rà soát bảo mật: quyền endpoint, token worker, cấu hình Tailscale.
 - [ ] Tài liệu cài đặt và vận hành.
 - [ ] (Từ Phase 4) `/docs`, `/redoc`, `/openapi.json` đang công khai; compose tin cả mạng Docker trong `TRUSTED_PROXIES` (chỉ hợp cho dev; bản triển khai đặt IP reverse proxy); ô chọn người thực hiện trên trang audit tối đa 100 người dùng.
+- [ ] (Từ Phase 8) Biểu tượng khóa của chip level trong wizard dùng `aria-label` trên `span` không có role (review Group 4 #1).
 - [ ] (Từ Phase 5) Box trên canvas của trình xem case chưa đọc được bằng trình đọc màn hình; nháp wizard có model/slice đã xóa chỉ được báo qua `422`.
 - [ ] (Từ Phase 5, 6) CLI `advertest` lẫn thông báo của Ultralytics vào stdout ở lần import đầu (`scripts/e2e.sh` đang né).
 - [ ] (Từ Phase 0) Pin image nền và GitHub Action theo digest/SHA; tài liệu cài đặt nhắc đổi mật khẩu `change-me-*` và việc `make check` cần mạng ở lần đầu.
