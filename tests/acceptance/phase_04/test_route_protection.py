@@ -110,11 +110,12 @@ def test_multiple_roles_get_the_union(api: Api) -> None:
     expected = ROLE_PERMISSIONS[Role.ENGINEER] | ROLE_PERMISSIONS[Role.REVIEWER]
     assert set(me["permissions"]) == {p.value for p in expected}
     # Phase 5 Group 2: POST /experiments đã cài đặt; body mẫu trỏ tới tài nguyên không có nên
-    # route trả 422 invalid_request, tức đã qua kiểm tra quyền. review.decide vẫn là khung (501).
+    # route trả 422 invalid_request, tức đã qua kiểm tra quyền. Phase 8 Group 2: review.decide đã
+    # cài đặt (GET /reviews trả hàng đợi, 200; người dùng cho phép sửa, 2026-10-02).
     method, path, body = REPRESENTATIVES[Permission.EXPERIMENT_CREATE]
     response = client.request(method, path, json=body, headers=csrf(client))
     assert error(response) == (422, "invalid_request")
     method, path, body = REPRESENTATIVES[Permission.REVIEW_DECIDE]
-    assert client.request(method, path, json=body, headers=csrf(client)).status_code == 501
+    assert client.request(method, path, json=body, headers=csrf(client)).status_code == 200
     method, path, body = REPRESENTATIVES[Permission.AUDIT_READ]
     assert error(client.request(method, path, json=body)) == (403, "forbidden")
