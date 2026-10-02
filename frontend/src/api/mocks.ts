@@ -18,7 +18,11 @@ import type {
   ProtocolView,
   CaseVerdictView,
   ReviewComment,
+  ReportDetail,
+  ReportDownload,
+  ReportView,
   ReviewQueueItem,
+  VerifyInfo,
   RunResultOutput as RunResult,
   RunView,
   SliceSummary,
@@ -100,6 +104,23 @@ function mockPhase5(pathname: string, query: URLSearchParams): unknown {
       (want[group] ?? []).includes(i.experiment.status),
     )
   }
+  // Phase 8 Group 6: report và xác minh.
+  if (pathname === '/reports') return listMocks<ReportView>('report_view')
+  m = match(`/reports/${id}/download`)
+  if (m) {
+    const format = query.get('format') ?? 'pdf'
+    return first(where<ReportDownload>('report_download', 'format', format), pathname)
+  }
+  m = match(`/reports/${id}`)
+  if (m) {
+    const reportId = m[1]
+    const detail = listMocks<ReportDetail>('report_detail').find((d) => d.report.id === reportId)
+    if (detail) return detail
+    const view = first(where<ReportView>('report_view', 'id', reportId), pathname)
+    return { report: view, snapshot: null } satisfies ReportDetail
+  }
+  m = match(`/verify/${id}`)
+  if (m) return first(where<VerifyInfo>('verify_info', 'report_id', m[1]), pathname)
   m = match(`/failure-cases/${id}/verdicts`)
   if (m) return where<CaseVerdictView>('case_verdict_view', 'failure_case_id', m[1])
   m = match(`/protocols/${id}`)
