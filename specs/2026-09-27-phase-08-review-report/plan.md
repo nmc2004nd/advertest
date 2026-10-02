@@ -17,28 +17,29 @@
 
 ## Group 1 — Backend: dữ liệu và protocol `[agent: backend-review]`
 
-7. Migration: thay đổi bảng trong `requirements.md`; cập nhật `dev-open`; quyền DB và trigger mới.
+7. Migration: thay đổi bảng trong `requirements.md`; cập nhật `dev-open`; quyền DB và trigger mới (gồm `UPDATE` có trigger trên `reports`).
+7a. Sửa `downgrade` migration 0006: xóa `cost_profiles` của spec `not_applicable` trước (roadmap "Từ Phase 7").
 8. Service protocol: tạo, tạo version, ngừng dùng; kiểm tra hợp lệ.
 9. Hàm tuân thủ protocol dùng chung cho ước lượng, tạo experiment và gửi duyệt; tích hợp vào kiểm tra của Phase 5.
 10. Endpoint `/protocols*`.
 
 ## Group 2 — Backend: gửi duyệt và review `[agent: backend-review]`
 
-11. Gửi duyệt: điều kiện, giải trình run, khóa experiment (chặn mọi endpoint thay đổi bằng một kiểm tra chung), email cho reviewer.
+11. Gửi duyệt: điều kiện (gồm chặn case bắt buộc bị ẩn), giải trình run chỉ qua `SubmitForReview`, khóa experiment (chặn mọi endpoint thay đổi bằng một kiểm tra chung), email cho reviewer.
 12. Nhận / trả lại review; hàng đợi loại experiment của chính người gọi.
 13. Chọn case bắt buộc review theo attack.
 14. Verdict có version.
-15. Đánh giá tiêu chí tự động theo bảng trong `requirements.md` (dùng dữ liệu Phase 6–7).
+15. Đánh giá tiêu chí tự động theo bảng trong `requirements.md` (dùng dữ liệu Phase 6–7; level `early_stop` dùng run kích hoạt).
 16. Danh sách kiểm tra trước khi chấp nhận; endpoint quyết định; email cho engineer.
 17. Bình luận chỉ thêm.
 18. Ghi `audit_log` cho mọi action trong `requirements.md`.
 
 ## Group 3 — Backend: report `[agent: backend-report]`
 
-19. Dựng `ReportSnapshot` từ DB và MinIO (gồm lịch sử experiment liên quan, mọi run, case đã review).
+19. Dựng `ReportSnapshot` từ DB và MinIO (gồm lịch sử experiment liên quan, kể cả `dev-open`; mọi run; case đã review; lưu ý eps tính trên ảnh letterbox float, không lượng tử 8-bit).
 20. Mẫu HTML Jinja2 cho 9 mục; biểu đồ matplotlib thành PNG; chân trang.
 21. Render PDF bằng WeasyPrint; tính hash; lưu vào bucket `reports`.
-22. Tác vụ nền sinh report sau khi chấp nhận, thử lại 3 lần; endpoint sinh lại khi `failed`.
+22. Tác vụ nền sinh report sau khi chấp nhận, thử lại 3 lần; endpoint sinh lại khi `failed`; khi API khởi động, report kẹt ở `generating` được sinh tiếp.
 23. Endpoint `/reports*` với phân quyền tải; `/verify/{report_id}` công khai trả `VerifyInfo`.
 
 ## Group 4 — Frontend: engineer `[agent: frontend-report]`
@@ -65,4 +66,5 @@
 34. Viết test nghiệm thu `tests/acceptance/phase_08/` và kịch bản Playwright `frontend/e2e/phase_08/` theo `validation.md`.
 35. Chạy trọn luồng trên KITTI; đọc kỹ toàn bộ PDF.
 36. Thử các cách gian lận ở mục Manual Checks.
-37. Trả lời câu hỏi mở; cập nhật `CHANGELOG.md`, `roadmap.md`; merge.
+37. Bỏ `DROP OWNED BY` trong `tests/acceptance/phase_07/conftest.py` (sau task 7a); sửa test email Phase 5 phụ thuộc ngày; xem lại số failure case mỗi run (mặc định 20).
+38. Trả lời câu hỏi mở; cập nhật `CHANGELOG.md`, `roadmap.md`; merge.
