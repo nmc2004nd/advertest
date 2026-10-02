@@ -47,6 +47,7 @@ from advertest_contracts.models import (
 from backend.app import storage
 from backend.app.db import models as m
 from backend.app.presign import Presigner
+from backend.app.reviews.lock import ensure_unlocked
 from backend.app.services import leasing, searches
 from backend.app.services.clock import Clock, utcnow
 from backend.app.services.errors import Conflict, Forbidden, Invalid, NotFound
@@ -80,6 +81,7 @@ def _run_for_worker(
     if found is None:
         raise NotFound(f"Không có run {run_id}")
     experiment = leasing.leased_experiment(session, target, found.experiment_id, lease_id)
+    ensure_unlocked(experiment)  # Phase 8: experiment đã gửi duyệt không ghi được nữa
     run = session.get(m.Run, run_id, with_for_update=True, populate_existing=True)
     if run is None:
         raise NotFound(f"Không có run {run_id}")
@@ -180,6 +182,7 @@ def start(
         .limit(1)
     )
     run.fingerprint = request.fingerprint
+    run.git_dirty = request.fingerprint_inputs.git_dirty  # Phase 8: forbid_dirty_runs
     run.started_at = now
     if origin is None:
         run.status = RunStatus.RUNNING

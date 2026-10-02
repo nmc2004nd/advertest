@@ -92,6 +92,7 @@ from backend.app.auth.deps import CurrentUser, Principal
 from backend.app.auth.permissions import guard
 from backend.app.db import models as m
 from backend.app.protocols import service as protocol_service
+from backend.app.reviews import service as review_service
 from backend.app.services import (
     artifacts,
     catalog,
@@ -575,9 +576,19 @@ def clone_experiment(experiment_id: UUID, factory: Sessions) -> ExperimentClone:
     responses=PHASE8_RESPONSES,
     **guard(P.EXPERIMENT_SUBMIT_REVIEW),
 )
-def submit_experiment(experiment_id: UUID, body: SubmitForReview) -> ExperimentDetail:
+def submit_experiment(
+    experiment_id: UUID, body: SubmitForReview, user: CurrentUser, factory: Sessions, clock: Now
+) -> ExperimentDetail:
     """Chỉ chủ sở hữu (403); điều kiện sai → 409, thiếu giải trình → 422; khóa experiment."""
-    not_implemented()
+    with transaction(factory) as session:
+        review_service.submit(
+            session,
+            actor=_actor(session, user),
+            experiment_id=experiment_id,
+            body=body,
+            now=clock(),
+        )
+        return experiment_views.detail(session, experiment_id)
 
 
 @router.get(
@@ -586,9 +597,10 @@ def submit_experiment(experiment_id: UUID, body: SubmitForReview) -> ExperimentD
     responses=PHASE8_RESPONSES,
     **guard(P.EXPERIMENT_READ),
 )
-def list_comments(experiment_id: UUID) -> list[ReviewComment]:
+def list_comments(experiment_id: UUID, factory: Sessions) -> list[ReviewComment]:
     """Cũ nhất trước."""
-    not_implemented()
+    with transaction(factory) as session:
+        return review_service.list_comments(session, experiment_id)
 
 
 @router.post(
@@ -598,9 +610,14 @@ def list_comments(experiment_id: UUID) -> list[ReviewComment]:
     responses=PHASE8_RESPONSES,
     **guard(P.REVIEW_COMMENT),
 )
-def add_comment(experiment_id: UUID, body: ReviewCommentCreate) -> ReviewComment:
+def add_comment(
+    experiment_id: UUID, body: ReviewCommentCreate, user: CurrentUser, factory: Sessions
+) -> ReviewComment:
     """Chỉ khi `submitted_for_review` hoặc `in_review` (409); chỉ thêm, không sửa, không xóa."""
-    not_implemented()
+    with transaction(factory) as session:
+        return review_service.add_comment(
+            session, actor=_actor(session, user), experiment_id=experiment_id, body=body
+        )
 
 
 @router.get(
@@ -651,9 +668,10 @@ def get_failure_case(case_id: UUID, factory: Sessions, clock: Now) -> FailureCas
     responses=PHASE8_RESPONSES,
     **guard(P.EXPERIMENT_READ),
 )
-def list_case_verdicts(case_id: UUID) -> list[CaseVerdictView]:
+def list_case_verdicts(case_id: UUID, factory: Sessions) -> list[CaseVerdictView]:
     """Mọi version, mới nhất trước."""
-    not_implemented()
+    with transaction(factory) as session:
+        return review_service.list_verdicts(session, case_id)
 
 
 @router.get(
@@ -694,12 +712,15 @@ def get_artifact(token: str, read: Artifacts, clock: Now) -> Response:
 
 @router.get("/reviews", tags=["reviews"], **guard(P.REVIEW_DECIDE))
 def list_reviews(
+    user: CurrentUser,
+    factory: Sessions,
     status: ReviewQueueFilter = ReviewQueueFilter.WAITING,
     sort: Literal["submitted_at", "max_drop"] = "submitted_at",
 ) -> list[ReviewQueueItem]:
     """Hàng đợi review, loại experiment do người gọi tạo. `submitted_at`: cũ nhất trước;
     `max_drop`: `max_relative_drop` giảm dần, null xếp cuối."""
-    not_implemented()
+    with transaction(factory) as session:
+        return review_service.queue(session, actor=_actor(session, user), status=status, sort=sort)
 
 
 @router.post(
@@ -708,9 +729,15 @@ def list_reviews(
     responses=PHASE8_RESPONSES,
     **guard(P.REVIEW_DECIDE),
 )
-def claim_review(experiment_id: UUID) -> ExperimentDetail:
+def claim_review(
+    experiment_id: UUID, user: CurrentUser, factory: Sessions, clock: Now
+) -> ExperimentDetail:
     """`submitted_for_review` → `in_review` (409 với trạng thái khác); người tạo → 403."""
-    not_implemented()
+    with transaction(factory) as session:
+        review_service.claim(
+            session, actor=_actor(session, user), experiment_id=experiment_id, now=clock()
+        )
+        return experiment_views.detail(session, experiment_id)
 
 
 @router.post(
@@ -719,9 +746,11 @@ def claim_review(experiment_id: UUID) -> ExperimentDetail:
     responses=PHASE8_RESPONSES,
     **guard(P.REVIEW_DECIDE),
 )
-def release_review(experiment_id: UUID) -> ExperimentDetail:
+def release_review(experiment_id: UUID, user: CurrentUser, factory: Sessions) -> ExperimentDetail:
     """Chỉ người đang nhận (403); trở về `submitted_for_review`."""
-    not_implemented()
+    with transaction(factory) as session:
+        review_service.release(session, actor=_actor(session, user), experiment_id=experiment_id)
+        return experiment_views.detail(session, experiment_id)
 
 
 @router.post(
@@ -730,10 +759,24 @@ def release_review(experiment_id: UUID) -> ExperimentDetail:
     responses=PHASE8_RESPONSES,
     **guard(P.REVIEW_DECIDE),
 )
-def decide_review(experiment_id: UUID, body: ReviewDecisionInput) -> ExperimentDetail:
+def decide_review(
+    experiment_id: UUID,
+    body: ReviewDecisionInput,
+    user: CurrentUser,
+    factory: Sessions,
+    clock: Now,
+) -> ExperimentDetail:
     """Thứ tự kiểm tra: không phải người đang nhận → 403; thiếu trường nhập → 422; checklist
     chưa đủ → 409 `checklist_incomplete` kèm `checklist`."""
-    not_implemented()
+    with transaction(factory) as session:
+        review_service.decide(
+            session,
+            actor=_actor(session, user),
+            experiment_id=experiment_id,
+            body=body,
+            now=clock(),
+        )
+        return experiment_views.detail(session, experiment_id)
 
 
 @router.post(
@@ -743,11 +786,24 @@ def decide_review(experiment_id: UUID, body: ReviewDecisionInput) -> ExperimentD
     responses=PHASE8_RESPONSES,
     **guard(P.REVIEW_DECIDE),
 )
-def add_case_verdict(experiment_id: UUID, case_id: UUID, body: CaseVerdictInput) -> CaseVerdictView:
+def add_case_verdict(
+    experiment_id: UUID,
+    case_id: UUID,
+    body: CaseVerdictInput,
+    user: CurrentUser,
+    factory: Sessions,
+) -> CaseVerdictView:
     """Chỉ người đang nhận review (403); case phải thuộc experiment (404); tạo version mới.
     Đặt dưới `/reviews` vì API người dùng không có endpoint ghi dưới `/failure-cases`
     (test kiến trúc Phase 3)."""
-    not_implemented()
+    with transaction(factory) as session:
+        return review_service.add_verdict(
+            session,
+            actor=_actor(session, user),
+            experiment_id=experiment_id,
+            case_id=case_id,
+            body=body,
+        )
 
 
 @router.get("/reports", tags=["reports"], **guard(P.REPORT_READ))

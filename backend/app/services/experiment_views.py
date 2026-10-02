@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID
 
 from sqlalchemy import Select, func, select
@@ -53,6 +53,7 @@ from backend.app import storage
 from backend.app.api import pagination
 from backend.app.db import models as m
 from backend.app.protocols import compliance
+from backend.app.reviews import views as review_views
 from backend.app.services import searches
 from backend.app.services.errors import NotFound
 from backend.app.services.estimate import queue_position
@@ -136,6 +137,22 @@ def _summary(
     )
 
 
+def summaries(session: Session, experiment_ids: list[UUID]) -> dict[UUID, ExperimentSummary]:
+    """`ExperimentSummary` theo id (hàng đợi review, Phase 8)."""
+    if not experiment_ids:
+        return {}
+    rows = list(
+        session.execute(_with_refs(select(m.Experiment).where(m.Experiment.id.in_(experiment_ids))))
+    )
+    stats = _run_stats(session, experiment_ids)
+    return {
+        experiment.id: _summary(
+            experiment, _Refs(user, model, slice_row, target), stats[experiment.id]
+        )
+        for experiment, user, model, slice_row, target in rows
+    }
+
+
 def list_experiments(
     session: Session,
     *,
@@ -212,7 +229,21 @@ def detail(session: Session, experiment_id: UUID) -> ExperimentDetail:
         attack_ranking=_ranking(session, config, runs),
         search_results=searches.results(session, experiment.id),
         compliance=_compliance(session, experiment, config, protocol),
+        **_review_fields(session, experiment),
     )
+
+
+def _review_fields(session: Session, experiment: m.Experiment) -> dict[str, Any]:
+    """Phase 8: điều kiện gửi duyệt khi `completed`; `review` khi đã gửi duyệt."""
+    ctx = review_views.load(session, experiment)
+    if experiment.status == ExperimentStatus.COMPLETED:
+        return {
+            "submit_check": review_views.submit_check(session, ctx),
+            "runs_requiring_explanation": [
+                run.id for run in review_views.runs_requiring_explanation(ctx)
+            ],
+        }
+    return {"review": review_views.review_view(session, ctx)}
 
 
 def _compliance(
