@@ -185,7 +185,8 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 - [x] Audit log cho toàn bộ vòng đời experiment.
 - [x] (Từ Phase 2) Report ghi rõ eps tính trên ảnh letterbox dạng float (không lượng tử hóa 8-bit); số failure case mỗi run giữ 20 (Group 7).
 - [x] (Từ Phase 7) Migration 0006 `downgrade` xóa `cost_profiles` của spec `not_applicable` trước (Group 1); test email Phase 5 hết phụ thuộc ngày (Group 7). `DROP OWNED BY` giữ lại làm cách dựng DB test chính thức cho Phase 7, 8: run Phase 6 vẫn chặn `downgrade base`, và migration không xóa dữ liệu thật (người dùng chốt ở Group 7).
-- [ ] Manual check: luồng thật trên KITTI với hai tài khoản, đọc PDF, PDF và `/verify` trên điện thoại thật qua HTTPS, đọc email, phím tắt và vuốt trên thiết bị thật, lỗi `MAX_RUNS` của form protocol (chờ người dùng).
+- [x] Manual check: luồng thật trên KITTI với hai tài khoản, đọc PDF, PDF và `/verify` trên điện thoại thật, đọc email (người dùng xác nhận 2026-10-02); thử gian lận bằng test tự động gọi API thật (người dùng chấp nhận).
+- [ ] Automated Tests pass trên CI (đã pass trên máy dev; chưa push).
 
 **Demo:** engineer gửi duyệt; reviewer khác review và approve; xuất report; trang xác minh báo khớp.
 
@@ -202,6 +203,7 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 - [ ] Trang admin: compute targets, ngân sách và quota.
 - [ ] (Từ Phase 7) Giữ chỗ ngân sách theo chi phí tối đa (`max_total_seconds`) khi có attack tìm ngưỡng; quyết toán theo thời gian thực.
 - [ ] (Từ Phase 8) Trang report định dạng giới hạn ngân sách (đang hiện chuỗi số thô; review Group 6).
+- [ ] (Từ Phase 8) Mục "Tài nguyên" của report ghi chi phí đã quyết toán so với ngân sách (snapshot hiện chỉ có thời gian xử lý và giới hạn).
 - [ ] (Từ Phase 3) User MinIO riêng cho api thay cho root (máy thuê làm lộ phạm vi của khóa rõ hơn); profile `gpu` và calibration trên GPU nếu chưa làm.
 
 **Demo:** thuê máy vài giờ, chạy experiment có trần ngân sách thấp, xác nhận dừng đúng và quyết toán đúng.
@@ -216,6 +218,7 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 - [ ] Tạo slice theo bộ lọc.
 - [x] ~~Làm mờ mặt và biển số ở tầng hiển thị~~: chuyển sang Phase 6. Dataset riêng dùng lại bước làm mờ của Phase 6.
 - [ ] (Tùy chọn) Pseudo-label cho dữ liệu không có nhãn, gắn nhãn consistency metric.
+- [ ] (Từ Phase 8) Dataset riêng phải qua làm mờ trước khi chạy experiment gửi duyệt: case bắt buộc ở `hidden_unanonymized` chặn gửi duyệt (409).
 - [ ] (Từ Phase 3) `DEFAULT_STORE_DIR` chỉ đúng khi cài editable; `LocalStore` ghi file quyền 0600 (`import-local` phải chạy bằng uid của máy).
 
 **Demo:** upload một dataset YOLO, map class, chạy experiment trên đó.
@@ -233,6 +236,7 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 - [ ] (Từ Phase 4) `/docs`, `/redoc`, `/openapi.json` đang công khai; compose tin cả mạng Docker trong `TRUSTED_PROXIES` (chỉ hợp cho dev; bản triển khai đặt IP reverse proxy); ô chọn người thực hiện trên trang audit tối đa 100 người dùng.
 - [ ] (Từ Phase 8) Biểu tượng khóa của chip level trong wizard dùng `aria-label` trên `span` không có role (review Group 4 #1).
 - [ ] (Từ Phase 8) Lối vào để reviewer review thêm failure case ngoài danh sách bắt buộc (API đã cho phép; review Group 5 #2).
+- [ ] (Từ Phase 8) Thông báo deprecation `Column.copy()` trong migration 0009; WeasyPrint cảnh báo thiếu HarfBuzz-Subset (cài thêm vào image API).
 - [ ] (Từ Phase 5) Box trên canvas của trình xem case chưa đọc được bằng trình đọc màn hình; nháp wizard có model/slice đã xóa chỉ được báo qua `422`.
 - [ ] (Từ Phase 5, 6) CLI `advertest` lẫn thông báo của Ultralytics vào stdout ở lần import đầu (`scripts/e2e.sh` đang né).
 - [ ] (Từ Phase 0) Pin image nền và GitHub Action theo digest/SHA; tài liệu cài đặt nhắc đổi mật khẩu `change-me-*` và việc `make check` cần mạng ở lần đầu.

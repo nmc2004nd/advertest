@@ -6,7 +6,7 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 8 — Protocol, review và report
 
-**Trạng thái:** Group 0–7 đã merge (2026-10-02); chờ manual check của người dùng, chưa đánh dấu hoàn thành.
+**Trạng thái:** Group 0–7 đã merge (2026-10-02). Manual Checks đạt (người dùng xác nhận khi phase-close 2026-10-02; thử gian lận bằng test tự động gọi API thật). Còn chờ Automated Tests pass trên CI (đã thêm pango, harfbuzz, DejaVu vào `ci.yml`; người dùng push) rồi mới đánh dấu hoàn thành.
 
 ### Phase 8 — Group 7 (người duyệt, người dùng giao) — 2026-10-02
 #### Thêm
