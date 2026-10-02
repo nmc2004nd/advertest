@@ -78,10 +78,10 @@ describe('điều hướng (Phase 5 Group 6: Experiment, Tạo experiment; Phase
     expect(visibleNav(mockMe('admin')).map((i) => i.path)).toEqual([
       '/home',
       '/experiments',
-      '/protocols',
       '/admin/users',
       '/admin/audit',
       '/admin/attacks',
+      '/protocols',
       '/account',
     ])
   })

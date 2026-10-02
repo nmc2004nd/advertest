@@ -58,13 +58,6 @@ export const NAV_ITEMS: readonly NavItem[] = [
     implemented: true,
   },
   {
-    path: '/protocols',
-    label: 'Protocol',
-    icon: ListChecks,
-    requirement: 'protocol.read',
-    implemented: true,
-  },
-  {
     path: '/admin/users',
     label: 'Người dùng',
     icon: Users,
@@ -83,6 +76,13 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: 'Attack catalog',
     icon: Library,
     requirement: 'attack_catalog.manage',
+    implemented: true,
+  },
+  {
+    path: '/protocols',
+    label: 'Protocol',
+    icon: ListChecks,
+    requirement: 'protocol.read',
     implemented: true,
   },
   {
