@@ -36,6 +36,7 @@ from advertest_contracts.models import (
     SearchRunCreate,
 )
 from backend.app.db import models as m
+from backend.app.reviews.lock import ensure_unlocked
 from backend.app.services import leasing, notifications
 from backend.app.services.clock import Clock, utcnow
 from backend.app.services.errors import Conflict, Invalid, NotFound
@@ -170,6 +171,7 @@ def create_run(
     clock: Clock = utcnow,
 ) -> BundleRun:
     experiment = leasing.leased_experiment(session, target, experiment_id, body.lease_id)
+    ensure_unlocked(experiment)
     if experiment.status != ExperimentStatus.RUNNING:
         raise Conflict(f"Experiment đang ở trạng thái {experiment.status}")
     remaining = leasing.remaining_seconds(experiment)
@@ -254,6 +256,7 @@ def submit_result(
     clock: Clock = utcnow,
 ) -> None:
     experiment = leasing.leased_experiment(session, target, experiment_id, report.lease_id)
+    ensure_unlocked(experiment)
     if experiment.status not in (ExperimentStatus.RUNNING, ExperimentStatus.CANCELLED):
         raise Conflict(f"Experiment đang ở trạng thái {experiment.status}")
     result = report.result

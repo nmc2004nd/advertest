@@ -362,7 +362,11 @@ def downgrade() -> None:
     for function in FUNCTION_NAMES:
         op.execute(f"DROP FUNCTION {function}()")
 
+    # Dữ liệu review chỉ có từ Phase 8: xóa để downgrade xa hơn (0002 xóa failure_cases,
+    # experiment) không vướng khóa ngoại.
     op.execute("DELETE FROM reports")
+    op.execute("DELETE FROM reviews")
+    op.execute("DELETE FROM case_verdicts")
     op.drop_constraint(op.f("ck_reports_ready_has_files"), "reports", type_="check")
     op.drop_constraint(op.f("uq_reports_experiment_id"), "reports", type_="unique")
     for column in (

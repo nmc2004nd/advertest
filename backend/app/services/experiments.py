@@ -23,6 +23,7 @@ from advertest_contracts.models import (
     StatusReason,
 )
 from backend.app.db import models as m
+from backend.app.reviews.lock import ensure_unlocked
 from backend.app.services import audit, experiment_config, notifications
 from backend.app.services.clock import Clock, utcnow
 from backend.app.services.errors import Conflict, Forbidden, Invalid, NotFound, QueueLimitReached
@@ -287,6 +288,7 @@ def cancel(
         raise NotFound(f"Không có experiment {experiment_id}")
     if owner_only and experiment.created_by != actor.id:
         raise Forbidden("Chỉ người tạo experiment mới hủy được")
+    ensure_unlocked(experiment)  # Phase 8: 409 experiment_locked sau khi gửi duyệt
     if experiment.status not in ACTIVE:
         raise Conflict(f"Experiment đang ở trạng thái {experiment.status}, không hủy được")
     now = clock()

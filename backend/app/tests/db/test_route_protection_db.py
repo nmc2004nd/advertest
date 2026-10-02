@@ -89,7 +89,8 @@ def test_union_of_roles(env: Env) -> None:
     # POST /experiments đã cài đặt (Phase 5 Group 2): body mẫu trỏ tới tài nguyên không có → 422
     # tại route, tức đã qua kiểm tra quyền.
     assert _call(client, Permission.EXPERIMENT_CREATE) == (422, "invalid_request")
-    assert _call(client, Permission.REVIEW_DECIDE)[0] == 501
+    # Phase 8 Group 2: review.decide đã cài đặt (GET /reviews trả hàng đợi).
+    assert _call(client, Permission.REVIEW_DECIDE)[0] == 200
     assert _call(client, Permission.AUDIT_READ) == (403, "forbidden")
 
 

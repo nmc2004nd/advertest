@@ -6,7 +6,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from advertest_contracts.enums import ErrorCode
-from advertest_contracts.models import ComplianceItem, FieldError
+from advertest_contracts.models import ChecklistItem, ComplianceItem, FieldError
 
 
 class ServiceError(Exception):
@@ -51,3 +51,15 @@ class InvalidConfig(Invalid):
 
 class QueueLimitReached(Conflict):
     """Người dùng đã có đủ số experiment đang chờ (409 `queue_limit_reached`)."""
+
+
+class ExperimentLocked(Conflict):
+    """Experiment đã gửi duyệt nên bị khóa (409 `experiment_locked`, Phase 8)."""
+
+
+class ChecklistIncomplete(Conflict):
+    """Chấp nhận khi danh sách kiểm tra chưa đủ (409 `checklist_incomplete`, kèm `checklist`)."""
+
+    def __init__(self, message: str, checklist: Sequence[ChecklistItem]) -> None:
+        super().__init__(message)
+        self.checklist = list(checklist)

@@ -415,6 +415,8 @@ class Run(Base):
     scope: Mapped[str] = mapped_column(Text, server_default=text("'full'"))
     search_order: Mapped[int | None]
     predictions_key: Mapped[str | None] = mapped_column(Text)
+    # Phase 8: `fingerprint_inputs.git_dirty` lúc bắt đầu; null khi chưa bắt đầu hoặc trước 0010.
+    git_dirty: Mapped[bool | None]
 
 
 class SearchResultRow(Base):

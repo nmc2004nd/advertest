@@ -19,7 +19,9 @@ from advertest_contracts.models import (
     FieldError,
 )
 from backend.app.services.errors import (
+    ChecklistIncomplete,
     Conflict,
+    ExperimentLocked,
     Forbidden,
     Invalid,
     InvalidConfig,
@@ -177,6 +179,15 @@ def install_error_handlers(app: FastAPI) -> None:
                 str(exc),
                 exc.fields or None,
                 compliance=exc.compliance,
+            )
+        if isinstance(exc, ExperimentLocked):
+            return error_response(status.HTTP_409_CONFLICT, ErrorCode.EXPERIMENT_LOCKED, str(exc))
+        if isinstance(exc, ChecklistIncomplete):
+            return error_response(
+                status.HTTP_409_CONFLICT,
+                ErrorCode.CHECKLIST_INCOMPLETE,
+                str(exc),
+                checklist=exc.checklist,
             )
         if isinstance(exc, QueueLimitReached):
             return error_response(status.HTTP_409_CONFLICT, ErrorCode.QUEUE_LIMIT_REACHED, str(exc))
