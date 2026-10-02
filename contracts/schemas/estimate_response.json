@@ -1,5 +1,61 @@
 {
   "$defs": {
+    "ComplianceCode": {
+      "description": "Mục kiểm tra tuân thủ protocol khi ước lượng, tạo experiment và gửi duyệt (Phase 8).",
+      "enum": [
+        "protocol_active",
+        "attack_present",
+        "spec_sha256",
+        "mode",
+        "grid_levels",
+        "search_threshold",
+        "search_range",
+        "search_tol",
+        "search_bootstrap",
+        "min_slice_size",
+        "model_gradients"
+      ],
+      "title": "ComplianceCode",
+      "type": "string"
+    },
+    "ComplianceItem": {
+      "additionalProperties": false,
+      "description": "Một mục tuân thủ protocol (Phase 8): trong ước lượng, ExperimentDetail và lỗi 422\n`not_compliant` khi tạo experiment.",
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/ComplianceCode"
+        },
+        "attack_spec_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Attack bắt buộc của mục này; null với mục không theo attack",
+          "title": "Attack Spec Name"
+        },
+        "satisfied": {
+          "title": "Satisfied",
+          "type": "boolean"
+        },
+        "detail": {
+          "minLength": 1,
+          "title": "Detail",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "satisfied",
+        "detail"
+      ],
+      "title": "ComplianceItem",
+      "type": "object"
+    },
     "EstimateRun": {
       "additionalProperties": false,
       "properties": {
@@ -223,6 +279,14 @@
       "description": "Phase 7: tổng ước lượng được của trường hợp xấu nhất (run quét lưới và max_seconds) lớn hơn giới hạn thời gian; chỉ cảnh báo, không chặn tạo experiment",
       "title": "Max Exceeds Limit",
       "type": "boolean"
+    },
+    "compliance": {
+      "description": "Phase 8: tuân thủ protocol, giống kết quả kiểm tra khi tạo; rỗng với protocol dev",
+      "items": {
+        "$ref": "#/$defs/ComplianceItem"
+      },
+      "title": "Compliance",
+      "type": "array"
     }
   },
   "required": [

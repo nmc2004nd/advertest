@@ -1,5 +1,95 @@
 {
   "$defs": {
+    "ChecklistCode": {
+      "description": "Điều kiện trạng thái phía server trước khi chấp nhận (Phase 8, kickoff: chỉ gồm điều kiện\ntrạng thái; trường nhập thiếu là 422, sai người là 403).",
+      "enum": [
+        "protocol_not_dev",
+        "required_cases_reviewed"
+      ],
+      "title": "ChecklistCode",
+      "type": "string"
+    },
+    "ChecklistItem": {
+      "additionalProperties": false,
+      "description": "Một điều kiện trạng thái trước khi chấp nhận (Phase 8).",
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/ChecklistCode"
+        },
+        "satisfied": {
+          "title": "Satisfied",
+          "type": "boolean"
+        },
+        "detail": {
+          "minLength": 1,
+          "title": "Detail",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "satisfied",
+        "detail"
+      ],
+      "title": "ChecklistItem",
+      "type": "object"
+    },
+    "ComplianceCode": {
+      "description": "Mục kiểm tra tuân thủ protocol khi ước lượng, tạo experiment và gửi duyệt (Phase 8).",
+      "enum": [
+        "protocol_active",
+        "attack_present",
+        "spec_sha256",
+        "mode",
+        "grid_levels",
+        "search_threshold",
+        "search_range",
+        "search_tol",
+        "search_bootstrap",
+        "min_slice_size",
+        "model_gradients"
+      ],
+      "title": "ComplianceCode",
+      "type": "string"
+    },
+    "ComplianceItem": {
+      "additionalProperties": false,
+      "description": "Một mục tuân thủ protocol (Phase 8): trong ước lượng, ExperimentDetail và lỗi 422\n`not_compliant` khi tạo experiment.",
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/ComplianceCode"
+        },
+        "attack_spec_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Attack bắt buộc của mục này; null với mục không theo attack",
+          "title": "Attack Spec Name"
+        },
+        "satisfied": {
+          "title": "Satisfied",
+          "type": "boolean"
+        },
+        "detail": {
+          "minLength": 1,
+          "title": "Detail",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "satisfied",
+        "detail"
+      ],
+      "title": "ComplianceItem",
+      "type": "object"
+    },
     "ErrorBody": {
       "additionalProperties": false,
       "properties": {
@@ -26,6 +116,38 @@
           "default": null,
           "description": "Chỉ có ở lỗi 422 gắn được với trường cụ thể; không có thì bỏ khỏi body",
           "title": "Fields"
+        },
+        "compliance": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ComplianceItem"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Phase 8: chỉ có ở lỗi 422 not_compliant (mọi mục, kể cả mục đã thỏa)",
+          "title": "Compliance"
+        },
+        "checklist": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ChecklistItem"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Phase 8: chỉ có ở lỗi 409 checklist_incomplete",
+          "title": "Checklist"
         }
       },
       "required": [
@@ -52,7 +174,10 @@
         "validation_error",
         "not_supported_yet",
         "queue_limit_reached",
-        "internal_error"
+        "internal_error",
+        "not_compliant",
+        "experiment_locked",
+        "checklist_incomplete"
       ],
       "title": "ErrorCode",
       "type": "string"

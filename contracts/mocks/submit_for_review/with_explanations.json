@@ -1,0 +1,7 @@
+{
+  "note": "PGD eps 8 lỗi hết bộ nhớ, eps 16 chạm trần thời gian; đã giải trình từng run.",
+  "run_explanations": {
+    "f9023708-463a-5eb7-ac95-594e9eb6ec76": "Worker hết bộ nhớ ở batch 8; máy local chỉ có 4 GB VRAM. Sẽ chạy lại trên máy thuê ở Phase 9.",
+    "7377afd7-e297-5b5e-92a8-7138c9bf6c80": "Eps 16 ngoài protocol; chạm trần 2 giờ của máy local."
+  }
+}

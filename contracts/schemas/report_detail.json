@@ -1,0 +1,2346 @@
+{
+  "$defs": {
+    "AttackKind": {
+      "enum": [
+        "attack",
+        "corruption",
+        "occlusion"
+      ],
+      "title": "AttackKind",
+      "type": "string"
+    },
+    "AttackRankingEntry": {
+      "additionalProperties": false,
+      "description": "Một attack trong bảng xếp hạng (Phase 6, `ml_core/metrics/ranking.py`).\n\nĐiểm của đường cong: (level / primary_param.max, relative_drop), thêm (0, 0) ở đầu; level bị\n`early_stop` lấy relative_drop của run kích hoạt. Diện tích tính đến `coverage`, không ngoại\nsuy.",
+      "properties": {
+        "attack_spec_id": {
+          "format": "uuid",
+          "title": "Attack Spec Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/AttackKind"
+        },
+        "auc_drop": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Diện tích hình thang; null khi ít hơn 2 điểm (không đủ dữ liệu)",
+          "title": "Auc Drop"
+        },
+        "max_relative_drop": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null khi không có level nào có metric",
+          "title": "Max Relative Drop"
+        },
+        "levels_evaluated": {
+          "description": "Số level có metric",
+          "minimum": 0,
+          "title": "Levels Evaluated",
+          "type": "integer"
+        },
+        "levels_early_stopped": {
+          "description": "Số level bị bỏ qua do dừng sớm",
+          "minimum": 0,
+          "title": "Levels Early Stopped",
+          "type": "integer"
+        },
+        "coverage": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "level / max lớn nhất được tính (có metric hoặc early_stop); null khi không có",
+          "title": "Coverage"
+        },
+        "partial": {
+          "description": "Có run stopped_limit hoặc metrics.partial",
+          "title": "Partial",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "attack_spec_id",
+        "name",
+        "kind",
+        "auc_drop",
+        "max_relative_drop",
+        "levels_evaluated",
+        "levels_early_stopped",
+        "coverage",
+        "partial"
+      ],
+      "title": "AttackRankingEntry",
+      "type": "object"
+    },
+    "CaseAnonymization": {
+      "additionalProperties": false,
+      "description": "Làm mờ mặt người và biển số trên ảnh hiển thị của failure case (Phase 6).",
+      "properties": {
+        "applied": {
+          "title": "Applied",
+          "type": "boolean"
+        },
+        "method": {
+          "examples": [
+            "rule_v1"
+          ],
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Method",
+          "type": "string"
+        },
+        "version": {
+          "description": "Version cài đặt của method",
+          "exclusiveMinimum": 0,
+          "title": "Version",
+          "type": "integer"
+        },
+        "regions_count": {
+          "description": "Số vùng đã làm mờ trên ảnh",
+          "minimum": 0,
+          "title": "Regions Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "applied",
+        "method",
+        "version",
+        "regions_count"
+      ],
+      "title": "CaseAnonymization",
+      "type": "object"
+    },
+    "CaseSeverity": {
+      "enum": [
+        "critical",
+        "major",
+        "minor",
+        "acceptable"
+      ],
+      "title": "CaseSeverity",
+      "type": "string"
+    },
+    "CaseVerdictKind": {
+      "description": "Loại verdict của một failure case (Phase 8).",
+      "enum": [
+        "safety_relevant",
+        "acceptable",
+        "annotation_issue"
+      ],
+      "title": "CaseVerdictKind",
+      "type": "string"
+    },
+    "CaseVerdictView": {
+      "additionalProperties": false,
+      "description": "Một version verdict; version lớn nhất là hiện hành, mọi version được giữ.",
+      "properties": {
+        "severity": {
+          "$ref": "#/$defs/CaseSeverity"
+        },
+        "kind": {
+          "$ref": "#/$defs/CaseVerdictKind"
+        },
+        "mitigation": {
+          "anyOf": [
+            {
+              "maxLength": 4000,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Bắt buộc khi kind = safety_relevant",
+          "title": "Mitigation"
+        },
+        "failure_case_id": {
+          "format": "uuid",
+          "title": "Failure Case Id",
+          "type": "string"
+        },
+        "version": {
+          "exclusiveMinimum": 0,
+          "title": "Version",
+          "type": "integer"
+        },
+        "reviewer": {
+          "$ref": "#/$defs/UserRef"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "severity",
+        "kind",
+        "failure_case_id",
+        "version",
+        "reviewer",
+        "created_at"
+      ],
+      "title": "CaseVerdictView",
+      "type": "object"
+    },
+    "ClassRunMetrics": {
+      "additionalProperties": false,
+      "properties": {
+        "clean_ap50": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Clean Ap50"
+        },
+        "attacked_ap50": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Attacked Ap50"
+        },
+        "attack_success_rate": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Phase 7: ASR chỉ tính object của class này (ngưỡng có class_filter); null khi không có object nào của class được detect đúng trên ảnh sạch, hoặc run trước Phase 7",
+          "title": "Attack Success Rate"
+        }
+      },
+      "required": [
+        "clean_ap50",
+        "attacked_ap50"
+      ],
+      "title": "ClassRunMetrics",
+      "type": "object"
+    },
+    "ComputeKind": {
+      "enum": [
+        "local",
+        "rented"
+      ],
+      "title": "ComputeKind",
+      "type": "string"
+    },
+    "ComputeTargetRef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ComputeKind"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "kind"
+      ],
+      "title": "ComputeTargetRef",
+      "type": "object"
+    },
+    "CriterionKind": {
+      "enum": [
+        "max_drop_at_level",
+        "min_breaking_point"
+      ],
+      "title": "CriterionKind",
+      "type": "string"
+    },
+    "CriterionResult": {
+      "additionalProperties": false,
+      "description": "Kết quả tự động (chỉ tham khảo) của `pass_criteria[index]`.",
+      "properties": {
+        "index": {
+          "description": "Chỉ số trong body.pass_criteria của protocol",
+          "minimum": 0,
+          "title": "Index",
+          "type": "integer"
+        },
+        "status": {
+          "$ref": "#/$defs/CriterionStatus"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "max_drop_at_level: đại lượng tại level; min_breaking_point: điểm gãy (cận trên bracket); null khi không có",
+          "title": "Value"
+        },
+        "detail": {
+          "minLength": 1,
+          "title": "Detail",
+          "type": "string"
+        }
+      },
+      "required": [
+        "index",
+        "status",
+        "value",
+        "detail"
+      ],
+      "title": "CriterionResult",
+      "type": "object"
+    },
+    "CriterionStatus": {
+      "enum": [
+        "pass",
+        "fail",
+        "inconclusive"
+      ],
+      "title": "CriterionStatus",
+      "type": "string"
+    },
+    "EvalScope": {
+      "description": "Tập ảnh mà run đánh giá (Phase 7).",
+      "enum": [
+        "full",
+        "subset"
+      ],
+      "title": "EvalScope",
+      "type": "string"
+    },
+    "ExperimentStatus": {
+      "enum": [
+        "draft",
+        "queued",
+        "running",
+        "completed",
+        "submitted_for_review",
+        "in_review",
+        "approved",
+        "changes_requested",
+        "rejected",
+        "cancelled"
+      ],
+      "title": "ExperimentStatus",
+      "type": "string"
+    },
+    "LibVersions": {
+      "additionalProperties": false,
+      "properties": {
+        "torch": {
+          "title": "Torch",
+          "type": "string"
+        },
+        "art": {
+          "title": "Art",
+          "type": "string"
+        },
+        "ultralytics": {
+          "title": "Ultralytics",
+          "type": "string"
+        },
+        "torchmetrics": {
+          "title": "Torchmetrics",
+          "type": "string"
+        },
+        "numpy": {
+          "title": "Numpy",
+          "type": "string"
+        }
+      },
+      "required": [
+        "torch",
+        "art",
+        "ultralytics",
+        "torchmetrics",
+        "numpy"
+      ],
+      "title": "LibVersions",
+      "type": "object"
+    },
+    "Limit": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/LimitKind"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "description": "Tiền (budget) hoặc giây (time)",
+          "title": "Value"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "title": "Limit",
+      "type": "object"
+    },
+    "LimitKind": {
+      "enum": [
+        "budget",
+        "time"
+      ],
+      "title": "LimitKind",
+      "type": "string"
+    },
+    "MapPair": {
+      "additionalProperties": false,
+      "properties": {
+        "map50": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Map50",
+          "type": "number"
+        },
+        "map50_95": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Map50 95",
+          "type": "number"
+        }
+      },
+      "required": [
+        "map50",
+        "map50_95"
+      ],
+      "title": "MapPair",
+      "type": "object"
+    },
+    "ModelVerdict": {
+      "description": "Kết luận của reviewer về model; tách khỏi quyết định chấp nhận bài test (Phase 8).",
+      "enum": [
+        "meets_criteria",
+        "does_not_meet",
+        "conditional"
+      ],
+      "title": "ModelVerdict",
+      "type": "string"
+    },
+    "PassCriterion": {
+      "additionalProperties": false,
+      "description": "Tiêu chí đạt (requirements.md Phase 8, bảng Đánh giá tiêu chí).\n\n- `max_drop_at_level`: attack quét lưới; đại lượng `threshold_kind` (theo `class_filter`) tại\n  `level` (một level bắt buộc) ≤ `threshold`.\n- `min_breaking_point`: attack tìm ngưỡng; điểm gãy của chính lần tìm ngưỡng bắt buộc (cùng\n  `threshold_kind`, `threshold`, `class_filter`) ≥ `level`, với `lo < level ≤ hi`.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/CriterionKind"
+        },
+        "attack_spec_name": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Attack Spec Name",
+          "type": "string"
+        },
+        "level": {
+          "title": "Level",
+          "type": "number"
+        },
+        "threshold_kind": {
+          "$ref": "#/$defs/ThresholdKind"
+        },
+        "threshold": {
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Threshold",
+          "type": "number"
+        },
+        "class_filter": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Một class đích; cùng kiểu với SearchConfig.class_filter (Phase 7)",
+          "title": "Class Filter"
+        }
+      },
+      "required": [
+        "kind",
+        "attack_spec_name",
+        "level",
+        "threshold_kind",
+        "threshold"
+      ],
+      "title": "PassCriterion",
+      "type": "object"
+    },
+    "ProtocolBody": {
+      "additionalProperties": false,
+      "description": "Nội dung một version protocol; không bao giờ thay đổi sau khi tạo (Phase 8 thay bản Phase 0,\nbỏ `review_severity_threshold`). Danh sách rỗng chỉ dùng cho protocol `dev` (dev-open);\n`ProtocolCreate` bắt buộc có attack và tiêu chí.",
+      "properties": {
+        "schema_version": {
+          "const": 2,
+          "default": 2,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "description": {
+          "description": "Mục đích của protocol",
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "required_attacks": {
+          "items": {
+            "$ref": "#/$defs/RequiredAttack"
+          },
+          "title": "Required Attacks",
+          "type": "array"
+        },
+        "min_slice_size": {
+          "exclusiveMinimum": 0,
+          "title": "Min Slice Size",
+          "type": "integer"
+        },
+        "pass_criteria": {
+          "items": {
+            "$ref": "#/$defs/PassCriterion"
+          },
+          "title": "Pass Criteria",
+          "type": "array"
+        },
+        "cases_to_review_per_attack": {
+          "default": 5,
+          "description": "Số failure case có severity_score cao nhất của mỗi attack bắt buộc phải có verdict",
+          "exclusiveMinimum": 0,
+          "title": "Cases To Review Per Attack",
+          "type": "integer"
+        },
+        "forbid_dirty_runs": {
+          "default": true,
+          "description": "Cấm run có git_dirty = true",
+          "title": "Forbid Dirty Runs",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "description",
+        "required_attacks",
+        "min_slice_size",
+        "pass_criteria"
+      ],
+      "title": "ProtocolBody",
+      "type": "object"
+    },
+    "ProtocolRef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/ProtocolStatus"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "status"
+      ],
+      "title": "ProtocolRef",
+      "type": "object"
+    },
+    "ProtocolStatus": {
+      "enum": [
+        "active",
+        "retired",
+        "dev"
+      ],
+      "title": "ProtocolStatus",
+      "type": "string"
+    },
+    "ReportAttackSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "exclusiveMinimum": 0,
+          "title": "Version",
+          "type": "integer"
+        },
+        "kind": {
+          "$ref": "#/$defs/AttackKind"
+        },
+        "spec_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Spec Sha256",
+          "type": "string"
+        },
+        "param_name": {
+          "title": "Param Name",
+          "type": "string"
+        },
+        "param_unit": {
+          "title": "Param Unit",
+          "type": "string"
+        },
+        "requires_training": {
+          "description": "Patch (Phase 6): cần note patch_fixed_position",
+          "title": "Requires Training",
+          "type": "boolean"
+        },
+        "required": {
+          "description": "Là attack bắt buộc của protocol",
+          "title": "Required",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "version",
+        "kind",
+        "spec_sha256",
+        "param_name",
+        "param_unit",
+        "requires_training",
+        "required"
+      ],
+      "title": "ReportAttackSpec",
+      "type": "object"
+    },
+    "ReportCase": {
+      "additionalProperties": false,
+      "description": "Mục 6: failure case đã review (chỉ case đã làm mờ).",
+      "properties": {
+        "failure_case_id": {
+          "format": "uuid",
+          "title": "Failure Case Id",
+          "type": "string"
+        },
+        "run_id": {
+          "format": "uuid",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "attack_spec_name": {
+          "title": "Attack Spec Name",
+          "type": "string"
+        },
+        "level": {
+          "title": "Level",
+          "type": "number"
+        },
+        "image_id": {
+          "minLength": 1,
+          "title": "Image Id",
+          "type": "string"
+        },
+        "severity_score": {
+          "exclusiveMinimum": 0,
+          "title": "Severity Score",
+          "type": "number"
+        },
+        "lost_objects": {
+          "minimum": 0,
+          "title": "Lost Objects",
+          "type": "integer"
+        },
+        "new_false_positives": {
+          "minimum": 0,
+          "title": "New False Positives",
+          "type": "integer"
+        },
+        "required": {
+          "description": "Là case bắt buộc review",
+          "title": "Required",
+          "type": "boolean"
+        },
+        "anonymization": {
+          "$ref": "#/$defs/CaseAnonymization"
+        },
+        "thumbnail_key": {
+          "description": "Thumbnail ảnh sau tấn công đã làm mờ",
+          "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]*(/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$",
+          "title": "Thumbnail Key",
+          "type": "string"
+        },
+        "verdict": {
+          "$ref": "#/$defs/CaseVerdictView"
+        }
+      },
+      "required": [
+        "failure_case_id",
+        "run_id",
+        "attack_spec_name",
+        "level",
+        "image_id",
+        "severity_score",
+        "lost_objects",
+        "new_false_positives",
+        "required",
+        "anonymization",
+        "thumbnail_key",
+        "verdict"
+      ],
+      "title": "ReportCase",
+      "type": "object"
+    },
+    "ReportClassMapping": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "mapping_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Mapping Sha256",
+          "type": "string"
+        },
+        "excluded_classes": {
+          "description": "Class gốc bị loại khỏi metric",
+          "items": {
+            "type": "string"
+          },
+          "title": "Excluded Classes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "mapping_sha256",
+        "excluded_classes"
+      ],
+      "title": "ReportClassMapping",
+      "type": "object"
+    },
+    "ReportConfiguration": {
+      "additionalProperties": false,
+      "description": "Mục 3: cấu hình.",
+      "properties": {
+        "protocol": {
+          "$ref": "#/$defs/ReportProtocol"
+        },
+        "model": {
+          "$ref": "#/$defs/ReportModel"
+        },
+        "dataset_version": {
+          "$ref": "#/$defs/ReportDatasetVersion"
+        },
+        "slice": {
+          "$ref": "#/$defs/ReportSlice"
+        },
+        "class_mapping": {
+          "$ref": "#/$defs/ReportClassMapping"
+        },
+        "attack_specs": {
+          "items": {
+            "$ref": "#/$defs/ReportAttackSpec"
+          },
+          "minItems": 1,
+          "title": "Attack Specs",
+          "type": "array"
+        },
+        "compute_target": {
+          "$ref": "#/$defs/ComputeTargetRef"
+        },
+        "gpu_model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null khi chạy trên CPU",
+          "title": "Gpu Model"
+        },
+        "config_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Config Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "protocol",
+        "model",
+        "dataset_version",
+        "slice",
+        "class_mapping",
+        "attack_specs",
+        "compute_target",
+        "gpu_model",
+        "config_sha256"
+      ],
+      "title": "ReportConfiguration",
+      "type": "object"
+    },
+    "ReportDatasetVersion": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "dataset_name": {
+          "title": "Dataset Name",
+          "type": "string"
+        },
+        "manifest_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Manifest Sha256",
+          "type": "string"
+        },
+        "anonymized": {
+          "title": "Anonymized",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "dataset_name",
+        "manifest_sha256",
+        "anonymized"
+      ],
+      "title": "ReportDatasetVersion",
+      "type": "object"
+    },
+    "ReportGridAttack": {
+      "additionalProperties": false,
+      "properties": {
+        "attack_spec_id": {
+          "format": "uuid",
+          "title": "Attack Spec Id",
+          "type": "string"
+        },
+        "attack_spec_name": {
+          "title": "Attack Spec Name",
+          "type": "string"
+        },
+        "points": {
+          "description": "Theo level tăng dần; chỉ run toàn slice",
+          "items": {
+            "$ref": "#/$defs/ReportGridPoint"
+          },
+          "title": "Points",
+          "type": "array"
+        }
+      },
+      "required": [
+        "attack_spec_id",
+        "attack_spec_name",
+        "points"
+      ],
+      "title": "ReportGridAttack",
+      "type": "object"
+    },
+    "ReportGridPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "level": {
+          "title": "Level",
+          "type": "number"
+        },
+        "run_id": {
+          "format": "uuid",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/RunStatus"
+        },
+        "map50": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "mAP@0.5 sau tấn công; null khi không có metric",
+          "title": "Map50"
+        },
+        "relative_drop": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Relative Drop"
+        },
+        "attack_success_rate": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Attack Success Rate"
+        },
+        "early_stop_from_run_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Run kích hoạt dừng sớm khi level bị skipped do early_stop",
+          "title": "Early Stop From Run Id"
+        }
+      },
+      "required": [
+        "level",
+        "run_id",
+        "status",
+        "map50",
+        "relative_drop",
+        "attack_success_rate",
+        "early_stop_from_run_id"
+      ],
+      "title": "ReportGridPoint",
+      "type": "object"
+    },
+    "ReportHistory": {
+      "additionalProperties": false,
+      "description": "Mục 7: experiment khác cùng model version và dataset version, gắn protocol này (mọi\nversion) hoặc protocol dev, tạo trước thời điểm duyệt; timeline review.",
+      "properties": {
+        "related_experiments": {
+          "items": {
+            "$ref": "#/$defs/ReportRelatedExperiment"
+          },
+          "title": "Related Experiments",
+          "type": "array"
+        },
+        "timeline": {
+          "description": "Theo thời gian",
+          "items": {
+            "$ref": "#/$defs/ReportTimelineEvent"
+          },
+          "minItems": 1,
+          "title": "Timeline",
+          "type": "array"
+        },
+        "comments_count": {
+          "minimum": 0,
+          "title": "Comments Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "related_experiments",
+        "timeline",
+        "comments_count"
+      ],
+      "title": "ReportHistory",
+      "type": "object"
+    },
+    "ReportModel": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "ID của model version",
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "weights_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Weights Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "weights_sha256"
+      ],
+      "title": "ReportModel",
+      "type": "object"
+    },
+    "ReportNote": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/ReportNoteCode"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "text"
+      ],
+      "title": "ReportNote",
+      "type": "object"
+    },
+    "ReportNoteCode": {
+      "description": "Lưu ý bắt buộc ở mục 2 của report (Phase 8, requirements.md mục Report).",
+      "enum": [
+        "test_environment_only",
+        "input_space",
+        "occlusion_stress",
+        "patch_fixed_position",
+        "anonymization",
+        "git_dirty",
+        "excluded_classes"
+      ],
+      "title": "ReportNoteCode",
+      "type": "string"
+    },
+    "ReportProtocol": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "exclusiveMinimum": 0,
+          "title": "Version",
+          "type": "integer"
+        },
+        "body_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Body Sha256",
+          "type": "string"
+        },
+        "body": {
+          "$ref": "#/$defs/ProtocolBody"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "version",
+        "body_sha256",
+        "body"
+      ],
+      "title": "ReportProtocol",
+      "type": "object"
+    },
+    "ReportRelatedExperiment": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/ExperimentStatus"
+        },
+        "owner": {
+          "$ref": "#/$defs/UserRef"
+        },
+        "protocol": {
+          "$ref": "#/$defs/ProtocolRef"
+        },
+        "protocol_version": {
+          "exclusiveMinimum": 0,
+          "title": "Protocol Version",
+          "type": "integer"
+        },
+        "dev": {
+          "description": "Gắn protocol dev (dev-open)",
+          "title": "Dev",
+          "type": "boolean"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "status",
+        "owner",
+        "protocol",
+        "protocol_version",
+        "dev",
+        "created_at"
+      ],
+      "title": "ReportRelatedExperiment",
+      "type": "object"
+    },
+    "ReportReproRun": {
+      "additionalProperties": false,
+      "description": "Mục 8: tái lập; các trường null khi run chưa bắt đầu (không có manifest).",
+      "properties": {
+        "run_id": {
+          "format": "uuid",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "fingerprint": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Fingerprint"
+        },
+        "git_commit": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{40}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Git Commit"
+        },
+        "git_dirty": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Git Dirty"
+        },
+        "lib_versions": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LibVersions"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "docker_image_digest": {
+          "anyOf": [
+            {
+              "pattern": "^(none|sha256:[0-9a-f]{64})$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Docker Image Digest"
+        },
+        "cached_from_run_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Cached From Run Id"
+        }
+      },
+      "required": [
+        "run_id",
+        "fingerprint",
+        "git_commit",
+        "git_dirty",
+        "lib_versions",
+        "docker_image_digest",
+        "cached_from_run_id"
+      ],
+      "title": "ReportReproRun",
+      "type": "object"
+    },
+    "ReportResources": {
+      "additionalProperties": false,
+      "description": "Mục 9: tài nguyên (Phase 8 chỉ ghi thời gian xử lý; tiền ở Phase 9).",
+      "properties": {
+        "processing_seconds_used": {
+          "minimum": 0,
+          "title": "Processing Seconds Used",
+          "type": "number"
+        },
+        "limit": {
+          "$ref": "#/$defs/Limit"
+        }
+      },
+      "required": [
+        "processing_seconds_used",
+        "limit"
+      ],
+      "title": "ReportResources",
+      "type": "object"
+    },
+    "ReportResults": {
+      "additionalProperties": false,
+      "description": "Mục 4: kết quả.",
+      "properties": {
+        "clean_metrics": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MapPair"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "grid": {
+          "items": {
+            "$ref": "#/$defs/ReportGridAttack"
+          },
+          "title": "Grid",
+          "type": "array"
+        },
+        "attack_ranking": {
+          "items": {
+            "$ref": "#/$defs/AttackRankingEntry"
+          },
+          "title": "Attack Ranking",
+          "type": "array"
+        },
+        "searches": {
+          "description": "Kết quả cuối của từng attack tìm ngưỡng",
+          "items": {
+            "$ref": "#/$defs/SearchResult"
+          },
+          "title": "Searches",
+          "type": "array"
+        },
+        "criteria": {
+          "description": "Theo thứ tự configuration.protocol.body.pass_criteria",
+          "items": {
+            "$ref": "#/$defs/CriterionResult"
+          },
+          "title": "Criteria",
+          "type": "array"
+        }
+      },
+      "required": [
+        "clean_metrics",
+        "grid",
+        "attack_ranking",
+        "searches",
+        "criteria"
+      ],
+      "title": "ReportResults",
+      "type": "object"
+    },
+    "ReportRun": {
+      "additionalProperties": false,
+      "description": "Mục 5: mọi run, kể cả failed, skipped, stopped_limit, cancelled và run tập con.",
+      "properties": {
+        "run_id": {
+          "format": "uuid",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "attack_spec_id": {
+          "format": "uuid",
+          "title": "Attack Spec Id",
+          "type": "string"
+        },
+        "attack_spec_name": {
+          "title": "Attack Spec Name",
+          "type": "string"
+        },
+        "level": {
+          "title": "Level",
+          "type": "number"
+        },
+        "scope": {
+          "$ref": "#/$defs/EvalScope"
+        },
+        "search_order": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Search Order"
+        },
+        "status": {
+          "$ref": "#/$defs/RunStatus"
+        },
+        "status_reason": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StatusReason"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "metrics": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RunMetrics"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "processing_seconds": {
+          "minimum": 0,
+          "title": "Processing Seconds",
+          "type": "number"
+        },
+        "explanation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Lời giải trình khi gửi duyệt",
+          "title": "Explanation"
+        }
+      },
+      "required": [
+        "run_id",
+        "attack_spec_id",
+        "attack_spec_name",
+        "level",
+        "scope",
+        "search_order",
+        "status",
+        "status_reason",
+        "metrics",
+        "processing_seconds",
+        "explanation"
+      ],
+      "title": "ReportRun",
+      "type": "object"
+    },
+    "ReportSlice": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "slice_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Slice Sha256"
+        },
+        "size": {
+          "exclusiveMinimum": 0,
+          "title": "Size",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "slice_sha256",
+        "size"
+      ],
+      "title": "ReportSlice",
+      "type": "object"
+    },
+    "ReportSnapshot": {
+      "additionalProperties": false,
+      "description": "Toàn bộ nội dung report; file JSON là `canonical_json` của snapshot, `json_sha256` là\nsha256 của file đó.",
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "report_id": {
+          "format": "uuid",
+          "title": "Report Id",
+          "type": "string"
+        },
+        "summary": {
+          "$ref": "#/$defs/ReportSummary"
+        },
+        "notes": {
+          "description": "Mục 2: phạm vi và lưu ý bắt buộc",
+          "items": {
+            "$ref": "#/$defs/ReportNote"
+          },
+          "title": "Notes",
+          "type": "array"
+        },
+        "configuration": {
+          "$ref": "#/$defs/ReportConfiguration"
+        },
+        "results": {
+          "$ref": "#/$defs/ReportResults"
+        },
+        "runs": {
+          "items": {
+            "$ref": "#/$defs/ReportRun"
+          },
+          "minItems": 1,
+          "title": "Runs",
+          "type": "array"
+        },
+        "reviewed_cases": {
+          "items": {
+            "$ref": "#/$defs/ReportCase"
+          },
+          "title": "Reviewed Cases",
+          "type": "array"
+        },
+        "history": {
+          "$ref": "#/$defs/ReportHistory"
+        },
+        "reproducibility": {
+          "items": {
+            "$ref": "#/$defs/ReportReproRun"
+          },
+          "title": "Reproducibility",
+          "type": "array"
+        },
+        "resources": {
+          "$ref": "#/$defs/ReportResources"
+        }
+      },
+      "required": [
+        "report_id",
+        "summary",
+        "notes",
+        "configuration",
+        "results",
+        "runs",
+        "reviewed_cases",
+        "history",
+        "reproducibility",
+        "resources"
+      ],
+      "title": "ReportSnapshot",
+      "type": "object"
+    },
+    "ReportStatus": {
+      "enum": [
+        "generating",
+        "ready",
+        "failed"
+      ],
+      "title": "ReportStatus",
+      "type": "string"
+    },
+    "ReportSummary": {
+      "additionalProperties": false,
+      "description": "Mục 1: tóm tắt.",
+      "properties": {
+        "experiment_id": {
+          "format": "uuid",
+          "title": "Experiment Id",
+          "type": "string"
+        },
+        "experiment_name": {
+          "title": "Experiment Name",
+          "type": "string"
+        },
+        "owner": {
+          "$ref": "#/$defs/UserRef"
+        },
+        "model_verdict": {
+          "$ref": "#/$defs/ModelVerdict"
+        },
+        "conclusion": {
+          "minLength": 1,
+          "title": "Conclusion",
+          "type": "string"
+        },
+        "mitigation": {
+          "minLength": 1,
+          "title": "Mitigation",
+          "type": "string"
+        },
+        "inconclusive_justification": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Inconclusive Justification"
+        },
+        "approved_by": {
+          "$ref": "#/$defs/UserRef"
+        },
+        "approved_at": {
+          "format": "date-time",
+          "title": "Approved At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "experiment_id",
+        "experiment_name",
+        "owner",
+        "model_verdict",
+        "conclusion",
+        "mitigation",
+        "inconclusive_justification",
+        "approved_by",
+        "approved_at"
+      ],
+      "title": "ReportSummary",
+      "type": "object"
+    },
+    "ReportTimelineEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "enum": [
+            "experiment.submitted",
+            "review.claimed",
+            "review.released",
+            "review.decided"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "actor": {
+          "$ref": "#/$defs/UserRef"
+        },
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "action",
+        "actor",
+        "at"
+      ],
+      "title": "ReportTimelineEvent",
+      "type": "object"
+    },
+    "ReportView": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "experiment_id": {
+          "format": "uuid",
+          "title": "Experiment Id",
+          "type": "string"
+        },
+        "experiment_name": {
+          "title": "Experiment Name",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/ReportStatus"
+        },
+        "model_verdict": {
+          "$ref": "#/$defs/ModelVerdict"
+        },
+        "approved_by": {
+          "$ref": "#/$defs/UserRef"
+        },
+        "approved_at": {
+          "format": "date-time",
+          "title": "Approved At",
+          "type": "string"
+        },
+        "generated_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Có khi và chỉ khi status = ready",
+          "title": "Generated At"
+        },
+        "json_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Có khi và chỉ khi status = ready",
+          "title": "Json Sha256"
+        },
+        "pdf_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Có khi và chỉ khi status = ready",
+          "title": "Pdf Sha256"
+        }
+      },
+      "required": [
+        "id",
+        "experiment_id",
+        "experiment_name",
+        "status",
+        "model_verdict",
+        "approved_by",
+        "approved_at",
+        "generated_at",
+        "json_sha256",
+        "pdf_sha256"
+      ],
+      "title": "ReportView",
+      "type": "object"
+    },
+    "RequiredAttack": {
+      "additionalProperties": false,
+      "description": "Attack bắt buộc. Một protocol không có hai attack cùng `attack_spec_name` (Phase 5: một\nexperiment không có hai attack cùng spec). Kiểm tra cần catalog (spec tồn tại, `spec_sha256`\nkhớp, patch không ở chế độ tìm ngưỡng, dải trong `primary_param`) ở backend.",
+      "properties": {
+        "attack_spec_name": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Attack Spec Name",
+          "type": "string"
+        },
+        "spec_sha256": {
+          "description": "Chốt đúng version spec",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Spec Sha256",
+          "type": "string"
+        },
+        "mode": {
+          "$ref": "#/$defs/RunMode"
+        },
+        "grid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RequiredGrid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "search": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RequiredSearch"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "attack_spec_name",
+        "spec_sha256",
+        "mode"
+      ],
+      "title": "RequiredAttack",
+      "type": "object"
+    },
+    "RequiredGrid": {
+      "additionalProperties": false,
+      "properties": {
+        "levels": {
+          "description": "Level tối thiểu phải chạy; experiment được thêm level khác",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 1,
+          "title": "Levels",
+          "type": "array"
+        }
+      },
+      "required": [
+        "levels"
+      ],
+      "title": "RequiredGrid",
+      "type": "object"
+    },
+    "RequiredSearch": {
+      "additionalProperties": false,
+      "description": "Cấu hình tìm ngưỡng tối thiểu: experiment phải cùng ngưỡng, dải bao phủ [lo, hi],\n`tol ≤ max_tol`, `bootstrap_samples ≥ min_bootstrap_samples` (requirements.md Phase 8).",
+      "properties": {
+        "threshold_kind": {
+          "$ref": "#/$defs/ThresholdKind"
+        },
+        "threshold": {
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Threshold",
+          "type": "number"
+        },
+        "class_filter": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Một class đích",
+          "title": "Class Filter"
+        },
+        "lo": {
+          "title": "Lo",
+          "type": "number"
+        },
+        "hi": {
+          "title": "Hi",
+          "type": "number"
+        },
+        "max_tol": {
+          "exclusiveMinimum": 0,
+          "title": "Max Tol",
+          "type": "number"
+        },
+        "min_bootstrap_samples": {
+          "default": 200,
+          "description": "0 cho phép không tính khoảng tin cậy (tiêu chí khi đó không bao giờ inconclusive do khoảng tin cậy)",
+          "maximum": 1000,
+          "minimum": 0,
+          "title": "Min Bootstrap Samples",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "threshold_kind",
+        "threshold",
+        "lo",
+        "hi",
+        "max_tol"
+      ],
+      "title": "RequiredSearch",
+      "type": "object"
+    },
+    "RunMetrics": {
+      "additionalProperties": false,
+      "properties": {
+        "clean": {
+          "$ref": "#/$defs/MapPair"
+        },
+        "attacked": {
+          "$ref": "#/$defs/MapPair"
+        },
+        "relative_drop": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null khi mAP@0.5 sạch bằng 0",
+          "title": "Relative Drop"
+        },
+        "absolute_drop": {
+          "title": "Absolute Drop",
+          "type": "number"
+        },
+        "attack_success_rate": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null khi không có object nào được detect đúng trên ảnh sạch (|C| = 0)",
+          "title": "Attack Success Rate"
+        },
+        "per_class": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/ClassRunMetrics"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Per Class"
+        },
+        "partial": {
+          "default": false,
+          "description": "true khi metric chỉ tính trên phần ảnh đã xử lý (stopped_limit)",
+          "title": "Partial",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "clean",
+        "attacked",
+        "relative_drop",
+        "absolute_drop",
+        "attack_success_rate"
+      ],
+      "title": "RunMetrics",
+      "type": "object"
+    },
+    "RunMode": {
+      "enum": [
+        "grid",
+        "search"
+      ],
+      "title": "RunMode",
+      "type": "string"
+    },
+    "RunStatus": {
+      "enum": [
+        "queued",
+        "running",
+        "completed",
+        "failed",
+        "skipped",
+        "stopped_limit",
+        "cancelled"
+      ],
+      "title": "RunStatus",
+      "type": "string"
+    },
+    "SearchResult": {
+      "additionalProperties": false,
+      "description": "Kết quả tìm ngưỡng của một attack (Phase 7).\n\nWorker gửi bản tạm thời sau mỗi điểm (`stage` khác `done`, `status` null) và bản cuối\n(`stage = done`) kèm bootstrap. `bracket` là khoảng hiện tại, kể cả khi dừng giữa chừng.",
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "experiment_id": {
+          "format": "uuid",
+          "title": "Experiment Id",
+          "type": "string"
+        },
+        "attack_spec_id": {
+          "format": "uuid",
+          "title": "Attack Spec Id",
+          "type": "string"
+        },
+        "stage": {
+          "$ref": "#/$defs/SearchStage"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SearchStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null khi và chỉ khi stage khác done"
+        },
+        "threshold_kind": {
+          "$ref": "#/$defs/ThresholdKind"
+        },
+        "threshold": {
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Threshold",
+          "type": "number"
+        },
+        "class_filter": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Class Filter"
+        },
+        "metric_kind": {
+          "description": "map50: mAP@0.5; class_ap50: AP@0.5 của class_filter; asr: ASR mọi object; class_asr: ASR object của class_filter. Suy từ threshold_kind và class_filter",
+          "enum": [
+            "map50",
+            "class_ap50",
+            "asr",
+            "class_asr"
+          ],
+          "title": "Metric Kind",
+          "type": "string"
+        },
+        "breaking_point": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Có khi và chỉ khi status là found hoặc non_monotonic (= bracket[1])",
+          "title": "Breaking Point"
+        },
+        "bracket": {
+          "description": "Khoảng hiện tại, kể cả khi dừng giữa chừng",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Bracket",
+          "type": "array"
+        },
+        "confidence_interval": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Khoảng tin cậy 95% của điểm gãy; null nếu chưa tính bootstrap",
+          "title": "Confidence Interval"
+        },
+        "near_threshold": {
+          "description": "Khoảng tin cậy của d(b) có cận dưới < ngưỡng, hoặc của d(a) có cận trên >= ngưỡng; false khi chưa tính bootstrap",
+          "title": "Near Threshold",
+          "type": "boolean"
+        },
+        "max_points": {
+          "description": "Giới hạn trên số run (ml_core/search/bounds.py)",
+          "exclusiveMinimum": 0,
+          "title": "Max Points",
+          "type": "integer"
+        },
+        "points_used": {
+          "description": "Số điểm đã đánh giá (không gồm synthetic)",
+          "minimum": 0,
+          "title": "Points Used",
+          "type": "integer"
+        },
+        "message": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Có khi và chỉ khi status = failed",
+          "title": "Message"
+        },
+        "trajectory": {
+          "items": {
+            "$ref": "#/$defs/TrajectoryPoint"
+          },
+          "title": "Trajectory",
+          "type": "array"
+        }
+      },
+      "required": [
+        "experiment_id",
+        "attack_spec_id",
+        "stage",
+        "status",
+        "threshold_kind",
+        "threshold",
+        "class_filter",
+        "metric_kind",
+        "bracket",
+        "near_threshold",
+        "max_points",
+        "points_used",
+        "trajectory"
+      ],
+      "title": "SearchResult",
+      "type": "object"
+    },
+    "SearchStage": {
+      "description": "Giai đoạn của một lần tìm ngưỡng (Phase 7, requirements.md mục Thuật toán).",
+      "enum": [
+        "coarse",
+        "bisect_subset",
+        "confirm",
+        "bisect_full",
+        "done"
+      ],
+      "title": "SearchStage",
+      "type": "string"
+    },
+    "SearchStatus": {
+      "enum": [
+        "found",
+        "not_reached",
+        "below_min",
+        "stopped_limit",
+        "non_monotonic",
+        "failed"
+      ],
+      "title": "SearchStatus",
+      "type": "string"
+    },
+    "SkipReason": {
+      "enum": [
+        "cached",
+        "incompatible",
+        "early_stop"
+      ],
+      "title": "SkipReason",
+      "type": "string"
+    },
+    "StatusReason": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StopReason"
+            },
+            {
+              "$ref": "#/$defs/SkipReason"
+            },
+            {
+              "enum": [
+                "error",
+                "cancelled"
+              ],
+              "type": "string"
+            }
+          ],
+          "title": "Code"
+        },
+        "message": {
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "trigger_run_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Phase 6: run đã kích hoạt dừng sớm; có khi và chỉ khi code = early_stop",
+          "title": "Trigger Run Id"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "StatusReason",
+      "type": "object"
+    },
+    "StopReason": {
+      "enum": [
+        "budget",
+        "time"
+      ],
+      "title": "StopReason",
+      "type": "string"
+    },
+    "ThresholdKind": {
+      "enum": [
+        "relative_drop",
+        "absolute_drop",
+        "attack_success_rate"
+      ],
+      "title": "ThresholdKind",
+      "type": "string"
+    },
+    "TrajectoryPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "order": {
+          "description": "Thứ tự đánh giá, bắt đầu từ 0, liên tục",
+          "minimum": 0,
+          "title": "Order",
+          "type": "integer"
+        },
+        "level": {
+          "title": "Level",
+          "type": "number"
+        },
+        "scope": {
+          "$ref": "#/$defs/EvalScope"
+        },
+        "drop": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Đại lượng so với ngưỡng (theo metric_kind); null khi run không có metric",
+          "title": "Drop"
+        },
+        "drop_ci": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Phase 7: khoảng tin cậy bootstrap 95%; chỉ điểm toàn slice, null khi chưa tính hoặc bootstrap_samples = 0",
+          "title": "Drop Ci"
+        },
+        "synthetic": {
+          "default": false,
+          "description": "Phase 7: level \"không biến đổi\" của spec (eps = 0, tỉ lệ che = 0): drop = 0 theo định nghĩa, không chạy, không có run",
+          "title": "Synthetic",
+          "type": "boolean"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null khi và chỉ khi synthetic",
+          "title": "Run Id"
+        }
+      },
+      "required": [
+        "order",
+        "level",
+        "scope",
+        "drop",
+        "run_id"
+      ],
+      "title": "TrajectoryPoint",
+      "type": "object"
+    },
+    "UserRef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "full_name": {
+          "title": "Full Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "full_name"
+      ],
+      "title": "UserRef",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "`GET /reports/{id}`: xem report trong ứng dụng (không có URL tải).",
+  "properties": {
+    "report": {
+      "$ref": "#/$defs/ReportView"
+    },
+    "snapshot": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ReportSnapshot"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Có khi và chỉ khi status = ready"
+    }
+  },
+  "required": [
+    "report",
+    "snapshot"
+  ],
+  "title": "ReportDetail",
+  "type": "object"
+}

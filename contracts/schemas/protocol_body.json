@@ -1,45 +1,35 @@
 {
   "$defs": {
-    "CaseSeverity": {
+    "CriterionKind": {
       "enum": [
-        "critical",
-        "major",
-        "minor",
-        "acceptable"
+        "max_drop_at_level",
+        "min_breaking_point"
       ],
-      "title": "CaseSeverity",
+      "title": "CriterionKind",
       "type": "string"
-    },
-    "GridConfig": {
-      "additionalProperties": false,
-      "properties": {
-        "levels": {
-          "items": {
-            "type": "number"
-          },
-          "minItems": 1,
-          "title": "Levels",
-          "type": "array"
-        },
-        "early_stop": {
-          "description": "Phase 6: bỏ level lớn hơn khi model đã sụp (mAP@0.5 <= 5% mAP sạch)",
-          "title": "Early Stop",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "levels"
-      ],
-      "title": "GridConfig",
-      "type": "object"
     },
     "PassCriterion": {
       "additionalProperties": false,
+      "description": "Tiêu chí đạt (requirements.md Phase 8, bảng Đánh giá tiêu chí).\n\n- `max_drop_at_level`: attack quét lưới; đại lượng `threshold_kind` (theo `class_filter`) tại\n  `level` (một level bắt buộc) ≤ `threshold`.\n- `min_breaking_point`: attack tìm ngưỡng; điểm gãy của chính lần tìm ngưỡng bắt buộc (cùng\n  `threshold_kind`, `threshold`, `class_filter`) ≥ `level`, với `lo < level ≤ hi`.",
       "properties": {
+        "kind": {
+          "$ref": "#/$defs/CriterionKind"
+        },
+        "attack_spec_name": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Attack Spec Name",
+          "type": "string"
+        },
+        "level": {
+          "title": "Level",
+          "type": "number"
+        },
         "threshold_kind": {
           "$ref": "#/$defs/ThresholdKind"
         },
         "threshold": {
+          "exclusiveMinimum": 0,
+          "maximum": 1,
           "title": "Threshold",
           "type": "number"
         },
@@ -54,11 +44,14 @@
             }
           ],
           "default": null,
-          "description": "Một class đích; cùng kiểu với SearchConfig.class_filter (Phase 7) để Phase 8 điền cấu hình tìm ngưỡng từ protocol",
+          "description": "Một class đích; cùng kiểu với SearchConfig.class_filter (Phase 7)",
           "title": "Class Filter"
         }
       },
       "required": [
+        "kind",
+        "attack_spec_name",
+        "level",
         "threshold_kind",
         "threshold"
       ],
@@ -67,13 +60,15 @@
     },
     "RequiredAttack": {
       "additionalProperties": false,
+      "description": "Attack bắt buộc. Một protocol không có hai attack cùng `attack_spec_name` (Phase 5: một\nexperiment không có hai attack cùng spec). Kiểm tra cần catalog (spec tồn tại, `spec_sha256`\nkhớp, patch không ở chế độ tìm ngưỡng, dải trong `primary_param`) ở backend.",
       "properties": {
-        "attack_spec_id": {
-          "format": "uuid",
-          "title": "Attack Spec Id",
+        "attack_spec_name": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Attack Spec Name",
           "type": "string"
         },
         "spec_sha256": {
+          "description": "Chốt đúng version spec",
           "pattern": "^[0-9a-f]{64}$",
           "title": "Spec Sha256",
           "type": "string"
@@ -84,86 +79,65 @@
         "grid": {
           "anyOf": [
             {
-              "$ref": "#/$defs/GridConfig"
+              "$ref": "#/$defs/RequiredGrid"
             },
             {
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Các level tối thiểu phải chạy"
+          "default": null
         },
         "search": {
           "anyOf": [
             {
-              "$ref": "#/$defs/SearchConfig"
+              "$ref": "#/$defs/RequiredSearch"
             },
             {
               "type": "null"
             }
           ],
-          "default": null,
-          "description": "Cấu hình tìm kiếm tối thiểu"
+          "default": null
         }
       },
       "required": [
-        "attack_spec_id",
+        "attack_spec_name",
         "spec_sha256",
         "mode"
       ],
       "title": "RequiredAttack",
       "type": "object"
     },
-    "RunMode": {
-      "enum": [
-        "grid",
-        "search"
-      ],
-      "title": "RunMode",
-      "type": "string"
-    },
-    "SearchConfig": {
+    "RequiredGrid": {
       "additionalProperties": false,
-      "description": "Cấu hình tự tìm ngưỡng (Phase 7, requirements.md mục Behaviour).\n\nKiểm tra phụ thuộc spec, slice và mapping (`lo`, `hi` trong dải của spec; `subset_size` không\nquá số ảnh slice; `absolute_drop` không quá mAP sạch; `class_filter` là class đích) ở backend.",
+      "properties": {
+        "levels": {
+          "description": "Level tối thiểu phải chạy; experiment được thêm level khác",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 1,
+          "title": "Levels",
+          "type": "array"
+        }
+      },
+      "required": [
+        "levels"
+      ],
+      "title": "RequiredGrid",
+      "type": "object"
+    },
+    "RequiredSearch": {
+      "additionalProperties": false,
+      "description": "Cấu hình tìm ngưỡng tối thiểu: experiment phải cùng ngưỡng, dải bao phủ [lo, hi],\n`tol ≤ max_tol`, `bootstrap_samples ≥ min_bootstrap_samples` (requirements.md Phase 8).",
       "properties": {
         "threshold_kind": {
           "$ref": "#/$defs/ThresholdKind"
         },
         "threshold": {
-          "description": "relative_drop, attack_success_rate: (0, 1]; absolute_drop: (0, mAP sạch]",
           "exclusiveMinimum": 0,
           "maximum": 1,
           "title": "Threshold",
           "type": "number"
-        },
-        "lo": {
-          "title": "Lo",
-          "type": "number"
-        },
-        "hi": {
-          "title": "Hi",
-          "type": "number"
-        },
-        "tol": {
-          "description": "Độ rộng khoảng khi dừng chia đôi; wizard mặc định (hi - lo) / 256. Tham số rời rạc chia đôi theo chỉ số nên không dùng tol",
-          "exclusiveMinimum": 0,
-          "title": "Tol",
-          "type": "number"
-        },
-        "coarse_n": {
-          "default": 4,
-          "description": "Số level quét thô",
-          "maximum": 8,
-          "minimum": 3,
-          "title": "Coarse N",
-          "type": "integer"
-        },
-        "subset_size": {
-          "default": 100,
-          "description": "Số ảnh của tập con; wizard cảnh báo khi dưới 20",
-          "minimum": 2,
-          "title": "Subset Size",
-          "type": "integer"
         },
         "class_filter": {
           "anyOf": [
@@ -176,15 +150,28 @@
             }
           ],
           "default": null,
-          "description": "Một class đích của mapping; null là mọi class",
+          "description": "Một class đích",
           "title": "Class Filter"
         },
-        "bootstrap_samples": {
+        "lo": {
+          "title": "Lo",
+          "type": "number"
+        },
+        "hi": {
+          "title": "Hi",
+          "type": "number"
+        },
+        "max_tol": {
+          "exclusiveMinimum": 0,
+          "title": "Max Tol",
+          "type": "number"
+        },
+        "min_bootstrap_samples": {
           "default": 200,
-          "description": "Số mẫu bootstrap; 0 là không tính khoảng tin cậy",
+          "description": "0 cho phép không tính khoảng tin cậy (tiêu chí khi đó không bao giờ inconclusive do khoảng tin cậy)",
           "maximum": 1000,
           "minimum": 0,
-          "title": "Bootstrap Samples",
+          "title": "Min Bootstrap Samples",
           "type": "integer"
         }
       },
@@ -193,10 +180,18 @@
         "threshold",
         "lo",
         "hi",
-        "tol"
+        "max_tol"
       ],
-      "title": "SearchConfig",
+      "title": "RequiredSearch",
       "type": "object"
+    },
+    "RunMode": {
+      "enum": [
+        "grid",
+        "search"
+      ],
+      "title": "RunMode",
+      "type": "string"
     },
     "ThresholdKind": {
       "enum": [
@@ -209,18 +204,25 @@
     }
   },
   "additionalProperties": false,
+  "description": "Nội dung một version protocol; không bao giờ thay đổi sau khi tạo (Phase 8 thay bản Phase 0,\nbỏ `review_severity_threshold`). Danh sách rỗng chỉ dùng cho protocol `dev` (dev-open);\n`ProtocolCreate` bắt buộc có attack và tiêu chí.",
   "properties": {
     "schema_version": {
-      "const": 1,
-      "default": 1,
+      "const": 2,
+      "default": 2,
       "title": "Schema Version",
       "type": "integer"
+    },
+    "description": {
+      "description": "Mục đích của protocol",
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Description",
+      "type": "string"
     },
     "required_attacks": {
       "items": {
         "$ref": "#/$defs/RequiredAttack"
       },
-      "minItems": 1,
       "title": "Required Attacks",
       "type": "array"
     },
@@ -233,20 +235,28 @@
       "items": {
         "$ref": "#/$defs/PassCriterion"
       },
-      "minItems": 1,
       "title": "Pass Criteria",
       "type": "array"
     },
-    "review_severity_threshold": {
-      "$ref": "#/$defs/CaseSeverity",
-      "description": "Case từ mức này trở lên bắt buộc có verdict"
+    "cases_to_review_per_attack": {
+      "default": 5,
+      "description": "Số failure case có severity_score cao nhất của mỗi attack bắt buộc phải có verdict",
+      "exclusiveMinimum": 0,
+      "title": "Cases To Review Per Attack",
+      "type": "integer"
+    },
+    "forbid_dirty_runs": {
+      "default": true,
+      "description": "Cấm run có git_dirty = true",
+      "title": "Forbid Dirty Runs",
+      "type": "boolean"
     }
   },
   "required": [
+    "description",
     "required_attacks",
     "min_slice_size",
-    "pass_criteria",
-    "review_severity_threshold"
+    "pass_criteria"
   ],
   "title": "ProtocolBody",
   "type": "object"

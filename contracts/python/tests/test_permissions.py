@@ -19,6 +19,7 @@ attack_catalog.manage         A
 protocol.read             E R A
 protocol.manage             R
 review.decide               R
+review.comment            E R
 report.export               R
 report.read               E R A
 user.manage                   A

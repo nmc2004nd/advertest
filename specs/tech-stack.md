@@ -122,6 +122,8 @@ Tầng sweep, metric, backend và frontend không được phụ thuộc vào vi
 | Mật khẩu | argon2 (`argon2-cffi`) | |
 | Phiên đăng nhập | Phiên phía server: cookie httpOnly chứa token ngẫu nhiên, DB lưu sha256 của token (Phase 4) | Vô hiệu hóa tài khoản, đổi role và đăng xuất phải có hiệu lực ngay; với JWT vẫn phải tra DB mỗi request |
 | Report PDF | WeasyPrint (render HTML → PDF ở server) | |
+| Mẫu report | Jinja2 (Phase 8) | Render HTML của report trước khi chuyển PDF |
+| Biểu đồ report | matplotlib (Phase 8), PNG nhúng vào PDF | Frontend vẫn dùng Recharts; ảnh trong PDF phải sinh ở server. Image cần thư viện hệ thống của WeasyPrint (pango) và font có dấu tiếng Việt; phiên bản pin ở Group 3 Phase 8 |
 | Email | SMTP | Thông báo run xong, chờ duyệt, ngân sách |
 | Hàng đợi | Bảng job trong Postgres, worker lấy qua API | Không dùng Celery/Redis: quy mô nhỏ, ít hạ tầng |
 

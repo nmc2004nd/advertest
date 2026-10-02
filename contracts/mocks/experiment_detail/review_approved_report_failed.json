@@ -1,0 +1,306 @@
+{
+  "id": "6d082f22-97bf-55af-9c3f-70c067dbae9a",
+  "name": "PGD/FGSM theo kitti-baseline (approved_failed)",
+  "owner": {
+    "id": "0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e02",
+    "full_name": "Nguyễn Văn An"
+  },
+  "status": "approved",
+  "model": {
+    "id": "81686f0e-32b6-5806-819c-3b0e37072342",
+    "name": "yolov8n-coco"
+  },
+  "slice": {
+    "id": "0ed10c11-0bc2-5615-a171-4a08748dfda9",
+    "name": "kitti-moderate-300",
+    "size": 300
+  },
+  "compute_target": {
+    "id": "8679be42-13ce-51fb-876b-ca6d4d3f3c74",
+    "name": "local-dev",
+    "kind": "local"
+  },
+  "run_counts": {
+    "queued": 0,
+    "running": 0,
+    "completed": 4,
+    "failed": 1,
+    "skipped": 1,
+    "stopped_limit": 2,
+    "cancelled": 0
+  },
+  "progress": {
+    "images_done": 1748,
+    "images_total": 2400
+  },
+  "created_at": "2026-09-29T08:00:00Z",
+  "finished_at": "2026-09-29T10:02:11Z",
+  "config": {
+    "schema_version": 1,
+    "protocol_id": "48404c1f-448f-582f-b5ba-6f056348ac59",
+    "model_version_id": "81686f0e-32b6-5806-819c-3b0e37072342",
+    "slice_id": "0ed10c11-0bc2-5615-a171-4a08748dfda9",
+    "class_mapping_id": "4c239faf-34f6-5144-a3d5-f0328b0881ac",
+    "compute_target_id": "8679be42-13ce-51fb-876b-ca6d4d3f3c74",
+    "attacks": [
+      {
+        "schema_version": 1,
+        "attack_spec_id": "8d15422d-f111-5c7e-96eb-e704767e6218",
+        "spec_sha256": "a6d81b6643af13e1d2f7983ce51340f54c26629304f1fdd98b954c236c1e735f",
+        "mode": "grid",
+        "grid": {
+          "levels": [
+            2,
+            4,
+            8
+          ]
+        },
+        "search": null,
+        "seed": 0
+      },
+      {
+        "schema_version": 1,
+        "attack_spec_id": "449774ff-ded0-5909-b549-90a1e410bd62",
+        "spec_sha256": "68fe8f72f176fe27981eadfe8b5e98bb36b8e85fc41c97b5702e2e149f52d72c",
+        "mode": "grid",
+        "grid": {
+          "levels": [
+            2,
+            4,
+            8,
+            16
+          ]
+        },
+        "search": null,
+        "seed": 0
+      },
+      {
+        "schema_version": 1,
+        "attack_spec_id": "9b1a8ccf-9447-5e5c-b4d3-1fa5cf5de7b8",
+        "spec_sha256": "fb54ce834934be1340423f2fb4283b37766e2c1ca74a8fceea9b762e64f7351e",
+        "mode": "grid",
+        "grid": {
+          "levels": [
+            1
+          ]
+        },
+        "search": null,
+        "seed": 0
+      }
+    ],
+    "limit": {
+      "kind": "time",
+      "value": "7200"
+    }
+  },
+  "config_sha256": "6bc534d8daf0c0e9d68b14400b136bbe5f6c42dd01b13838c731445880078b95",
+  "protocol": {
+    "id": "48404c1f-448f-582f-b5ba-6f056348ac59",
+    "name": "kitti-baseline",
+    "status": "active"
+  },
+  "limit": {
+    "kind": "time",
+    "value": "7200"
+  },
+  "processing_seconds_used": 7200,
+  "queue_position": null,
+  "cloned_from": null,
+  "clean_metrics": {
+    "map50": 0.512,
+    "map50_95": 0.298
+  },
+  "attack_ranking": [],
+  "search_results": [],
+  "compliance": [
+    {
+      "code": "attack_present",
+      "attack_spec_name": "fgsm",
+      "satisfied": true,
+      "detail": "Có FGSM"
+    },
+    {
+      "code": "spec_sha256",
+      "attack_spec_name": "fgsm",
+      "satisfied": true,
+      "detail": "Đúng version 1"
+    },
+    {
+      "code": "mode",
+      "attack_spec_name": "fgsm",
+      "satisfied": true,
+      "detail": "Quét lưới"
+    },
+    {
+      "code": "grid_levels",
+      "attack_spec_name": "fgsm",
+      "satisfied": true,
+      "detail": "Đủ level 2, 4, 8"
+    },
+    {
+      "code": "attack_present",
+      "attack_spec_name": "pgd_linf",
+      "satisfied": true,
+      "detail": "Có PGD L∞"
+    },
+    {
+      "code": "spec_sha256",
+      "attack_spec_name": "pgd_linf",
+      "satisfied": true,
+      "detail": "Đúng version 1"
+    },
+    {
+      "code": "mode",
+      "attack_spec_name": "pgd_linf",
+      "satisfied": true,
+      "detail": "Quét lưới"
+    },
+    {
+      "code": "grid_levels",
+      "attack_spec_name": "pgd_linf",
+      "satisfied": true,
+      "detail": "Đủ level 2, 4, 8 (thêm 16 ngoài protocol)"
+    },
+    {
+      "code": "min_slice_size",
+      "attack_spec_name": null,
+      "satisfied": true,
+      "detail": "Slice 300 ảnh ≥ 300"
+    },
+    {
+      "code": "model_gradients",
+      "attack_spec_name": null,
+      "satisfied": true,
+      "detail": "Model hỗ trợ gradient"
+    }
+  ],
+  "submit_check": null,
+  "runs_requiring_explanation": [],
+  "review": {
+    "submitted_at": "2026-10-02T09:00:00Z",
+    "submission_note": "PGD eps 8 lỗi hết bộ nhớ; đã giải trình.",
+    "run_explanations": [
+      {
+        "run_id": "f9023708-463a-5eb7-ac95-594e9eb6ec76",
+        "author": {
+          "id": "0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e02",
+          "full_name": "Nguyễn Văn An"
+        },
+        "text": "Worker hết bộ nhớ ở batch 8; máy local chỉ có 4 GB VRAM.",
+        "created_at": "2026-10-02T08:55:00Z"
+      },
+      {
+        "run_id": "7377afd7-e297-5b5e-92a8-7138c9bf6c80",
+        "author": {
+          "id": "0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e02",
+          "full_name": "Nguyễn Văn An"
+        },
+        "text": "Eps 16 ngoài protocol; chạm trần 2 giờ của máy local.",
+        "created_at": "2026-10-02T08:55:00Z"
+      }
+    ],
+    "assignee": {
+      "id": "0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e05",
+      "full_name": "Trần Minh Quân"
+    },
+    "claimed_at": "2026-10-02T09:10:00Z",
+    "decision": "approve",
+    "decided_at": "2026-10-02T10:00:00Z",
+    "model_verdict": "meets_criteria",
+    "conclusion": "Bài test làm đúng protocol. Model không đạt: PGD L∞ eps 2/255 làm mAP@0.5 sụt hơn 30%.",
+    "mitigation": "Adversarial training hoặc lọc đầu vào trước khi triển khai; kiểm thử lại.",
+    "inconclusive_justification": "Tiêu chí PGD eps 8 không kết luận do run lỗi hết bộ nhớ; hai tiêu chí còn lại đủ để kết luận.",
+    "criteria_results": [
+      {
+        "index": 0,
+        "status": "pass",
+        "value": 0.3711,
+        "detail": "relative_drop tại eps 4 là 0.371 ≤ 0.5"
+      },
+      {
+        "index": 1,
+        "status": "fail",
+        "value": 0.8867,
+        "detail": "relative_drop tại eps 2 là 0.887 > 0.3 (run trúng cache)"
+      },
+      {
+        "index": 2,
+        "status": "inconclusive",
+        "value": null,
+        "detail": "Không có run toàn slice completed ở eps 8 (run failed: hết bộ nhớ)"
+      }
+    ],
+    "checklist": [
+      {
+        "code": "protocol_not_dev",
+        "satisfied": true,
+        "detail": "Protocol kitti-baseline v2"
+      },
+      {
+        "code": "required_cases_reviewed",
+        "satisfied": true,
+        "detail": "2/2 case bắt buộc đã có verdict"
+      }
+    ],
+    "required_cases": [
+      {
+        "failure_case_id": "69228d88-e1a3-5f2f-bbdb-cbd2b266863c",
+        "run_id": "acd64412-55de-5ac6-b8d0-8ca96f218a64",
+        "attack_spec_name": "pgd_linf",
+        "level": 4,
+        "image_id": "000057",
+        "severity_score": 3.5,
+        "display_mode": "normal",
+        "current_verdict": {
+          "severity": "critical",
+          "kind": "safety_relevant",
+          "mitigation": "Bổ sung ảnh người đi bộ thiếu sáng vào tập huấn luyện; kiểm thử lại với PGD eps 2.",
+          "failure_case_id": "69228d88-e1a3-5f2f-bbdb-cbd2b266863c",
+          "version": 2,
+          "reviewer": {
+            "id": "0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e03",
+            "full_name": "Đỗ Thu Hà"
+          },
+          "created_at": "2026-10-02T09:25:00Z"
+        }
+      },
+      {
+        "failure_case_id": "fb91cde3-7bcf-507b-8da0-49bc6498eaf3",
+        "run_id": "acd64412-55de-5ac6-b8d0-8ca96f218a64",
+        "attack_spec_name": "pgd_linf",
+        "level": 4,
+        "image_id": "000123",
+        "severity_score": 2,
+        "display_mode": "normal",
+        "current_verdict": {
+          "severity": "minor",
+          "kind": "annotation_issue",
+          "mitigation": null,
+          "failure_case_id": "fb91cde3-7bcf-507b-8da0-49bc6498eaf3",
+          "version": 1,
+          "reviewer": {
+            "id": "0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e03",
+            "full_name": "Đỗ Thu Hà"
+          },
+          "created_at": "2026-10-02T09:30:00Z"
+        }
+      }
+    ],
+    "comments_count": 0
+  },
+  "report": {
+    "id": "d5414cf0-8570-59b3-8a4e-7ab94c973e08",
+    "experiment_id": "6d082f22-97bf-55af-9c3f-70c067dbae9a",
+    "experiment_name": "PGD/FGSM theo kitti-baseline (approved)",
+    "status": "failed",
+    "model_verdict": "meets_criteria",
+    "approved_by": {
+      "id": "0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e03",
+      "full_name": "Đỗ Thu Hà"
+    },
+    "approved_at": "2026-10-02T10:00:00Z",
+    "generated_at": null,
+    "json_sha256": null,
+    "pdf_sha256": null
+  }
+}

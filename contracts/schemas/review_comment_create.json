@@ -1,0 +1,38 @@
+{
+  "$defs": {
+    "CommentTargetType": {
+      "enum": [
+        "experiment",
+        "run",
+        "failure_case"
+      ],
+      "title": "CommentTargetType",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "target_type": {
+      "$ref": "#/$defs/CommentTargetType"
+    },
+    "target_id": {
+      "description": "ID experiment, run hoặc failure case thuộc experiment (422 nếu không thuộc)",
+      "format": "uuid",
+      "title": "Target Id",
+      "type": "string"
+    },
+    "body": {
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Body",
+      "type": "string"
+    }
+  },
+  "required": [
+    "target_type",
+    "target_id",
+    "body"
+  ],
+  "title": "ReviewCommentCreate",
+  "type": "object"
+}

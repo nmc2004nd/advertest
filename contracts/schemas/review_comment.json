@@ -1,0 +1,78 @@
+{
+  "$defs": {
+    "CommentTargetType": {
+      "enum": [
+        "experiment",
+        "run",
+        "failure_case"
+      ],
+      "title": "CommentTargetType",
+      "type": "string"
+    },
+    "UserRef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "full_name": {
+          "title": "Full Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "full_name"
+      ],
+      "title": "UserRef",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "experiment_id": {
+      "format": "uuid",
+      "title": "Experiment Id",
+      "type": "string"
+    },
+    "author": {
+      "$ref": "#/$defs/UserRef"
+    },
+    "body": {
+      "minLength": 1,
+      "title": "Body",
+      "type": "string"
+    },
+    "target_type": {
+      "$ref": "#/$defs/CommentTargetType"
+    },
+    "target_id": {
+      "format": "uuid",
+      "title": "Target Id",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "experiment_id",
+    "author",
+    "body",
+    "target_type",
+    "target_id",
+    "created_at"
+  ],
+  "title": "ReviewComment",
+  "type": "object"
+}

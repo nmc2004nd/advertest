@@ -301,11 +301,13 @@ def test_mock_bracket_is_best_known_interval(schema: str, name: str, scope: Eval
 
 
 def test_pass_criterion_class_filter_is_single_class() -> None:
+    # Phase 8 thêm kind, attack_spec_name, level vào PassCriterion.
+    base = {"kind": "max_drop_at_level", "attack_spec_name": "fgsm", "level": 4}
     PassCriterion.model_validate(
-        {"threshold_kind": "relative_drop", "threshold": 0.2, "class_filter": "person"}
+        {**base, "threshold_kind": "relative_drop", "threshold": 0.2, "class_filter": "person"}
     )
     invalid(
         PassCriterion,
-        {"threshold_kind": "relative_drop", "threshold": 0.2, "class_filter": ["person"]},
+        {**base, "threshold_kind": "relative_drop", "threshold": 0.2, "class_filter": ["person"]},
         "string",
     )

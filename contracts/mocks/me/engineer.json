@@ -17,6 +17,7 @@
     "model.read",
     "protocol.read",
     "report.read",
+    "review.comment",
     "slice.create"
   ],
   "status": "active"

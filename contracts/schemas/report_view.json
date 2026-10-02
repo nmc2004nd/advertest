@@ -1,0 +1,127 @@
+{
+  "$defs": {
+    "ModelVerdict": {
+      "description": "Kết luận của reviewer về model; tách khỏi quyết định chấp nhận bài test (Phase 8).",
+      "enum": [
+        "meets_criteria",
+        "does_not_meet",
+        "conditional"
+      ],
+      "title": "ModelVerdict",
+      "type": "string"
+    },
+    "ReportStatus": {
+      "enum": [
+        "generating",
+        "ready",
+        "failed"
+      ],
+      "title": "ReportStatus",
+      "type": "string"
+    },
+    "UserRef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "full_name": {
+          "title": "Full Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "full_name"
+      ],
+      "title": "UserRef",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "experiment_id": {
+      "format": "uuid",
+      "title": "Experiment Id",
+      "type": "string"
+    },
+    "experiment_name": {
+      "title": "Experiment Name",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/$defs/ReportStatus"
+    },
+    "model_verdict": {
+      "$ref": "#/$defs/ModelVerdict"
+    },
+    "approved_by": {
+      "$ref": "#/$defs/UserRef"
+    },
+    "approved_at": {
+      "format": "date-time",
+      "title": "Approved At",
+      "type": "string"
+    },
+    "generated_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Có khi và chỉ khi status = ready",
+      "title": "Generated At"
+    },
+    "json_sha256": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Có khi và chỉ khi status = ready",
+      "title": "Json Sha256"
+    },
+    "pdf_sha256": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Có khi và chỉ khi status = ready",
+      "title": "Pdf Sha256"
+    }
+  },
+  "required": [
+    "id",
+    "experiment_id",
+    "experiment_name",
+    "status",
+    "model_verdict",
+    "approved_by",
+    "approved_at",
+    "generated_at",
+    "json_sha256",
+    "pdf_sha256"
+  ],
+  "title": "ReportView",
+  "type": "object"
+}

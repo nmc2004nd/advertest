@@ -414,18 +414,27 @@ def test_search_result_rejects_inconsistent(overrides: dict[str, Any]) -> None:
 
 
 def test_protocol_body() -> None:
+    # Phase 8 thay ProtocolBody (schema_version 2); kiểm tra chi tiết ở test_phase08_models.py.
     body: dict[str, Any] = {
+        "description": "Kiểm thử cơ bản",
         "required_attacks": [
             {
-                "attack_spec_id": str(uuid4()),
+                "attack_spec_name": "pgd_linf",
                 "spec_sha256": SHA,
                 "mode": "grid",
                 "grid": {"levels": [4, 8]},
             }
         ],
         "min_slice_size": 300,
-        "pass_criteria": [{"threshold_kind": "relative_drop", "threshold": 0.2}],
-        "review_severity_threshold": "major",
+        "pass_criteria": [
+            {
+                "kind": "max_drop_at_level",
+                "attack_spec_name": "pgd_linf",
+                "level": 4,
+                "threshold_kind": "relative_drop",
+                "threshold": 0.2,
+            }
+        ],
     }
     ProtocolBody.model_validate(body)
     bad = copy.deepcopy(body)

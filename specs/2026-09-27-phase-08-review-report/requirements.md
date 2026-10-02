@@ -70,6 +70,57 @@ Trường `review_severity_threshold` của Phase 0 bị bỏ.
 
 **Ma trận quyền:** thêm `review.comment` cho engineer và reviewer. Bảng trong test nghiệm thu Phase 4 được cập nhật tương ứng.
 
+### Chốt ở Group 0 (2026-10-02)
+
+Chi tiết contract (nguồn sự thật: `contracts/python/advertest_contracts/models.py`, mock trong `contracts/mocks/`):
+
+- **`ProtocolBody`** có `schema_version = 2`. `RequiredAttack` gồm `attack_spec_name`, `spec_sha256`, `mode` và `grid` (`levels`, không trùng) hoặc `search` (`RequiredSearch`: `threshold_kind`, `threshold`, `class_filter`, `lo`, `hi`, `max_tol` < `hi − lo`, `min_bootstrap_samples` 0–1000, mặc định 200). `PassCriterion` thêm `kind` (`CriterionKind`), `attack_spec_name`, `level`.
+- **Kiểm tra ngay trong contract (422 `validation_error`):**
+  - `attack_spec_name` không trùng trong một protocol (mỗi attack một chế độ, như Phase 5 không cho hai attack cùng spec);
+  - tiêu chí chỉ tham chiếu attack có trong `required_attacks`;
+  - `max_drop_at_level` chỉ dùng với attack quét lưới, `level` phải là một level bắt buộc;
+  - `min_breaking_point` chỉ dùng với attack tìm ngưỡng, cùng `threshold_kind`, `threshold`, `class_filter` với `search`, và `lo < level ≤ hi`.
+  - Kiểm tra cần catalog (spec tồn tại, `spec_sha256`, patch không tìm ngưỡng, dải trong `primary_param`, `MAX_RUNS`) ở backend (422 `invalid_request`).
+- **Danh sách rỗng:** `required_attacks` và `pass_criteria` được rỗng để `dev-open` hợp lệ. Migration ghi body của `dev-open` đúng như `contracts/mocks/protocol_body/dev_open.json` và cập nhật `body_sha256`. `ProtocolCreate` (`name`, `body`) và `ProtocolVersionCreate` (`body`) bắt buộc có ít nhất một attack và một tiêu chí.
+- **Version protocol:** `POST /protocols/{id}/versions` chỉ tạo được từ version mới nhất của `name` (khác → `409`); version cũ chuyển `retired` trong cùng giao dịch, nên mỗi `name` có tối đa một bản `active`. Ghi `protocol.versioned`, và `protocol.retired` cho bản cũ.
+- **`ProtocolView`** (`GET /protocols/{id}`, kết quả tạo/version/retire): `id`, `name`, `version`, `status`, `body`, `body_sha256` (= `sha256_of(body)`), `created_by` (null chỉ với `dev`), `created_at`. `GET /protocols?include_retired=true` thêm bản `retired` cho trang `/protocols`.
+- **Endpoint (khung `501` ở Group 0):**
+
+  | Endpoint | Permission | Trả về |
+  |---|---|---|
+  | `POST /experiments/{id}/submit` (`SubmitForReview`) | `experiment.submit_review` | `ExperimentDetail` |
+  | `GET /experiments/{id}/comments` | `experiment.read` | `ReviewComment[]`, cũ nhất trước |
+  | `POST /experiments/{id}/comments` (`ReviewCommentCreate`) | `review.comment` | `ReviewComment` (201) |
+  | `GET /reviews?status=waiting\|mine\|decided&sort=submitted_at\|max_drop` | `review.decide` | `ReviewQueueItem[]` |
+  | `POST /reviews/{experiment_id}/claim`, `/release` | `review.decide` | `ExperimentDetail` |
+  | `POST /reviews/{experiment_id}/decision` (`ReviewDecisionInput`) | `review.decide` | `ExperimentDetail` |
+  | `POST /reviews/{experiment_id}/cases/{case_id}/verdicts` (`CaseVerdictInput`) | `review.decide` | `CaseVerdictView` (201) |
+  | `GET /failure-cases/{case_id}/verdicts` | `experiment.read` | `CaseVerdictView[]`, mới nhất trước |
+  | `GET /reports` | `report.read` | `ReportView[]` |
+  | `GET /reports/{id}` | `report.read` | `ReportDetail` (`report`, `snapshot` khi `ready`) |
+  | `GET /reports/{id}/download?format=pdf\|json` | `report.export` | `ReportDownload` (`url`, `expires_at`, `sha256`, `filename`) |
+  | `GET /reports/files/{token}` | `report.export` | Đúng file đã lưu |
+  | `POST /reports/{id}/regenerate` | `report.export` | `ReportView` |
+  | `GET /verify/{report_id}` | công khai | `VerifyInfo`; report không có hoặc chưa `ready` → `404` |
+
+  Ghi verdict nằm dưới `/reviews` chứ không ở `POST /failure-cases/{id}/verdicts`: test kiến trúc Phase 3 cấm API người dùng có endpoint ghi dưới `/runs` và `/failure-cases`. Case không thuộc experiment → `404`.
+- **Lỗi:** `ErrorCode` thêm `not_compliant` (422, `error.compliance` đủ mọi mục), `experiment_locked` (409), `checklist_incomplete` (409, `error.checklist`). `ErrorBody` thêm `compliance`, `checklist` (bỏ khỏi body khi null).
+- **Enum mã:** `ComplianceCode`, `ChecklistCode` (`protocol_not_dev`, `required_cases_reviewed`), `SubmitCheckCode`, `CommentTargetType`, `CriterionKind`, `ReviewQueueFilter`, `ReportNoteCode`. `ComplianceItem` thêm `attack_spec_name` (null với mục không theo attack).
+- **`ExperimentDetail`:**
+  - `compliance[]`;
+  - `submit_check[]` và `runs_requiring_explanation[]`: chỉ khi `completed`, cho hộp gửi duyệt; backend Phase 8 luôn điền `submit_check` khi `completed`;
+  - `review` (`ReviewView`): có khi và chỉ khi đã gửi duyệt. Gồm `submitted_at`, `submission_note`, `run_explanations`, `assignee`, `claimed_at`, quyết định, `criteria_results`, `checklist`, `required_cases` (kèm `current_verdict`, `display_mode`), `comments_count`;
+  - `report`: chỉ khi `approved`.
+  - Người nhận review khác người tạo (kiểm cả trong contract).
+- **`ReviewDecisionInput`:** `approve` thiếu `model_verdict` hoặc `mitigation` → 422 ngay ở contract. Thiếu `inconclusive_justification` khi có tiêu chí `inconclusive` → 422 ở backend. `changes_requested` và `reject` được gửi kèm `model_verdict`, `mitigation`, `inconclusive_justification` (ví dụ gợi ý mitigation khi yêu cầu sửa); backend lưu và `ReviewView` trả lại (review Group 0).
+- **`ReportSnapshot`:**
+  - các khóa `summary`, `notes`, `configuration`, `results`, `runs`, `reviewed_cases`, `history`, `reproducibility`, `resources`, tương ứng 9 mục;
+  - `notes` luôn có `test_environment_only` và `input_space`; bắt buộc thêm `anonymization` khi có `reviewed_cases`, `excluded_classes` khi class mapping loại class, `occlusion_stress` khi có attack `occlusion`, `patch_fixed_position` khi có attack `requires_training` (patch; `ReportAttackSpec` có trường này) (review Group 0); có `git_dirty` khi và chỉ khi có run `git_dirty` (protocol phải cho phép);
+  - `reviewed_cases` chỉ gồm case `anonymization.applied`;
+  - `history.timeline` gồm `experiment.submitted`, `review.claimed`, `review.released`, `review.decided`;
+  - file JSON là `canonical_json(snapshot)`.
+- **`ReportView`:** `generated_at`, `json_sha256`, `pdf_sha256` có khi và chỉ khi `ready`; có `model_verdict`, `experiment_name`.
+
 ### Thay đổi DB
 
 | Bảng | Thay đổi |
@@ -80,12 +131,13 @@ Trường `review_severity_threshold` của Phase 0 bị bỏ.
 | `case_verdicts` | Thêm `kind` |
 | `reviews` | Thêm `model_verdict`, `inconclusive_justification`, `criteria_results`, `checklist` |
 | `review_comments` | Mới: `id`, `experiment_id`, `author_id`, `target_type`, `target_id`, `body`, `created_at` |
-| `reports` | Thêm `status`, `snapshot_key`, `json_key`, `pdf_key`, `json_sha256`, `pdf_sha256`; bỏ cột `sha256` đơn |
+| `reports` | Thêm `status`, `snapshot_key`, `json_key`, `pdf_key`, `json_sha256`, `pdf_sha256`, `attempts`; bỏ cột `sha256` đơn và `uq_reports_sha256`; `exported_by` đổi thành `approved_by`; unique `experiment_id` |
 
 Ràng buộc DB:
 - `advertest_app` không có quyền `UPDATE`/`DELETE` trên `review_comments`, `run_explanations`.
 - Trigger: không cho thêm `case_verdicts`, `review_comments`, `run_explanations` khi experiment ở trạng thái `approved`, `changes_requested` hoặc `rejected`.
 - Trigger Phase 0 (người review ≠ người tạo) vẫn giữ; thêm tương tự cho `experiments.review_assignee_id`.
+- `reports` (Phase 0: chỉ thêm) được cấp thêm `UPDATE`, không có `DELETE`. Trigger chỉ cho sửa `status`, `attempts`, các cột key và hash, và chỉ khi dòng hiện tại có `status ≠ ready`; dòng đã `ready` là bất biến. Sinh lại cập nhật đúng dòng đó nên `report_id` không đổi (kickoff 2026-10-02).
 
 ## Behaviour
 
@@ -116,7 +168,10 @@ Engineer có thể thêm attack ngoài protocol. `compliance[]` cũng được t
 - experiment `completed`;
 - protocol không ở trạng thái `dev`;
 - mọi run của attack bắt buộc có trạng thái cuối; run bắt buộc nào không `completed` (và không phải `skipped` do `cached`/`early_stop`) phải có lời giải trình trong `run_explanations`;
-- nếu `forbid_dirty_runs`: không run nào có `git_dirty = true`.
+- nếu `forbid_dirty_runs`: không run nào có `git_dirty = true`;
+- không case bắt buộc nào có `display_mode = hidden_unanonymized` (case chưa làm mờ, chỉ có ở dữ liệu trước Phase 6) (kickoff 2026-10-02).
+
+Lời giải trình chỉ được gửi kèm `SubmitForReview`; không có endpoint thêm giải trình riêng (kickoff 2026-10-02).
 
 Khi gửi: trạng thái `submitted_for_review`, `submitted_at`; experiment bị **khóa** (mọi endpoint thay đổi experiment trả `409`, trừ bình luận); ghi `audit_log`; email cho mọi reviewer `active` (trừ người tạo).
 
@@ -131,7 +186,7 @@ Khi gửi: trạng thái `submitted_for_review`, `submitted_at`; experiment bị
 - Reviewer có thể review thêm case khác.
 
 ### Verdict
-- `POST /failure-cases/{id}/verdicts` (`review.decide`, người đang nhận): tạo verdict version mới; version mới nhất là hiện hành; mọi version được giữ.
+- `POST /reviews/{experiment_id}/cases/{case_id}/verdicts` (`review.decide`, người đang nhận; chốt ở Group 0): tạo verdict version mới; version mới nhất là hiện hành; mọi version được giữ.
 - `mitigation` bắt buộc khi `kind = safety_relevant`.
 
 ### Đánh giá tiêu chí (tự động, chỉ mang tính tham khảo)
@@ -140,13 +195,17 @@ Khi gửi: trạng thái `submitted_for_review`, `submitted_at`; experiment bị
 | `max_drop_at_level` | Đại lượng tại level ≤ ngưỡng | > ngưỡng | Không có run toàn slice (`scope = full`) `completed` ở level đó, hoặc run `partial` |
 | `min_breaking_point` | `found`/`non_monotonic` với cận dưới của `bracket` ≥ level, hoặc `not_reached` | Điểm gãy (= cận trên của `bracket`) < level, hoặc `below_min` | `near_threshold`, `stopped_limit`, `failed`, level nằm trong `bracket` (a < level < b), hoặc khoảng tin cậy của điểm gãy chứa level |
 
+Level bắt buộc bị `skipped` do `early_stop`: `max_drop_at_level` dùng đại lượng của run kích hoạt (`trigger_run_id`), giống xếp hạng Phase 6; `detail` ghi "suy từ dừng sớm tại level X" (kickoff 2026-10-02).
+
 ### Danh sách kiểm tra trước khi chấp nhận
-`approve` chỉ thành công khi mọi mục thỏa, nếu không → `409` kèm `checklist`:
-- người gọi là người đang nhận và không phải người tạo;
-- protocol không phải `dev`;
-- mọi case bắt buộc có verdict hiện hành;
-- có `conclusion`, `mitigation`, `model_verdict`;
-- nếu có tiêu chí `inconclusive`: có `inconclusive_justification`.
+`approve` kiểm tra theo thứ tự (kickoff 2026-10-02):
+1. Người gọi không phải người đang nhận, hoặc là người tạo → `403`.
+2. Thiếu trường nhập: `conclusion`, `mitigation`, `model_verdict`; hoặc có tiêu chí `inconclusive` mà thiếu `inconclusive_justification` → `422`.
+3. `checklist` có mục chưa thỏa → `409` kèm `checklist`. `checklist` chỉ gồm điều kiện trạng thái phía server (cũng trả trong `ExperimentDetail.review`):
+   - protocol không phải `dev`;
+   - mọi case bắt buộc có verdict hiện hành.
+
+Frontend tự kiểm các trường nhập của form trước khi bật nút "Chấp nhận".
 
 `changes_requested` và `reject` chỉ bắt buộc `conclusion` (lý do).
 
@@ -164,15 +223,16 @@ Khi gửi: trạng thái `submitted_for_review`, `submitted_at`; experiment bị
 2. Render HTML (Jinja2) → PDF (WeasyPrint); biểu đồ vẽ bằng matplotlib thành PNG nhúng vào; ảnh case dùng thumbnail đã làm mờ.
 3. Tính `pdf_sha256`; lưu snapshot, JSON, PDF vào bucket `reports`; `status = ready`.
 4. Lỗi → thử lại tối đa 3 lần, rồi `status = failed`; experiment vẫn `approved`; reviewer có thể bấm sinh lại.
+5. Khi API khởi động, report còn ở `generating` (tác vụ nền bị ngắt) được sinh tiếp.
 
 **Nội dung `ReportSnapshot`:**
 1. **Tóm tắt:** model verdict, kết luận, mitigation, người duyệt, thời điểm.
-2. **Phạm vi và lưu ý bắt buộc:** chỉ là môi trường kiểm thử (`mission.md` nguyên tắc 8); eps và corruption tính trong không gian đầu vào của model; occlusion là phép thử chịu tải; patch ở vị trí cố định; phương pháp làm mờ ảnh.
+2. **Phạm vi và lưu ý bắt buộc:** chỉ là môi trường kiểm thử (`mission.md` nguyên tắc 8); eps và corruption tính trong không gian đầu vào của model (ảnh letterbox dạng float, không lượng tử hóa 8-bit); occlusion là phép thử chịu tải; patch ở vị trí cố định; phương pháp làm mờ ảnh.
 3. **Cấu hình:** protocol (tên, version, hash), model (tên, hash weights), dataset version, slice (hash, số ảnh), class mapping (hash, class bị loại), attack spec (version, hash), compute target và môi trường.
 4. **Kết quả:** metric sạch; bảng và đường cong quét lưới; xếp hạng AUC; kết quả tìm ngưỡng kèm khoảng tin cậy; kết quả từng tiêu chí.
 5. **Toàn bộ run:** mọi run kể cả `failed`, `skipped`, `stopped_limit`, `cancelled`, kèm lý do và lời giải trình.
 6. **Failure case đã review:** thumbnail đã làm mờ, verdict hiện hành, mitigation.
-7. **Lịch sử:** mọi experiment khác cùng protocol (mọi version), cùng model version và cùng dataset version, tạo trước thời điểm duyệt, kèm trạng thái và người tạo; timeline review (gửi, nhận, số bình luận, quyết định).
+7. **Lịch sử:** mọi experiment khác cùng model version và cùng dataset version, tạo trước thời điểm duyệt, gắn protocol này (mọi version) **hoặc** protocol `dev` (gắn nhãn "dev"), kèm trạng thái và người tạo; timeline review (gửi, nhận, số bình luận, quyết định).
 8. **Tái lập:** fingerprint, git commit, cảnh báo `git_dirty`, phiên bản thư viện, Docker image của từng run.
 9. **Tài nguyên:** thời gian xử lý đã dùng so với giới hạn.
 
@@ -218,6 +278,8 @@ Ghi các action: `protocol.created`, `protocol.versioned`, `protocol.retired`, `
 - **Report sinh một lần khi chấp nhận, nội dung cố định; tải xuống chỉ lấy file đã lưu.** *Lý do:* mọi bản tải cùng một hash, trang xác minh có ý nghĩa.
 - **Xác minh tính hash trong trình duyệt.** *Lý do:* người xác minh không phải gửi report (có thể chứa thông tin nội bộ) lên server; trang công khai không lộ tên người hay nội dung.
 - **Nhận review trước khi quyết định.** *Lý do:* tránh hai reviewer cùng lúc ghi verdict và ra quyết định mâu thuẫn; trách nhiệm rõ ràng.
+- **Lịch sử report gồm cả experiment `dev-open`.** *Lý do:* nếu không, engineer có thể thử nhiều seed hoặc slice với `dev-open` rồi chỉ chạy protocol thật một lần (kickoff 2026-10-02).
+- **Report là bản ghi sửa được tới khi `ready`, bất biến sau đó.** *Lý do:* `report_id` phải có trước khi render (chân trang, `/verify`) và giữ nguyên qua các lần thử lại (kickoff 2026-10-02).
 - **Khóa bằng cả service và trigger DB.** *Lý do:* như các luật chống gian lận khác, đặt ở DB thì bug ở tầng ứng dụng cũng không phá được.
 
 ## Context
@@ -236,7 +298,7 @@ Ghi các action: `protocol.created`, `protocol.versioned`, `protocol.retired`, `
 
 ## Open Questions
 
-- [ ] `max_drop_at_level` với level bị `skipped` (`early_stop`): hiện rơi vào `inconclusive` (không có run `completed`). Có dùng `relative_drop` của run kích hoạt như xếp hạng Phase 6 (thường thành `fail`), hoặc bắt protocol tắt dừng sớm cho attack bắt buộc?
+- [x] `max_drop_at_level` với level bị `skipped` (`early_stop`): dùng đại lượng của run kích hoạt như xếp hạng Phase 6 (kickoff 2026-10-02, xem mục Đánh giá tiêu chí).
 
 - [ ] `cases_to_review_per_attack` mặc định 5 có phù hợp không.
-- [ ] Có cần thêm matplotlib vào `tech-stack.md` hay vẽ biểu đồ report bằng SVG tự sinh (mặc định: matplotlib, ghi vào `tech-stack.md` ở Group 0).
+- [x] Có cần thêm matplotlib vào `tech-stack.md` hay vẽ biểu đồ report bằng SVG tự sinh: matplotlib, đã ghi vào `tech-stack.md` cùng Jinja2 ở Group 0 (2026-10-02).

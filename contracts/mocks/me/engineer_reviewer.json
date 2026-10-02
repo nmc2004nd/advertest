@@ -20,6 +20,7 @@
     "protocol.read",
     "report.export",
     "report.read",
+    "review.comment",
     "review.decide",
     "slice.create"
   ],

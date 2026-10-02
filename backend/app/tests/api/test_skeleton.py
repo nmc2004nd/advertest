@@ -59,7 +59,7 @@ SAMPLE_CALLS = [
 # Endpoint có body bắt buộc: gửi body hợp lệ lấy từ contracts/mocks.
 MOCKS = Path(__file__).resolve().parents[4] / "contracts" / "mocks"
 BODIES = {
-    "/protocols": "protocol_body/default.json",
+    "/protocols": "protocol_create/default.json",
     "/internal/worker/heartbeat": "heartbeat_request/default.json",
     "/internal/worker/runs/" + RUN_ID + "/artifact-url": "artifact_url_request/put_candidate.json",
     "/internal/worker/runs/" + RUN_ID + "/start": "run_start_request/gpu_local.json",

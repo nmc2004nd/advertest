@@ -28,6 +28,7 @@ class Permission(StrEnum):
     PROTOCOL_READ = "protocol.read"
     PROTOCOL_MANAGE = "protocol.manage"
     REVIEW_DECIDE = "review.decide"
+    REVIEW_COMMENT = "review.comment"  # Phase 8: bình luận khi experiment đang được review
     REPORT_EXPORT = "report.export"
     REPORT_READ = "report.read"
     USER_MANAGE = "user.manage"
@@ -50,6 +51,7 @@ ROLE_PERMISSIONS: Final[dict[Role, frozenset[Permission]]] = {
             _P.EXPERIMENT_CREATE,
             _P.EXPERIMENT_CANCEL_OWN,
             _P.EXPERIMENT_SUBMIT_REVIEW,
+            _P.REVIEW_COMMENT,
             _P.DATASET_READ,
             _P.DATASET_UPLOAD,
             _P.SLICE_CREATE,
@@ -69,6 +71,7 @@ ROLE_PERMISSIONS: Final[dict[Role, frozenset[Permission]]] = {
             _P.PROTOCOL_READ,
             _P.PROTOCOL_MANAGE,
             _P.REVIEW_DECIDE,
+            _P.REVIEW_COMMENT,
             _P.REPORT_EXPORT,
             _P.REPORT_READ,
         }

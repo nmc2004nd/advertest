@@ -7,13 +7,15 @@
 ### Chung
 - [ ] `make check` pass, bao gồm test nghiệm thu các phase trước (bảng ma trận quyền Phase 4 đã cập nhật `review.comment`).
 - [ ] `make contracts` không tạo thay đổi; mock mới validate được.
+- [ ] `make test-db` chạy test nghiệm thu Phase 5–7 chung phiên mà không cần `DROP OWNED BY` (migration 0006 downgrade được); test email Phase 5 không phụ thuộc ngày.
 
 ### Protocol — `test_protocols.py`
 - [ ] Reviewer tạo protocol → `active`, version 1, có `audit_log`.
 - [ ] Engineer hoặc admin tạo protocol → `403`.
-- [ ] Tạo version mới → bản ghi mới; nội dung version cũ không đổi (so sánh hash).
+- [ ] Tạo version mới → bản ghi mới; nội dung version cũ không đổi (so sánh hash); version cũ chuyển `retired`; tạo version từ bản không phải mới nhất → `409`.
 - [ ] Không có endpoint nào sửa nội dung một version đã tạo.
 - [ ] Tiêu chí tham chiếu attack không có trong `required_attacks`, `min_breaking_point` với attack quét lưới, hoặc patch ở chế độ tìm ngưỡng → `422`.
+- [ ] Attack spec không tồn tại hoặc `spec_sha256` không khớp → `422`.
 - [ ] Protocol `retired` không chọn được khi tạo experiment mới; experiment cũ gắn protocol đó vẫn gửi duyệt được.
 
 ### Tuân thủ khi tạo — `test_compliance.py`
@@ -34,19 +36,21 @@
 - [ ] Người khác gửi duyệt experiment không phải của mình → `403`.
 - [ ] Sau khi gửi: hủy, gửi lại, thêm run, sửa bất kỳ trường nào của experiment → `409`; bình luận vẫn được.
 - [ ] Gửi duyệt tạo email cho mọi reviewer `active` trừ người tạo.
+- [ ] Case bắt buộc ở `hidden_unanonymized` → gửi duyệt `409`.
 
 ### Nhận review và tách quyền — `test_review_separation.py`
 - [ ] Người dùng có cả role engineer và reviewer: không thấy experiment của mình trong hàng đợi; nhận review experiment của mình → `403`.
 - [ ] Ghi trực tiếp vào DB `reviews` hoặc `experiments.review_assignee_id` với người review là người tạo → trigger từ chối.
 - [ ] Reviewer thứ hai nhận experiment đang được nhận → `409`.
-- [ ] Reviewer không phải người đang nhận ghi verdict hoặc ra quyết định → `403`.
+- [ ] Reviewer không phải người đang nhận ghi verdict hoặc ra quyết định → `403` (trước cả kiểm tra trường nhập).
 - [ ] Engineer và admin (không có role reviewer) ra quyết định → `403`.
 - [ ] Trả lại review → trạng thái `submitted_for_review`, người khác nhận được.
 
 ### Verdict — `test_verdicts.py`
 - [ ] Ghi verdict hai lần cho một case → hai version; version mới nhất là hiện hành; version cũ vẫn đọc được.
 - [ ] `safety_relevant` không có `mitigation` → `422`.
-- [ ] Sau quyết định: ghi verdict, bình luận, giải trình → `409` qua API; ghi trực tiếp vào DB → trigger từ chối.
+- [ ] Sau quyết định: ghi verdict, bình luận, gọi lại `submit` kèm giải trình → `409` qua API; ghi trực tiếp vào DB (`case_verdicts`, `review_comments`, `run_explanations`) → trigger từ chối.
+- [ ] Bình luận khi experiment `completed` (chưa gửi) → `409`; target không thuộc experiment → `422`; admin → `403`.
 - [ ] `UPDATE`/`DELETE` trên `case_verdicts`, `review_comments`, `run_explanations` bằng `advertest_app` → bị từ chối.
 - [ ] Case bắt buộc = top-N theo `severity_score` của mỗi attack bắt buộc, thứ tự xác định.
 
@@ -54,9 +58,10 @@
 - [ ] `max_drop_at_level`: dưới ngưỡng → `pass`; trên ngưỡng → `fail`; không có run `completed` ở level hoặc run `partial` → `inconclusive`.
 - [ ] `min_breaking_point`: cận dưới `bracket` ≥ level → `pass`; `not_reached` → `pass`; điểm gãy < level → `fail`; `below_min` → `fail`; level trong `bracket`, `near_threshold`, `stopped_limit`, `failed`, hoặc khoảng tin cậy chứa level → `inconclusive`.
 - [ ] `class_filter` được áp dụng đúng.
+- [ ] `max_drop_at_level` ở level `skipped` do `early_stop`: dùng đại lượng của run kích hoạt; `detail` ghi rõ.
 
 ### Quyết định — `test_decision.py`
-- [ ] `approve` khi thiếu verdict cho case bắt buộc → `409` kèm `checklist` chỉ rõ mục thiếu.
+- [ ] `approve` khi thiếu verdict cho case bắt buộc hoặc protocol `dev` → `409` kèm `checklist` chỉ rõ mục thiếu; `checklist` chỉ gồm mục trạng thái.
 - [ ] `approve` thiếu `conclusion`, `mitigation` hoặc `model_verdict` → `422`.
 - [ ] Có tiêu chí `inconclusive` mà thiếu `inconclusive_justification` → `422`.
 - [ ] `approve` đủ điều kiện → `approved`; `reviews` lưu `criteria_results` và `checklist` tại thời điểm đó; có `audit_log`; có email cho engineer.
@@ -68,13 +73,16 @@
 - [ ] Chấp nhận → report được sinh, `status = ready`; `ReportSnapshot` validate được.
 - [ ] `json_sha256` và `pdf_sha256` khớp hash của file trong MinIO.
 - [ ] Snapshot chứa **mọi** run của experiment, kể cả `failed`, `skipped`, `stopped_limit`, `cancelled`, kèm lý do và giải trình.
-- [ ] Snapshot chứa experiment liên quan: tạo thêm 2 experiment cùng protocol, model, dataset version (một `completed` không gửi duyệt, một `cancelled`) trước khi chấp nhận → cả hai xuất hiện trong mục Lịch sử.
+- [ ] Snapshot chứa experiment liên quan: tạo thêm 2 experiment cùng protocol, model, dataset version (một `completed` không gửi duyệt, một `cancelled`) và 1 experiment `dev-open` cùng model, dataset version trước khi chấp nhận → cả ba xuất hiện trong mục Lịch sử, bản `dev-open` có nhãn "dev"; experiment khác model không xuất hiện.
 - [ ] Snapshot chứa đủ các lưu ý bắt buộc ở mục 2 và cảnh báo `git_dirty` nếu có (khi protocol cho phép).
 - [ ] Ảnh case trong report đều có `anonymization.applied = true`.
 - [ ] PDF có chân trang với mã report và "BẢN CHÍNH THỨC" trên mọi trang (kiểm tra bằng trích xuất văn bản).
 - [ ] Tải hai lần → cùng hash; mỗi lần tải có `audit_log` `report.downloaded`.
 - [ ] Engineer và admin (không có `report.export`) gọi endpoint tải → `403`; xem report trong ứng dụng → được, không có URL tải.
-- [ ] Ép lỗi khi render → thử lại 3 lần, `status = failed`, experiment vẫn `approved`; sinh lại → `ready`.
+- [ ] Ép lỗi khi render → thử lại 3 lần, `status = failed`, experiment vẫn `approved`; sinh lại → `ready`, `report_id` không đổi.
+- [ ] Dòng `reports` đã `ready`: `UPDATE` bằng `advertest_app` → trigger từ chối; `DELETE` → bị từ chối.
+- [ ] Report ở `generating` khi API khởi động lại → được sinh tiếp tới `ready`.
+- [ ] Snapshot có lưu ý eps tính trên ảnh letterbox float (không lượng tử 8-bit).
 - [ ] Report không thể được sinh cho experiment chưa `approved` (không có endpoint nào cho phép).
 - [ ] `/verify/{report_id}` không cần đăng nhập, chỉ trả `VerifyInfo` (không tên người, không nội dung); mã không tồn tại → `404`.
 
@@ -97,7 +105,7 @@
 
 ## Manual Checks
 
-- [ ] Tạo một protocol thật cho KITTI (ví dụ: PGD L∞ quét lưới eps 2/4/8, tìm ngưỡng PGD với sụt 20%, fog severity 1–5, tiêu chí `max_drop_at_level` và `min_breaking_point`); chạy trọn luồng với hai tài khoản trên laptop.
+- [ ] Tạo một protocol thật cho KITTI (ví dụ: PGD L∞ quét lưới eps 2/4/8, tìm ngưỡng PGD L2 với sụt 20% (mỗi attack một chế độ, chốt ở Group 0), fog severity 1–5, tiêu chí `max_drop_at_level` và `min_breaking_point`); chạy trọn luồng với hai tài khoản trên laptop.
 - [ ] Đọc toàn bộ PDF: đủ 9 mục, số liệu khớp với giao diện, biểu đồ rõ, ảnh đã làm mờ, lưu ý bắt buộc đầy đủ, tiếng Việt hiển thị đúng dấu.
 - [ ] Mở PDF và trang xác minh trên điện thoại thật.
 - [ ] **Thử gian lận** bằng tài khoản engineer và ghi kết quả vào `CHANGELOG.md`:

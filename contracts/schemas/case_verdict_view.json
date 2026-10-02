@@ -1,0 +1,97 @@
+{
+  "$defs": {
+    "CaseSeverity": {
+      "enum": [
+        "critical",
+        "major",
+        "minor",
+        "acceptable"
+      ],
+      "title": "CaseSeverity",
+      "type": "string"
+    },
+    "CaseVerdictKind": {
+      "description": "Loại verdict của một failure case (Phase 8).",
+      "enum": [
+        "safety_relevant",
+        "acceptable",
+        "annotation_issue"
+      ],
+      "title": "CaseVerdictKind",
+      "type": "string"
+    },
+    "UserRef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "full_name": {
+          "title": "Full Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "full_name"
+      ],
+      "title": "UserRef",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Một version verdict; version lớn nhất là hiện hành, mọi version được giữ.",
+  "properties": {
+    "severity": {
+      "$ref": "#/$defs/CaseSeverity"
+    },
+    "kind": {
+      "$ref": "#/$defs/CaseVerdictKind"
+    },
+    "mitigation": {
+      "anyOf": [
+        {
+          "maxLength": 4000,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Bắt buộc khi kind = safety_relevant",
+      "title": "Mitigation"
+    },
+    "failure_case_id": {
+      "format": "uuid",
+      "title": "Failure Case Id",
+      "type": "string"
+    },
+    "version": {
+      "exclusiveMinimum": 0,
+      "title": "Version",
+      "type": "integer"
+    },
+    "reviewer": {
+      "$ref": "#/$defs/UserRef"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "severity",
+    "kind",
+    "failure_case_id",
+    "version",
+    "reviewer",
+    "created_at"
+  ],
+  "title": "CaseVerdictView",
+  "type": "object"
+}

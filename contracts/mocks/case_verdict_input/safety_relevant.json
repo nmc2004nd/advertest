@@ -1,0 +1,5 @@
+{
+  "severity": "critical",
+  "kind": "safety_relevant",
+  "mitigation": "Bổ sung ảnh người đi bộ thiếu sáng vào tập huấn luyện; kiểm thử lại với PGD eps 2."
+}

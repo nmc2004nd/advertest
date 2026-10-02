@@ -550,6 +550,68 @@ export interface components {
          * @enum {string}
          */
         CaseSeverity: "critical" | "major" | "minor" | "acceptable";
+        /** CaseVerdictInput */
+        CaseVerdictInput: {
+            severity: components["schemas"]["CaseSeverity"];
+            kind: components["schemas"]["CaseVerdictKind"];
+            /**
+             * Mitigation
+             * @description Bắt buộc khi kind = safety_relevant
+             * @default null
+             */
+            mitigation: string | null;
+        };
+        /**
+         * CaseVerdictKind
+         * @description Loại verdict của một failure case (Phase 8).
+         * @enum {string}
+         */
+        CaseVerdictKind: "safety_relevant" | "acceptable" | "annotation_issue";
+        /**
+         * CaseVerdictView
+         * @description Một version verdict; version lớn nhất là hiện hành, mọi version được giữ.
+         */
+        CaseVerdictView: {
+            severity: components["schemas"]["CaseSeverity"];
+            kind: components["schemas"]["CaseVerdictKind"];
+            /**
+             * Mitigation
+             * @description Bắt buộc khi kind = safety_relevant
+             * @default null
+             */
+            mitigation: string | null;
+            /**
+             * Failure Case Id
+             * Format: uuid
+             */
+            failure_case_id: string;
+            /** Version */
+            version: number;
+            reviewer: components["schemas"]["UserRef"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * ChecklistCode
+         * @description Điều kiện trạng thái phía server trước khi chấp nhận (Phase 8, kickoff: chỉ gồm điều kiện
+         *     trạng thái; trường nhập thiếu là 422, sai người là 403).
+         * @enum {string}
+         */
+        ChecklistCode: "protocol_not_dev" | "required_cases_reviewed";
+        /**
+         * ChecklistItem
+         * @description Một điều kiện trạng thái trước khi chấp nhận (Phase 8).
+         */
+        ChecklistItem: {
+            code: components["schemas"]["ChecklistCode"];
+            /** Satisfied */
+            satisfied: boolean;
+            /** Detail */
+            detail: string;
+        };
         /** ClassEvalMetrics */
         ClassEvalMetrics: {
             /**
@@ -691,6 +753,35 @@ export interface components {
             message: string;
         };
         /**
+         * CommentTargetType
+         * @enum {string}
+         */
+        CommentTargetType: "experiment" | "run" | "failure_case";
+        /**
+         * ComplianceCode
+         * @description Mục kiểm tra tuân thủ protocol khi ước lượng, tạo experiment và gửi duyệt (Phase 8).
+         * @enum {string}
+         */
+        ComplianceCode: "protocol_active" | "attack_present" | "spec_sha256" | "mode" | "grid_levels" | "search_threshold" | "search_range" | "search_tol" | "search_bootstrap" | "min_slice_size" | "model_gradients";
+        /**
+         * ComplianceItem
+         * @description Một mục tuân thủ protocol (Phase 8): trong ước lượng, ExperimentDetail và lỗi 422
+         *     `not_compliant` khi tạo experiment.
+         */
+        ComplianceItem: {
+            code: components["schemas"]["ComplianceCode"];
+            /**
+             * Attack Spec Name
+             * @description Attack bắt buộc của mục này; null với mục không theo attack
+             * @default null
+             */
+            attack_spec_name: string | null;
+            /** Satisfied */
+            satisfied: boolean;
+            /** Detail */
+            detail: string;
+        };
+        /**
          * ComputeKind
          * @enum {string}
          */
@@ -812,6 +903,35 @@ export interface components {
             measured_at: string;
             environment: components["schemas"]["Environment"];
         };
+        /**
+         * CriterionKind
+         * @enum {string}
+         */
+        CriterionKind: "max_drop_at_level" | "min_breaking_point";
+        /**
+         * CriterionResult
+         * @description Kết quả tự động (chỉ tham khảo) của `pass_criteria[index]`.
+         */
+        CriterionResult: {
+            /**
+             * Index
+             * @description Chỉ số trong body.pass_criteria của protocol
+             */
+            index: number;
+            status: components["schemas"]["CriterionStatus"];
+            /**
+             * Value
+             * @description max_drop_at_level: đại lượng tại level; min_breaking_point: điểm gãy (cận trên bracket); null khi không có
+             */
+            value: number | null;
+            /** Detail */
+            detail: string;
+        };
+        /**
+         * CriterionStatus
+         * @enum {string}
+         */
+        CriterionStatus: "pass" | "fail" | "inconclusive";
         /**
          * DatasetManifest
          * @description Manifest dataset nội bộ. Dataset version = sha256_of(manifest).
@@ -947,12 +1067,24 @@ export interface components {
              * @default null
              */
             fields: components["schemas"]["FieldError"][] | null;
+            /**
+             * Compliance
+             * @description Phase 8: chỉ có ở lỗi 422 not_compliant (mọi mục, kể cả mục đã thỏa)
+             * @default null
+             */
+            compliance: components["schemas"]["ComplianceItem"][] | null;
+            /**
+             * Checklist
+             * @description Phase 8: chỉ có ở lỗi 409 checklist_incomplete
+             * @default null
+             */
+            checklist: components["schemas"]["ChecklistItem"][] | null;
         };
         /**
          * ErrorCode
          * @enum {string}
          */
-        ErrorCode: "not_implemented" | "unauthenticated" | "forbidden" | "not_found" | "conflict" | "invalid_request" | "invalid_credentials" | "account_pending" | "account_rejected" | "account_disabled" | "rate_limited" | "csrf_failed" | "validation_error" | "not_supported_yet" | "queue_limit_reached" | "internal_error";
+        ErrorCode: "not_implemented" | "unauthenticated" | "forbidden" | "not_found" | "conflict" | "invalid_request" | "invalid_credentials" | "account_pending" | "account_rejected" | "account_disabled" | "rate_limited" | "csrf_failed" | "validation_error" | "not_supported_yet" | "queue_limit_reached" | "internal_error" | "not_compliant" | "experiment_locked" | "checklist_incomplete";
         /**
          * ErrorResponse
          * @description Body lỗi thống nhất của mọi endpoint: {"error": {"code", "message"}}.
@@ -1006,6 +1138,11 @@ export interface components {
              * @default false
              */
             max_exceeds_limit: boolean;
+            /**
+             * Compliance
+             * @description Phase 8: tuân thủ protocol, giống kết quả kiểm tra khi tạo; rỗng với protocol dev
+             */
+            compliance?: components["schemas"]["ComplianceItem"][];
         };
         /** EstimateRun */
         EstimateRun: {
@@ -1245,6 +1382,32 @@ export interface components {
              * @description Phase 7: SearchResult mới nhất của từng attack tìm ngưỡng đã có điểm (cập nhật khi đang chạy)
              */
             search_results?: components["schemas"]["SearchResult"][];
+            /**
+             * Compliance
+             * @description Phase 8: tuân thủ protocol version đã gắn; rỗng với protocol dev
+             */
+            compliance?: components["schemas"]["ComplianceItem"][];
+            /**
+             * Submit Check
+             * @description Phase 8: điều kiện gửi duyệt; chỉ có khi status = completed (backend Phase 8 luôn điền khi completed)
+             * @default null
+             */
+            submit_check: components["schemas"]["SubmitCheckItem"][] | null;
+            /**
+             * Runs Requiring Explanation
+             * @description Phase 8: run của attack bắt buộc không completed (trừ skipped do cached, early_stop) phải có lời giải trình khi gửi duyệt; chỉ có khi status = completed
+             */
+            runs_requiring_explanation?: string[];
+            /**
+             * @description Phase 8: có khi và chỉ khi experiment đã gửi duyệt (submitted_for_review, in_review, approved, changes_requested, rejected)
+             * @default null
+             */
+            review: components["schemas"]["ReviewView"] | null;
+            /**
+             * @description Phase 8: report chính thức; chỉ có khi status = approved
+             * @default null
+             */
+            report: components["schemas"]["ReportView"] | null;
         };
         /** ExperimentPage */
         ExperimentPage: {
@@ -1802,14 +1965,33 @@ export interface components {
              */
             created_at: string;
         };
-        /** PassCriterion */
+        /**
+         * ModelVerdict
+         * @description Kết luận của reviewer về model; tách khỏi quyết định chấp nhận bài test (Phase 8).
+         * @enum {string}
+         */
+        ModelVerdict: "meets_criteria" | "does_not_meet" | "conditional";
+        /**
+         * PassCriterion
+         * @description Tiêu chí đạt (requirements.md Phase 8, bảng Đánh giá tiêu chí).
+         *
+         *     - `max_drop_at_level`: attack quét lưới; đại lượng `threshold_kind` (theo `class_filter`) tại
+         *       `level` (một level bắt buộc) ≤ `threshold`.
+         *     - `min_breaking_point`: attack tìm ngưỡng; điểm gãy của chính lần tìm ngưỡng bắt buộc (cùng
+         *       `threshold_kind`, `threshold`, `class_filter`) ≥ `level`, với `lo < level ≤ hi`.
+         */
         PassCriterion: {
+            kind: components["schemas"]["CriterionKind"];
+            /** Attack Spec Name */
+            attack_spec_name: string;
+            /** Level */
+            level: number;
             threshold_kind: components["schemas"]["ThresholdKind"];
             /** Threshold */
             threshold: number;
             /**
              * Class Filter
-             * @description Một class đích; cùng kiểu với SearchConfig.class_filter (Phase 7) để Phase 8 điền cấu hình tìm ngưỡng từ protocol
+             * @description Một class đích; cùng kiểu với SearchConfig.class_filter (Phase 7)
              * @default null
              */
             class_filter: string | null;
@@ -1921,7 +2103,7 @@ export interface components {
          * Permission
          * @enum {string}
          */
-        Permission: "experiment.read" | "experiment.create" | "experiment.cancel_own" | "experiment.submit_review" | "dataset.read" | "dataset.upload" | "slice.create" | "model.read" | "model.manage" | "attack_catalog.read" | "attack_catalog.manage" | "protocol.read" | "protocol.manage" | "review.decide" | "report.export" | "report.read" | "user.manage" | "compute_target.read" | "compute_target.manage" | "budget.manage" | "audit.read";
+        Permission: "experiment.read" | "experiment.create" | "experiment.cancel_own" | "experiment.submit_review" | "dataset.read" | "dataset.upload" | "slice.create" | "model.read" | "model.manage" | "attack_catalog.read" | "attack_catalog.manage" | "protocol.read" | "protocol.manage" | "review.decide" | "review.comment" | "report.export" | "report.read" | "user.manage" | "compute_target.read" | "compute_target.manage" | "budget.manage" | "audit.read";
         /**
          * PerturbationImageKind
          * @description Nội dung ảnh thứ ba của failure case (Phase 6).
@@ -2002,22 +2184,51 @@ export interface components {
              */
             iterations_total: number | null;
         };
-        /** ProtocolBody */
+        /**
+         * ProtocolBody
+         * @description Nội dung một version protocol; không bao giờ thay đổi sau khi tạo (Phase 8 thay bản Phase 0,
+         *     bỏ `review_severity_threshold`). Danh sách rỗng chỉ dùng cho protocol `dev` (dev-open);
+         *     `ProtocolCreate` bắt buộc có attack và tiêu chí.
+         */
         ProtocolBody: {
             /**
              * Schema Version
-             * @default 1
+             * @default 2
              * @constant
              */
-            schema_version: 1;
+            schema_version: 2;
+            /**
+             * Description
+             * @description Mục đích của protocol
+             */
+            description: string;
             /** Required Attacks */
             required_attacks: components["schemas"]["RequiredAttack"][];
             /** Min Slice Size */
             min_slice_size: number;
             /** Pass Criteria */
             pass_criteria: components["schemas"]["PassCriterion"][];
-            /** @description Case từ mức này trở lên bắt buộc có verdict */
-            review_severity_threshold: components["schemas"]["CaseSeverity"];
+            /**
+             * Cases To Review Per Attack
+             * @description Số failure case có severity_score cao nhất của mỗi attack bắt buộc phải có verdict
+             * @default 5
+             */
+            cases_to_review_per_attack: number;
+            /**
+             * Forbid Dirty Runs
+             * @description Cấm run có git_dirty = true
+             * @default true
+             */
+            forbid_dirty_runs: boolean;
+        };
+        /**
+         * ProtocolCreate
+         * @description `POST /protocols`: tạo protocol `active` version 1.
+         */
+        ProtocolCreate: {
+            /** Name */
+            name: string;
+            body: components["schemas"]["ProtocolBody"];
         };
         /** ProtocolRef */
         ProtocolRef: {
@@ -2050,6 +2261,40 @@ export interface components {
             /** Body Sha256 */
             body_sha256: string;
         };
+        /**
+         * ProtocolVersionCreate
+         * @description `POST /protocols/{id}/versions`: version mới cùng `name`, chỉ tạo từ version mới nhất (409
+         *     nếu không); version cũ chuyển `retired` trong cùng giao dịch (kickoff Group 0).
+         */
+        ProtocolVersionCreate: {
+            body: components["schemas"]["ProtocolBody"];
+        };
+        /** ProtocolView */
+        ProtocolView: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Version */
+            version: number;
+            status: components["schemas"]["ProtocolStatus"];
+            body: components["schemas"]["ProtocolBody"];
+            /**
+             * Body Sha256
+             * @description sha256_of(body)
+             */
+            body_sha256: string;
+            /** @description null với protocol dev (dev-open) */
+            created_by: components["schemas"]["UserRef"] | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
         /** QueueEstimate */
         QueueEstimate: {
             /**
@@ -2068,32 +2313,730 @@ export interface components {
             /** Reason */
             reason: string;
         };
-        /** RequiredAttack */
-        RequiredAttack: {
+        /** ReportAttackSpec */
+        ReportAttackSpec: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Version */
+            version: number;
+            kind: components["schemas"]["AttackKind"];
+            /** Spec Sha256 */
+            spec_sha256: string;
+            /** Param Name */
+            param_name: string;
+            /** Param Unit */
+            param_unit: string;
+            /**
+             * Requires Training
+             * @description Patch (Phase 6): cần note patch_fixed_position
+             */
+            requires_training: boolean;
+            /**
+             * Required
+             * @description Là attack bắt buộc của protocol
+             */
+            required: boolean;
+        };
+        /**
+         * ReportCase
+         * @description Mục 6: failure case đã review (chỉ case đã làm mờ).
+         */
+        ReportCase: {
+            /**
+             * Failure Case Id
+             * Format: uuid
+             */
+            failure_case_id: string;
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            /** Attack Spec Name */
+            attack_spec_name: string;
+            /** Level */
+            level: number;
+            /** Image Id */
+            image_id: string;
+            /** Severity Score */
+            severity_score: number;
+            /** Lost Objects */
+            lost_objects: number;
+            /** New False Positives */
+            new_false_positives: number;
+            /**
+             * Required
+             * @description Là case bắt buộc review
+             */
+            required: boolean;
+            anonymization: components["schemas"]["CaseAnonymization"];
+            /**
+             * Thumbnail Key
+             * @description Thumbnail ảnh sau tấn công đã làm mờ
+             */
+            thumbnail_key: string;
+            verdict: components["schemas"]["CaseVerdictView"];
+        };
+        /** ReportClassMapping */
+        ReportClassMapping: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Mapping Sha256 */
+            mapping_sha256: string;
+            /**
+             * Excluded Classes
+             * @description Class gốc bị loại khỏi metric
+             */
+            excluded_classes: string[];
+        };
+        /**
+         * ReportConfiguration
+         * @description Mục 3: cấu hình.
+         */
+        ReportConfiguration: {
+            protocol: components["schemas"]["ReportProtocol"];
+            model: components["schemas"]["ReportModel"];
+            dataset_version: components["schemas"]["ReportDatasetVersion"];
+            slice: components["schemas"]["ReportSlice"];
+            class_mapping: components["schemas"]["ReportClassMapping"];
+            /** Attack Specs */
+            attack_specs: components["schemas"]["ReportAttackSpec"][];
+            compute_target: components["schemas"]["ComputeTargetRef"];
+            /**
+             * Gpu Model
+             * @description null khi chạy trên CPU
+             */
+            gpu_model: string | null;
+            /** Config Sha256 */
+            config_sha256: string;
+        };
+        /** ReportDatasetVersion */
+        ReportDatasetVersion: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Dataset Name */
+            dataset_name: string;
+            /** Manifest Sha256 */
+            manifest_sha256: string;
+            /** Anonymized */
+            anonymized: boolean;
+        };
+        /**
+         * ReportDetail
+         * @description `GET /reports/{id}`: xem report trong ứng dụng (không có URL tải).
+         */
+        ReportDetail: {
+            report: components["schemas"]["ReportView"];
+            /** @description Có khi và chỉ khi status = ready */
+            snapshot: components["schemas"]["ReportSnapshot"] | null;
+        };
+        /**
+         * ReportDownload
+         * @description `GET /reports/{id}/download?format=`: URL tạm thời tới đúng file đã lưu.
+         */
+        ReportDownload: {
+            /**
+             * Format
+             * @enum {string}
+             */
+            format: "pdf" | "json";
+            /** Url */
+            url: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /**
+             * Sha256
+             * @description json_sha256 hoặc pdf_sha256 của report
+             */
+            sha256: string;
+            /** Filename */
+            filename: string;
+        };
+        /** ReportGridAttack */
+        ReportGridAttack: {
             /**
              * Attack Spec Id
              * Format: uuid
              */
             attack_spec_id: string;
-            /** Spec Sha256 */
+            /** Attack Spec Name */
+            attack_spec_name: string;
+            /**
+             * Points
+             * @description Theo level tăng dần; chỉ run toàn slice
+             */
+            points: components["schemas"]["ReportGridPoint"][];
+        };
+        /** ReportGridPoint */
+        ReportGridPoint: {
+            /** Level */
+            level: number;
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            status: components["schemas"]["RunStatus"];
+            /**
+             * Map50
+             * @description mAP@0.5 sau tấn công; null khi không có metric
+             */
+            map50: number | null;
+            /** Relative Drop */
+            relative_drop: number | null;
+            /** Attack Success Rate */
+            attack_success_rate: number | null;
+            /**
+             * Early Stop From Run Id
+             * @description Run kích hoạt dừng sớm khi level bị skipped do early_stop
+             */
+            early_stop_from_run_id: string | null;
+        };
+        /**
+         * ReportHistory
+         * @description Mục 7: experiment khác cùng model version và dataset version, gắn protocol này (mọi
+         *     version) hoặc protocol dev, tạo trước thời điểm duyệt; timeline review.
+         */
+        ReportHistory: {
+            /** Related Experiments */
+            related_experiments: components["schemas"]["ReportRelatedExperiment"][];
+            /**
+             * Timeline
+             * @description Theo thời gian
+             */
+            timeline: components["schemas"]["ReportTimelineEvent"][];
+            /** Comments Count */
+            comments_count: number;
+        };
+        /** ReportModel */
+        ReportModel: {
+            /**
+             * Id
+             * Format: uuid
+             * @description ID của model version
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Weights Sha256 */
+            weights_sha256: string;
+        };
+        /** ReportNote */
+        ReportNote: {
+            code: components["schemas"]["ReportNoteCode"];
+            /** Text */
+            text: string;
+        };
+        /**
+         * ReportNoteCode
+         * @description Lưu ý bắt buộc ở mục 2 của report (Phase 8, requirements.md mục Report).
+         * @enum {string}
+         */
+        ReportNoteCode: "test_environment_only" | "input_space" | "occlusion_stress" | "patch_fixed_position" | "anonymization" | "git_dirty" | "excluded_classes";
+        /** ReportProtocol */
+        ReportProtocol: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Version */
+            version: number;
+            /** Body Sha256 */
+            body_sha256: string;
+            body: components["schemas"]["ProtocolBody"];
+        };
+        /** ReportRelatedExperiment */
+        ReportRelatedExperiment: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            status: components["schemas"]["ExperimentStatus"];
+            owner: components["schemas"]["UserRef"];
+            protocol: components["schemas"]["ProtocolRef"];
+            /** Protocol Version */
+            protocol_version: number;
+            /**
+             * Dev
+             * @description Gắn protocol dev (dev-open)
+             */
+            dev: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * ReportReproRun
+         * @description Mục 8: tái lập; các trường null khi run chưa bắt đầu (không có manifest).
+         */
+        ReportReproRun: {
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            /** Fingerprint */
+            fingerprint: string | null;
+            /** Git Commit */
+            git_commit: string | null;
+            /** Git Dirty */
+            git_dirty: boolean | null;
+            lib_versions: components["schemas"]["LibVersions"] | null;
+            /** Docker Image Digest */
+            docker_image_digest: string | null;
+            /** Cached From Run Id */
+            cached_from_run_id: string | null;
+        };
+        /**
+         * ReportResources
+         * @description Mục 9: tài nguyên (Phase 8 chỉ ghi thời gian xử lý; tiền ở Phase 9).
+         */
+        ReportResources: {
+            /** Processing Seconds Used */
+            processing_seconds_used: number;
+            limit: components["schemas"]["Limit"];
+        };
+        /**
+         * ReportResults
+         * @description Mục 4: kết quả.
+         */
+        ReportResults: {
+            clean_metrics: components["schemas"]["MapPair"] | null;
+            /** Grid */
+            grid: components["schemas"]["ReportGridAttack"][];
+            /** Attack Ranking */
+            attack_ranking: components["schemas"]["AttackRankingEntry"][];
+            /**
+             * Searches
+             * @description Kết quả cuối của từng attack tìm ngưỡng
+             */
+            searches: components["schemas"]["SearchResult"][];
+            /**
+             * Criteria
+             * @description Theo thứ tự configuration.protocol.body.pass_criteria
+             */
+            criteria: components["schemas"]["CriterionResult"][];
+        };
+        /**
+         * ReportRun
+         * @description Mục 5: mọi run, kể cả failed, skipped, stopped_limit, cancelled và run tập con.
+         */
+        ReportRun: {
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            /**
+             * Attack Spec Id
+             * Format: uuid
+             */
+            attack_spec_id: string;
+            /** Attack Spec Name */
+            attack_spec_name: string;
+            /** Level */
+            level: number;
+            scope: components["schemas"]["EvalScope"];
+            /** Search Order */
+            search_order: number | null;
+            status: components["schemas"]["RunStatus"];
+            status_reason: components["schemas"]["StatusReason"] | null;
+            metrics: components["schemas"]["RunMetrics"] | null;
+            /** Processing Seconds */
+            processing_seconds: number;
+            /**
+             * Explanation
+             * @description Lời giải trình khi gửi duyệt
+             */
+            explanation: string | null;
+        };
+        /** ReportSlice */
+        ReportSlice: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Slice Sha256 */
+            slice_sha256: string | null;
+            /** Size */
+            size: number;
+        };
+        /**
+         * ReportSnapshot
+         * @description Toàn bộ nội dung report; file JSON là `canonical_json` của snapshot, `json_sha256` là
+         *     sha256 của file đó.
+         */
+        ReportSnapshot: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /**
+             * Report Id
+             * Format: uuid
+             */
+            report_id: string;
+            summary: components["schemas"]["ReportSummary"];
+            /**
+             * Notes
+             * @description Mục 2: phạm vi và lưu ý bắt buộc
+             */
+            notes: components["schemas"]["ReportNote"][];
+            configuration: components["schemas"]["ReportConfiguration"];
+            results: components["schemas"]["ReportResults"];
+            /** Runs */
+            runs: components["schemas"]["ReportRun"][];
+            /** Reviewed Cases */
+            reviewed_cases: components["schemas"]["ReportCase"][];
+            history: components["schemas"]["ReportHistory"];
+            /** Reproducibility */
+            reproducibility: components["schemas"]["ReportReproRun"][];
+            resources: components["schemas"]["ReportResources"];
+        };
+        /**
+         * ReportStatus
+         * @enum {string}
+         */
+        ReportStatus: "generating" | "ready" | "failed";
+        /**
+         * ReportSummary
+         * @description Mục 1: tóm tắt.
+         */
+        ReportSummary: {
+            /**
+             * Experiment Id
+             * Format: uuid
+             */
+            experiment_id: string;
+            /** Experiment Name */
+            experiment_name: string;
+            owner: components["schemas"]["UserRef"];
+            model_verdict: components["schemas"]["ModelVerdict"];
+            /** Conclusion */
+            conclusion: string;
+            /** Mitigation */
+            mitigation: string;
+            /** Inconclusive Justification */
+            inconclusive_justification: string | null;
+            approved_by: components["schemas"]["UserRef"];
+            /**
+             * Approved At
+             * Format: date-time
+             */
+            approved_at: string;
+        };
+        /** ReportTimelineEvent */
+        ReportTimelineEvent: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "experiment.submitted" | "review.claimed" | "review.released" | "review.decided";
+            actor: components["schemas"]["UserRef"];
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        };
+        /** ReportView */
+        ReportView: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Experiment Id
+             * Format: uuid
+             */
+            experiment_id: string;
+            /** Experiment Name */
+            experiment_name: string;
+            status: components["schemas"]["ReportStatus"];
+            model_verdict: components["schemas"]["ModelVerdict"];
+            approved_by: components["schemas"]["UserRef"];
+            /**
+             * Approved At
+             * Format: date-time
+             */
+            approved_at: string;
+            /**
+             * Generated At
+             * @description Có khi và chỉ khi status = ready
+             */
+            generated_at: string | null;
+            /**
+             * Json Sha256
+             * @description Có khi và chỉ khi status = ready
+             */
+            json_sha256: string | null;
+            /**
+             * Pdf Sha256
+             * @description Có khi và chỉ khi status = ready
+             */
+            pdf_sha256: string | null;
+        };
+        /**
+         * RequiredAttack
+         * @description Attack bắt buộc. Một protocol không có hai attack cùng `attack_spec_name` (Phase 5: một
+         *     experiment không có hai attack cùng spec). Kiểm tra cần catalog (spec tồn tại, `spec_sha256`
+         *     khớp, patch không ở chế độ tìm ngưỡng, dải trong `primary_param`) ở backend.
+         */
+        RequiredAttack: {
+            /** Attack Spec Name */
+            attack_spec_name: string;
+            /**
+             * Spec Sha256
+             * @description Chốt đúng version spec
+             */
             spec_sha256: string;
             mode: components["schemas"]["RunMode"];
+            /** @default null */
+            grid: components["schemas"]["RequiredGrid"] | null;
+            /** @default null */
+            search: components["schemas"]["RequiredSearch"] | null;
+        };
+        /**
+         * RequiredCase
+         * @description Case bắt buộc review: top `cases_to_review_per_attack` theo `severity_score` của mỗi
+         *     attack bắt buộc (cùng điểm theo `image_id`).
+         */
+        RequiredCase: {
             /**
-             * @description Các level tối thiểu phải chạy
+             * Failure Case Id
+             * Format: uuid
+             */
+            failure_case_id: string;
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            /** Attack Spec Name */
+            attack_spec_name: string;
+            /** Level */
+            level: number;
+            /** Image Id */
+            image_id: string;
+            /** Severity Score */
+            severity_score: number;
+            display_mode: components["schemas"]["DisplayMode"];
+            current_verdict: components["schemas"]["CaseVerdictView"] | null;
+        };
+        /** RequiredGrid */
+        RequiredGrid: {
+            /**
+             * Levels
+             * @description Level tối thiểu phải chạy; experiment được thêm level khác
+             */
+            levels: number[];
+        };
+        /**
+         * RequiredSearch
+         * @description Cấu hình tìm ngưỡng tối thiểu: experiment phải cùng ngưỡng, dải bao phủ [lo, hi],
+         *     `tol ≤ max_tol`, `bootstrap_samples ≥ min_bootstrap_samples` (requirements.md Phase 8).
+         */
+        RequiredSearch: {
+            threshold_kind: components["schemas"]["ThresholdKind"];
+            /** Threshold */
+            threshold: number;
+            /**
+             * Class Filter
+             * @description Một class đích
              * @default null
              */
-            grid: components["schemas"]["GridConfig"] | null;
+            class_filter: string | null;
+            /** Lo */
+            lo: number;
+            /** Hi */
+            hi: number;
+            /** Max Tol */
+            max_tol: number;
             /**
-             * @description Cấu hình tìm kiếm tối thiểu
-             * @default null
+             * Min Bootstrap Samples
+             * @description 0 cho phép không tính khoảng tin cậy (tiêu chí khi đó không bao giờ inconclusive do khoảng tin cậy)
+             * @default 200
              */
-            search: components["schemas"]["SearchConfig"] | null;
+            min_bootstrap_samples: number;
+        };
+        /** ReviewComment */
+        ReviewComment: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Experiment Id
+             * Format: uuid
+             */
+            experiment_id: string;
+            author: components["schemas"]["UserRef"];
+            /** Body */
+            body: string;
+            target_type: components["schemas"]["CommentTargetType"];
+            /**
+             * Target Id
+             * Format: uuid
+             */
+            target_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** ReviewCommentCreate */
+        ReviewCommentCreate: {
+            target_type: components["schemas"]["CommentTargetType"];
+            /**
+             * Target Id
+             * Format: uuid
+             * @description ID experiment, run hoặc failure case thuộc experiment (422 nếu không thuộc)
+             */
+            target_id: string;
+            /** Body */
+            body: string;
         };
         /**
          * ReviewDecision
          * @enum {string}
          */
         ReviewDecision: "approve" | "changes_requested" | "reject";
+        /**
+         * ReviewDecisionInput
+         * @description `POST /reviews/{experiment_id}/decision`. Thiếu trường nhập → 422 (kickoff Phase 8); thiếu
+         *     `inconclusive_justification` khi có tiêu chí inconclusive cũng 422 (kiểm ở backend).
+         */
+        ReviewDecisionInput: {
+            decision: components["schemas"]["ReviewDecision"];
+            /**
+             * @description Bắt buộc khi approve
+             * @default null
+             */
+            model_verdict: components["schemas"]["ModelVerdict"] | null;
+            /**
+             * Conclusion
+             * @description Kết luận; lý do với changes_requested và reject
+             */
+            conclusion: string;
+            /**
+             * Mitigation
+             * @description Bắt buộc khi approve
+             * @default null
+             */
+            mitigation: string | null;
+            /**
+             * Inconclusive Justification
+             * @default null
+             */
+            inconclusive_justification: string | null;
+        };
+        /**
+         * ReviewQueueFilter
+         * @description Nhóm của hàng đợi review (`GET /reviews?status=`).
+         * @enum {string}
+         */
+        ReviewQueueFilter: "waiting" | "mine" | "decided";
+        /**
+         * ReviewQueueItem
+         * @description Một dòng của hàng đợi `GET /reviews` (không gồm experiment do người gọi tạo).
+         */
+        ReviewQueueItem: {
+            experiment: components["schemas"]["ExperimentSummary"];
+            protocol: components["schemas"]["ProtocolRef"];
+            /**
+             * Submitted At
+             * Format: date-time
+             */
+            submitted_at: string;
+            assignee: components["schemas"]["UserRef"] | null;
+            /** Claimed At */
+            claimed_at: string | null;
+            decision: components["schemas"]["ReviewDecision"] | null;
+            /** Decided At */
+            decided_at: string | null;
+            /**
+             * Max Relative Drop
+             * @description relative_drop lớn nhất trên run toàn slice có metric; null khi không có
+             */
+            max_relative_drop: number | null;
+            /** Required Cases Total */
+            required_cases_total: number;
+            /** Required Cases Reviewed */
+            required_cases_reviewed: number;
+        };
+        /**
+         * ReviewView
+         * @description Trạng thái review của experiment (`ExperimentDetail.review`).
+         */
+        ReviewView: {
+            /**
+             * Submitted At
+             * Format: date-time
+             */
+            submitted_at: string;
+            /** Submission Note */
+            submission_note: string | null;
+            /** Run Explanations */
+            run_explanations: components["schemas"]["RunExplanation"][];
+            /** @description Người đang nhận hoặc đã quyết định */
+            assignee: components["schemas"]["UserRef"] | null;
+            /** Claimed At */
+            claimed_at: string | null;
+            decision: components["schemas"]["ReviewDecision"] | null;
+            /** Decided At */
+            decided_at: string | null;
+            model_verdict: components["schemas"]["ModelVerdict"] | null;
+            /** Conclusion */
+            conclusion: string | null;
+            /** Mitigation */
+            mitigation: string | null;
+            /** Inconclusive Justification */
+            inconclusive_justification: string | null;
+            /**
+             * Criteria Results
+             * @description Khi chưa quyết định: tính tại thời điểm đọc; sau quyết định: bản đã lưu
+             */
+            criteria_results: components["schemas"]["CriterionResult"][];
+            /**
+             * Checklist
+             * @description Điều kiện trạng thái trước khi chấp nhận; sau quyết định: bản đã lưu
+             */
+            checklist: components["schemas"]["ChecklistItem"][];
+            /** Required Cases */
+            required_cases: components["schemas"]["RequiredCase"][];
+            /** Comments Count */
+            comments_count: number;
+        };
         /**
          * Role
          * @enum {string}
@@ -2168,6 +3111,22 @@ export interface components {
             stopped_limit: number;
             /** Cancelled */
             cancelled: number;
+        };
+        /** RunExplanation */
+        RunExplanation: {
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            author: components["schemas"]["UserRef"];
+            /** Text */
+            text: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** RunMetrics */
         RunMetrics: {
@@ -2745,6 +3704,42 @@ export interface components {
          */
         StopReason: "budget" | "time";
         /**
+         * SubmitCheckCode
+         * @description Điều kiện gửi duyệt (Phase 8, `POST /experiments/{id}/submit`), hiển thị trong hộp gửi
+         *     duyệt trước khi gửi.
+         * @enum {string}
+         */
+        SubmitCheckCode: "experiment_completed" | "protocol_not_dev" | "runs_final" | "no_dirty_runs" | "required_cases_visible";
+        /**
+         * SubmitCheckItem
+         * @description Một điều kiện gửi duyệt (Phase 8).
+         */
+        SubmitCheckItem: {
+            code: components["schemas"]["SubmitCheckCode"];
+            /** Satisfied */
+            satisfied: boolean;
+            /** Detail */
+            detail: string;
+        };
+        /**
+         * SubmitForReview
+         * @description `POST /experiments/{id}/submit`. Lời giải trình chỉ gửi kèm ở đây (kickoff Phase 8).
+         */
+        SubmitForReview: {
+            /**
+             * Note
+             * @default null
+             */
+            note: string | null;
+            /**
+             * Run Explanations
+             * @description run_id → lời giải trình
+             */
+            run_explanations?: {
+                [key: string]: string;
+            };
+        };
+        /**
          * ThresholdKind
          * @enum {string}
          */
@@ -2884,6 +3879,26 @@ export interface components {
          * @enum {string}
          */
         UserStatus: "pending" | "active" | "rejected" | "disabled";
+        /**
+         * VerifyInfo
+         * @description `GET /verify/{report_id}` (công khai): không có tên người hay nội dung report.
+         */
+        VerifyInfo: {
+            /**
+             * Report Id
+             * Format: uuid
+             */
+            report_id: string;
+            /**
+             * Issued At
+             * Format: date-time
+             */
+            issued_at: string;
+            /** Json Sha256 */
+            json_sha256: string;
+            /** Pdf Sha256 */
+            pdf_sha256: string;
+        };
         /** WorkerDirective */
         WorkerDirective: {
             /**
@@ -2983,7 +3998,7 @@ export interface components {
          * Permission
          * @enum {string}
          */
-        _P: "experiment.read" | "experiment.create" | "experiment.cancel_own" | "experiment.submit_review" | "dataset.read" | "dataset.upload" | "slice.create" | "model.read" | "model.manage" | "attack_catalog.read" | "attack_catalog.manage" | "protocol.read" | "protocol.manage" | "review.decide" | "report.export" | "report.read" | "user.manage" | "compute_target.read" | "compute_target.manage" | "budget.manage" | "audit.read";
+        _P: "experiment.read" | "experiment.create" | "experiment.cancel_own" | "experiment.submit_review" | "dataset.read" | "dataset.upload" | "slice.create" | "model.read" | "model.manage" | "attack_catalog.read" | "attack_catalog.manage" | "protocol.read" | "protocol.manage" | "review.decide" | "review.comment" | "report.export" | "report.read" | "user.manage" | "compute_target.read" | "compute_target.manage" | "budget.manage" | "audit.read";
     };
     responses: never;
     parameters: never;
@@ -3018,12 +4033,20 @@ export type CaseBox = components['schemas']['CaseBox'];
 export type CaseDetections = components['schemas']['CaseDetections'];
 export type CaseIgnoreRegion = components['schemas']['CaseIgnoreRegion'];
 export type CaseSeverity = components['schemas']['CaseSeverity'];
+export type CaseVerdictInput = components['schemas']['CaseVerdictInput'];
+export type CaseVerdictKind = components['schemas']['CaseVerdictKind'];
+export type CaseVerdictView = components['schemas']['CaseVerdictView'];
+export type ChecklistCode = components['schemas']['ChecklistCode'];
+export type ChecklistItem = components['schemas']['ChecklistItem'];
 export type ClassEvalMetrics = components['schemas']['ClassEvalMetrics'];
 export type ClassMapping = components['schemas']['ClassMapping'];
 export type ClassMappingSummary = components['schemas']['ClassMappingSummary'];
 export type ClassRunMetrics = components['schemas']['ClassRunMetrics'];
 export type CleanEvalResult = components['schemas']['CleanEvalResult'];
 export type CloneWarning = components['schemas']['CloneWarning'];
+export type CommentTargetType = components['schemas']['CommentTargetType'];
+export type ComplianceCode = components['schemas']['ComplianceCode'];
+export type ComplianceItem = components['schemas']['ComplianceItem'];
 export type ComputeKind = components['schemas']['ComputeKind'];
 export type ComputeTargetPublic = components['schemas']['ComputeTargetPublic'];
 export type ComputeTargetRef = components['schemas']['ComputeTargetRef'];
@@ -3031,6 +4054,9 @@ export type ConverterInfo = components['schemas']['ConverterInfo'];
 export type Cost = components['schemas']['Cost'];
 export type CostModel = components['schemas']['CostModel'];
 export type CostProfile = components['schemas']['CostProfile'];
+export type CriterionKind = components['schemas']['CriterionKind'];
+export type CriterionResult = components['schemas']['CriterionResult'];
+export type CriterionStatus = components['schemas']['CriterionStatus'];
 export type DatasetManifest = components['schemas']['DatasetManifest'];
 export type DatasetSummary = components['schemas']['DatasetSummary'];
 export type DatasetVersionSummary = components['schemas']['DatasetVersionSummary'];
@@ -3081,6 +4107,7 @@ export type Me = components['schemas']['Me'];
 export type ModelCard = components['schemas']['ModelCard'];
 export type ModelRef = components['schemas']['ModelRef'];
 export type ModelSummary = components['schemas']['ModelSummary'];
+export type ModelVerdict = components['schemas']['ModelVerdict'];
 export type PassCriterion = components['schemas']['PassCriterion'];
 export type PasswordChange = components['schemas']['PasswordChange'];
 export type PasswordResetConsume = components['schemas']['PasswordResetConsume'];
@@ -3093,18 +4120,56 @@ export type PrimaryParam = components['schemas']['PrimaryParam'];
 export type Progress = components['schemas']['Progress'];
 export type ProgressReport = components['schemas']['ProgressReport'];
 export type ProtocolBody = components['schemas']['ProtocolBody'];
+export type ProtocolCreate = components['schemas']['ProtocolCreate'];
 export type ProtocolRef = components['schemas']['ProtocolRef'];
 export type ProtocolStatus = components['schemas']['ProtocolStatus'];
 export type ProtocolSummary = components['schemas']['ProtocolSummary'];
+export type ProtocolVersionCreate = components['schemas']['ProtocolVersionCreate'];
+export type ProtocolView = components['schemas']['ProtocolView'];
 export type QueueEstimate = components['schemas']['QueueEstimate'];
 export type RejectRequest = components['schemas']['RejectRequest'];
+export type ReportAttackSpec = components['schemas']['ReportAttackSpec'];
+export type ReportCase = components['schemas']['ReportCase'];
+export type ReportClassMapping = components['schemas']['ReportClassMapping'];
+export type ReportConfiguration = components['schemas']['ReportConfiguration'];
+export type ReportDatasetVersion = components['schemas']['ReportDatasetVersion'];
+export type ReportDetail = components['schemas']['ReportDetail'];
+export type ReportDownload = components['schemas']['ReportDownload'];
+export type ReportGridAttack = components['schemas']['ReportGridAttack'];
+export type ReportGridPoint = components['schemas']['ReportGridPoint'];
+export type ReportHistory = components['schemas']['ReportHistory'];
+export type ReportModel = components['schemas']['ReportModel'];
+export type ReportNote = components['schemas']['ReportNote'];
+export type ReportNoteCode = components['schemas']['ReportNoteCode'];
+export type ReportProtocol = components['schemas']['ReportProtocol'];
+export type ReportRelatedExperiment = components['schemas']['ReportRelatedExperiment'];
+export type ReportReproRun = components['schemas']['ReportReproRun'];
+export type ReportResources = components['schemas']['ReportResources'];
+export type ReportResults = components['schemas']['ReportResults'];
+export type ReportRun = components['schemas']['ReportRun'];
+export type ReportSlice = components['schemas']['ReportSlice'];
+export type ReportSnapshot = components['schemas']['ReportSnapshot'];
+export type ReportStatus = components['schemas']['ReportStatus'];
+export type ReportSummary = components['schemas']['ReportSummary'];
+export type ReportTimelineEvent = components['schemas']['ReportTimelineEvent'];
+export type ReportView = components['schemas']['ReportView'];
 export type RequiredAttack = components['schemas']['RequiredAttack'];
+export type RequiredCase = components['schemas']['RequiredCase'];
+export type RequiredGrid = components['schemas']['RequiredGrid'];
+export type RequiredSearch = components['schemas']['RequiredSearch'];
+export type ReviewComment = components['schemas']['ReviewComment'];
+export type ReviewCommentCreate = components['schemas']['ReviewCommentCreate'];
 export type ReviewDecision = components['schemas']['ReviewDecision'];
+export type ReviewDecisionInput = components['schemas']['ReviewDecisionInput'];
+export type ReviewQueueFilter = components['schemas']['ReviewQueueFilter'];
+export type ReviewQueueItem = components['schemas']['ReviewQueueItem'];
+export type ReviewView = components['schemas']['ReviewView'];
 export type Role = components['schemas']['Role'];
 export type RolesUpdate = components['schemas']['RolesUpdate'];
 export type RunAttackSpec = components['schemas']['RunAttackSpec'];
 export type RunCompletion = components['schemas']['RunCompletion'];
 export type RunCounts = components['schemas']['RunCounts'];
+export type RunExplanation = components['schemas']['RunExplanation'];
 export type RunMetrics = components['schemas']['RunMetrics'];
 export type RunMode = components['schemas']['RunMode'];
 export type RunPhase = components['schemas']['RunPhase'];
@@ -3128,6 +4193,9 @@ export type SliceSpec = components['schemas']['SliceSpec'];
 export type SliceSummary = components['schemas']['SliceSummary'];
 export type StatusReason = components['schemas']['StatusReason'];
 export type StopReason = components['schemas']['StopReason'];
+export type SubmitCheckCode = components['schemas']['SubmitCheckCode'];
+export type SubmitCheckItem = components['schemas']['SubmitCheckItem'];
+export type SubmitForReview = components['schemas']['SubmitForReview'];
 export type ThresholdKind = components['schemas']['ThresholdKind'];
 export type Timing = components['schemas']['Timing'];
 export type TrainingParams = components['schemas']['TrainingParams'];
@@ -3136,6 +4204,7 @@ export type UserAdminPage = components['schemas']['UserAdminPage'];
 export type UserAdminView = components['schemas']['UserAdminView'];
 export type UserRef = components['schemas']['UserRef'];
 export type UserStatus = components['schemas']['UserStatus'];
+export type VerifyInfo = components['schemas']['VerifyInfo'];
 export type WorkerDirective = components['schemas']['WorkerDirective'];
 export type WorkerJobBundle = components['schemas']['WorkerJobBundle'];
 export type WorkerLease = components['schemas']['WorkerLease'];
@@ -3155,20 +4224,32 @@ export const attackAccessValues: ReadonlyArray<FlattenedDeepRequired<components>
 export const attackKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["AttackKind"]> = ["attack", "corruption", "occlusion"];
 export const billingModeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["BillingMode"]> = ["none", "hourly"];
 export const caseSeverityValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["CaseSeverity"]> = ["critical", "major", "minor", "acceptable"];
+export const caseVerdictKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["CaseVerdictKind"]> = ["safety_relevant", "acceptable", "annotation_issue"];
+export const checklistCodeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ChecklistCode"]> = ["protocol_not_dev", "required_cases_reviewed"];
+export const commentTargetTypeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["CommentTargetType"]> = ["experiment", "run", "failure_case"];
+export const complianceCodeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ComplianceCode"]> = ["protocol_active", "attack_present", "spec_sha256", "mode", "grid_levels", "search_threshold", "search_range", "search_tol", "search_bootstrap", "min_slice_size", "model_gradients"];
 export const computeKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ComputeKind"]> = ["local", "rented"];
+export const criterionKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["CriterionKind"]> = ["max_drop_at_level", "min_breaking_point"];
+export const criterionStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["CriterionStatus"]> = ["pass", "fail", "inconclusive"];
 export const displayModeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["DisplayMode"]> = ["normal", "hidden_unanonymized", "dev_unblurred"];
-export const errorCodeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ErrorCode"]> = ["not_implemented", "unauthenticated", "forbidden", "not_found", "conflict", "invalid_request", "invalid_credentials", "account_pending", "account_rejected", "account_disabled", "rate_limited", "csrf_failed", "validation_error", "not_supported_yet", "queue_limit_reached", "internal_error"];
+export const errorCodeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ErrorCode"]> = ["not_implemented", "unauthenticated", "forbidden", "not_found", "conflict", "invalid_request", "invalid_credentials", "account_pending", "account_rejected", "account_disabled", "rate_limited", "csrf_failed", "validation_error", "not_supported_yet", "queue_limit_reached", "internal_error", "not_compliant", "experiment_locked", "checklist_incomplete"];
 export const evalScopeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["EvalScope"]> = ["full", "subset"];
 export const experimentStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ExperimentStatus"]> = ["draft", "queued", "running", "completed", "submitted_for_review", "in_review", "approved", "changes_requested", "rejected", "cancelled"];
 export const healthResponseStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["HealthResponse"]["status"]> = ["ok", "degraded"];
 export const limitKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["LimitKind"]> = ["budget", "time"];
 export const manifestSourceFormatValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ManifestSource"]["format"]> = ["kitti", "yolo", "coco"];
 export const modelCardFrameworkValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ModelCard"]["framework"]> = ["ultralytics", "torchvision"];
-export const permissionValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["Permission"]> = ["experiment.read", "experiment.create", "experiment.cancel_own", "experiment.submit_review", "dataset.read", "dataset.upload", "slice.create", "model.read", "model.manage", "attack_catalog.read", "attack_catalog.manage", "protocol.read", "protocol.manage", "review.decide", "report.export", "report.read", "user.manage", "compute_target.read", "compute_target.manage", "budget.manage", "audit.read"];
+export const modelVerdictValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ModelVerdict"]> = ["meets_criteria", "does_not_meet", "conditional"];
+export const permissionValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["Permission"]> = ["experiment.read", "experiment.create", "experiment.cancel_own", "experiment.submit_review", "dataset.read", "dataset.upload", "slice.create", "model.read", "model.manage", "attack_catalog.read", "attack_catalog.manage", "protocol.read", "protocol.manage", "review.decide", "review.comment", "report.export", "report.read", "user.manage", "compute_target.read", "compute_target.manage", "budget.manage", "audit.read"];
 export const perturbationImageKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["PerturbationImageKind"]> = ["amplified_noise", "difference", "patch_location"];
 export const primaryParamTypeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["PrimaryParam"]["type"]> = ["continuous", "discrete"];
 export const protocolStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ProtocolStatus"]> = ["active", "retired", "dev"];
+export const reportDownloadFormatValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ReportDownload"]["format"]> = ["pdf", "json"];
+export const reportNoteCodeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ReportNoteCode"]> = ["test_environment_only", "input_space", "occlusion_stress", "patch_fixed_position", "anonymization", "git_dirty", "excluded_classes"];
+export const reportStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ReportStatus"]> = ["generating", "ready", "failed"];
+export const reportTimelineEventActionValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ReportTimelineEvent"]["action"]> = ["experiment.submitted", "review.claimed", "review.released", "review.decided"];
 export const reviewDecisionValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ReviewDecision"]> = ["approve", "changes_requested", "reject"];
+export const reviewQueueFilterValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ReviewQueueFilter"]> = ["waiting", "mine", "decided"];
 export const roleValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["Role"]> = ["engineer", "reviewer", "admin"];
 export const runModeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["RunMode"]> = ["grid", "search"];
 export const runPhaseValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["RunPhase"]> = ["training", "evaluating"];
@@ -3180,8 +4261,9 @@ export const searchStatusValues: ReadonlyArray<FlattenedDeepRequired<components>
 export const skipReasonValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["SkipReason"]> = ["cached", "incompatible", "early_stop"];
 export const statusReasonCodeAnyOf2Values: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["StatusReason"]["code"]> = ["error", "cancelled"];
 export const stopReasonValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["StopReason"]> = ["budget", "time"];
+export const submitCheckCodeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["SubmitCheckCode"]> = ["experiment_completed", "protocol_not_dev", "runs_final", "no_dirty_runs", "required_cases_visible"];
 export const thresholdKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ThresholdKind"]> = ["relative_drop", "absolute_drop", "attack_success_rate"];
 export const userStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["UserStatus"]> = ["pending", "active", "rejected", "disabled"];
 export const workerDirectiveActionValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["WorkerDirective"]["action"]> = ["continue", "cancel", "stop_limit"];
-export const _PValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["_P"]> = ["experiment.read", "experiment.create", "experiment.cancel_own", "experiment.submit_review", "dataset.read", "dataset.upload", "slice.create", "model.read", "model.manage", "attack_catalog.read", "attack_catalog.manage", "protocol.read", "protocol.manage", "review.decide", "report.export", "report.read", "user.manage", "compute_target.read", "compute_target.manage", "budget.manage", "audit.read"];
+export const _PValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["_P"]> = ["experiment.read", "experiment.create", "experiment.cancel_own", "experiment.submit_review", "dataset.read", "dataset.upload", "slice.create", "model.read", "model.manage", "attack_catalog.read", "attack_catalog.manage", "protocol.read", "protocol.manage", "review.decide", "review.comment", "report.export", "report.read", "user.manage", "compute_target.read", "compute_target.manage", "budget.manage", "audit.read"];
 export type operations = Record<string, never>;

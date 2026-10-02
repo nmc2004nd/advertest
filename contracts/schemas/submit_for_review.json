@@ -1,0 +1,35 @@
+{
+  "additionalProperties": false,
+  "description": "`POST /experiments/{id}/submit`. Lời giải trình chỉ gửi kèm ở đây (kickoff Phase 8).",
+  "properties": {
+    "note": {
+      "anyOf": [
+        {
+          "maxLength": 4000,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Note"
+    },
+    "run_explanations": {
+      "additionalProperties": {
+        "maxLength": 4000,
+        "minLength": 1,
+        "type": "string"
+      },
+      "description": "run_id → lời giải trình",
+      "propertyNames": {
+        "format": "uuid"
+      },
+      "title": "Run Explanations",
+      "type": "object"
+    }
+  },
+  "title": "SubmitForReview",
+  "type": "object"
+}
