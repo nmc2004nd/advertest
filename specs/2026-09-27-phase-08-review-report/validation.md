@@ -7,7 +7,7 @@
 ### Chung
 - [ ] `make check` pass, bao gồm test nghiệm thu các phase trước (bảng ma trận quyền Phase 4 đã cập nhật `review.comment`).
 - [ ] `make contracts` không tạo thay đổi; mock mới validate được.
-- [ ] `make test-db` chạy test nghiệm thu Phase 5–7 chung phiên mà không cần `DROP OWNED BY` (migration 0006 downgrade được); test email Phase 5 không phụ thuộc ngày.
+- [ ] `make test-db` chạy test nghiệm thu Phase 5–8 chung phiên; test email Phase 5 không phụ thuộc ngày. Phase 7 và 8 dựng DB bằng `DROP OWNED BY` rồi `upgrade head`: migration không xóa dữ liệu thật khi downgrade, nên `downgrade base` sau Phase 6 vướng run trỏ tới spec của 0006 (người dùng chốt ở Group 7, 2026-10-02).
 
 ### Protocol — `test_protocols.py`
 - [ ] Reviewer tạo protocol → `active`, version 1, có `audit_log`.
@@ -42,7 +42,7 @@
 - [ ] Người dùng có cả role engineer và reviewer: không thấy experiment của mình trong hàng đợi; nhận review experiment của mình → `403`.
 - [ ] Ghi trực tiếp vào DB `reviews` hoặc `experiments.review_assignee_id` với người review là người tạo → trigger từ chối.
 - [ ] Reviewer thứ hai nhận experiment đang được nhận → `409`.
-- [ ] Reviewer không phải người đang nhận ghi verdict hoặc ra quyết định → `403` (trước cả kiểm tra trường nhập).
+- [ ] Reviewer không phải người đang nhận ghi verdict hoặc ra quyết định → `403` (trước cả kiểm tra trường nhập của nghiệp vụ, ví dụ thiếu `inconclusive_justification` khi có tiêu chí chưa kết luận). Body sai schema của contract (thiếu `conclusion`; `approve` thiếu `mitigation` hoặc `model_verdict`; verdict `safety_relevant` thiếu `mitigation`) là `422` của framework, kiểm trước mọi thứ (người dùng chốt ở Group 7, 2026-10-02).
 - [ ] Engineer và admin (không có role reviewer) ra quyết định → `403`.
 - [ ] Trả lại review → trạng thái `submitted_for_review`, người khác nhận được.
 
