@@ -4,6 +4,10 @@ import { RequirePermission } from './auth/RequirePermission'
 import { ExperimentDetailPage } from './features/experiments/ExperimentDetailPage'
 import { ExperimentsPage } from './features/experiments/ExperimentsPage'
 import { FailureCasePage } from './features/experiments/FailureCasePage'
+import { ProtocolsPage } from './features/protocols/ProtocolsPage'
+import { ReviewCasePage } from './features/reviews/ReviewCasePage'
+import { ReviewPage } from './features/reviews/ReviewPage'
+import { ReviewsPage } from './features/reviews/ReviewsPage'
 import { WizardPage } from './features/wizard/WizardPage'
 import { AppShell } from './layout/AppShell'
 import { AccountPage } from './pages/AccountPage'
@@ -61,6 +65,38 @@ const routes: RouteObject[] = [
         element: (
           <RequirePermission requirement="experiment.create">
             <WizardPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: '/reviews',
+        element: (
+          <RequirePermission requirement="review.decide">
+            <ReviewsPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: '/reviews/:id',
+        element: (
+          <RequirePermission requirement="review.decide">
+            <ReviewPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: '/reviews/:id/cases/:caseId',
+        element: (
+          <RequirePermission requirement="review.decide">
+            <ReviewCasePage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: '/protocols',
+        element: (
+          <RequirePermission requirement="protocol.read">
+            <ProtocolsPage />
           </RequirePermission>
         ),
       },

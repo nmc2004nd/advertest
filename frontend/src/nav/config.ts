@@ -4,6 +4,7 @@ import {
   FlaskConical,
   House,
   Library,
+  ListChecks,
   ScrollText,
   SquarePlus,
   Users,
@@ -54,7 +55,14 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: 'Duyệt',
     icon: ClipboardCheck,
     requirement: 'review.decide',
-    implemented: false, // Phase 8
+    implemented: true,
+  },
+  {
+    path: '/protocols',
+    label: 'Protocol',
+    icon: ListChecks,
+    requirement: 'protocol.read',
+    implemented: true,
   },
   {
     path: '/admin/users',
