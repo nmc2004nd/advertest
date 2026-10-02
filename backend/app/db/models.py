@@ -38,10 +38,14 @@ from advertest_contracts.enums import (
     AttackKind,
     BillingMode,
     CaseSeverity,
+    CaseVerdictKind,
+    CommentTargetType,
     ComputeKind,
     ExperimentStatus,
     LimitKind,
+    ModelVerdict,
     ProtocolStatus,
+    ReportStatus,
     ReviewDecision,
     Role,
     RunStatus,
@@ -304,6 +308,8 @@ class Protocol(Base):
         pg_enum(ProtocolStatus, "protocol_status"), server_default=ProtocolStatus.ACTIVE.value
     )
     created_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"))
+    # Phase 8.
+    created_at: Mapped[datetime] = _created_at()
 
 
 class Experiment(Base):
@@ -341,6 +347,12 @@ class Experiment(Base):
     created_at: Mapped[datetime] = _created_at()
     cloned_from: Mapped[UUID | None] = mapped_column(ForeignKey("experiments.id"))
     finished_at: Mapped[datetime | None]
+    # Phase 8: gửi duyệt và nhận review. Trigger DB: người nhận khác người tạo; experiment đã khóa
+    # (`locked_at`) chỉ đổi được trạng thái review và các cột nhận/quyết định.
+    submission_note: Mapped[str | None] = mapped_column(Text)
+    review_assignee_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"))
+    claimed_at: Mapped[datetime | None]
+    decided_at: Mapped[datetime | None]
 
 
 class Run(Base):
@@ -468,7 +480,8 @@ class CaseVerdict(Base):
     reviewer_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
     version: Mapped[int]
     severity: Mapped[CaseSeverity] = mapped_column(pg_enum(CaseSeverity, "case_severity"))
-    verdict: Mapped[str] = mapped_column(Text)
+    # Phase 8: thay cột `verdict` (text) của Phase 0.
+    kind: Mapped[CaseVerdictKind] = mapped_column(pg_enum(CaseVerdictKind, "case_verdict_kind"))
     mitigation: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = _created_at()
 
@@ -485,18 +498,77 @@ class Review(Base):
     conclusion: Mapped[str] = mapped_column(Text)
     mitigation: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = _created_at()
+    # Phase 8: kết luận về model và bản lưu tiêu chí, checklist tại thời điểm quyết định.
+    model_verdict: Mapped[ModelVerdict | None] = mapped_column(
+        pg_enum(ModelVerdict, "model_verdict")
+    )
+    inconclusive_justification: Mapped[str | None] = mapped_column(Text)
+    criteria_results: Mapped[list[Any]] = mapped_column(JSONB, server_default=text("'[]'"))
+    checklist: Mapped[list[Any]] = mapped_column(JSONB, server_default=text("'[]'"))
 
 
-class Report(Base):
-    __tablename__ = "reports"
+class RunExplanation(Base):
+    """Lời giải trình cho run bắt buộc không hoàn thành (Phase 8); chỉ thêm, mỗi run một dòng."""
+
+    __tablename__ = "run_explanations"
+
+    id: Mapped[UUID] = _uuid_pk()
+    run_id: Mapped[UUID] = mapped_column(ForeignKey("runs.id"), unique=True)
+    author_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    text: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = _created_at()
+
+
+class ReviewComment(Base):
+    """Bình luận khi review (Phase 8); chỉ thêm, không sửa, không xóa."""
+
+    __tablename__ = "review_comments"
+    __table_args__ = (
+        CheckConstraint(
+            "target_type <> 'experiment' OR target_id = experiment_id", name="experiment_target"
+        ),
+        Index("ix_review_comments_experiment_created", "experiment_id", "created_at"),
+    )
 
     id: Mapped[UUID] = _uuid_pk()
     experiment_id: Mapped[UUID] = mapped_column(ForeignKey("experiments.id"))
-    exported_by: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
-    pdf_uri: Mapped[str] = mapped_column(Text)
-    json_uri: Mapped[str] = mapped_column(Text)
-    sha256: Mapped[str] = mapped_column(Sha256, unique=True)
+    author_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    target_type: Mapped[CommentTargetType] = mapped_column(
+        pg_enum(CommentTargetType, "comment_target_type")
+    )
+    target_id: Mapped[UUID]
+    body: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = _created_at()
+
+
+class Report(Base):
+    """Report chính thức (Phase 8): mỗi experiment một report; `advertest_app` chỉ sửa được cột
+    trạng thái, khóa, hash, và chỉ khi chưa `ready` (trigger)."""
+
+    __tablename__ = "reports"
+    __table_args__ = (
+        CheckConstraint(
+            "status <> 'ready' OR (snapshot_key IS NOT NULL AND json_key IS NOT NULL"
+            " AND pdf_key IS NOT NULL AND json_sha256 IS NOT NULL AND pdf_sha256 IS NOT NULL"
+            " AND generated_at IS NOT NULL)",
+            name="ready_has_files",
+        ),
+    )
+
+    id: Mapped[UUID] = _uuid_pk()
+    experiment_id: Mapped[UUID] = mapped_column(ForeignKey("experiments.id"), unique=True)
+    approved_by: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = _created_at()
+    status: Mapped[ReportStatus] = mapped_column(
+        pg_enum(ReportStatus, "report_status"), server_default=ReportStatus.GENERATING.value
+    )
+    attempts: Mapped[int] = mapped_column(server_default=text("0"))
+    snapshot_key: Mapped[str | None] = mapped_column(Text)
+    json_key: Mapped[str | None] = mapped_column(Text)
+    pdf_key: Mapped[str | None] = mapped_column(Text)
+    json_sha256: Mapped[str | None] = mapped_column(Sha256)
+    pdf_sha256: Mapped[str | None] = mapped_column(Sha256)
+    generated_at: Mapped[datetime | None]
 
 
 class Budget(Base):
