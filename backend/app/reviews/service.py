@@ -407,18 +407,15 @@ QUEUE_STATUSES = {
 
 
 def _max_drop(session: Session, experiment_id: UUID) -> float | None:
-    rows: list[dict[str, object]] = list(
+    # JSONB lưu None thành JSON null (không phải SQL NULL) nên lọc ở Python.
+    rows: list[dict[str, object] | None] = list(
         session.scalars(
-            select(m.Run.metrics).where(
-                m.Run.experiment_id == experiment_id,
-                m.Run.scope == "full",
-                m.Run.metrics.is_not(None),
-            )
+            select(m.Run.metrics).where(m.Run.experiment_id == experiment_id, m.Run.scope == "full")
         )
     )
     known = [
         drop
-        for drop in (RunMetrics.model_validate(row).relative_drop for row in rows)
+        for drop in (RunMetrics.model_validate(row).relative_drop for row in rows if row)
         if drop is not None
     ]
     return max(known) if known else None
