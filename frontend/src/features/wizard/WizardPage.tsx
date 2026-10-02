@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, TriangleAlert } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, TriangleAlert, X } from 'lucide-react'
 import { useEffect, useMemo, useReducer, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 
@@ -18,9 +18,11 @@ import {
   useCreateExperiment,
   useEstimate,
   useModels,
+  useProtocol,
   useProtocols,
   useSlices,
 } from './api'
+import { COMPLIANCE_LABEL, requiredLocks } from './protocol'
 import {
   buildBody,
   canAdvance,
@@ -170,6 +172,39 @@ function Summary({
         )}
       </div>
       <EstimateWarnings estimate={estimate} />
+      <ComplianceTable estimate={estimate} />
+    </div>
+  )
+}
+
+/** Phase 8: tuân thủ protocol (từ ước lượng), ✓/✗ kèm lý do. */
+function ComplianceTable({ estimate }: { estimate: EstimateResponse | undefined }) {
+  const items = estimate?.compliance ?? []
+  if (items.length === 0) return null
+  const failing = items.filter((item) => !item.satisfied).length
+  return (
+    <div className="space-y-1" data-testid="bang-tuan-thu">
+      <p className="font-medium">
+        Tuân thủ protocol:{' '}
+        {failing === 0 ? 'đủ' : <span className="text-destructive">{failing} mục chưa thỏa</span>}
+      </p>
+      <ul className="space-y-1">
+        {items.map((item, i) => (
+          <li key={i} className="flex gap-2">
+            {item.satisfied ? (
+              <Check aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+            ) : (
+              <X aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-destructive" />
+            )}
+            <span>
+              <span className="sr-only">{item.satisfied ? 'Đạt: ' : 'Chưa đạt: '}</span>
+              {COMPLIANCE_LABEL[item.code]}
+              {item.attack_spec_name ? ` (${item.attack_spec_name})` : ''}:{' '}
+              <span className="text-muted-foreground">{item.detail}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
@@ -304,6 +339,8 @@ export function WizardPage() {
   const targets = useComputeTargets()
   const mappings = useClassMappings(draft.datasetVersionId, draft.modelId)
   const clone = useClone(cloneId)
+  const protocol = useProtocol(draft.protocolId)
+  const specs = useAttackSpecs()
   const allSlices = useSlices(null, cloneId !== null)
   const create = useCreateExperiment()
 
@@ -322,6 +359,19 @@ export function WizardPage() {
       ),
     })
   }, [clone.data, allSlices.data, cloneId, draft.clonedFrom])
+
+  // Phase 8: tải xong protocol thì thêm và khóa attack bắt buộc (cả khi nhân bản).
+  useEffect(() => {
+    const view = protocol.data
+    if (!view || !specs.data || view.id !== draft.protocolId) return
+    if (draft.requiredFor === view.id) return
+    dispatch({
+      type: 'requirements',
+      protocolId: view.id,
+      locks: requiredLocks(view.body, specs.data).locks,
+      minSliceSize: view.body.min_slice_size,
+    })
+  }, [protocol.data, specs.data, draft.protocolId, draft.requiredFor])
 
   // Chọn sẵn khi chỉ có một lựa chọn, và máy local (ưu tiên online) để ước lượng từ bước 4.
   useEffect(() => {
@@ -403,7 +453,9 @@ export function WizardPage() {
         <FormAlert>
           {create.error instanceof ApiError && create.error.code === 'queue_limit_reached'
             ? `${errorMessage(create.error)} Cấu hình của bạn vẫn được giữ.`
-            : errorMessage(create.error)}
+            : create.error instanceof ApiError && create.error.code === 'not_compliant'
+              ? `${errorMessage(create.error)} Xem bảng tuân thủ trong phần tóm tắt.`
+              : errorMessage(create.error)}
         </FormAlert>
       )}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">

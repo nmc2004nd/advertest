@@ -2,7 +2,8 @@
  * Trạng thái nháp của wizard (requirements.md Phase 5, Frontend: wizard): thuần, lưu
  * sessionStorage để giữ qua lần tải lại trang, xóa sau khi tạo thành công. Phase 6 thêm slice huấn
  * luyện cho attack cần train (patch) và công tắc dừng sớm. Phase 7 thêm chế độ tự tìm ngưỡng theo
- * từng attack; nháp cũ (khóa `v2`) thiếu chế độ thì coi là quét lưới.
+ * từng attack; nháp cũ (khóa `v2`) thiếu chế độ thì coi là quét lưới. Phase 8 thêm attack bắt
+ * buộc của protocol (khóa trên giao diện) và kích thước slice tối thiểu.
  */
 import type {
   CloneWarning,
@@ -12,6 +13,7 @@ import type {
   FieldError,
 } from '@/contracts/api'
 
+import { applyLocks, type RequiredLock, withoutLockedFields, withRequiredLevels } from './protocol'
 import { fromSearchConfig, type SearchDraft, toSearchConfig } from './search'
 
 export const STEPS = [
@@ -63,6 +65,12 @@ export interface Draft {
   name: string
   clonedFrom: string | null
   cloneWarnings: CloneWarning[]
+  /** Phase 8: attack bắt buộc của protocol đang chọn (đã áp vào `attacks`, bị khóa). */
+  required: RequiredLock[]
+  /** Protocol mà `required` được tính cho (null: chưa tải protocol). */
+  requiredFor: string | null
+  /** `min_slice_size` của protocol (slice nhỏ hơn bị ẩn ở bước 3). */
+  minSliceSize: number | null
 }
 
 export const EMPTY_DRAFT: Draft = {
@@ -80,11 +88,15 @@ export const EMPTY_DRAFT: Draft = {
   name: '',
   clonedFrom: null,
   cloneWarnings: [],
+  required: [],
+  requiredFor: null,
+  minSliceSize: null,
 }
 
 export type Action =
   | { type: 'go'; step: Step }
   | { type: 'protocol'; id: string }
+  | { type: 'requirements'; protocolId: string; locks: RequiredLock[]; minSliceSize: number }
   | { type: 'model'; id: string }
   | { type: 'datasetVersion'; id: string }
   | { type: 'slice'; id: string }
@@ -106,7 +118,19 @@ export function reducer(draft: Draft, action: Action): Draft {
     case 'go':
       return { ...draft, step: action.step }
     case 'protocol':
-      return { ...draft, protocolId: action.id }
+      // Đổi protocol: bỏ khóa cũ (attack đã thêm vẫn giữ), khóa mới áp khi tải xong protocol.
+      return draft.protocolId === action.id
+        ? draft
+        : { ...draft, protocolId: action.id, required: [], requiredFor: null, minSliceSize: null }
+    case 'requirements':
+      if (action.protocolId !== draft.protocolId) return draft
+      return {
+        ...draft,
+        required: action.locks,
+        requiredFor: action.protocolId,
+        minSliceSize: action.minSliceSize,
+        attacks: applyLocks(draft.attacks, action.locks),
+      }
     case 'model':
       // Mapping phụ thuộc model: chọn lại.
       return draft.modelId === action.id ? draft : { ...draft, modelId: action.id, mappingId: null }
@@ -134,6 +158,7 @@ export function reducer(draft: Draft, action: Action): Draft {
     case 'limit':
       return { ...draft, limitSeconds: action.seconds }
     case 'toggleAttack': {
+      if (lockOf(draft, action.attackSpecId)) return draft // attack bắt buộc: không bỏ được
       const exists = draft.attacks.some((a) => a.attackSpecId === action.attackSpecId)
       const attacks = exists
         ? draft.attacks.filter((a) => a.attackSpecId !== action.attackSpecId)
@@ -165,25 +190,33 @@ export function reducer(draft: Draft, action: Action): Draft {
       const chosen = new Map(draft.attacks.map((a) => [a.attackSpecId, a]))
       return {
         ...draft,
-        attacks: action.attacks.map((a) => {
-          const old = chosen.get(a.attackSpecId)
-          return {
-            ...a,
-            trainingSliceId: old?.trainingSliceId ?? a.trainingSliceId,
-            mode: old?.mode ?? a.mode,
-            search: old?.search ?? a.search,
-          }
-        }),
+        attacks: applyLocks(
+          action.attacks.map((a) => {
+            const old = chosen.get(a.attackSpecId)
+            return {
+              ...a,
+              trainingSliceId: old?.trainingSliceId ?? a.trainingSliceId,
+              mode: old?.mode ?? a.mode,
+              search: old?.search ?? a.search,
+            }
+          }),
+          draft.required,
+        ),
       }
     }
-    case 'levels':
+    case 'levels': {
+      // Level bắt buộc không xóa được (vẫn thêm được level khác).
+      const lock = lockOf(draft, action.attackSpecId)
+      const levels = lock ? withRequiredLevels(action.levels, lock.levels) : action.levels
       return {
         ...draft,
         attacks: draft.attacks.map((a) =>
-          a.attackSpecId === action.attackSpecId ? { ...a, levels: action.levels } : a,
+          a.attackSpecId === action.attackSpecId ? { ...a, levels } : a,
         ),
       }
+    }
     case 'mode':
+      if (lockOf(draft, action.attackSpecId)) return draft // chế độ theo protocol
       return {
         ...draft,
         attacks: draft.attacks.map((a) =>
@@ -196,20 +229,29 @@ export function reducer(draft: Draft, action: Action): Draft {
             : a,
         ),
       }
-    case 'search':
+    case 'search': {
+      const patch = lockOf(draft, action.attackSpecId)
+        ? withoutLockedFields(action.patch)
+        : action.patch
       return {
         ...draft,
         attacks: draft.attacks.map((a) =>
           a.attackSpecId === action.attackSpecId && a.search !== null
-            ? { ...a, search: { ...a.search, ...action.patch } }
+            ? { ...a, search: { ...a.search, ...patch } }
             : a,
         ),
       }
+    }
     case 'name':
       return { ...draft, name: action.name }
     case 'load':
       return action.draft
   }
+}
+
+/** Khóa theo protocol của một attack (undefined: attack không bắt buộc). */
+export function lockOf(draft: Draft, attackSpecId: string): RequiredLock | undefined {
+  return draft.required.find((lock) => lock.attackSpecId === attackSpecId)
 }
 
 function withoutTrainingSlices(attacks: AttackDraft[]): AttackDraft[] {
@@ -391,6 +433,10 @@ export function draftFromClone(
     name: config.name ?? '',
     clonedFrom: config.cloned_from ?? null,
     cloneWarnings: warnings,
+    // Phase 8: khóa theo protocol áp lại khi tải xong protocol (WizardPage).
+    required: [],
+    requiredFor: null,
+    minSliceSize: null,
   }
 }
 

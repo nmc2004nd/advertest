@@ -1,4 +1,4 @@
-import { X } from 'lucide-react'
+import { Lock, X } from 'lucide-react'
 import { useId, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -16,6 +16,8 @@ interface LevelChipsProps {
   onInputError?: (hasError: boolean) => void
   /** Bộ level gợi ý (mặc định `presetLevels(param)`; patch dùng 0.1 và 0.25). */
   suggested?: number[]
+  /** Phase 8: level bắt buộc theo protocol, không bỏ được. */
+  lockedLevels?: number[]
 }
 
 /** Spec rời rạc (corruption: severity 1–5, Phase 6): mỗi giá trị một chip bật/tắt. */
@@ -24,24 +26,29 @@ function DiscreteChips({
   levels,
   onChange,
   serverError,
-}: Pick<LevelChipsProps, 'param' | 'levels' | 'onChange' | 'serverError'>) {
+  lockedLevels = [],
+}: Pick<LevelChipsProps, 'param' | 'levels' | 'onChange' | 'serverError' | 'lockedLevels'>) {
   const values = param.values ?? []
   return (
     <div className="space-y-2">
       <div role="group" aria-label={`Chọn ${param.name}`} className="flex flex-wrap gap-2">
         {values.map((value) => {
           const on = levels.includes(value)
+          const locked = lockedLevels.includes(value)
           return (
             <Button
               key={value}
               type="button"
               variant={on ? 'default' : 'outline'}
               aria-pressed={on}
+              disabled={locked}
+              title={locked ? 'Level bắt buộc theo protocol' : undefined}
               className="min-w-11 tabular-nums"
               onClick={() =>
                 onChange(on ? levels.filter((l) => l !== value) : addLevel(levels, value))
               }
             >
+              {locked && <Lock aria-hidden="true" className="size-3" />}
               {value}
             </Button>
           )
@@ -67,13 +74,20 @@ export function LevelChips({
   serverError,
   onInputError,
   suggested,
+  lockedLevels = [],
 }: LevelChipsProps) {
   const id = useId()
   const [text, setText] = useState('')
   const [error, setError] = useState<string | null>(null)
   if (param.type === 'discrete' && param.values) {
     return (
-      <DiscreteChips param={param} levels={levels} onChange={onChange} serverError={serverError} />
+      <DiscreteChips
+        param={param}
+        levels={levels}
+        onChange={onChange}
+        serverError={serverError}
+        lockedLevels={lockedLevels}
+      />
     )
   }
   const preset = suggested ?? presetLevels(param)
@@ -104,14 +118,24 @@ export function LevelChips({
             className="inline-flex min-h-11 items-center gap-1 rounded-full border bg-muted px-3 text-sm tabular-nums"
           >
             {level}
-            <button
-              type="button"
-              className="-mr-2 inline-flex size-9 items-center justify-center rounded-full hover:bg-background"
-              aria-label={`Bỏ level ${level}`}
-              onClick={() => onChange(levels.filter((l) => l !== level))}
-            >
-              <X aria-hidden="true" className="size-4" />
-            </button>
+            {lockedLevels.includes(level) ? (
+              <span
+                className="-mr-1 inline-flex items-center"
+                title="Level bắt buộc theo protocol"
+                aria-label={`Level ${level} bắt buộc theo protocol`}
+              >
+                <Lock aria-hidden="true" className="size-4" />
+              </span>
+            ) : (
+              <button
+                type="button"
+                className="-mr-2 inline-flex size-9 items-center justify-center rounded-full hover:bg-background"
+                aria-label={`Bỏ level ${level}`}
+                onClick={() => onChange(levels.filter((l) => l !== level))}
+              >
+                <X aria-hidden="true" className="size-4" />
+              </button>
+            )}
           </span>
         ))}
       </div>

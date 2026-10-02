@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Copy } from 'lucide-react'
+import { Copy, Lock, Send } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router'
 
@@ -25,6 +25,9 @@ import {
 import { ExperimentStatusSummary } from './ExperimentStatusSummary'
 import { timeText } from './format'
 import { ProgressBar } from './ProgressBar'
+import { lockedBannerText } from './review-labels'
+import { ReviewTab } from './ReviewTab'
+import { SubmitDialog } from './SubmitDialog'
 import { CostTab, FailureCasesTab, ReproTab, ResultsTab, RunsTable } from './tabs'
 
 const TABS = [
@@ -33,6 +36,8 @@ const TABS = [
   ['cases', 'Failure case'],
   ['cost', 'Chi phí'],
   ['repro', 'Tái lập'],
+  // Phase 8: chỉ hiện khi đã gửi duyệt.
+  ['review', 'Review'],
 ] as const
 
 type Tab = (typeof TABS)[number][0]
@@ -48,11 +53,12 @@ function useCancel(id: string) {
   })
 }
 
-/** Chi tiết experiment với 5 tab (requirements.md Phase 5, Frontend: danh sách và chi tiết). */
+/** Chi tiết experiment với 5 tab (requirements.md Phase 5, Frontend: danh sách và chi tiết); Phase 8
+ * thêm gửi duyệt, dải "Đã khóa", tab Review và "Nhân bản để sửa". */
 export function ExperimentDetailPage() {
   const { id = '' } = useParams()
   const [params, setParams] = useSearchParams()
-  const tab: Tab = TABS.some(([key]) => key === params.get('tab'))
+  const requested: Tab = TABS.some(([key]) => key === params.get('tab'))
     ? (params.get('tab') as Tab)
     : 'overview'
   const { data: me } = useMe()
@@ -60,6 +66,7 @@ export function ExperimentDetailPage() {
   const runs = useExperimentRuns(id, experiment.data?.status)
   const cancel = useCancel(id)
   const [confirming, setConfirming] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
   if (experiment.isPending) return <PageLoading />
   if (experiment.isError) {
@@ -74,6 +81,16 @@ export function ExperimentDetailPage() {
   const canCancel =
     isOwner && can(me, 'experiment.cancel_own') && ACTIVE_EXPERIMENT.includes(e.status)
   const runList = runs.data ?? []
+  // Phase 8: gửi duyệt (chủ sở hữu, experiment completed, protocol không phải dev).
+  const canOpenSubmit =
+    isOwner &&
+    can(me, 'experiment.submit_review') &&
+    e.status === 'completed' &&
+    e.protocol.status !== 'dev'
+  const banner = lockedBannerText(e.status)
+  const tabs = TABS.filter(([key]) => key !== 'review' || e.review)
+  const fixClone = e.status === 'changes_requested'
+  const tab: Tab = tabs.some(([key]) => key === requested) ? requested : 'overview'
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-4 p-4 md:p-6">
@@ -84,11 +101,17 @@ export function ExperimentDetailPage() {
         <div className="flex flex-wrap items-start justify-between gap-2">
           <h1 className="min-w-0 text-2xl font-semibold break-all">{e.name}</h1>
           <div className="flex flex-wrap gap-2">
+            {canOpenSubmit && (
+              <Button onClick={() => setSubmitting(true)}>
+                <Send aria-hidden="true" />
+                Gửi duyệt
+              </Button>
+            )}
             {can(me, 'experiment.create') && (
-              <Button variant="outline" asChild>
+              <Button variant={fixClone ? 'default' : 'outline'} asChild>
                 <Link to={`/experiments/new?clone=${e.id}`}>
                   <Copy aria-hidden="true" />
-                  Nhân bản
+                  {fixClone ? 'Nhân bản để sửa' : 'Nhân bản'}
                 </Link>
               </Button>
             )}
@@ -104,13 +127,23 @@ export function ExperimentDetailPage() {
           {e.compute_target.name} · {timeText(e)}
         </p>
       </header>
+      {banner && (
+        <p
+          role="status"
+          className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm font-medium"
+          data-testid="dai-khoa"
+        >
+          <Lock aria-hidden="true" className="size-4 shrink-0" />
+          {banner}
+        </p>
+      )}
       {cancel.isError && <FormAlert>{errorMessage(cancel.error)}</FormAlert>}
       <div
         role="tablist"
         aria-label="Chi tiết experiment"
         className="-mx-4 flex gap-1 overflow-x-auto px-4"
       >
-        {TABS.map(([key, label]) => (
+        {tabs.map(([key, label]) => (
           <button
             key={key}
             type="button"
@@ -130,7 +163,7 @@ export function ExperimentDetailPage() {
       </div>
       <section
         role="tabpanel"
-        aria-label={TABS.find(([key]) => key === tab)?.[1]}
+        aria-label={tabs.find(([key]) => key === tab)?.[1]}
         className="min-w-0"
       >
         {tab === 'overview' && (
@@ -153,7 +186,16 @@ export function ExperimentDetailPage() {
         {tab === 'cases' && <FailureCasesTab runs={runList} />}
         {tab === 'cost' && <CostTab experiment={e} runs={runList} />}
         {tab === 'repro' && <ReproTab runs={runList} />}
+        {tab === 'review' && <ReviewTab experiment={e} runs={runList} />}
       </section>
+      {canOpenSubmit && (
+        <SubmitDialog
+          experiment={e}
+          runs={runList}
+          open={submitting}
+          onOpenChange={setSubmitting}
+        />
+      )}
       <ConfirmDialog
         open={confirming}
         onOpenChange={setConfirming}

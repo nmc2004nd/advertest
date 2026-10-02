@@ -1,3 +1,4 @@
+import { Lock } from 'lucide-react'
 import { type Dispatch, type ReactNode, useEffect, useRef } from 'react'
 
 import type { AttackSpec, EstimateResponse } from '@/contracts/api'
@@ -58,11 +59,14 @@ export function ModeSwitch({
   chosen,
   sliceSize,
   dispatch,
+  protocolLocked = false,
 }: {
   spec: AttackSpec
   chosen: AttackDraft
   sliceSize: number | null
   dispatch: Dispatch<Action>
+  /** Phase 8: chế độ do protocol quy định (không đổi được). */
+  protocolLocked?: boolean
 }) {
   const locked = spec.requires_training === true
   const options: { mode: AttackMode; label: string }[] = [
@@ -77,7 +81,7 @@ export function ModeSwitch({
         className="inline-flex flex-wrap gap-1 rounded-lg border p-1"
       >
         {options.map(({ mode, label }) => {
-          const disabled = locked && mode === 'search'
+          const disabled = (locked && mode === 'search') || protocolLocked
           const selected = chosen.mode === mode
           return (
             <button
@@ -126,6 +130,7 @@ export function SearchFields({
   dispatch,
   onInputError,
   estimate,
+  thresholdLocked = false,
 }: {
   spec: AttackSpec
   index: number
@@ -136,6 +141,8 @@ export function SearchFields({
   dispatch: Dispatch<Action>
   onInputError: (bad: boolean) => void
   estimate?: EstimateResponse
+  /** Phase 8: loại ngưỡng, ngưỡng, class do protocol quy định (khóa). */
+  thresholdLocked?: boolean
 }) {
   const param = spec.primary_param
   const discrete = isDiscrete(param)
@@ -166,6 +173,16 @@ export function SearchFields({
 
   return (
     <div className="space-y-4 rounded-lg bg-muted/40 p-3" data-testid={`tim-nguong-${spec.id}`}>
+      {thresholdLocked && (
+        <p
+          className="flex items-center gap-2 text-sm text-muted-foreground"
+          data-testid="nguong-khoa"
+        >
+          <Lock aria-hidden="true" className="size-4 shrink-0" />
+          Loại ngưỡng, ngưỡng và class theo protocol; dải chỉ được rộng hơn, độ chính xác nhỏ hơn và
+          số mẫu bootstrap nhiều hơn mức protocol yêu cầu.
+        </p>
+      )}
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium">Loại ngưỡng</legend>
         <div
@@ -179,12 +196,14 @@ export function SearchFields({
               type="button"
               role="radio"
               aria-checked={search.thresholdKind === kind}
+              disabled={thresholdLocked}
               onClick={() => patch({ thresholdKind: kind })}
               className={cn(
                 'flex min-h-11 flex-col items-start gap-1 rounded-lg border p-2 text-left',
                 search.thresholdKind === kind
                   ? 'border-primary bg-primary/5 ring-2 ring-primary/30'
                   : 'hover:bg-muted',
+                thresholdLocked && 'cursor-not-allowed opacity-70',
               )}
             >
               <span className="text-sm font-medium">{label}</span>
@@ -202,6 +221,7 @@ export function SearchFields({
             max={100}
             step={1}
             aria-label={`Ngưỡng của ${spec.name} (thanh trượt)`}
+            disabled={thresholdLocked}
             value={Number.isFinite(percent) ? percent : 1}
             onChange={(event) => patch({ threshold: Number(event.target.value) / 100 })}
             className="min-h-11 w-full min-w-0 flex-1"
@@ -213,6 +233,7 @@ export function SearchFields({
             min={1}
             max={100}
             value={Number.isFinite(percent) ? percent : ''}
+            disabled={thresholdLocked}
             aria-invalid={error('threshold') ? true : undefined}
             onChange={(event) => patch({ threshold: number(event.target.value) / 100 })}
             className={cn(inputClass, 'w-24 shrink-0')}
@@ -229,6 +250,7 @@ export function SearchFields({
         <select
           id={id('class')}
           value={search.classFilter ?? ''}
+          disabled={thresholdLocked}
           onChange={(event) => patch({ classFilter: event.target.value || null })}
           className={inputClass}
         >
