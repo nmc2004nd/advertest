@@ -211,6 +211,18 @@ Ràng buộc DB:
   - chân trang mỗi trang là "Mã report … · BẢN CHÍNH THỨC · Xác minh tại /verify/<id> · Trang x/y";
   - mỗi attack quét lưới có một biểu đồ mức sụt tương đối theo level.
 
+### Chốt ở Group 4 (2026-10-02)
+
+- **Wizard và protocol:**
+  - attack bắt buộc tra trong catalog theo `attack_spec_name` và `spec_sha256`; catalog không còn đúng version thì báo ngay ở bước 1;
+  - đổi protocol thì bỏ khóa cũ nhưng giữ attack đã thêm; khóa áp lại khi nhân bản;
+  - khi áp khóa, attack tìm ngưỡng nhận ngưỡng, loại ngưỡng, class của protocol; dải được mở rộng tới tối thiểu `[lo, hi]`, `tol` và `bootstrap_samples` được kéo về mức protocol nếu đang kém hơn;
+  - bảng tuân thủ lấy từ `EstimateResponse.compliance`; lỗi `422 not_compliant` khi tạo chỉ dẫn tới bảng này.
+- **Trang chi tiết:**
+  - tab Review chỉ hiện khi đã gửi duyệt;
+  - engineer bình luận ở mức experiment từ tab Review (API vẫn nhận bình luận gắn run, failure case);
+  - sau khi gửi duyệt, trang không polling (thấy thay đổi khi tải lại hoặc quay lại tab).
+
 ## Behaviour
 
 ### Protocol

@@ -50,6 +50,8 @@
 
 ## Group 4 — Frontend: engineer `[agent: frontend-report]`
 
+> File được sửa (người dùng duyệt ở kế hoạch Group 4): `frontend/src/features/wizard/`, `frontend/src/features/experiments/`, `frontend/src/api/mocks.ts`.
+
 24. Wizard bước 1: chọn protocol → điền sẵn và khóa attack bắt buộc, ngưỡng; lọc slice theo `min_slice_size`; bảng tuân thủ trực tiếp.
 25. Nút và hộp "Gửi duyệt" (ghi chú, giải trình từng run, điều kiện).
 26. Dải "Đã khóa"; tab Review (trạng thái, người nhận, bình luận, quyết định); nút "Nhân bản để sửa".

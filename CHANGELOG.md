@@ -6,7 +6,30 @@ Ghi theo group và phase. Mỗi mục ghi điều đã thêm, đã đổi, thay 
 
 ## Phase 8 — Protocol, review và report
 
-**Trạng thái:** đang làm. Group 0–3 đã merge (2026-10-02).
+**Trạng thái:** đang làm. Group 0–4 đã merge (2026-10-02).
+
+### Phase 8 — Group 4 (frontend-report) — 2026-10-02
+#### Thêm
+- **Wizard (task 24):**
+  - bước 1 hiện mục đích, slice tối thiểu, attack bắt buộc của protocol, cảnh báo khi catalog không còn đúng version;
+  - bước 3 ẩn slice nhỏ hơn `min_slice_size`;
+  - bước 4: attack bắt buộc tự thêm, có khóa "Theo protocol", không bỏ chọn và không đổi chế độ được; level bắt buộc là chip khóa; ngưỡng tìm kiếm bị khóa;
+  - bảng tuân thủ ✓/✗ cập nhật trực tiếp trong tóm tắt.
+- **Trang chi tiết (task 25, 26):**
+  - nút và hộp gửi duyệt (điều kiện, giải trình từng run, ghi chú);
+  - dải "Đã khóa" theo trạng thái;
+  - tab Review (người nhận, giải trình, quyết định, bình luận);
+  - "Nhân bản để sửa" khi `changes_requested`.
+- **Mock (`api/mocks.ts`):** `GET /protocols/{id}`, bình luận; `/protocols` bỏ bản `retired` trừ khi `include_retired=true` (ghi nhận từ review Group 0).
+- **Test:** `wizard/protocol.test.tsx` (9), `experiments/review.test.tsx` (8).
+#### Review (phase-review, 2026-10-02)
+- Không có phát hiện chặn.
+- **#1 (nên sửa, chuyển Phase 11):** biểu tượng khóa của chip level dùng `aria-label` trên `span` không có role.
+- **Ghi nhận:** mock `attack_spec` thiếu `fgsm` (chế độ mock báo kitti-baseline thiếu attack; người duyệt bổ sung mock); quyết định ngầm đã ghi vào `requirements.md` mục "Chốt ở Group 4".
+- Review do cùng agent đã viết code thực hiện (không độc lập).
+#### Số liệu
+- `make check` pass: 1476 test Python, 331 Vitest, 331 test nghiệm thu.
+- `make test-e2e` 78/78 (7,1 phút); `pnpm verify:build` pass.
 
 ### Phase 8 — Group 3 (backend-report) — 2026-10-02
 #### Thêm
