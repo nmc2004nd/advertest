@@ -11,7 +11,13 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from advertest_contracts.enums import ErrorCode
-from advertest_contracts.models import ErrorBody, ErrorResponse, FieldError
+from advertest_contracts.models import (
+    ChecklistItem,
+    ComplianceItem,
+    ErrorBody,
+    ErrorResponse,
+    FieldError,
+)
 from backend.app.services.errors import (
     Conflict,
     Forbidden,
@@ -81,9 +87,19 @@ SERVICE_ERRORS: dict[type[ServiceError], tuple[int, ErrorCode]] = {
 
 
 def error_response(
-    status_code: int, code: ErrorCode, message: str, fields: list[FieldError] | None = None
+    status_code: int,
+    code: ErrorCode,
+    message: str,
+    fields: list[FieldError] | None = None,
+    *,
+    compliance: list[ComplianceItem] | None = None,
+    checklist: list[ChecklistItem] | None = None,
 ) -> JSONResponse:
-    body = ErrorResponse(error=ErrorBody(code=code, message=message, fields=fields))
+    body = ErrorResponse(
+        error=ErrorBody(
+            code=code, message=message, fields=fields, compliance=compliance, checklist=checklist
+        )
+    )
     # `fields` chỉ xuất hiện khi có: body lỗi cũ giữ nguyên {"code", "message"}.
     return JSONResponse(
         status_code=status_code, content=body.model_dump(mode="json", exclude_none=True)
@@ -156,7 +172,11 @@ def install_error_handlers(app: FastAPI) -> None:
     async def _service_error(_: Request, exc: ServiceError) -> JSONResponse:
         if isinstance(exc, InvalidConfig):
             return error_response(
-                status.HTTP_422_UNPROCESSABLE_CONTENT, exc.code, str(exc), exc.fields
+                status.HTTP_422_UNPROCESSABLE_CONTENT,
+                exc.code,
+                str(exc),
+                exc.fields or None,
+                compliance=exc.compliance,
             )
         if isinstance(exc, QueueLimitReached):
             return error_response(status.HTTP_409_CONFLICT, ErrorCode.QUEUE_LIMIT_REACHED, str(exc))

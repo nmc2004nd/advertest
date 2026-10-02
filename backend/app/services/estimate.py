@@ -292,6 +292,7 @@ def estimate_config(session: Session, checked: CheckedConfig) -> EstimateRespons
             ahead_seconds=sum(remaining_seconds(session, e) for e in ahead),
         ),
         searches=searches,
+        compliance=checked.compliance,
         max_total_seconds=(
             known_max if searches and not unknown and not unknown_searches else None
         ),
