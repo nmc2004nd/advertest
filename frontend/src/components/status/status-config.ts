@@ -79,10 +79,12 @@ export function statusDisplay(props: StatusBadgeProps): StatusDisplay {
 }
 
 export const TONE_CLASS: Record<StatusTone, string> = {
-  neutral: 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100',
-  info: 'bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200',
-  success: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200',
-  warning: 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200',
-  danger: 'bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-200',
-  muted: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300',
+  // Neo-terminal: viên thuốc tối màu + chấm phát sáng; cyan = đang chạy, đỏ = thất bại,
+  // hổ phách = cảnh báo, xanh lá = đạt.
+  neutral: 'bg-surface-raised text-foreground/80',
+  info: 'bg-detect/12 text-detect',
+  success: 'bg-approved/12 text-approved',
+  warning: 'bg-threshold/14 text-threshold',
+  danger: 'bg-fail/12 text-fail',
+  muted: 'bg-muted text-muted-foreground',
 }

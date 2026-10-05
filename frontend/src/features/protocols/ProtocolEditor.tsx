@@ -88,6 +88,7 @@ function AttackFields({
         <TextField
           id={`${id}-level`}
           label="Level bắt buộc"
+          placeholder="4, 8, 16"
           hint="Ngăn bởi dấu phẩy, ví dụ 0.01, 0.03"
           value={row.levels}
           error={errors[`attacks.${index}.levels`]}
@@ -106,6 +107,8 @@ function AttackFields({
           <TextField
             id={`${id}-nguong`}
             label="Ngưỡng (%)"
+            placeholder="30"
+            hint="Mức sụt mAP coi là model gãy."
             inputMode="decimal"
             value={row.threshold}
             error={errors[`attacks.${index}.threshold`]}
@@ -114,12 +117,14 @@ function AttackFields({
           <TextField
             id={`${id}-class`}
             label="Class (không bắt buộc)"
+            placeholder="Bỏ trống để tính mọi class, ví dụ: car"
             value={row.classFilter}
             onChange={(e) => set({ classFilter: e.target.value })}
           />
           <TextField
             id={`${id}-bootstrap`}
             label="Số mẫu bootstrap tối thiểu"
+            placeholder="1000"
             inputMode="numeric"
             value={row.minBootstrap}
             error={errors[`attacks.${index}.minBootstrap`]}
@@ -128,6 +133,7 @@ function AttackFields({
           <TextField
             id={`${id}-lo`}
             label="Cận dưới (lo)"
+            placeholder="Ví dụ: 1"
             inputMode="decimal"
             value={row.lo}
             error={errors[`attacks.${index}.lo`]}
@@ -136,6 +142,7 @@ function AttackFields({
           <TextField
             id={`${id}-hi`}
             label="Cận trên (hi)"
+            placeholder="Ví dụ: 32"
             inputMode="decimal"
             value={row.hi}
             onChange={(e) => set({ hi: e.target.value })}
@@ -143,6 +150,7 @@ function AttackFields({
           <TextField
             id={`${id}-tol`}
             label="Sai số tối đa (max_tol)"
+            placeholder="Ví dụ: 1"
             inputMode="decimal"
             value={row.maxTol}
             error={errors[`attacks.${index}.maxTol`]}
@@ -214,6 +222,7 @@ function CriterionFields({
         <TextField
           id={`${id}-level`}
           label={grid ? 'Level' : 'Điểm gãy tối thiểu'}
+          placeholder={grid ? 'Ví dụ: 8' : 'Ví dụ: 4'}
           inputMode="decimal"
           value={row.level}
           error={err('level')}
@@ -232,6 +241,7 @@ function CriterionFields({
             <TextField
               id={`${id}-nguong`}
               label="Mức sụt tối đa (%)"
+              placeholder="30"
               inputMode="decimal"
               value={row.threshold}
               error={err('threshold')}
@@ -240,6 +250,7 @@ function CriterionFields({
             <TextField
               id={`${id}-class`}
               label="Class (không bắt buộc)"
+              placeholder="Bỏ trống để tính mọi class"
               value={row.classFilter}
               onChange={(e) => set({ classFilter: e.target.value })}
             />
@@ -327,6 +338,8 @@ export function ProtocolEditor({
       <TextField
         id="protocol-ten"
         label="Tên protocol"
+        placeholder="Ví dụ: KITTI xe con, ban ngày"
+        autoFocus={!lockName}
         value={form.name}
         disabled={lockName}
         error={errors.name}
@@ -335,6 +348,7 @@ export function ProtocolEditor({
       <TextareaField
         id="protocol-mo-ta"
         label="Mục đích"
+        placeholder="Protocol này kiểm định điều gì, cho model nào, trước mốc nào. Ví dụ: chặn phát hành YOLOv8 nếu sụt quá 30% mAP ở PGD eps 8."
         value={form.description}
         error={errors.description}
         onChange={(e) => set({ description: e.target.value })}
@@ -343,6 +357,8 @@ export function ProtocolEditor({
         <TextField
           id="protocol-slice"
           label="Kích thước slice tối thiểu"
+          placeholder="300"
+          hint="Experiment dùng slice nhỏ hơn sẽ không gửi duyệt được."
           inputMode="numeric"
           value={form.minSliceSize}
           error={errors.minSliceSize}
@@ -351,6 +367,8 @@ export function ProtocolEditor({
         <TextField
           id="protocol-so-case"
           label="Số case bắt buộc review mỗi attack"
+          placeholder="5"
+          hint="Reviewer phải xem đủ số case này trước khi chấp nhận."
           inputMode="numeric"
           value={form.casesPerAttack}
           error={errors.casesPerAttack}

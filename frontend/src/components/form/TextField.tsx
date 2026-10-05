@@ -24,7 +24,7 @@ function FieldShell({ label, error, hint, id, children }: FieldShellProps) {
   const describedBy = [hint && !error && hintId, error && errorId].filter(Boolean).join(' ')
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={inputId} className="text-sm font-medium">
+      <label htmlFor={inputId} className="text-[14px] font-semibold">
         {label}
       </label>
       {children({
@@ -33,7 +33,7 @@ function FieldShell({ label, error, hint, id, children }: FieldShellProps) {
         'aria-describedby': describedBy || undefined,
       })}
       {hint && !error && (
-        <p id={hintId} className="text-sm text-muted-foreground">
+        <p id={hintId} className="text-[13px] leading-5 text-muted-foreground">
           {hint}
         </p>
       )}
@@ -47,8 +47,8 @@ function FieldShell({ label, error, hint, id, children }: FieldShellProps) {
 }
 
 // Font 16px (iOS không tự zoom khi chạm), cao ≥ 44px (tech-stack.md mục 5.1).
-const CONTROL_CLASS =
-  'w-full rounded-lg border border-input bg-background px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-destructive/20'
+export const CONTROL_CLASS =
+  'w-full rounded-[10px] border border-input bg-field px-3.5 text-base text-foreground shadow-[0_1px_2px_rgba(16,24,40,0.05)] transition-[border-color,box-shadow,background-color] duration-200 ease-out outline-none placeholder:text-muted-foreground/70 hover:border-muted-foreground focus-visible:border-violet focus-visible:ring-4 focus-visible:ring-violet/15 disabled:cursor-not-allowed disabled:opacity-60 aria-invalid:border-destructive aria-invalid:ring-destructive/20'
 
 type ShellProps = Omit<FieldShellProps, 'children'>
 

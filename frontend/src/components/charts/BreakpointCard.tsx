@@ -14,7 +14,7 @@ import {
 
 function Warning({ icon: Icon, children }: { icon: typeof TriangleAlert; children: string }) {
   return (
-    <p className="flex items-center gap-2 text-sm text-amber-800 dark:text-amber-300">
+    <p className="flex items-center gap-2 text-sm text-threshold">
       <Icon aria-hidden="true" className="size-4 shrink-0" />
       {children}
     </p>

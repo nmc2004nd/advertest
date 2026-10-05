@@ -46,7 +46,10 @@ export function RequestAccessPage() {
   })
   const { errors } = form.formState
   return (
-    <PublicLayout title="Yêu cầu truy cập">
+    <PublicLayout
+      title="Yêu cầu truy cập"
+      lead="Điền vài thông tin, quản trị viên sẽ duyệt và báo cho bạn qua email."
+    >
       <p className="text-muted-foreground">
         Quản trị viên sẽ duyệt yêu cầu và gán vai trò trước khi bạn đăng nhập được.
       </p>
@@ -58,6 +61,8 @@ export function RequestAccessPage() {
         {submit.isError && <FormAlert>{errorMessage(submit.error)}</FormAlert>}
         <TextField
           label="Họ tên"
+          placeholder="Nguyễn Văn An"
+          autoFocus
           autoComplete="name"
           error={errors.full_name?.message}
           {...form.register('full_name')}
@@ -65,6 +70,8 @@ export function RequestAccessPage() {
         <TextField
           label="Email"
           type="email"
+          placeholder="ten@congty.vn"
+          hint="Dùng email công việc: đây là tên đăng nhập của bạn."
           autoComplete="email"
           inputMode="email"
           error={errors.email?.message}
@@ -72,12 +79,14 @@ export function RequestAccessPage() {
         />
         <TextField
           label="Tổ chức (không bắt buộc)"
+          placeholder="Ví dụ: Phòng thí nghiệm xe tự hành"
           autoComplete="organization"
           error={errors.organization?.message}
           {...form.register('organization')}
         />
         <SelectField
           label="Vai trò đề nghị"
+          hint="Kỹ sư chạy experiment; reviewer duyệt kết quả và xuất report."
           error={errors.requested_role?.message}
           {...form.register('requested_role')}
         >
@@ -89,6 +98,7 @@ export function RequestAccessPage() {
         </SelectField>
         <TextareaField
           label="Lý do cần truy cập"
+          placeholder="Ví dụ: kiểm định YOLOv8 cho dự án robot giao hàng trước đợt thử nghiệm tháng 11"
           error={errors.reason?.message}
           {...form.register('reason')}
         />
@@ -96,24 +106,29 @@ export function RequestAccessPage() {
           label="Mật khẩu"
           type="password"
           autoComplete="new-password"
+          placeholder="Ít nhất 10 ký tự"
           hint="Ít nhất 10 ký tự, không trùng email."
           error={errors.password?.message}
           {...form.register('password')}
         />
         <TextField
           label="Nhập lại mật khẩu"
+          placeholder="Gõ lại mật khẩu ở trên"
           type="password"
           autoComplete="new-password"
           error={errors.password_confirm?.message}
           {...form.register('password_confirm')}
         />
-        <Button type="submit" disabled={submit.isPending}>
+        <Button type="submit" size="lg" disabled={submit.isPending}>
           {submit.isPending ? 'Đang gửi…' : 'Gửi yêu cầu'}
         </Button>
       </form>
       <p className="text-sm text-muted-foreground">
         Đã có tài khoản?{' '}
-        <Link to="/login" className="font-medium text-foreground underline">
+        <Link
+          to="/login"
+          className="font-semibold text-foreground underline underline-offset-4 hover:text-violet"
+        >
           Đăng nhập
         </Link>
       </p>

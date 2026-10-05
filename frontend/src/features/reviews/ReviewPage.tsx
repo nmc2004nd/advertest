@@ -39,11 +39,11 @@ import {
 import { KIND_LABEL, SEVERITY_LABEL } from './verdict'
 
 const textareaClass =
-  'min-h-20 w-full rounded-lg border border-input bg-background px-3 py-2 text-base'
+  'min-h-20 w-full rounded-[14px] border border-line bg-field text-foreground outline-none backdrop-blur transition-[border-color,box-shadow] duration-200 placeholder:text-muted-foreground/70 hover:border-input focus-visible:border-cta/70 focus-visible:ring-4 focus-visible:ring-cta/15 px-3 py-2 text-base'
 
 function Mark({ ok, unknown = false }: { ok: boolean; unknown?: boolean }) {
   if (unknown) {
-    return <CircleHelp aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-amber-600" />
+    return <CircleHelp aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-threshold" />
   }
   return ok ? (
     <Check aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-emerald-600" />
@@ -197,6 +197,7 @@ export function DecisionPanel({
     value: string,
     key: keyof DecisionForm,
     hint?: string,
+    placeholder?: string,
   ) => (
     <div className="flex flex-col gap-1.5">
       <label htmlFor={id} className="text-sm font-medium">
@@ -206,6 +207,7 @@ export function DecisionPanel({
         id={id}
         maxLength={4000}
         value={value}
+        placeholder={placeholder}
         onChange={(event) => patch({ [key]: event.target.value })}
         className={textareaClass}
       />
@@ -220,8 +222,16 @@ export function DecisionPanel({
         form.conclusion,
         'conclusion',
         'Với yêu cầu sửa và từ chối: lý do.',
+        'Ví dụ: Model sụt 60% mAP ở FGSM eps 8, vượt ngưỡng 30% của protocol KITTI v1.',
       )}
-      {field('khac-phuc', 'Biện pháp khắc phục', form.mitigation, 'mitigation')}
+      {field(
+        'khac-phuc',
+        'Biện pháp khắc phục',
+        form.mitigation,
+        'mitigation',
+        undefined,
+        'Ví dụ: Huấn luyện đối kháng với PGD eps 4, chạy lại trước đợt thử nghiệm.',
+      )}
       <div className="flex flex-col gap-1.5">
         <label htmlFor="ket-luan-model" className="text-sm font-medium">
           Kết luận về model
@@ -230,9 +240,9 @@ export function DecisionPanel({
           id="ket-luan-model"
           value={form.modelVerdict}
           onChange={(event) => patch({ modelVerdict: event.target.value as ModelVerdict | '' })}
-          className="min-h-11 rounded-lg border border-input bg-background px-3 text-base"
+          className="min-h-11 rounded-[14px] border border-line bg-field text-foreground outline-none backdrop-blur transition-[border-color,box-shadow] duration-200 placeholder:text-muted-foreground/70 hover:border-input focus-visible:border-cta/70 focus-visible:ring-4 focus-visible:ring-cta/15 px-3 text-base"
         >
-          <option value="">Chọn…</option>
+          <option value="">Chọn kết luận về model…</option>
           {(Object.keys(MODEL_VERDICT_LABEL) as ModelVerdict[]).map((v) => (
             <option key={v} value={v}>
               {MODEL_VERDICT_LABEL[v]}
@@ -249,6 +259,8 @@ export function DecisionPanel({
           'Giải trình tiêu chí chưa kết luận',
           form.inconclusiveJustification,
           'inconclusiveJustification',
+          undefined,
+          'Vì sao chấp nhận dù tiêu chí chưa kết luận được, ví dụ: thiếu dữ liệu ban đêm.',
         )}
       {decide.isError && <FormAlert>{errorMessage(decide.error)}</FormAlert>}
       <div className="flex flex-col gap-2 md:flex-row">

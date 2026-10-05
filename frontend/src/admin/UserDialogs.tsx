@@ -76,6 +76,7 @@ export function RejectDialog({ user, onClose }: DialogProps) {
     >
       <TextareaField
         label="Lý do từ chối (bắt buộc)"
+        placeholder="Người dùng sẽ thấy lý do này, ví dụ: email không thuộc tổ chức tham gia dự án."
         value={reason}
         maxLength={2000}
         onChange={(event) => setReason(event.target.value)}

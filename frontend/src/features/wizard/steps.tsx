@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Lock, TriangleAlert } from 'lucide-react'
 import type { Dispatch, ReactNode } from 'react'
 
@@ -9,7 +10,7 @@ import type {
   EstimateResponse,
   ModelSummary,
 } from '@/contracts/api'
-import { ATTACK_KIND_LABEL, ATTACK_KINDS } from '@/lib/attack-kinds'
+import { ATTACK_KIND_LABEL, ATTACK_KINDS, ATTACK_PLAIN } from '@/lib/attack-kinds'
 import { cn } from '@/lib/utils'
 
 import { Button } from '@/components/ui/button'
@@ -94,12 +95,23 @@ function ChoiceCard({
       disabled={disabled}
       onClick={onSelect}
       className={cn(
-        'flex min-h-11 w-full min-w-0 flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors',
-        selected ? 'border-primary bg-primary/5 ring-2 ring-primary/30' : 'hover:bg-muted',
+        'group flex min-h-11 w-full min-w-0 items-start gap-3 rounded-xl border bg-surface-solid p-4 text-left shadow-[0_1px_2px_rgba(16,24,40,0.05)] transition-[border-color,box-shadow,background-color] duration-150 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
+        selected
+          ? 'border-navy shadow-[0_0_0_1px_var(--navy)]'
+          : 'border-line hover:border-input hover:shadow-[0_4px_14px_rgba(16,24,40,0.07)]',
         disabled && 'cursor-not-allowed opacity-60',
       )}
     >
-      {children}
+      <span className="flex min-w-0 flex-1 flex-col items-start gap-1">{children}</span>
+      <span
+        aria-hidden
+        className={cn(
+          'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors',
+          selected ? 'border-navy bg-navy' : 'border-input',
+        )}
+      >
+        {selected && <span className="size-2 rounded-full bg-primary-foreground" />}
+      </span>
     </button>
   )
 }
@@ -109,9 +121,7 @@ function Badge({ tone = 'muted', children }: { tone?: 'muted' | 'warning'; child
     <span
       className={cn(
         'rounded-full px-2 py-0.5 text-xs',
-        tone === 'warning'
-          ? 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200'
-          : 'bg-muted text-muted-foreground',
+        tone === 'warning' ? 'bg-threshold/12 text-threshold' : 'bg-muted text-muted-foreground',
       )}
     >
       {children}
@@ -153,7 +163,10 @@ function ProtocolDetail({ protocolId }: { protocolId: string }) {
   const body = protocol.data.body
   const { missing } = requiredLocks(body, specs.data)
   return (
-    <div className="space-y-2 rounded-lg border p-3 text-sm" data-testid="protocol-chi-tiet">
+    <div
+      className="space-y-2 rounded-xl bg-violet-soft p-4 text-sm"
+      data-testid="protocol-chi-tiet"
+    >
       <p>{body.description}</p>
       <p className="text-muted-foreground">
         Slice tối thiểu {body.min_slice_size} ảnh · {body.cases_to_review_per_attack} case review
@@ -217,6 +230,13 @@ export function DatasetStep({ draft, dispatch, errors }: StepProps) {
   const allSlices = slices.data ?? []
   const usable = allSlices.filter((s) => s.size >= (draft.minSliceSize ?? 0))
   const hidden = allSlices.length - usable.length
+  // Chỉ có một dataset version thì chọn sẵn: bớt một cú bấm không cần quyết định gì.
+  const versions = datasets.data?.flatMap((d) => d.versions) ?? []
+  const onlyVersion = versions.length === 1 ? versions[0].id : null
+  useEffect(() => {
+    if (onlyVersion && draft.datasetVersionId === null)
+      dispatch({ type: 'datasetVersion', id: onlyVersion })
+  }, [onlyVersion, draft.datasetVersionId, dispatch])
   return (
     <div className="space-y-4">
       <section className="space-y-2">
@@ -333,7 +353,7 @@ function EarlyStopSwitch({ draft, dispatch }: Pick<StepProps, 'draft' | 'dispatc
       </label>
       <p className="text-sm text-muted-foreground">{EARLY_STOP_HINT}</p>
       {draft.earlyStopMixed && (
-        <p className="text-sm text-amber-800 dark:text-amber-300">
+        <p className="text-sm text-threshold">
           Cấu hình gốc có attack tắt dừng sớm: công tắc đang tắt cho mọi attack.
         </p>
       )}
@@ -457,11 +477,16 @@ export function AttackStep({
                 const lock = lockOf(draft, spec.id)
                 const incompatible = spec.requires_gradients && model?.supports_gradients === false
                 return (
-                  <div key={spec.id} className="space-y-3 rounded-lg border p-3">
+                  <div
+                    key={spec.id}
+                    className="space-y-3 rounded-xl border border-line bg-surface-solid p-4 shadow-[0_1px_2px_rgba(16,24,40,0.05)] has-[:checked]:border-navy has-[:checked]:shadow-[0_0_0_1px_var(--navy)]"
+                  >
                     <label className="flex min-h-11 cursor-pointer items-center gap-3">
                       <input
                         type="checkbox"
-                        className="size-5"
+                        className="size-5 accent-[var(--navy)]"
+                        aria-label={`${spec.name} v${spec.version}`}
+                        aria-describedby={ATTACK_PLAIN[spec.name] ? `mo-ta-${spec.id}` : undefined}
                         checked={chosen !== undefined}
                         disabled={lock !== undefined}
                         onChange={() =>
@@ -473,9 +498,19 @@ export function AttackStep({
                           })
                         }
                       />
-                      <span className="font-medium">
-                        {spec.name}{' '}
-                        <span className="text-sm text-muted-foreground">v{spec.version}</span>
+                      <span className="flex min-w-0 flex-col">
+                        <span className="font-medium">
+                          {spec.name}{' '}
+                          <span className="text-sm text-muted-foreground">v{spec.version}</span>
+                        </span>
+                        {ATTACK_PLAIN[spec.name] && (
+                          <span
+                            id={`mo-ta-${spec.id}`}
+                            className="text-sm leading-5 font-normal text-muted-foreground"
+                          >
+                            {ATTACK_PLAIN[spec.name]}
+                          </span>
+                        )}
                       </span>
                       {lock && (
                         <span
@@ -488,7 +523,7 @@ export function AttackStep({
                       )}
                     </label>
                     {incompatible && (
-                      <p className="flex items-center gap-2 text-sm text-amber-800 dark:text-amber-300">
+                      <p className="flex items-center gap-2 text-sm text-threshold">
                         <TriangleAlert aria-hidden="true" className="size-4 shrink-0" />
                         Attack cần gradient, model không hỗ trợ: các run sẽ bị bỏ qua.
                       </p>
@@ -626,7 +661,7 @@ export function TargetStep({
                 seconds: event.target.value === '' || !Number.isFinite(value) ? null : value * 60,
               })
             }}
-            className="min-h-11 w-full rounded-lg border border-input bg-background px-3 text-base aria-invalid:border-destructive"
+            className="min-h-11 w-full rounded-[14px] border border-line bg-field text-foreground outline-none backdrop-blur transition-[border-color,box-shadow] duration-200 placeholder:text-muted-foreground/70 hover:border-input focus-visible:border-cta/70 focus-visible:ring-4 focus-visible:ring-cta/15 px-3 text-base aria-invalid:border-destructive"
           />
           <p className="text-sm text-muted-foreground">
             Mặc định {Math.round(selected.default_time_limit_s / 60)} phút, tối đa {maxMinutes}{' '}

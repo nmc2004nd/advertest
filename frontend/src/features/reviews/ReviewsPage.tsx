@@ -6,9 +6,10 @@ import { PageLoading } from '@/components/PageLoading'
 import { StatusBadge } from '@/components/status/StatusBadge'
 import type { ReviewQueueFilter, ReviewQueueItem } from '@/contracts/api'
 import { DECISION_LABEL } from '@/features/experiments/review-labels'
-import { cn } from '@/lib/utils'
 
 import { type QueueSort, useReviewQueue } from './api'
+import { PageHero } from '@/layout/PageHero'
+import { ReviewArt } from '@/layout/hero-art'
 
 const GROUPS: [ReviewQueueFilter, string][] = [
   ['waiting', 'Chờ nhận'],
@@ -47,7 +48,7 @@ function QueueTable({ items }: { items: ReviewQueueItem[] }) {
     'Trạng thái',
   ]
   return (
-    <div className="hidden overflow-x-auto rounded-xl border border-border xl:block">
+    <div className="hidden overflow-x-auto rounded-xl border border-border bg-surface-solid xl:block">
       <table className="w-full text-left text-sm">
         <caption className="sr-only">Hàng đợi review</caption>
         <thead className="bg-muted/50">
@@ -92,7 +93,7 @@ function QueueCards({ items }: { items: ReviewQueueItem[] }) {
         <li key={item.experiment.id}>
           <Link
             to={`/reviews/${item.experiment.id}`}
-            className="flex min-h-11 flex-col gap-1 rounded-xl border border-border p-4 hover:bg-muted"
+            className="flex min-h-11 flex-col gap-1 rounded-xl border border-border bg-surface-solid p-4 hover:bg-muted"
           >
             <span className="font-medium break-all">{item.experiment.name}</span>
             <span className="text-sm text-muted-foreground">
@@ -121,16 +122,13 @@ export function ReviewsPage() {
     setParams({ status: group, sort, ...next }, { replace: true })
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-4 p-4 md:p-6">
-      <h1 className="text-2xl font-semibold">Duyệt</h1>
-      <p className="text-sm text-muted-foreground">
-        Không gồm experiment do bạn tạo: người chạy test không duyệt test của mình.
-      </p>
-      <div
-        role="tablist"
-        aria-label="Nhóm hàng đợi"
-        className="-mx-4 flex gap-1 overflow-x-auto px-4"
-      >
+    <div className="mx-auto flex max-w-7xl flex-col gap-5 p-4 md:p-8">
+      <PageHero
+        art={<ReviewArt />}
+        title="Duyệt"
+        description="Xem các case bắt buộc, ghi verdict rồi quyết định. Không gồm experiment do bạn tạo: người chạy test không duyệt test của mình."
+      />
+      <div role="tablist" aria-label="Nhóm hàng đợi" className="seg self-start">
         {GROUPS.map(([key, label]) => (
           <button
             key={key}
@@ -138,12 +136,6 @@ export function ReviewsPage() {
             role="tab"
             aria-selected={group === key}
             onClick={() => set({ status: key })}
-            className={cn(
-              'min-h-11 shrink-0 rounded-lg px-3 text-sm font-medium whitespace-nowrap',
-              group === key
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:bg-muted',
-            )}
           >
             {label}
           </button>
@@ -157,7 +149,7 @@ export function ReviewsPage() {
           id="sap-xep-hang-doi"
           value={sort}
           onChange={(event) => set({ sort: event.target.value })}
-          className="min-h-11 rounded-lg border border-input bg-background px-3 text-base"
+          className="min-h-11 rounded-[14px] border border-line bg-field text-foreground outline-none backdrop-blur transition-[border-color,box-shadow] duration-200 placeholder:text-muted-foreground/70 hover:border-input focus-visible:border-cta/70 focus-visible:ring-4 focus-visible:ring-cta/15 px-3 text-base"
         >
           {SORTS.map(([key, label]) => (
             <option key={key} value={key}>

@@ -25,6 +25,8 @@ export interface NavItem {
   implemented: boolean
   /** Đường dẫn con không làm mục này sáng (thuộc về mục khác, ví dụ /experiments/new). */
   exclude?: readonly string[]
+  /** Nhóm trong sidebar: `admin` hiện dưới tiêu đề "Quản trị". */
+  group?: 'admin'
 }
 
 /** Nguồn duy nhất của điều hướng; thứ tự ở đây là thứ tự hiển thị. */
@@ -60,6 +62,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   },
   {
     path: '/admin/users',
+    group: 'admin',
     label: 'Người dùng',
     icon: Users,
     requirement: 'user.manage',
@@ -67,6 +70,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   },
   {
     path: '/admin/audit',
+    group: 'admin',
     label: 'Audit log',
     icon: ScrollText,
     requirement: 'audit.read',
@@ -74,6 +78,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   },
   {
     path: '/admin/attacks',
+    group: 'admin',
     label: 'Attack catalog',
     icon: Library,
     requirement: 'attack_catalog.manage',

@@ -8,6 +8,8 @@ import { MODEL_VERDICT_LABEL } from '@/features/experiments/review-labels'
 
 import { useReports } from './api'
 import { REPORT_STATUS_LABEL } from './labels'
+import { PageHero } from '@/layout/PageHero'
+import { ReportArt } from '@/layout/hero-art'
 
 function StatusChip({ report }: { report: ReportView }) {
   const tone =
@@ -28,7 +30,7 @@ const HEADERS = ['Experiment', 'Kết luận về model', 'Người duyệt', 'N
 /** Bảng: từ 1280px (desktop). */
 function ReportTable({ reports }: { reports: ReportView[] }) {
   return (
-    <div className="hidden overflow-x-auto rounded-xl border border-border xl:block">
+    <div className="hidden overflow-x-auto rounded-xl border border-border bg-surface-solid xl:block">
       <table className="w-full text-left text-sm">
         <caption className="sr-only">Report</caption>
         <thead className="bg-muted/50">
@@ -70,7 +72,7 @@ function ReportCards({ reports }: { reports: ReportView[] }) {
         <li key={r.id}>
           <Link
             to={`/reports/${r.id}`}
-            className="flex min-h-11 flex-col gap-1 rounded-xl border border-border p-4 hover:bg-muted"
+            className="flex min-h-11 flex-col gap-1 rounded-xl border border-border bg-surface-solid p-4 hover:bg-muted"
           >
             <span className="flex flex-wrap items-center justify-between gap-2">
               <span className="font-medium break-all">{r.experiment_name}</span>
@@ -91,18 +93,20 @@ function ReportCards({ reports }: { reports: ReportView[] }) {
 export function ReportsPage() {
   const reports = useReports()
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-4 p-4 md:p-6">
-      <h1 className="text-2xl font-semibold">Report</h1>
-      <p className="text-sm text-muted-foreground">
-        Report chính thức chỉ có sau khi reviewer chấp nhận bài test; nội dung không đổi sau khi
-        sinh.
-      </p>
+    <div className="mx-auto flex max-w-7xl flex-col gap-6 p-4 md:p-8">
+      <PageHero
+        art={<ReportArt />}
+        title="Report"
+        description="Report chính thức chỉ có sau khi reviewer chấp nhận bài test; nội dung không đổi sau khi sinh. Ai cũng xác minh được file bằng mã report."
+      />
       {reports.isPending ? (
         <PageLoading />
       ) : reports.isError ? (
         <LoadError onRetry={() => void reports.refetch()} retrying={reports.isFetching} />
       ) : reports.data.length === 0 ? (
-        <p className="text-muted-foreground">Chưa có report nào.</p>
+        <p className="panel p-6 text-muted-foreground">
+          Chưa có report nào. Report xuất hiện ở đây khi một reviewer chấp nhận bài test.
+        </p>
       ) : (
         <>
           <ReportTable reports={reports.data} />

@@ -13,11 +13,14 @@ export function ProgressBar({ progress, label }: { progress: Progress; label?: s
         aria-valuemax={100}
         aria-valuenow={percent}
         aria-label={text}
-        className="h-2 min-w-16 flex-1 overflow-hidden rounded-full bg-muted"
+        className="h-1.5 min-w-16 flex-1 overflow-hidden rounded-full bg-secondary"
       >
-        <div className="h-full rounded-full bg-primary" style={{ width: `${percent}%` }} />
+        <div
+          className={`h-full rounded-full bg-gradient-to-r from-detect to-approved ${percent > 0 && percent < 100 ? 'shimmer' : ''}`}
+          style={{ width: `${percent}%` }}
+        />
       </div>
-      <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{text}</span>
+      <span className="shrink-0 text-[13px] text-muted-foreground tabular-nums">{text}</span>
     </div>
   )
 }

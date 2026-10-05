@@ -38,7 +38,7 @@ export function ResetPasswordPage() {
     )
   }
   return (
-    <PublicLayout title="Đặt lại mật khẩu">
+    <PublicLayout title="Đặt lại mật khẩu" lead="Chọn một mật khẩu mới, ít nhất 10 ký tự.">
       <form
         noValidate
         className="flex flex-col gap-4"
@@ -47,6 +47,8 @@ export function ResetPasswordPage() {
         {reset.isError && <FormAlert>{errorMessage(reset.error)}</FormAlert>}
         <TextField
           label="Mật khẩu mới"
+          placeholder="Ít nhất 10 ký tự"
+          autoFocus
           type="password"
           autoComplete="new-password"
           hint="Ít nhất 10 ký tự, không trùng email."
@@ -55,6 +57,7 @@ export function ResetPasswordPage() {
         />
         <TextField
           label="Nhập lại mật khẩu mới"
+          placeholder="Gõ lại mật khẩu mới"
           type="password"
           autoComplete="new-password"
           error={errors.new_password_confirm?.message}

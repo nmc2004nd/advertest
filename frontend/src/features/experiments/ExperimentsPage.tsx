@@ -1,9 +1,11 @@
 import { createColumnHelper, tableFeatures, useTable } from '@tanstack/react-table'
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router'
+import { FlaskConical, Plus } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router'
 
 import { can } from '@/auth/permissions'
 import { useMe } from '@/auth/useMe'
+import { EmptyState } from '@/components/EmptyState'
 import { LoadError } from '@/components/LoadError'
 import { PageLoading } from '@/components/PageLoading'
 import { SelectField } from '@/components/form/TextField'
@@ -17,6 +19,8 @@ import { useModels } from '@/features/wizard/api'
 import { type ExperimentFilters, useExperiments } from './api'
 import { timeText } from './format'
 import { ProgressBar } from './ProgressBar'
+import { PageHero } from '@/layout/PageHero'
+import { ExperimentArt } from '@/layout/hero-art'
 
 const OWNER_TABS: [ExperimentFilters['owner'], string][] = [
   ['me', 'Của tôi'],
@@ -68,7 +72,7 @@ function ExperimentTable({ items }: { items: ExperimentSummary[] }) {
   )
   const table = useTable({ features, columns, data: items, getRowId: (e) => e.id })
   return (
-    <div className="hidden overflow-x-auto rounded-xl border border-border xl:block">
+    <div className="panel hidden overflow-x-auto xl:block">
       <table className="w-full text-left text-sm">
         <thead className="bg-muted/50">
           {table.getHeaderGroups().map((group) => (
@@ -104,7 +108,7 @@ function ExperimentCards({ items }: { items: ExperimentSummary[] }) {
         <li key={e.id}>
           <Link
             to={`/experiments/${e.id}`}
-            className="flex flex-col gap-2 rounded-xl border border-border p-4 hover:bg-muted/50 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+            className="panel flex flex-col gap-2 p-4 hover:bg-surface-raised/50 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="min-w-0 font-medium break-all">{e.name}</span>
@@ -125,9 +129,15 @@ function ExperimentCards({ items }: { items: ExperimentSummary[] }) {
 export function ExperimentsPage() {
   const { data: me } = useMe()
   const canCreate = can(me, 'experiment.create')
+  // `?status=` (link từ thẻ chỉ số ở trang chủ) chọn sẵn bộ lọc trạng thái, xem mọi người tạo.
+  const [params] = useSearchParams()
+  const fromUrl = params.get('status')
+  const initialStatus = experimentStatusValues.includes(fromUrl as ExperimentStatus)
+    ? (fromUrl as ExperimentStatus)
+    : ''
   const [filters, setFilters] = useState<ExperimentFilters>({
-    owner: canCreate ? 'me' : 'all',
-    status: '',
+    owner: canCreate && !initialStatus ? 'me' : 'all',
+    status: initialStatus,
     model: '',
   })
   const list = useExperiments(filters)
@@ -135,30 +145,37 @@ export function ExperimentsPage() {
   const items = list.data?.pages.flatMap((page) => page.items) ?? []
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-4 p-4 md:p-6">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-semibold">Experiment</h1>
-        {canCreate && (
-          <Button asChild>
-            <Link to="/experiments/new">Tạo experiment</Link>
-          </Button>
-        )}
-      </div>
-      <div className="flex flex-col gap-3 md:flex-row md:items-end">
-        <div role="tablist" aria-label="Người tạo" className="flex gap-2">
+    <div className="mx-auto flex max-w-7xl flex-col gap-6 p-4 md:p-8">
+      <PageHero
+        art={<ExperimentArt />}
+        title="Experiment"
+        description="Mỗi experiment chạy một nhóm attack trên một model và một slice ảnh. Bấm vào một dòng để xem tiến độ, kết quả và các ảnh bị đánh lừa."
+        actions={
+          canCreate ? (
+            <Button asChild size="lg">
+              <Link to="/experiments/new">
+                <Plus aria-hidden />
+                Tạo experiment
+              </Link>
+            </Button>
+          ) : undefined
+        }
+      />
+      <div className="flex flex-col gap-4 md:flex-row md:items-end">
+        <div role="tablist" aria-label="Người tạo" className="seg self-start md:mb-0.5">
           {OWNER_TABS.map(([value, label]) => (
-            <Button
+            <button
               key={value}
+              type="button"
               role="tab"
               aria-selected={filters.owner === value}
-              variant={filters.owner === value ? 'default' : 'outline'}
               onClick={() => setFilters({ ...filters, owner: value })}
             >
               {label}
-            </Button>
+            </button>
           ))}
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 md:w-[32rem]">
+        <div className="grid gap-3 sm:grid-cols-2 md:ml-auto md:w-[34rem]">
           <SelectField
             label="Trạng thái"
             value={filters.status}
@@ -192,7 +209,35 @@ export function ExperimentsPage() {
       ) : list.isError ? (
         <LoadError onRetry={() => void list.refetch()} retrying={list.isFetching} />
       ) : items.length === 0 ? (
-        <p className="text-muted-foreground">Chưa có experiment nào khớp bộ lọc.</p>
+        <EmptyState
+          icon={FlaskConical}
+          title={
+            filters.status || filters.model
+              ? 'Không có experiment nào khớp bộ lọc'
+              : 'Chưa có experiment nào'
+          }
+          action={
+            filters.status || filters.model ? (
+              <Button
+                variant="outline"
+                onClick={() => setFilters({ ...filters, status: '', model: '' })}
+              >
+                Xóa bộ lọc
+              </Button>
+            ) : canCreate ? (
+              <Button asChild>
+                <Link to="/experiments/new">
+                  <Plus aria-hidden />
+                  Tạo experiment đầu tiên
+                </Link>
+              </Button>
+            ) : undefined
+          }
+        >
+          {filters.status || filters.model
+            ? 'Thử chọn "Mọi trạng thái" hoặc "Mọi model", hoặc chuyển sang tab "Tất cả".'
+            : 'Experiment đầu tiên chỉ mất 6 bước: chọn protocol, model, slice ảnh, attack và mức tấn công, rồi xác nhận.'}
+        </EmptyState>
       ) : (
         <>
           <ExperimentTable items={items} />

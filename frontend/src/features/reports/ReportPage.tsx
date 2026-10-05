@@ -29,6 +29,7 @@ import {
   SCOPE_LABEL,
   TIMELINE_LABEL,
 } from './labels'
+import { PageHero } from '@/layout/PageHero'
 
 function Section({ n, title, children }: { n: number; title: string; children: ReactNode }) {
   return (
@@ -52,7 +53,7 @@ function Table({
   children: ReactNode
 }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-border">
+    <div className="overflow-x-auto rounded-xl border border-border bg-surface-solid">
       <table className="w-full text-left text-sm">
         <caption className="sr-only">{caption}</caption>
         <thead className="bg-muted/50">
@@ -230,7 +231,7 @@ export function SnapshotView({ snapshot }: { snapshot: ReportSnapshot }) {
         {results.searches.length > 0 && (
           <ul className="space-y-2 text-sm">
             {results.searches.map((s) => (
-              <li key={s.attack_spec_id} className="rounded-lg border p-3">
+              <li key={s.attack_spec_id} className="rounded-lg border bg-surface-solid p-3">
                 <p className="font-medium">
                   {specName(s.attack_spec_id)}: tìm ngưỡng {THRESHOLD_KIND_LABEL[s.threshold_kind]}{' '}
                   {percent(s.threshold)}
@@ -296,7 +297,10 @@ export function SnapshotView({ snapshot }: { snapshot: ReportSnapshot }) {
         ) : (
           <ul className="grid gap-2 md:grid-cols-2">
             {snapshot.reviewed_cases.map((c) => (
-              <li key={c.failure_case_id} className="rounded-lg border p-3 text-sm">
+              <li
+                key={c.failure_case_id}
+                className="rounded-lg border bg-surface-solid p-3 text-sm"
+              >
                 <Link
                   to={`/failure-cases/${c.failure_case_id}?run=${c.run_id}`}
                   className="font-medium hover:underline"
@@ -442,12 +446,12 @@ export function ReportPage() {
   const { report, snapshot } = detail.data
   const exporter = can(me, 'report.export')
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6 p-4 md:p-6">
-      <header className="flex flex-col gap-2">
-        <Link to="/reports" className="text-sm text-muted-foreground hover:underline">
-          ← Report
-        </Link>
-        <h1 className="text-2xl font-semibold break-all">{report.experiment_name}</h1>
+    <div className="mx-auto flex max-w-5xl flex-col gap-6 p-4 md:p-8">
+      <PageHero
+        compact
+        back={{ to: '/reports', label: 'Tất cả report' }}
+        title={<span className="break-all">{report.experiment_name}</span>}
+      >
         <p className="text-sm text-muted-foreground">
           {REPORT_STATUS_LABEL[report.status]} · duyệt bởi {report.approved_by.full_name},{' '}
           {formatDateTime(report.approved_at)} ·{' '}
@@ -455,10 +459,10 @@ export function ReportPage() {
             Xem experiment
           </Link>
         </p>
-      </header>
+      </PageHero>
       {report.status === 'ready' && (
         <div
-          className="flex flex-col gap-1 rounded-xl border-2 border-emerald-600 p-4"
+          className="relative flex flex-col gap-1 overflow-hidden rounded-xl border-2 border-dashed border-approved bg-approved/6 p-4 pl-5"
           data-testid="dai-chinh-thuc"
         >
           <p className="flex items-center gap-2 font-semibold">
@@ -509,7 +513,16 @@ export function ReportPage() {
           {regenerate.isError && <FormAlert>{errorMessage(regenerate.error)}</FormAlert>}
         </div>
       )}
-      {snapshot && <SnapshotView snapshot={snapshot} />}
+      {snapshot && (
+        // Nội dung report trình bày như một tờ giấy: nền trắng, mép trên chuyển màu.
+        <article className="panel relative overflow-hidden p-6 pt-8 md:p-10 md:pt-11">
+          <span
+            aria-hidden
+            className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-[#2563eb] via-[#7c3aed] to-[#ec4899]"
+          />
+          <SnapshotView snapshot={snapshot} />
+        </article>
+      )}
     </div>
   )
 }

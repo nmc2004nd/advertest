@@ -22,7 +22,7 @@ export const PATCH_SEARCH_LOCKED =
   'Tự tìm ngưỡng chưa hỗ trợ attack cần train patch: mỗi điểm đánh giá phải train một patch mới, chi phí quá lớn.'
 
 const inputClass =
-  'min-h-11 w-full rounded-lg border border-input bg-background px-3 text-base aria-invalid:border-destructive'
+  'min-h-11 w-full rounded-[14px] border border-line bg-field text-foreground outline-none backdrop-blur transition-[border-color,box-shadow] duration-200 placeholder:text-muted-foreground/70 hover:border-input focus-visible:border-cta/70 focus-visible:ring-4 focus-visible:ring-cta/15 px-3 text-base aria-invalid:border-destructive'
 
 function Field({
   id,
@@ -345,7 +345,7 @@ export function SearchFields({
             error={error('subsetSize')}
             hint={
               Number.isFinite(search.subsetSize) && search.subsetSize < SMALL_SUBSET ? (
-                <span className="text-amber-800 dark:text-amber-300" data-testid="tap-con-nho">
+                <span className="text-threshold" data-testid="tap-con-nho">
                   Tập con dưới {SMALL_SUBSET} ảnh: điểm gãy trên tập con có thể lệch nhiều so với
                   toàn slice.
                 </span>

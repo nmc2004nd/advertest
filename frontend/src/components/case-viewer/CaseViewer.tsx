@@ -319,7 +319,7 @@ export function CaseViewer({ caseView, onPrev, onNext, onImageError, aside }: Ca
         {caseView.display_mode === 'dev_unblurred' && (
           <p
             role="alert"
-            className="flex items-center gap-2 rounded-md bg-amber-100 px-3 py-2 text-sm font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200"
+            className="flex items-center gap-2 rounded-md bg-threshold/12 px-3 py-2 text-sm font-medium text-threshold"
           >
             <TriangleAlert aria-hidden="true" className="size-4 shrink-0" />
             {DEV_WARNING}

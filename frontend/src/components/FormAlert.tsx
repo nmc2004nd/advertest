@@ -16,10 +16,10 @@ export function FormAlert({
     <div
       role={tone === 'error' ? 'alert' : 'status'}
       className={cn(
-        'flex items-start gap-2 rounded-lg border p-3 text-sm',
+        'flex items-start gap-2 rounded-md border p-3 text-sm',
         tone === 'error'
-          ? 'border-destructive/40 bg-destructive/5 text-destructive'
-          : 'border-emerald-600/40 bg-emerald-600/5 text-emerald-800 dark:text-emerald-300',
+          ? 'border-fail/40 bg-fail/8 text-fail'
+          : 'border-approved/40 bg-approved/8 text-approved',
       )}
     >
       <Icon className="mt-0.5 size-4 shrink-0" aria-hidden />

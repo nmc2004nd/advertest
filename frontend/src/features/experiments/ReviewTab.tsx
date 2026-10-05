@@ -145,10 +145,11 @@ export function ReviewTab({ experiment, runs }: { experiment: ExperimentDetail; 
             </label>
             <textarea
               id="binh-luan-moi"
+              placeholder="Hỏi hoặc ghi chú cho người còn lại, ví dụ: case 000902 có phải do biển số bị làm mờ?"
               maxLength={4000}
               value={body}
               onChange={(event) => setBody(event.target.value)}
-              className="min-h-20 w-full rounded-lg border border-input bg-background px-3 py-2 text-base"
+              className="min-h-20 w-full rounded-[14px] border border-line bg-field text-foreground outline-none backdrop-blur transition-[border-color,box-shadow] duration-200 placeholder:text-muted-foreground/70 hover:border-input focus-visible:border-cta/70 focus-visible:ring-4 focus-visible:ring-cta/15 px-3 py-2 text-base"
             />
             {add.isError && <FormAlert>{errorMessage(add.error)}</FormAlert>}
             <div>

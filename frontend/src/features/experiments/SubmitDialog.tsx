@@ -12,7 +12,7 @@ import { useSubmitForReview } from './review-api'
 import { canSubmit, SUBMIT_CHECK_LABEL } from './review-labels'
 
 const textareaClass =
-  'min-h-20 w-full rounded-lg border border-input bg-background px-3 py-2 text-base aria-invalid:border-destructive'
+  'min-h-20 w-full rounded-[14px] border border-line bg-field text-foreground outline-none backdrop-blur transition-[border-color,box-shadow] duration-200 placeholder:text-muted-foreground/70 hover:border-input focus-visible:border-cta/70 focus-visible:ring-4 focus-visible:ring-cta/15 px-3 py-2 text-base aria-invalid:border-destructive'
 
 /**
  * Hộp gửi duyệt (requirements.md Phase 8, Frontend engineer; plan task 25): danh sách điều kiện,
@@ -141,6 +141,7 @@ export function SubmitFields({
                   id={id}
                   maxLength={4000}
                   value={explanations[runId] ?? ''}
+                  placeholder="Vì sao run này không hoàn thành, ví dụ: hết giới hạn thời gian ở level cao nhất."
                   aria-invalid={error ? true : undefined}
                   onChange={(event) => onExplanation(runId, event.target.value)}
                   className={textareaClass}
@@ -161,6 +162,7 @@ export function SubmitFields({
         </label>
         <textarea
           id="ghi-chu-gui-duyet"
+          placeholder="Điều reviewer nên xem trước, ví dụ: chú ý các case ban đêm ở PGD eps 8."
           maxLength={4000}
           value={note}
           onChange={(event) => onNote(event.target.value)}

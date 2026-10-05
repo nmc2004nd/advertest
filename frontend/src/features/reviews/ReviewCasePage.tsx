@@ -129,11 +129,12 @@ export function VerdictForm({
         </label>
         <textarea
           id={`${idPrefix}-khac-phuc`}
+          placeholder="Ví dụ: thêm ảnh ngược sáng vào tập huấn luyện, kiểm tra lại ở eps 4."
           maxLength={4000}
           disabled={disabled}
           value={draft.mitigation}
           onChange={(event) => onChange({ ...draft, mitigation: event.target.value })}
-          className="min-h-20 w-full rounded-lg border border-input bg-background px-3 py-2 text-base"
+          className="min-h-20 w-full rounded-[14px] border border-line bg-field text-foreground outline-none backdrop-blur transition-[border-color,box-shadow] duration-200 placeholder:text-muted-foreground/70 hover:border-input focus-visible:border-cta/70 focus-visible:ring-4 focus-visible:ring-cta/15 px-3 py-2 text-base"
         />
       </div>
       {error && <FormAlert>{error}</FormAlert>}

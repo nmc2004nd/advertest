@@ -1,4 +1,4 @@
-import { createBrowserRouter, type RouteObject } from 'react-router'
+import { createBrowserRouter, Navigate, type RouteObject } from 'react-router'
 
 import { RequirePermission } from './auth/RequirePermission'
 import { ExperimentDetailPage } from './features/experiments/ExperimentDetailPage'
@@ -19,14 +19,15 @@ import { AuditPage } from './pages/admin/AuditPage'
 import { UsersPage } from './pages/admin/UsersPage'
 import { ForbiddenPage } from './pages/ForbiddenPage'
 import { HomePage } from './pages/HomePage'
-import { LandingPage } from './pages/LandingPage'
 import { LoginPage } from './pages/LoginPage'
 import { PendingPage } from './pages/PendingPage'
 import { RequestAccessPage, RequestAccessSentPage } from './pages/RequestAccessPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
 
 const routes: RouteObject[] = [
-  { path: '/', element: <LandingPage /> },
+  // Không có landing page: vào thẳng trang chủ; chưa đăng nhập thì khung ứng dụng chuyển sang
+  // /login?next=/home.
+  { path: '/', element: <Navigate to="/home" replace /> },
   { path: '/forbidden', element: <ForbiddenPage /> },
   { path: '/login', element: <LoginPage /> },
   { path: '/request-access', element: <RequestAccessPage /> },

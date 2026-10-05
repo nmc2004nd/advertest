@@ -132,9 +132,7 @@ function RunCases({ run }: { run: RunView }) {
       ) : (
         <>
           {cases.data[0]?.display_mode === 'dev_unblurred' && (
-            <p className="text-sm text-amber-800 dark:text-amber-300">
-              Chưa làm mờ – chỉ dùng cho phát triển
-            </p>
+            <p className="text-sm text-threshold">Chưa làm mờ – chỉ dùng cho phát triển</p>
           )}
           <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             {cases.data.map((view) => (
@@ -221,10 +219,7 @@ function ManifestDetails({ manifest, runId }: { manifest: Manifest; runId: strin
   return (
     <div className="space-y-2">
       {inputs.git_dirty && (
-        <p
-          role="alert"
-          className="flex items-center gap-2 text-sm text-amber-800 dark:text-amber-300"
-        >
+        <p role="alert" className="flex items-center gap-2 text-sm text-threshold">
           <TriangleAlert aria-hidden="true" className="size-4 shrink-0" />
           Chạy từ code có thay đổi chưa commit (git_dirty): kết quả có thể khó tái lập.
         </p>

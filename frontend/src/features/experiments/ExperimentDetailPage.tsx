@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Copy, Lock, Send } from 'lucide-react'
+import { ChevronLeft, Copy } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router'
 
@@ -11,9 +11,9 @@ import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { FormAlert } from '@/components/FormAlert'
 import { LoadError } from '@/components/LoadError'
 import { PageLoading } from '@/components/PageLoading'
+import { Person } from '@/components/Avatar'
 import { Button } from '@/components/ui/button'
 import type { ExperimentDetail } from '@/contracts/api'
-import { cn } from '@/lib/utils'
 
 import {
   ACTIVE_EXPERIMENT,
@@ -23,9 +23,10 @@ import {
   useExperimentRuns,
 } from './api'
 import { ExperimentStatusSummary } from './ExperimentStatusSummary'
-import { timeText } from './format'
+import { humanTime } from './format'
 import { ProgressBar } from './ProgressBar'
-import { lockedBannerText } from './review-labels'
+import { nextStep } from './next-step'
+import { NextStepPanel } from './NextStep'
 import { ReviewTab } from './ReviewTab'
 import { SubmitDialog } from './SubmitDialog'
 import { CostTab, FailureCasesTab, ReproTab, ResultsTab, RunsTable } from './tabs'
@@ -87,26 +88,30 @@ export function ExperimentDetailPage() {
     can(me, 'experiment.submit_review') &&
     e.status === 'completed' &&
     e.protocol.status !== 'dev'
-  const banner = lockedBannerText(e.status)
+  const step = nextStep(e, me, canOpenSubmit)
   const tabs = TABS.filter(([key]) => key !== 'review' || e.review)
   const fixClone = e.status === 'changes_requested'
   const tab: Tab = tabs.some(([key]) => key === requested) ? requested : 'overview'
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-4 p-4 md:p-6">
-      <header className="flex flex-col gap-2">
-        <Link to="/experiments" className="text-sm text-muted-foreground hover:underline">
-          ← Experiment
+    <div className="mx-auto flex max-w-7xl flex-col gap-6 p-4 md:p-8">
+      <header className="hero relative isolate flex flex-col gap-3 overflow-hidden rounded-[20px] px-5 py-5 md:px-7">
+        <div aria-hidden className="hero-hex pointer-events-none absolute inset-0 -z-10" />
+        <Link
+          to="/experiments"
+          className="-ml-1 inline-flex min-h-9 items-center gap-1 self-start rounded-full px-2 text-sm font-semibold text-muted-foreground hover:bg-white/70 hover:text-foreground"
+        >
+          <ChevronLeft className="size-4" aria-hidden="true" />
+          Tất cả experiment
         </Link>
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <h1 className="min-w-0 text-2xl font-semibold break-all">{e.name}</h1>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex min-w-0 flex-col gap-2">
+            <h1 className="min-w-0 text-[clamp(1.5rem,2vw,1.85rem)] leading-tight font-bold tracking-[-0.03em] break-all">
+              {e.name}
+            </h1>
+            <ExperimentStatusSummary experiment={e} />
+          </div>
           <div className="flex flex-wrap gap-2">
-            {canOpenSubmit && (
-              <Button onClick={() => setSubmitting(true)}>
-                <Send aria-hidden="true" />
-                Gửi duyệt
-              </Button>
-            )}
             {can(me, 'experiment.create') && (
               <Button variant={fixClone ? 'default' : 'outline'} asChild>
                 <Link to={`/experiments/new?clone=${e.id}`}>
@@ -122,27 +127,17 @@ export function ExperimentDetailPage() {
             )}
           </div>
         </div>
-        <p className="text-sm text-muted-foreground">
-          {e.owner.full_name} · {e.model.name} · {e.slice.name} ({e.slice.size} ảnh) ·{' '}
-          {e.compute_target.name} · {timeText(e)}
+        <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[15px] leading-7 text-muted-foreground">
+          <Person name={e.owner.full_name} />
+          <span>
+            chạy {e.model.name} trên {e.slice.size} ảnh của {e.slice.name}, theo protocol{' '}
+            {e.protocol.name}, bằng máy {e.compute_target.name}; {humanTime(e)}.
+          </span>
         </p>
       </header>
-      {banner && (
-        <p
-          role="status"
-          className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm font-medium"
-          data-testid="dai-khoa"
-        >
-          <Lock aria-hidden="true" className="size-4 shrink-0" />
-          {banner}
-        </p>
-      )}
+      <NextStepPanel experiment={e} view={step} onSubmit={() => setSubmitting(true)} />
       {cancel.isError && <FormAlert>{errorMessage(cancel.error)}</FormAlert>}
-      <div
-        role="tablist"
-        aria-label="Chi tiết experiment"
-        className="-mx-4 flex gap-1 overflow-x-auto px-4"
-      >
+      <div role="tablist" aria-label="Chi tiết experiment" className="seg self-start">
         {tabs.map(([key, label]) => (
           <button
             key={key}
@@ -150,12 +145,6 @@ export function ExperimentDetailPage() {
             role="tab"
             aria-selected={tab === key}
             onClick={() => setParams(key === 'overview' ? {} : { tab: key }, { replace: true })}
-            className={cn(
-              'min-h-11 shrink-0 rounded-lg px-3 text-sm font-medium whitespace-nowrap',
-              tab === key
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:bg-muted',
-            )}
           >
             {label}
           </button>
@@ -168,13 +157,7 @@ export function ExperimentDetailPage() {
       >
         {tab === 'overview' && (
           <div className="space-y-4">
-            <ExperimentStatusSummary experiment={e} />
-            <ProgressBar progress={e.progress} />
-            {e.status === 'queued' && e.queue_position !== null && (
-              <p className="text-sm">
-                Đang chờ trong hàng đợi của {e.compute_target.name}: vị trí {e.queue_position}.
-              </p>
-            )}
+            <OverviewMonitor experiment={e} />
             {runs.isError ? (
               <LoadError onRetry={() => void runs.refetch()} retrying={runs.isFetching} />
             ) : (
@@ -210,6 +193,35 @@ export function ExperimentDetailPage() {
           đã có được giữ lại. Không hoàn tác được.
         </p>
       </ConfirmDialog>
+    </div>
+  )
+}
+
+/** Tổng quan tiến độ: một câu, một thanh tiến độ, số run theo trạng thái bằng chữ. */
+function OverviewMonitor({ experiment: e }: { experiment: ExperimentDetail }) {
+  const c = e.run_counts
+  const parts = [
+    c.completed && `${c.completed} hoàn thành`,
+    c.running && `${c.running} đang chạy`,
+    c.queued && `${c.queued} đang chờ`,
+    c.failed && `${c.failed} thất bại`,
+    c.stopped_limit && `${c.stopped_limit} dừng do giới hạn`,
+    c.skipped && `${c.skipped} bỏ qua`,
+    c.cancelled && `${c.cancelled} đã hủy`,
+  ].filter(Boolean)
+  return (
+    <div className="panel flex flex-col gap-3 p-5">
+      <p className="text-[15px]">
+        Đã xử lý <b className="tabular-nums">{e.progress.images_done}</b> trên{' '}
+        <b className="tabular-nums">{e.progress.images_total}</b> ảnh của mọi run
+        {parts.length ? `: ${parts.join(', ')}.` : '.'}
+      </p>
+      <ProgressBar progress={e.progress} />
+      {e.status === 'queued' && e.queue_position !== null && (
+        <p className="text-sm text-muted-foreground">
+          Đang chờ ở vị trí {e.queue_position} trong hàng đợi của máy {e.compute_target.name}.
+        </p>
+      )}
     </div>
   )
 }

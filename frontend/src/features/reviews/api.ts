@@ -19,8 +19,13 @@ import { EXPERIMENTS_KEY, experimentKey } from '@/features/experiments/api'
 export const REVIEWS_KEY = ['reviews'] as const
 export type QueueSort = 'submitted_at' | 'max_drop'
 
-export function useReviewQueue(status: ReviewQueueFilter, sort: QueueSort = 'submitted_at') {
+export function useReviewQueue(
+  status: ReviewQueueFilter,
+  sort: QueueSort = 'submitted_at',
+  enabled = true,
+) {
   return useQuery({
+    enabled,
     queryKey: [...REVIEWS_KEY, status, sort],
     queryFn: () =>
       apiGet<ReviewQueueItem[]>(`/reviews?${new URLSearchParams({ status, sort }).toString()}`),

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router'
 
 import { formatDateTime } from '@/admin/format'
 import { errorMessage } from '@/api/messages'
@@ -18,6 +19,9 @@ import { useAttackSpecs, useProtocol } from '@/features/wizard/api'
 import { useAllProtocols, useCreateProtocol, useNewVersion, useRetireProtocol } from './api'
 import { EMPTY_FORM, formOf } from './form'
 import { ProtocolEditor } from './ProtocolEditor'
+import { PageHero } from '@/layout/PageHero'
+import { ProtocolArt } from '@/layout/hero-art'
+import { Lock } from 'lucide-react'
 
 const STATUS_LABEL: Record<ProtocolStatus, string> = {
   active: 'Đang dùng',
@@ -30,7 +34,7 @@ function StatusChip({ status }: { status: ProtocolStatus }) {
     status === 'active'
       ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200'
       : status === 'dev'
-        ? 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200'
+        ? 'bg-threshold/12 text-threshold'
         : 'bg-muted text-muted-foreground'
   return <span className={`rounded-full px-2 py-0.5 text-xs ${tone}`}>{STATUS_LABEL[status]}</span>
 }
@@ -140,7 +144,7 @@ function ProtocolItem({
   const detail = useProtocol(open ? summary.id : null)
   const active = summary.status === 'active'
   return (
-    <li className="space-y-2 rounded-xl border p-4">
+    <li className="space-y-2 rounded-xl border bg-surface-solid p-4">
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-medium break-all">{summary.name}</span>
         <span className="text-sm text-muted-foreground tabular-nums">v{summary.version}</span>
@@ -184,7 +188,11 @@ export function ProtocolsPage() {
   const protocols = useAllProtocols()
   const specs = useAttackSpecs()
   const retire = useRetireProtocol()
-  const [editing, setEditing] = useState<Editing>(null)
+  // `?new=1` (nút "Tạo protocol" ở trang chủ) mở sẵn form tạo: bớt một cú bấm.
+  const [params] = useSearchParams()
+  const [editing, setEditing] = useState<Editing>(() =>
+    manage && params.get('new') === '1' ? { mode: 'create' } : null,
+  )
   const [retiring, setRetiring] = useState<ProtocolSummary | null>(null)
 
   if (protocols.isPending) return <PageLoading />
@@ -205,18 +213,24 @@ export function ProtocolsPage() {
   const catalog = specs.data ?? []
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-4 p-4 md:p-6">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-semibold">Protocol</h1>
-        {manage && editing === null && (
-          <Button onClick={() => setEditing({ mode: 'create' })}>Tạo protocol</Button>
-        )}
-      </div>
-      <p className="text-sm text-muted-foreground">
-        Protocol không sửa được sau khi tạo: muốn đổi thì tạo version mới, version cũ tự ngừng dùng.
-      </p>
+    <div className="mx-auto flex max-w-5xl flex-col gap-5 p-4 md:p-8">
+      <PageHero
+        art={<ProtocolArt />}
+        title="Protocol"
+        description="Protocol là luật chơi được chốt trước khi ai biết kết quả: phải chạy attack nào, ở mức nào, trên bao nhiêu ảnh, và thế nào là đạt."
+        actions={
+          manage && editing === null ? (
+            <Button onClick={() => setEditing({ mode: 'create' })}>Tạo protocol</Button>
+          ) : undefined
+        }
+      >
+        <p className="flex items-center gap-2 text-[13.5px] text-muted-foreground">
+          <Lock className="size-3.5 shrink-0" aria-hidden />
+          Không sửa được sau khi tạo: muốn đổi thì tạo version mới, version cũ tự ngừng dùng.
+        </p>
+      </PageHero>
       {editing && (
-        <section className="space-y-3 rounded-xl border p-4" aria-label="Biên soạn protocol">
+        <section className="panel space-y-4 p-5 md:p-7" aria-label="Biên soạn protocol">
           <h2 className="text-lg font-semibold">
             {editing.mode === 'create' ? 'Tạo protocol' : `Version mới của ${editing.summary.name}`}
           </h2>

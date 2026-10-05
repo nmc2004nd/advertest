@@ -286,6 +286,46 @@ export function canAdvance(
   }
 }
 
+/**
+ * Câu nói rõ còn thiếu gì ở bước hiện tại (hiện cạnh nút "Tiếp" khi nút bị khóa), để người dùng
+ * không phải đoán. `null` khi đã đủ.
+ */
+export function missingHint(
+  draft: Draft,
+  options: { maxLimitSeconds?: number; levelInputError?: boolean } = {},
+): string | null {
+  if (canAdvance(draft, options)) return null
+  switch (draft.step) {
+    case 1:
+      return 'Chọn một protocol để đi tiếp.'
+    case 2:
+      return 'Chọn model bạn muốn kiểm thử.'
+    case 3:
+      if (draft.sliceId === null) return 'Chọn một slice ảnh để đi tiếp.'
+      return 'Chọn class mapping giữa dataset và model.'
+    case 4: {
+      if (options.levelInputError) return 'Sửa ô level đang báo lỗi rồi đi tiếp.'
+      if (draft.attacks.length === 0) return 'Chọn ít nhất một attack.'
+      const notReady = draft.attacks.find((a) => !attackReady(a))
+      if (notReady?.mode === 'search') return 'Điền đủ các ô của phần tự tìm ngưỡng.'
+      if (notReady?.requiresTraining && notReady.trainingSliceId === null)
+        return 'Chọn slice huấn luyện cho attack cần train.'
+      return 'Thêm ít nhất một level cho mỗi attack đã chọn.'
+    }
+    case 5:
+      if (draft.targetId === null) return 'Chọn máy sẽ chạy experiment.'
+      if (
+        options.maxLimitSeconds !== undefined &&
+        draft.limitSeconds !== null &&
+        draft.limitSeconds > options.maxLimitSeconds
+      )
+        return 'Giới hạn thời gian đang vượt mức tối đa của máy này.'
+      return 'Đặt giới hạn thời gian lớn hơn 0.'
+    case 6:
+      return null
+  }
+}
+
 /** Attack đủ cấu hình: quét lưới có level (và slice huấn luyện khi cần train); tìm ngưỡng có cấu
  * hình với mọi trường là số (luật chi tiết của từng trường báo qua `inputErrors`). */
 function attackReady(a: AttackDraft): boolean {

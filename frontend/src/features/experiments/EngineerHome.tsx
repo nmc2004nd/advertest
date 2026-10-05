@@ -1,7 +1,6 @@
 import { Link } from 'react-router'
 
 import { StatusBadge } from '@/components/status/StatusBadge'
-import { Button } from '@/components/ui/button'
 import type { ExperimentSummary } from '@/contracts/api'
 
 import { useMyRecentExperiments } from './api'
@@ -36,9 +35,6 @@ export function EngineerHome() {
   const { active, finished } = splitMine(query.data?.items ?? [])
   return (
     <div className="flex flex-col gap-3">
-      <Button asChild className="self-start">
-        <Link to="/experiments/new">Tạo experiment</Link>
-      </Button>
       {query.isPending ? (
         <p className="text-muted-foreground">Đang tải…</p>
       ) : query.isError ? (

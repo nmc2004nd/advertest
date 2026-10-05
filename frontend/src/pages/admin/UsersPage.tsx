@@ -19,6 +19,8 @@ import { LoadError } from '@/components/LoadError'
 import { PageLoading } from '@/components/PageLoading'
 import { Button } from '@/components/ui/button'
 import type { UserAdminView } from '@/contracts/schemas'
+import { PageHero } from '@/layout/PageHero'
+import { UsersArt } from '@/layout/hero-art'
 
 type Tab = 'pending' | 'all'
 type OpenDialog = { action: Exclude<UserAction, 'enable'>; user: UserAdminView } | null
@@ -41,19 +43,23 @@ export function UsersPage() {
     action === 'enable' ? enable.mutate({ userId: user.id }) : setDialog({ action, user })
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-4 p-4 md:p-6">
-      <h1 className="text-2xl font-semibold">Người dùng</h1>
-      <div role="tablist" aria-label="Lọc người dùng" className="flex gap-2">
+    <div className="mx-auto flex max-w-7xl flex-col gap-5 p-4 md:p-8">
+      <PageHero
+        art={<UsersArt />}
+        title="Người dùng"
+        description="Duyệt người mới và gán vai trò. Mỗi người chỉ thấy đúng những việc vai trò của họ cho phép."
+      />
+      <div role="tablist" aria-label="Lọc người dùng" className="seg self-start">
         {TABS.map(([value, label]) => (
-          <Button
+          <button
             key={value}
+            type="button"
             role="tab"
             aria-selected={tab === value}
-            variant={tab === value ? 'default' : 'outline'}
             onClick={() => setTab(value)}
           >
             {label}
-          </Button>
+          </button>
         ))}
       </div>
       {enable.isError && <FormAlert>{errorMessage(enable.error)}</FormAlert>}
@@ -190,7 +196,7 @@ function UserTable({ users, onAction }: ListProps) {
   )
   const table = useTable({ features, columns, data: users, getRowId: (user) => user.id })
   return (
-    <div className="hidden overflow-x-auto rounded-xl border border-border xl:block">
+    <div className="hidden overflow-x-auto rounded-xl border border-border bg-surface-solid xl:block">
       <table className="w-full text-left text-sm">
         <thead className="bg-muted/50">
           {table.getHeaderGroups().map((group) => (
@@ -224,7 +230,10 @@ function UserCards({ users, onAction }: ListProps) {
   return (
     <ul className="flex flex-col gap-3 xl:hidden">
       {users.map((user) => (
-        <li key={user.id} className="flex flex-col gap-2 rounded-xl border border-border p-4">
+        <li
+          key={user.id}
+          className="flex flex-col gap-2 rounded-xl border border-border bg-surface-solid p-4"
+        >
           <div className="flex flex-col">
             <span className="font-medium">{user.full_name}</span>
             <span className="text-sm break-all text-muted-foreground">{user.email}</span>

@@ -6,6 +6,7 @@ import { PageLoading } from '@/components/PageLoading'
 import { Button } from '@/components/ui/button'
 import type { AttackSpecAdminView } from '@/contracts/api'
 import { ATTACK_KIND_LABEL } from '@/lib/attack-kinds'
+import { PageHero } from '@/layout/PageHero'
 
 function FixedParams({ spec }: { spec: AttackSpecAdminView }) {
   const lines = fixedParamLines(spec)
@@ -111,12 +112,12 @@ export function AttacksPage() {
   const catalog = useAttackCatalog()
   const specs = catalog.data?.pages.flatMap((page) => page.items) ?? []
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-4 p-4 md:p-6">
-      <h1 className="text-2xl font-semibold">Attack catalog</h1>
-      <p className="text-sm text-muted-foreground">
-        Mọi spec và version, kể cả spec đã tắt. Spec định danh bằng hash nội dung; thêm hoặc đổi
-        spec qua seed catalog.
-      </p>
+    <div className="mx-auto flex max-w-7xl flex-col gap-5 p-4 md:p-8">
+      <PageHero
+        compact
+        title="Attack catalog"
+        description="Mọi spec và version, kể cả spec đã tắt. Spec định danh bằng hash nội dung; thêm hoặc đổi spec qua seed catalog."
+      />
       {catalog.isPending ? (
         <PageLoading />
       ) : catalog.isError ? (

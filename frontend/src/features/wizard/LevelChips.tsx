@@ -146,6 +146,7 @@ export function LevelChips({
         <input
           id={id}
           inputMode="decimal"
+          placeholder={`Gõ một giá trị trong ${rangeText(param)} rồi Enter`}
           value={text}
           aria-invalid={shownError ? true : undefined}
           aria-describedby={shownError ? `${id}-loi` : undefined}
@@ -159,7 +160,7 @@ export function LevelChips({
               add()
             }
           }}
-          className="min-h-11 w-full min-w-0 rounded-lg border border-input bg-background px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-invalid:border-destructive"
+          className="min-h-11 w-full min-w-0 rounded-[14px] border border-line bg-field text-foreground outline-none backdrop-blur transition-[border-color,box-shadow] duration-200 placeholder:text-muted-foreground/70 hover:border-input focus-visible:border-cta/70 focus-visible:ring-4 focus-visible:ring-cta/15 px-3 text-base aria-invalid:border-destructive"
         />
         <Button type="button" variant="outline" onClick={add}>
           Thêm

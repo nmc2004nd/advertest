@@ -4,7 +4,17 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#f4f5f7" />
     <title>AdverTest</title>
+    <script>
+      // Theme trước khi vẽ trang (tránh nháy màu): mặc định sáng, nhớ lựa chọn của người dùng.
+      try {
+        if (localStorage.getItem('advertest-theme') === 'dark')
+          document.documentElement.classList.add('dark')
+      } catch {
+        // Trình duyệt chặn bộ nhớ: dùng giao diện sáng.
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

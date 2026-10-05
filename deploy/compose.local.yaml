@@ -1,0 +1,30 @@
+# Bổ sung cho docker/compose.yaml khi chạy toàn bộ trên một máy bằng Docker (Windows, macOS, Linux).
+# Dùng qua deploy/start.sh. Đường dẫn tương đối tính theo thư mục docker/ (file compose đầu tiên).
+#
+# Worker chạy trong mạng Docker của compose (không cần host network, chạy được trên Docker
+# Desktop): gọi API qua http://api:8000 và tải ảnh qua presigned URL ký cho http://minio:9000
+# (MINIO_PUBLIC_ENDPOINT trong .env do start.sh tạo).
+
+services:
+  worker-local:
+    profiles: ["worker"]
+    image: advertest-worker:local
+    build:
+      context: ..
+      dockerfile: docker/api/Dockerfile
+      args:
+        TORCH: cpu
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+    entrypoint: ["advertest-worker", "run"]
+    environment:
+      API_URL: http://api:8000
+      WORKER_TOKEN: ${WORKER_TOKEN:-}
+      CACHE_DIR: /app/cache
+      DEVICE: ${WORKER_DEVICE:-cpu}
+      GIT_COMMIT: ${GIT_COMMIT:-unknown}
+    volumes:
+      - worker_cache:/app/cache
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped

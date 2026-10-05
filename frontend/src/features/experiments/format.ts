@@ -40,3 +40,26 @@ export function downloadJson(data: unknown, filename: string): void {
   link.click()
   URL.revokeObjectURL(url)
 }
+
+/** Thời gian tương đối dễ đọc: "vừa xong", "5 phút trước", "hôm qua lúc 14:20". */
+export function relativeTime(iso: string, now: Date = new Date()): string {
+  const then = new Date(iso)
+  const minutes = Math.round((now.getTime() - then.getTime()) / 60000)
+  if (minutes < 1) return 'vừa xong'
+  if (minutes < 60) return `${minutes} phút trước`
+  const hours = Math.round(minutes / 60)
+  const time = then.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+  const sameDay = then.toDateString() === now.toDateString()
+  if (sameDay) return hours < 6 ? `${hours} giờ trước` : `hôm nay lúc ${time}`
+  const yesterday = new Date(now)
+  yesterday.setDate(now.getDate() - 1)
+  if (then.toDateString() === yesterday.toDateString()) return `hôm qua lúc ${time}`
+  return formatDateTime(iso)
+}
+
+/** Câu thời gian của experiment theo giọng người: "xong 5 phút trước", "tạo hôm qua lúc 9:10". */
+export function humanTime(experiment: ExperimentSummary): string {
+  return experiment.finished_at
+    ? `xong ${relativeTime(experiment.finished_at)}`
+    : `tạo ${relativeTime(experiment.created_at)}`
+}

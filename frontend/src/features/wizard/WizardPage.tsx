@@ -8,6 +8,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { FormAlert } from '@/components/FormAlert'
 import { Button } from '@/components/ui/button'
 import type { EstimateResponse } from '@/contracts/api'
+import { GradientWaves } from '@/components/background/GradientWaves'
 import { cn } from '@/lib/utils'
 
 import {
@@ -26,6 +27,7 @@ import { COMPLIANCE_LABEL, requiredLocks } from './protocol'
 import {
   buildBody,
   canAdvance,
+  missingHint,
   clearDraft,
   type Draft,
   draftFromClone,
@@ -44,35 +46,84 @@ import {
   STEPS,
 } from './state'
 import { AttackStep, DatasetStep, ModelStep, ProtocolStep, TargetStep } from './steps'
+import { FloatingDecor } from '@/components/background/FloatingDecor'
+import { WIZARD_DECOR } from '@/components/background/decor-presets'
+
+/** Một câu hướng dẫn cho từng bước, hiện ngay dưới tiêu đề bước. */
+const STEP_HINTS: Record<Step, string> = {
+  1: 'Chọn protocol để hệ thống tự thêm attack bắt buộc và kiểm tra tuân thủ. Protocol dev chỉ để thử, không gửi duyệt được.',
+  2: 'Chọn model cần kiểm định. Attack white-box cần model hỗ trợ gradient.',
+  3: 'Chọn dataset và slice ảnh. Slice phải đủ lớn theo protocol mới gửi duyệt được.',
+  4: 'Bật attack và chọn level, hoặc để hệ thống tự tìm ngưỡng gãy. Ước lượng thời gian cập nhật ngay bên phải.',
+  5: 'Chọn máy chạy và giới hạn thời gian. Chạm giới hạn thì experiment dừng và giữ kết quả đã có.',
+  6: 'Kiểm tra lại cấu hình và ước lượng rồi bấm chạy. Kết quả là bản nháp cho tới khi được duyệt.',
+}
 
 function StepBar({ draft, onGo }: { draft: Draft; onGo: (step: Step) => void }) {
   const current = STEPS[draft.step - 1]
   return (
     <nav aria-label="Các bước">
-      <p className="text-sm text-muted-foreground md:hidden">
-        Bước {draft.step}/6: <span className="font-medium text-foreground">{current.title}</span>
-      </p>
-      <ol className="hidden gap-1 md:flex">
-        {STEPS.map(({ step, title }) => (
-          <li key={step} className="flex-1">
-            <button
-              type="button"
-              disabled={step > draft.step}
-              aria-current={step === draft.step ? 'step' : undefined}
-              onClick={() => onGo(step)}
+      <div className="flex flex-col gap-2 md:hidden">
+        <p className="text-sm text-muted-foreground">
+          Bước {draft.step}/6: <span className="font-medium text-foreground">{current.title}</span>
+        </p>
+        <div className="flex gap-1" aria-hidden>
+          {STEPS.map(({ step }) => (
+            <span
+              key={step}
               className={cn(
-                'flex min-h-11 w-full items-center gap-2 rounded-lg border px-2 text-left text-sm',
-                step === draft.step
-                  ? 'border-primary bg-primary/5 font-medium'
-                  : 'text-muted-foreground',
-                step > draft.step && 'opacity-50',
+                'h-1 flex-1 rounded-full',
+                step <= draft.step
+                  ? 'bg-gradient-to-r from-[#2563eb] via-[#7c3aed] to-[#ec4899] bg-fixed'
+                  : 'bg-secondary',
               )}
-            >
-              <span className="tabular-nums">{step}</span>
-              <span className="truncate">{title}</span>
-            </button>
-          </li>
-        ))}
+            />
+          ))}
+        </div>
+      </div>
+      <ol className="hidden items-center gap-1 md:flex">
+        {STEPS.map(({ step, title }) => {
+          const done = step < draft.step
+          const here = step === draft.step
+          return (
+            <li key={step} className="flex min-w-0 flex-1 items-center gap-1">
+              <button
+                type="button"
+                disabled={step > draft.step}
+                aria-current={here ? 'step' : undefined}
+                onClick={() => onGo(step)}
+                className={cn(
+                  'flex min-h-11 min-w-0 items-center gap-2 rounded-lg px-1.5 text-left text-[13.5px] transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
+                  here && 'font-semibold text-foreground',
+                  done && 'text-foreground hover:bg-muted',
+                  step > draft.step && 'text-muted-foreground',
+                )}
+              >
+                <span
+                  className={cn(
+                    'flex size-7 shrink-0 items-center justify-center rounded-full text-[12.5px] font-semibold tabular-nums transition-all duration-300',
+                    done && 'bg-navy text-primary-foreground',
+                    here &&
+                      'border-2 border-navy bg-surface-solid text-foreground ring-4 ring-violet/15',
+                    !done && !here && 'border-2 border-line text-muted-foreground',
+                  )}
+                >
+                  {done ? <Check className="size-3.5" aria-hidden="true" /> : step}
+                </span>
+                <span className="leading-tight">{title}</span>
+              </button>
+              {step < 6 && (
+                <span
+                  aria-hidden
+                  className={cn(
+                    'h-0.5 min-w-3 flex-1 rounded-full',
+                    done ? 'bg-gradient-to-r from-[#2563eb] to-[#7c3aed]' : 'bg-line',
+                  )}
+                />
+              )}
+            </li>
+          )
+        })}
       </ol>
     </nav>
   )
@@ -83,14 +134,14 @@ function EstimateWarnings({ estimate }: { estimate: EstimateResponse | undefined
   return (
     <>
       {estimate.exceeds_limit && (
-        <p role="alert" className="flex gap-2 text-sm text-amber-800 dark:text-amber-300">
+        <p role="alert" className="flex gap-2 text-sm text-threshold">
           <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
           Ước lượng vượt giới hạn thời gian: experiment có thể dừng giữa chừng (giữ kết quả một
           phần).
         </p>
       )}
       {estimate.max_exceeds_limit && (
-        <p role="alert" className="flex gap-2 text-sm text-amber-800 dark:text-amber-300">
+        <p role="alert" className="flex gap-2 text-sm text-threshold">
           <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
           Chi phí tối đa của tìm ngưỡng vượt giới hạn thời gian: nếu chạm giới hạn, kết quả tìm
           ngưỡng dừng ở khoảng đã thu hẹp được.
@@ -135,17 +186,28 @@ function Summary({
     ['Seed', String(SEED)],
   ]
   return (
-    <div className="space-y-3 text-sm">
-      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1">
+    <div className="space-y-4 text-sm">
+      <dl>
         {rows.map(([label, value]) => (
-          <div key={label} className="contents">
-            <dt className="text-muted-foreground">{label}</dt>
-            <dd className="break-all">{value}</dd>
+          <div
+            key={label}
+            className="flex justify-between gap-3 border-b border-line py-2.5 text-[13px]"
+          >
+            <dt className="shrink-0 text-muted-foreground">{label}</dt>
+            <dd
+              className={cn(
+                'min-w-0 truncate text-right',
+                value === '—' ? 'text-muted-foreground' : 'font-medium text-foreground',
+              )}
+              title={value}
+            >
+              {value}
+            </dd>
           </div>
         ))}
       </dl>
       <div>
-        <p className="text-muted-foreground">Attack</p>
+        <p className="mb-1 text-[13px] text-muted-foreground">Attack</p>
         {draft.attacks.length === 0 ? (
           <p>—</p>
         ) : (
@@ -159,11 +221,16 @@ function Summary({
           </ul>
         )}
       </div>
-      <div className="rounded-lg bg-muted p-3">
-        <p>
-          Ước lượng: <strong>{estimateText(estimate)}</strong>
-          {estimating && <span className="text-muted-foreground"> (đang tính)</span>}
-        </p>
+      <div className="flex items-end justify-between gap-3 border-y border-line py-4">
+        <span className="text-[13px] text-muted-foreground">
+          Thời gian ước lượng
+          {estimating && <span className="block text-detect-strong">đang tính…</span>}
+        </span>
+        <strong className="text-xl leading-none font-semibold tabular-nums">
+          {estimateText(estimate)}
+        </strong>
+      </div>
+      <div>
         {estimate && (
           <p className="text-muted-foreground">
             Vị trí hàng đợi: {estimate.queue.position} · chờ khoảng{' '}
@@ -192,7 +259,7 @@ function ComplianceTable({ estimate }: { estimate: EstimateResponse | undefined 
         {items.map((item, i) => (
           <li key={i} className="flex gap-2">
             {item.satisfied ? (
-              <Check aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+              <Check aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-approved" />
             ) : (
               <X aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-destructive" />
             )}
@@ -228,7 +295,7 @@ function ConfirmStep({
       {draft.cloneWarnings.length > 0 && (
         <div
           role="alert"
-          className="space-y-1 rounded-lg bg-amber-100 p-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200"
+          className="space-y-1 rounded-[10px] bg-threshold/10 p-3 text-sm text-threshold shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--threshold)_35%,transparent)]"
         >
           {draft.cloneWarnings.map((w) => (
             <p key={w.attack_spec_id}>{w.message}</p>
@@ -244,7 +311,7 @@ function ConfirmStep({
           value={draft.name}
           maxLength={200}
           onChange={(event) => onName(event.target.value)}
-          className="min-h-11 rounded-lg border border-input bg-background px-3 text-base"
+          className="min-h-11 rounded-[10px] border border-input bg-field px-3.5 text-base text-foreground shadow-[0_1px_2px_rgba(16,24,40,0.05)] outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-muted-foreground/70 hover:border-muted-foreground focus-visible:border-violet focus-visible:ring-4 focus-visible:ring-violet/15"
         />
         <p className="text-sm text-muted-foreground">
           Bỏ trống: hệ thống đặt theo model, slice và ngày.
@@ -414,6 +481,10 @@ export function WizardPage() {
     maxLimitSeconds: target?.max_time_limit_s,
     levelInputError,
   })
+  const missing = missingHint(draft, {
+    maxLimitSeconds: target?.max_time_limit_s,
+    levelInputError,
+  })
 
   const go = (step: Step) => dispatch({ type: 'go', step })
   const next = () => {
@@ -443,9 +514,27 @@ export function WizardPage() {
   const cloneFailed = clone.isError || allSlices.isError
   const loadingClone = cloneId !== null && draft.clonedFrom !== cloneId && !cloneFailed
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-4 p-4 pb-24 md:p-6">
-      <h1 className="text-2xl font-semibold">Tạo experiment</h1>
-      <StepBar draft={draft} onGo={go} />
+    <div className="mx-auto flex max-w-7xl flex-col gap-6 p-4 pb-24 md:p-8">
+      {/* Dải cảnh lụa 3D phía trên, thanh bước nằm trong thẻ trắng đè lên mép dưới (giống màn hình
+          onboarding của beehiiv). Lớp phủ tối bên trái giữ chữ trắng đủ tương phản. */}
+      <div className="relative isolate -mb-20 overflow-hidden rounded-[20px] px-6 pt-7 pb-28 text-white md:px-9 md:pt-9">
+        <GradientWaves className="absolute inset-0 -z-10" scale={0.7} />
+        <div
+          aria-hidden
+          className="absolute inset-0 -z-10 bg-gradient-to-r from-[#1e1b4b]/80 via-[#1e1b4b]/40 to-transparent"
+        />
+        <FloatingDecor items={WIZARD_DECOR} className="hidden md:block" />
+        <h1 className="text-[clamp(1.85rem,2.6vw,2.5rem)] leading-[1.1] font-bold tracking-[-0.035em]">
+          Tạo experiment
+        </h1>
+        <p className="mt-2 max-w-[60ch] text-[15px] leading-6 text-white/85">
+          Sáu bước: chọn protocol, model, ảnh và attack. Nháp được lưu tự động trên trình duyệt này;
+          rời trang rồi quay lại vẫn còn.
+        </p>
+      </div>
+      <div className="panel relative z-10 mx-3 px-3 py-2 md:mx-6">
+        <StepBar draft={draft} onGo={go} />
+      </div>
       {cloneId !== null && cloneFailed && (
         <FormAlert>Không tải được cấu hình để nhân bản.</FormAlert>
       )}
@@ -458,11 +547,17 @@ export function WizardPage() {
               : errorMessage(create.error)}
         </FormAlert>
       )}
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <section aria-labelledby="tieu-de-buoc" className="min-w-0 space-y-4">
-          <h2 id="tieu-de-buoc" className="text-lg font-semibold">
-            {STEPS[draft.step - 1].title}
-          </h2>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_21rem]">
+        <section aria-labelledby="tieu-de-buoc" className="panel min-w-0 space-y-5 p-5 md:p-6">
+          <div className="flex flex-col gap-1.5 border-b border-line pb-4">
+            <p className="self-start rounded-full bg-violet-soft px-2.5 py-0.5 text-[12.5px] font-semibold text-[#6d28d9] dark:text-violet">
+              Bước {draft.step} trên 6
+            </p>
+            <h2 id="tieu-de-buoc" className="text-xl font-semibold">
+              {STEPS[draft.step - 1].title}
+            </h2>
+            <p className="max-w-[72ch] text-sm text-muted-foreground">{STEP_HINTS[draft.step]}</p>
+          </div>
           {loadingClone ? (
             <p className="text-muted-foreground">Đang tải cấu hình để nhân bản…</p>
           ) : (
@@ -498,37 +593,53 @@ export function WizardPage() {
             </p>
           )}
           {/* Desktop: nút điều hướng ngay dưới nội dung bước. */}
-          <div className="hidden gap-2 md:flex">
+          <div className="hidden items-center gap-3 border-t border-line pt-5 md:flex">
             <Button
-              variant="outline"
+              variant="ghost"
               onClick={() => go((draft.step - 1) as Step)}
               disabled={draft.step === 1}
             >
               <ChevronLeft aria-hidden="true" />
               Lùi
             </Button>
+            {draft.step < 6 && !advance && (
+              <p className="ml-auto text-right text-sm text-muted-foreground">{missing}</p>
+            )}
             {draft.step < 6 ? (
-              <Button onClick={next} disabled={!advance}>
-                Tiếp
+              <Button onClick={next} disabled={!advance} className={cn(advance && 'ml-auto')}>
+                Tiếp: {STEPS[draft.step as 1 | 2 | 3 | 4 | 5].title}
                 <ChevronRight aria-hidden="true" />
               </Button>
             ) : (
-              <Button onClick={() => setConfirming(true)} disabled={!body || create.isPending}>
+              <Button
+                size="lg"
+                className="ml-auto"
+                onClick={() => setConfirming(true)}
+                disabled={!body || create.isPending}
+              >
                 Chạy experiment
               </Button>
             )}
           </div>
         </section>
         <aside className="hidden lg:block" aria-label="Tóm tắt cấu hình">
-          <div className="sticky top-4 rounded-lg border p-4">
-            <h2 className="mb-3 font-semibold">Tóm tắt</h2>
+          <div className="panel sticky top-6 overflow-hidden p-5 pt-6">
+            <span
+              aria-hidden
+              className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#2563eb] via-[#7c3aed] to-[#ec4899]"
+            />
+            <h2 className="font-semibold">Bạn đang cấu hình</h2>
+            <p className="mb-2 text-sm text-muted-foreground">
+              Cập nhật theo từng lựa chọn. Chưa có gì được chạy cho tới khi bạn bấm "Chạy
+              experiment".
+            </p>
             <Summary draft={draft} estimate={estimate.data} estimating={estimate.isFetching} />
           </div>
         </aside>
       </div>
       {/* Điện thoại: thanh dưới cố định (thời gian ước lượng + nút), nằm ngay trên thanh tab điều
           hướng của khung ứng dụng (cao 3.5rem + viền, đã tránh thanh home). */}
-      <div className="fixed inset-x-0 bottom-[calc(3.5rem+1px+env(safe-area-inset-bottom))] z-30 border-t bg-background px-4 py-3 md:hidden">
+      <div className="fixed inset-x-0 bottom-[calc(3.5rem+1px+env(safe-area-inset-bottom))] z-30 border-t border-line bg-background/95 px-4 py-3 backdrop-blur-xl md:hidden">
         <div className="flex items-center gap-2">
           <Button
             variant="outline"

@@ -12,6 +12,7 @@ import { LoadError } from '@/components/LoadError'
 import { PageLoading } from '@/components/PageLoading'
 import { Button } from '@/components/ui/button'
 import type { AuditLogEntry, UserAdminPage } from '@/contracts/schemas'
+import { PageHero } from '@/layout/PageHero'
 
 export function AuditPage() {
   const [draft, setDraft] = useState<AuditFilters>(EMPTY_FILTERS)
@@ -29,12 +30,16 @@ export function AuditPage() {
   const filterByActor = (actorId: string) => apply({ ...filters, actorId })
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-4 p-4 md:p-6">
-      <h1 className="text-2xl font-semibold">Audit log</h1>
+    <div className="mx-auto flex max-w-7xl flex-col gap-5 p-4 md:p-8">
+      <PageHero
+        compact
+        title="Audit log"
+        description="Mọi bước quan trọng đều được ghi lại: gửi duyệt, nhận, verdict, quyết định, sinh và tải report."
+      />
       <form
         onSubmit={onSubmit}
         aria-label="Bộ lọc audit log"
-        className="grid gap-3 rounded-xl border border-border p-4 md:grid-cols-2 xl:grid-cols-5"
+        className="panel grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-5"
       >
         <ActorSelect
           value={draft.actorId}
@@ -54,7 +59,7 @@ export function AuditPage() {
         </SelectField>
         <TextField
           label="Loại đối tượng"
-          placeholder="ví dụ: user"
+          placeholder="Ví dụ: user, experiment, protocol"
           value={draft.entityType}
           onChange={(event) => setDraft({ ...draft, entityType: event.target.value })}
         />
