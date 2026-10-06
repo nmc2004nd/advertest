@@ -9,13 +9,14 @@ Bạn là **một** agent với phạm vi hẹp. Giá trị của bạn nằm �
 
 ## 0. Xác nhận nhiệm vụ
 
-Cần đủ ba thông tin: **phase**, **group** (hoặc danh sách task), **tên agent**. Thiếu thông tin nào thì hỏi bằng `AskUserQuestion`, dùng dữ liệu trong spec để tạo lựa chọn (ví dụ liệt kê các group chưa đánh dấu `[x]` trong `plan.md`, các agent ghi ở đầu `plan.md`).
+Cần đủ ba thông tin: **phase**, **group** (hoặc danh sách task), **tên agent**. Thiếu thông tin nào thì hỏi bằng `AskUserQuestion`, dùng dữ liệu trong spec để tạo lựa chọn (ví dụ `grep -n '^## Group' plan.md` để liệt kê group, agent ghi trong tiêu đề group).
 
 Từ phần đầu `plan.md` của phase và bảng quyền sở hữu trong `CLAUDE.md`, xác định **danh sách thư mục bạn được sửa**. Nói lại danh sách này cho người dùng ở đầu báo cáo kế hoạch.
 
 ## 1. Kiểm tra trước khi làm
 
-- Đọc `CLAUDE.md`, `specs/mission.md`, `specs/tech-stack.md`, và toàn bộ spec của phase.
+- Đọc theo bảng "Đọc gì" trong `CLAUDE.md`, **chỉ** phần thuộc agent và group của bạn: `mission.md` §4, mục `tech-stack.md` của agent, group của bạn trong `plan.md`, phần liên quan của `requirements.md` và `validation.md`, `design.md` nếu có giao diện. Gom các lệnh đọc vào một lượt.
+- Nếu có `.claude/handoff/phaseNN-*` của group trước hoặc review trước của chính group này (khi làm lại sau "CẦN SỬA"), đọc nó thay vì hỏi lại.
 - Group 0 và các group mà group này phụ thuộc đã merge chưa?
 - `git status` sạch, đang ở đúng nhánh hoặc worktree (quy ước tên nhánh: `phaseNN-<agent>`)?
 
@@ -50,9 +51,9 @@ Chỉ bỏ qua bước hỏi khi người dùng đã nói rõ "kế hoạch đã
 
 ## 3. Implement
 
-1. **Chạy test nghiệm thu liên quan trước**, ghi lại test nào đang fail. Đây là mốc để chứng minh công việc của bạn làm chúng pass.
+1. **Chạy test nghiệm thu liên quan trước** (`-q --tb=no`, đúng thư mục `tests/acceptance/phase_NN/` hoặc file liên quan), ghi lại test nào đang fail. Đây là mốc để chứng minh công việc của bạn làm chúng pass.
 2. Làm **từng task một** theo thứ tự đã duyệt. Sau mỗi task:
-   - chạy test unit và test nghiệm thu liên quan;
+   - chạy test unit và test nghiệm thu **liên quan tới task** (`-q --tb=short`), không chạy `make check` sau mỗi task;
    - commit với message `phaseNN(<agent>): <task ngắn gọn>`.
 3. Viết test unit cho code của bạn trong thư mục của bạn khi logic không tầm thường.
 
@@ -81,7 +82,7 @@ Nếu câu trả lời là một quyết định thiết kế, ghi nó vào mụ
 
 ## 4. Báo cáo kết quả
 
-Chạy mọi mục Automated Tests trong `validation.md` thuộc phạm vi group, cộng `make check`. Báo cáo theo mẫu:
+Chạy mọi mục Automated Tests trong `validation.md` thuộc phạm vi group, cộng `make check` (một lần, ghi log ra file theo "Phiên làm việc" trong `CLAUDE.md`). Báo cáo theo mẫu:
 
 ```markdown
 # Kết quả: Phase NN — Group G — agent <tên>
@@ -105,3 +106,7 @@ Chạy mọi mục Automated Tests trong `validation.md` thuộc phạm vi group
 ```
 
 Không tuyên bố "xong" nếu còn mục validation fail. Nêu thẳng mục nào fail.
+
+## 5. Bàn giao
+
+Ghi báo cáo ở bước 4 (rút gọn còn tối đa 60 dòng, giữ nguyên bảng Validation, số liệu và "Việc cho người duyệt") vào `.claude/handoff/phaseNN-gG-implement.md`, thêm dòng đầu `Nhánh: <tên> @ <commit>` và `Thư mục được sửa: <danh sách>`. Kết thúc bằng một dòng: "Gõ `/clear` rồi chạy `phase-review` cho nhánh này."

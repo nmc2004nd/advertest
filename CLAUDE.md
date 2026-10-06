@@ -2,13 +2,40 @@
 
 Dự án phát triển theo spec-driven development. Spec là nguồn sự thật; code là kết quả của spec; test nghiệm thu là bằng chứng.
 
-## Đọc trước khi làm bất cứ việc gì
+## Nguồn sự thật
 
 1. `specs/mission.md` — mục đích và **nguyên tắc không được vi phạm** (mục 4)
 2. `specs/tech-stack.md` — công nghệ, quy ước dữ liệu, cấu trúc repo, luật cho agent
 3. `specs/design.md` — **bắt buộc với mọi việc liên quan giao diện**: vùng phong cách, màu, chữ, lớp overlay, câu chữ
 4. `specs/roadmap.md` — phase nào đang làm, phụ thuộc
 5. Spec của phase được giao: `specs/YYYY-MM-DD-phase-NN-*/` (`requirements.md`, `plan.md`, `validation.md`)
+
+### Đọc gì (đọc đúng mục cần, không đọc nguyên file)
+
+Spec dài và tiếng Việt tốn token; đọc nguyên file ở mỗi phiên là nguồn tốn token lớn. In một mục bằng `bash .claude/scripts/md_section.sh <file> '<regex tiêu đề>' [--all]` (dòng đầu output là `file:dòng`).
+
+| Nguồn | Phần cần đọc |
+|---|---|
+| `CLAUDE.md` | Không đọc lại (đã tự nạp) |
+| `mission.md` | `'^## 4\.'` (nguyên tắc); mục khác khi việc liên quan trực tiếp |
+| `tech-stack.md` | Theo agent: ml-* `'^## 2\.'`, attack `'^## 3\.'`, backend/worker `'^## 4\.'`, frontend `'^## 5\.'`; mọi agent `'^## 9\.'` |
+| `design.md` | Cả file, chỉ khi việc có giao diện |
+| `roadmap.md` | `'^## Tổng quan'` + `'^## Phase NN '` |
+| `plan.md` | 8 dòng đầu + `'^## Group G '` |
+| `requirements.md` | `'^## Scope'`, `'^## Out of Scope'`, `'^## Decisions'`, `'^### Chốt ở Group'` (`--all`), các mục `Behaviour` mà task nhắc tới |
+| `validation.md` | Mục `###` thuộc group + `'^## Definition of Done'` khi đóng phase |
+| `CHANGELOG.md` | Mục `'^### Phase NN — Tổng kết'` của phase trước; phase cũ hơn ở `changelog/archive/phase-NN.md` |
+| `contracts/python/advertest_contracts/models.py` (120 KB) | Không Read cả file: `grep -n 'class Tên'` rồi `sed -n 'a,bp'` |
+
+Chỉ mở rộng phạm vi đọc khi mục đã đọc tham chiếu sang mục khác hoặc khi đang tìm câu trả lời cho một chỗ mơ hồ.
+
+## Phiên làm việc
+
+- **Mỗi lần gọi skill (`phase-*`, `contract-proposal`) là một phiên riêng.** Gõ `/clear` trước khi chạy skill tiếp theo. Chạy cả phase trong một phiên làm context phình gần 1M token, và mỗi lượt đều phải đọc lại toàn bộ context đó.
+- Bàn giao giữa các phiên qua `.claude/handoff/phaseNN-gG-<skill>.md` (không commit), không dựa vào lịch sử chat.
+- Không in log dài vào context: `make check > <scratchpad>/check.log 2>&1; echo exit=$?; tail -n 40 <scratchpad>/check.log`, fail thì `grep -nE 'FAILED|ERROR|Error|error:' <scratchpad>/check.log | head -40` (`<scratchpad>` là thư mục scratchpad của phiên, không có thì dùng `/tmp`). pytest chạy riêng: `-q --tb=short` trên đúng file hoặc test liên quan.
+- `git diff`: xem `--stat` trước, rồi diff từng file cần đọc; bỏ file sinh tự động (`contracts/schemas`, `contracts/openapi.json`, `contracts/mocks`, `frontend/src/contracts`) và lockfile.
+- Screenshot chỉ chụp viewport đang kiểm tra. Gom các lệnh đọc độc lập vào cùng một lượt.
 
 ## Quyền sở hữu thư mục
 
@@ -57,7 +84,7 @@ Khi cần người dùng quyết định, dùng công cụ **`AskUserQuestion`**
 
 | Lệnh | Dùng khi |
 |---|---|
-| `make check` | Bắt buộc trước khi báo xong (lint, type check, kiểm tra contract, unit test, test nghiệm thu) |
+| `make check` | Bắt buộc trước khi báo xong (lint, type check, kiểm tra contract, unit test, test nghiệm thu); ghi output ra file log rồi `tail` (xem "Phiên làm việc") |
 | `make test-db` | Test cần Postgres thật (marker `db`); tự dựng container Postgres tạm |
 | `make test-acceptance` | Chạy riêng test nghiệm thu |
 | `make contracts` | Sinh lại JSON Schema, OpenAPI, TypeScript type từ contract |
@@ -78,7 +105,7 @@ Khi cần người dùng quyết định, dùng công cụ **`AskUserQuestion`**
 |---|---|
 | `phase-kickoff` | Bắt đầu một phase: đọc spec, tìm chỗ mơ hồ, kiểm tra độ phủ |
 | `phase-implement` | Làm một group với vai trò một agent |
-| `phase-review` | Review một nhánh so với spec trước khi merge |
+| `phase-review` | Review một nhánh so với spec trước khi merge (chạy trong subagent riêng, chỉ báo cáo quay về) |
 | `phase-close` | Cập nhật changelog, đánh dấu tiến độ, replan |
 | `contract-proposal` | Cần đổi contract |
 

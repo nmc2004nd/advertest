@@ -15,6 +15,8 @@ Commit phần việc đang dở (nếu ở trạng thái chạy được) với 
 
 Đường dẫn: `specs/<thư mục phase hiện tại>/contract-proposals/NNN-<slug>.md`, với `NNN` là số thứ tự kế tiếp trong thư mục (bắt đầu `001`).
 
+Để viết phần diff, chỉ trích đúng class, enum hoặc endpoint bị ảnh hưởng (`grep -n 'class Tên' contracts/python/advertest_contracts/models.py` rồi `sed -n` khoảng dòng; tương tự với seed và migration). Không Read nguyên `models.py` hay `openapi.json`. Phần "Ảnh hưởng" tìm nơi dùng bằng `grep -rln 'Tên' --include='*.py' --include='*.ts*' .`
+
 ```markdown
 # Đề xuất contract NNN: <tiêu đề ngắn>
 
@@ -48,5 +50,7 @@ Sau phần tóm tắt, hỏi bằng `AskUserQuestion` (một lần gọi, tối 
 
 1. `header` "Đề xuất": "Mình sẽ duyệt đề xuất sau, bạn chờ" / "Chọn phương án thay thế trong đề xuất, không đổi contract" (chỉ khi đề xuất có phương án thay thế khả thi).
 2. Nếu còn phần việc của group không phụ thuộc vào đề xuất: `header` "Tiếp tục": "Làm tiếp các task không phụ thuộc (Khuyến nghị)" / "Dừng toàn bộ group"; mô tả liệt kê các task đó.
+
+Ghi một dòng vào handoff của group (`.claude/handoff/phaseNN-gG-implement.md`): đường dẫn đề xuất, trạng thái, task bị chặn.
 
 Nếu người dùng chọn phương án thay thế, cập nhật trạng thái trong file đề xuất thành "không áp dụng – dùng phương án thay thế" và tiếp tục theo phương án đó. Nếu công cụ không khả dụng hoặc trả về rỗng: hỏi bằng văn bản và dừng.

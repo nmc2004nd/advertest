@@ -10,24 +10,24 @@ Mục đích: trước khi ai viết code, mọi chỗ mơ hồ trong spec phả
 ## 1. Xác định phase
 
 - Nếu người dùng nêu phase (ví dụ "phase 3") hoặc thư mục spec: dùng thư mục `specs/*-phase-NN-*/` tương ứng.
-- Nếu không: đọc `specs/roadmap.md`, chọn phase đầu tiên chưa được đánh dấu hoàn thành, và nói rõ bạn đã chọn phase nào.
+- Nếu không: `grep -n '^## Phase' specs/roadmap.md`, chọn phase đầu tiên chưa có "✅", và nói rõ bạn đã chọn phase nào.
 - Nếu thư mục spec của phase chưa tồn tại: báo cho người dùng và dừng. Việc viết spec mới thuộc về người duyệt.
 
-## 2. Đọc bối cảnh (theo thứ tự)
+## 2. Đọc bối cảnh (theo bảng "Đọc gì" trong `CLAUDE.md`, gom vào ít lượt)
 
-1. `CLAUDE.md`
-2. `specs/mission.md`, `specs/tech-stack.md`, `specs/roadmap.md`
-3. `requirements.md`, `plan.md`, `validation.md` của phase
-4. Mục của phase ngay trước trong `CHANGELOG.md` (số liệu đo được, quyết định mới)
-5. Các file trong `contracts/` mà requirements nhắc tới
+1. `requirements.md`, `plan.md`, `validation.md` của phase: đọc **cả ba file**, vì kickoff cần kiểm độ phủ.
+2. `roadmap.md`: `'^## Tổng quan'` + mục của phase này và phase ngay trước (phần "Tồn đọng").
+3. `CHANGELOG.md`: mục `'^### Phase NN — Tổng kết'` của phase ngay trước (số liệu đo được, quyết định mới, tồn đọng).
+4. `mission.md` §4; các mục `tech-stack.md` thuộc agent có trong `plan.md` của phase.
+5. `contracts/`: chỉ `grep -n` tên schema, enum hoặc endpoint mà requirements nhắc tới; không Read nguyên `models.py` hay `openapi.json`.
 
-Đọc đủ trước khi nhận xét. Nhiều "chỗ mơ hồ" thực ra đã được trả lời ở tech-stack hoặc phase trước.
+Trước khi ghi một điểm là "mơ hồ", `grep -rn '<từ khóa>' specs/tech-stack.md specs/*phase-<NN trước>*/ CHANGELOG.md` để chắc nó chưa được trả lời. Không đọc thêm cả file.
 
 ## 3. Kiểm tra điều kiện tiên quyết
 
 - Các phase mà phase này phụ thuộc (bảng Tổng quan trong `roadmap.md`) đã hoàn thành chưa?
 - Group 0 (thay đổi contract của người duyệt) đã merge chưa? Kiểm tra bằng cách tìm các schema/enum/endpoint mà requirements yêu cầu thêm trong `contracts/`.
-- Có đề xuất contract nào đang chờ trong `specs/*/contract-proposals/` liên quan tới phase này không?
+- Có đề xuất contract nào đang chờ không? `grep -l 'chờ duyệt' specs/*/contract-proposals/*.md`
 
 ## 4. Kiểm tra độ phủ (traceability)
 
@@ -93,3 +93,7 @@ Nếu công cụ không khả dụng hoặc trả về rỗng: hỏi bằng văn
 - Hỏi bằng `AskUserQuestion` một câu: "Áp dụng toàn bộ diff (Khuyến nghị)" / "Chỉ áp dụng một số file" / "Không áp dụng, mình tự sửa". Nếu người dùng chọn một số file, hỏi tiếp bằng `multiSelect` danh sách file.
 - Chỉ sửa file spec theo đúng lựa chọn. Khi sửa, chỉ sửa đúng những chỗ đã thống nhất.
 - Nếu câu trả lời đòi thay đổi contract: không sửa `contracts/`; ghi chú rằng Group 0 cần cập nhật, hoặc dùng skill `contract-proposal`.
+
+## 8. Bàn giao
+
+Ghi `.claude/handoff/phaseNN-kickoff.md` (tối đa 40 dòng): bảng phân công, điều kiện tiên quyết còn thiếu, các câu trả lời đã ghi vào spec (file:mục), rủi ro lớn nhất. Kết thúc bằng: "Gõ `/clear` rồi chạy `phase-implement` cho group đầu tiên."

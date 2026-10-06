@@ -11,6 +11,9 @@ BRANCH="${2:-HEAD}"
 ALLOWED="${3:-}"
 
 FORBIDDEN_PREFIXES=("specs/" "contracts/" "tests/acceptance/")
+# File sinh tự động và lockfile: vẫn tính trong danh sách file đã đổi, nhưng không quét từng dòng
+# (rất dài và không do agent viết tay). Khớp GENERATED trong Makefile.
+NOISE_EXCLUDES=(':!contracts/schemas' ':!contracts/openapi.json' ':!frontend/src/contracts' ':!contracts/mocks' ':!uv.lock' ':!**/pnpm-lock.yaml' ':!pnpm-lock.yaml')
 DEP_FILES=("pyproject.toml" "uv.lock" "requirements.txt" "frontend/package.json" "frontend/pnpm-lock.yaml" "package.json" "pnpm-lock.yaml")
 
 if ! git rev-parse --verify --quiet "$BASE" >/dev/null || ! git rev-parse --verify --quiet "$BRANCH" >/dev/null; then
@@ -20,14 +23,14 @@ fi
 
 RANGE="$BASE...$BRANCH"
 CHANGED=$(git diff --name-only "$RANGE")
-ADDED=$(git diff -U0 "$RANGE" | grep -E '^\+[^+]' || true)
-REMOVED=$(git diff -U0 "$RANGE" | grep -E '^-[^-]' || true)
+ADDED=$(git diff -U0 "$RANGE" -- . "${NOISE_EXCLUDES[@]}" | grep -E '^\+[^+]' || true)
+REMOVED=$(git diff -U0 "$RANGE" -- . "${NOISE_EXCLUDES[@]}" | grep -E '^-[^-]' || true)
 
 section() { printf '\n== %s ==\n' "$1"; }
 found_any=0
 
-section "File đã thay đổi"
-if [ -z "$CHANGED" ]; then echo "(không có)"; else echo "$CHANGED"; fi
+section "File đã thay đổi (--stat; file sinh tự động/lockfile không quét từng dòng)"
+if [ -z "$CHANGED" ]; then echo "(không có)"; else git diff --stat=120 "$RANGE" | tail -n 80; fi
 
 section "File nằm trong vùng cấm (specs/, contracts/, tests/acceptance/)"
 hits=""
