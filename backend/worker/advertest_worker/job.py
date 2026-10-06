@@ -97,6 +97,7 @@ from ml_core.runner.executor import (
 )
 from ml_core.runner.fingerprint import build_fingerprint_inputs, fingerprint
 from ml_core.runner.images import letterbox_mask, perturbation_kind
+from ml_core.runner.provenance import Provenance
 from ml_core.search.subset import eval_image_ids_sha256, select_subset
 from ml_core.store import KeyNotFoundError, PresignedStore
 
@@ -105,6 +106,8 @@ _PREDICTIONS_KEY = re.compile(r"runs/([0-9a-f-]{36})/predictions\.json")
 DEFAULT_BATCH_SIZE = 8  # chỉ dùng khi không có cost profile (calibration thất bại)
 ARTIFACTS_URI = "s3://artifacts/"
 BatchHook = Callable[[UUID, Sequence[str]], None]
+# Dựng perturbation từ spec và estimator của model (mặc định `attacks.factory.build_perturbation`).
+PerturbationFactory = Callable[[AttackSpec, Any], Perturbation]
 
 
 def utcnow() -> datetime:
@@ -214,6 +217,8 @@ class JobRunner:
         heartbeat_interval_s: float = HEARTBEAT_INTERVAL_S,
         clock: Callable[[], datetime] = utcnow,
         on_batch: BatchHook | None = None,
+        perturbation_factory: PerturbationFactory | None = None,
+        provenance: Provenance | None = None,
     ) -> None:
         self.client = client
         self.cache = cache
@@ -222,6 +227,8 @@ class JobRunner:
         self.heartbeat_interval_s = heartbeat_interval_s
         self.clock = clock
         self.on_batch = on_batch
+        self.perturbation_factory = perturbation_factory
+        self.provenance = provenance
         self._estimators: dict[str, Any] = {}
 
     # ------------------------------------------------------------------ chuẩn bị
@@ -232,6 +239,19 @@ class JobRunner:
             model = load_model_from_store(self.cache.store, sha)
             self._estimators[sha] = build_estimator(model, bundle.inference_params, self.device)
         return self._estimators[sha]
+
+    def _build_perturbation(self, spec: AttackSpec, bundle: WorkerJobBundle) -> Perturbation:
+        # Không truyền `perturbation_factory` thì tra `build_perturbation` của module này lúc gọi
+        # (giữ được patch cấp module tới khi test chuyển sang seam, Phase R1).
+        factory = self.perturbation_factory or build_perturbation
+        return factory(spec, self._estimator(bundle))
+
+    def _read_provenance(self) -> _Provenance:
+        if self.provenance is None:
+            # Như `_build_perturbation`: tra tên của module này lúc gọi.
+            return _Provenance(git_state(), lib_versions(), docker_image_digest())
+        p = self.provenance
+        return _Provenance(p.git(), p.lib_versions(), p.docker_image_digest())
 
     def _environment(self, bundle: WorkerJobBundle) -> Environment:
         return environment(self.device).model_copy(
@@ -262,7 +282,7 @@ class JobRunner:
                     perturbation: Perturbation = calibration_patch(spec, loader)
                     level = spec.primary_param.max
                 else:
-                    perturbation = build_perturbation(spec, self._estimator(bundle))
+                    perturbation = self._build_perturbation(spec, bundle)
             except Exception:
                 logger.warning("Không dựng được %s để calibration", spec.name, exc_info=True)
                 continue
@@ -360,7 +380,7 @@ class JobRunner:
     def _inputs(self, job: _Job, run: BundleRun, spec: AttackSpec) -> FingerprintInputs:
         bundle = job.bundle
         if job.provenance is None:
-            job.provenance = _Provenance(git_state(), lib_versions(), docker_image_digest())
+            job.provenance = self._read_provenance()
         git, versions, digest = job.provenance.git, job.provenance.versions, job.provenance.digest
         image_ids = self._image_ids(job, run)
         return build_fingerprint_inputs(
@@ -499,7 +519,7 @@ class JobRunner:
                     job, run_id, spec, store
                 )
             else:
-                perturbation = build_perturbation(spec, self._estimator(bundle))
+                perturbation = self._build_perturbation(spec, bundle)
         except IncompatibleAttack as exc:
             finish.skipped(str(exc))
             return
