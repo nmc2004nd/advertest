@@ -1,0 +1,1950 @@
+{
+  "lib_versions": {
+    "art": "1.20.1",
+    "numpy": "2.4.6",
+    "torch": "2.14.0+cpu",
+    "torchmetrics": "1.9.0",
+    "ultralytics": "8.4.163"
+  },
+  "pinned": {
+    "docker_image_digest": "none",
+    "git_commit": "1111111111111111111111111111111111111111"
+  },
+  "runs": {
+    "grid:adv_patch@0.05": {
+      "cases": [
+        {
+          "image_id": "000902",
+          "lost_objects": 1,
+          "new_false_positives": 1,
+          "rank": 0,
+          "severity_score": 1.5
+        },
+        {
+          "image_id": "005866",
+          "lost_objects": 1,
+          "new_false_positives": 0,
+          "rank": 1,
+          "severity_score": 1.0
+        },
+        {
+          "image_id": "002571",
+          "lost_objects": 0,
+          "new_false_positives": 1,
+          "rank": 2,
+          "severity_score": 0.5
+        }
+      ],
+      "fingerprint": "f676ad9943f3a6e764d49ceb070301969d99a5ed2ac39ccb99e0d911d14d993a",
+      "fingerprint_inputs": {
+        "attack_spec_sha256": "729fe0c24b7fdac099553647e185cc3c36fd9b653575b132cd0f857796467894",
+        "config_sha256": "f79660497c4f2844bda6201abd792041eeed60c82f9e5c85636a7e71957e45a8",
+        "dataset_version_sha256": "5b3d46a79658bc009e50c69c3e68dedbf49fa0d2e47d913c800e06a5a79f9774",
+        "docker_image_digest": "none",
+        "git_commit": "1111111111111111111111111111111111111111",
+        "git_dirty": false,
+        "lib_versions": {
+          "art": "1.20.1",
+          "numpy": "2.4.6",
+          "torch": "2.14.0+cpu",
+          "torchmetrics": "1.9.0",
+          "ultralytics": "8.4.163"
+        },
+        "params": {
+          "area_ratio": 0.05
+        },
+        "patch_key": "5f32f1e5b26e8b636f6f6b1a21056f3bcc24d6e00514388c3f324334a48eed12",
+        "seed": 0,
+        "slice_id": "50fc13ad-2fb7-5945-a945-0b7df1cb4c3f",
+        "slice_sha256": "0200cf36aea5ab2b4030691ca7ea3922329668f91a901f5f91cb03406335eb69",
+        "weights_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36"
+      },
+      "metrics": {
+        "absolute_drop": 0.20581764058758817,
+        "attack_success_rate": 0.25,
+        "attacked": {
+          "map50": 0.25797579757975797,
+          "map50_95": 0.15433823756207396
+        },
+        "clean": {
+          "map50": 0.46379343816734614,
+          "map50_95": 0.31260526826676477
+        },
+        "partial": false,
+        "per_class": {
+          "car": {
+            "attack_success_rate": 0.4,
+            "attacked_ap50": 0.39768976897689773,
+            "clean_ap50": 0.638905066977286
+          },
+          "person": {
+            "attack_success_rate": 0.0,
+            "attacked_ap50": 0.37623762376237624,
+            "clean_ap50": 0.7524752475247525
+          },
+          "truck": {
+            "attacked_ap50": 0.0,
+            "clean_ap50": 0.0
+          }
+        },
+        "relative_drop": 0.44377005720664153
+      },
+      "reason": null,
+      "status": "completed"
+    },
+    "grid:adv_patch@0.1": {
+      "cases": [
+        {
+          "image_id": "000902",
+          "lost_objects": 1,
+          "new_false_positives": 0,
+          "rank": 0,
+          "severity_score": 1.0
+        },
+        {
+          "image_id": "005866",
+          "lost_objects": 1,
+          "new_false_positives": 0,
+          "rank": 1,
+          "severity_score": 1.0
+        }
+      ],
+      "fingerprint": "33afa07da76363d6a342ffefcf939b26680530846ae63620cc0be378d0157ae9",
+      "fingerprint_inputs": {
+        "attack_spec_sha256": "729fe0c24b7fdac099553647e185cc3c36fd9b653575b132cd0f857796467894",
+        "config_sha256": "5d499617a2369faef9eebbed36fe5a494921c4eb92098bffdffae44d41eb8f68",
+        "dataset_version_sha256": "5b3d46a79658bc009e50c69c3e68dedbf49fa0d2e47d913c800e06a5a79f9774",
+        "docker_image_digest": "none",
+        "git_commit": "1111111111111111111111111111111111111111",
+        "git_dirty": false,
+        "lib_versions": {
+          "art": "1.20.1",
+          "numpy": "2.4.6",
+          "torch": "2.14.0+cpu",
+          "torchmetrics": "1.9.0",
+          "ultralytics": "8.4.163"
+        },
+        "params": {
+          "area_ratio": 0.1
+        },
+        "patch_key": "5bed41d33895a4374908ba60d63ab840936b7c37e54dd47a8f8d5b79bcd1b9f3",
+        "seed": 0,
+        "slice_id": "50fc13ad-2fb7-5945-a945-0b7df1cb4c3f",
+        "slice_sha256": "0200cf36aea5ab2b4030691ca7ea3922329668f91a901f5f91cb03406335eb69",
+        "weights_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36"
+      },
+      "metrics": {
+        "absolute_drop": 0.0840534233495378,
+        "attack_success_rate": 0.25,
+        "attacked": {
+          "map50": 0.37974001481780834,
+          "map50_95": 0.21915637278013514
+        },
+        "clean": {
+          "map50": 0.46379343816734614,
+          "map50_95": 0.31260526826676477
+        },
+        "partial": false,
+        "per_class": {
+          "car": {
+            "attack_success_rate": 0.4,
+            "attacked_ap50": 0.3867447969286725,
+            "clean_ap50": 0.638905066977286
+          },
+          "person": {
+            "attack_success_rate": 0.0,
+            "attacked_ap50": 0.7524752475247525,
+            "clean_ap50": 0.7524752475247525
+          },
+          "truck": {
+            "attacked_ap50": 0.0,
+            "clean_ap50": 0.0
+          }
+        },
+        "relative_drop": 0.18123029873313906
+      },
+      "reason": null,
+      "status": "completed"
+    },
+    "grid:bbox_occlusion@0.3": {
+      "cases": [
+        {
+          "image_id": "000902",
+          "lost_objects": 2,
+          "new_false_positives": 1,
+          "rank": 0,
+          "severity_score": 2.5
+        },
+        {
+          "image_id": "002571",
+          "lost_objects": 2,
+          "new_false_positives": 0,
+          "rank": 1,
+          "severity_score": 2.0
+        },
+        {
+          "image_id": "005866",
+          "lost_objects": 1,
+          "new_false_positives": 0,
+          "rank": 2,
+          "severity_score": 1.0
+        }
+      ],
+      "fingerprint": "1ac3720af8826f56394ebd8302260316acc5090e6deb6e2b4c1d0bd461c682bc",
+      "fingerprint_inputs": {
+        "attack_spec_sha256": "2aca8c91a3318d2a8084f592019b6c44d3cb983e395ed6cd12f48c9337b753ad",
+        "config_sha256": "e797f3db93609fc279854ff206c4b118c356edeabfeeb1d83c3988efa676e065",
+        "dataset_version_sha256": "5b3d46a79658bc009e50c69c3e68dedbf49fa0d2e47d913c800e06a5a79f9774",
+        "docker_image_digest": "none",
+        "git_commit": "1111111111111111111111111111111111111111",
+        "git_dirty": false,
+        "lib_versions": {
+          "art": "1.20.1",
+          "numpy": "2.4.6",
+          "torch": "2.14.0+cpu",
+          "torchmetrics": "1.9.0",
+          "ultralytics": "8.4.163"
+        },
+        "params": {
+          "occlusion_ratio": 0.3
+        },
+        "seed": 0,
+        "slice_id": "50fc13ad-2fb7-5945-a945-0b7df1cb4c3f",
+        "slice_sha256": "0200cf36aea5ab2b4030691ca7ea3922329668f91a901f5f91cb03406335eb69",
+        "weights_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36"
+      },
+      "metrics": {
+        "absolute_drop": 0.09725436622736522,
+        "attack_success_rate": 0.625,
+        "attacked": {
+          "map50": 0.3665390719399809,
+          "map50_95": 0.22120586238951762
+        },
+        "clean": {
+          "map50": 0.46379343816734614,
+          "map50_95": 0.31260526826676477
+        },
+        "partial": false,
+        "per_class": {
+          "car": {
+            "attack_success_rate": 0.4,
+            "attacked_ap50": 0.33407590759075917,
+            "clean_ap50": 0.638905066977286
+          },
+          "person": {
+            "attack_success_rate": 1.0,
+            "attacked_ap50": 0.2655413082291835,
+            "clean_ap50": 0.7524752475247525
+          },
+          "truck": {
+            "attacked_ap50": 0.5,
+            "clean_ap50": 0.0
+          }
+        },
+        "relative_drop": 0.20969327770496368
+      },
+      "reason": null,
+      "status": "completed"
+    },
+    "grid:bbox_occlusion@0.6": {
+      "cases": [
+        {
+          "image_id": "000902",
+          "lost_objects": 3,
+          "new_false_positives": 0,
+          "rank": 0,
+          "severity_score": 3.0
+        },
+        {
+          "image_id": "002571",
+          "lost_objects": 3,
+          "new_false_positives": 0,
+          "rank": 1,
+          "severity_score": 3.0
+        },
+        {
+          "image_id": "005866",
+          "lost_objects": 1,
+          "new_false_positives": 0,
+          "rank": 2,
+          "severity_score": 1.0
+        }
+      ],
+      "fingerprint": "fdaa637a4ceaa74ef2ad3126279b702363fe19f513156f384fcf1602741b7d8f",
+      "fingerprint_inputs": {
+        "attack_spec_sha256": "2aca8c91a3318d2a8084f592019b6c44d3cb983e395ed6cd12f48c9337b753ad",
+        "config_sha256": "c8a46b95472d0064b15e28e39a1331a655c72835639fc4b5c6be05359d20e4f8",
+        "dataset_version_sha256": "5b3d46a79658bc009e50c69c3e68dedbf49fa0d2e47d913c800e06a5a79f9774",
+        "docker_image_digest": "none",
+        "git_commit": "1111111111111111111111111111111111111111",
+        "git_dirty": false,
+        "lib_versions": {
+          "art": "1.20.1",
+          "numpy": "2.4.6",
+          "torch": "2.14.0+cpu",
+          "torchmetrics": "1.9.0",
+          "ultralytics": "8.4.163"
+        },
+        "params": {
+          "occlusion_ratio": 0.6
+        },
+        "seed": 0,
+        "slice_id": "50fc13ad-2fb7-5945-a945-0b7df1cb4c3f",
+        "slice_sha256": "0200cf36aea5ab2b4030691ca7ea3922329668f91a901f5f91cb03406335eb69",
+        "weights_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36"
+      },
+      "metrics": {
+        "absolute_drop": 0.29565927833187877,
+        "attack_success_rate": 0.875,
+        "attacked": {
+          "map50": 0.16813415983546737,
+          "map50_95": 0.13786291533551756
+        },
+        "clean": {
+          "map50": 0.46379343816734614,
+          "map50_95": 0.31260526826676477
+        },
+        "partial": false,
+        "per_class": {
+          "car": {
+            "attack_success_rate": 0.8,
+            "attacked_ap50": 0.16820886014446587,
+            "clean_ap50": 0.638905066977286
+          },
+          "person": {
+            "attack_success_rate": 1.0,
+            "attacked_ap50": 0.00286028602860286,
+            "clean_ap50": 0.7524752475247525
+          },
+          "truck": {
+            "attacked_ap50": 0.3333333333333334,
+            "clean_ap50": 0.0
+          }
+        },
+        "relative_drop": 0.637480511798873
+      },
+      "reason": null,
+      "status": "completed"
+    },
+    "grid:contrast@1.0": {
+      "cases": [],
+      "fingerprint": "27057c7c86a5a4f886783a6864b7bb5d29f9d7dc6e8484c45d7e4ed8e62b8c0b",
+      "fingerprint_inputs": {
+        "attack_spec_sha256": "6c55690eaa596356ebd446ee9eb2ab45dac81dc2cd7e459e9871266b64876952",
+        "config_sha256": "05ecd9543960534075d8a100d92fe0d67631b8301190cec2c0bf98728eecbcdd",
+        "dataset_version_sha256": "5b3d46a79658bc009e50c69c3e68dedbf49fa0d2e47d913c800e06a5a79f9774",
+        "docker_image_digest": "none",
+        "git_commit": "1111111111111111111111111111111111111111",
+        "git_dirty": false,
+        "lib_versions": {
+          "art": "1.20.1",
+          "numpy": "2.4.6",
+          "torch": "2.14.0+cpu",
+          "torchmetrics": "1.9.0",
+          "ultralytics": "8.4.163"
+        },
+        "params": {
+          "severity": 1.0
+        },
+        "seed": 0,
+        "slice_id": "50fc13ad-2fb7-5945-a945-0b7df1cb4c3f",
+        "slice_sha256": "0200cf36aea5ab2b4030691ca7ea3922329668f91a901f5f91cb03406335eb69",
+        "weights_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36"
+      },
+      "metrics": {
+        "absolute_drop": -0.03661910308677924,
+        "attack_success_rate": 0.0,
+        "attacked": {
+          "map50": 0.5004125412541254,
+          "map50_95": 0.31969644638882494
+        },
+        "clean": {
+          "map50": 0.46379343816734614,
+          "map50_95": 0.31260526826676477
+        },
+        "partial": false,
+        "per_class": {
+          "car": {
+            "attack_success_rate": 0.0,
+            "attacked_ap50": 0.6237623762376238,
+            "clean_ap50": 0.638905066977286
+          },
+          "person": {
+            "attack_success_rate": 0.0,
+            "attacked_ap50": 0.7524752475247525,
+            "clean_ap50": 0.7524752475247525
+          },
+          "truck": {
+            "attacked_ap50": 0.125,
+            "clean_ap50": 0.0
+          }
+        },
+        "relative_drop": -0.07895562997069898
+      },
+      "reason": null,
+      "status": "completed"
+    },
+    "grid:contrast@3.0": {
+      "cases": [
+        {
+          "image_id": "002571",
+          "lost_objects": 1,
+          "new_false_positives": 0,
+          "rank": 0,
+          "severity_score": 1.0
+        }
+      ],
+      "fingerprint": "7a9750f2e2dae880bbdcf02bd3b757215cb1f33ba1ffb90f7a1563e57fafc261",
+      "fingerprint_inputs": {
+        "attack_spec_sha256": "6c55690eaa596356ebd446ee9eb2ab45dac81dc2cd7e459e9871266b64876952",
+        "config_sha256": "f3d85dfe5981a8c23628bb19b0818bd38f50d375353fbcd9ee96fc1815b89a2b",
+        "dataset_version_sha256": "5b3d46a79658bc009e50c69c3e68dedbf49fa0d2e47d913c800e06a5a79f9774",
+        "docker_image_digest": "none",
+        "git_commit": "1111111111111111111111111111111111111111",
+        "git_dirty": false,
+        "lib_versions": {
+          "art": "1.20.1",
+          "numpy": "2.4.6",
+          "torch": "2.14.0+cpu",
+          "torchmetrics": "1.9.0",
+          "ultralytics": "8.4.163"
+        },
+        "params": {
+          "severity": 3.0
+        },
+        "seed": 0,
+        "slice_id": "50fc13ad-2fb7-5945-a945-0b7df1cb4c3f",
+        "slice_sha256": "0200cf36aea5ab2b4030691ca7ea3922329668f91a901f5f91cb03406335eb69",
+        "weights_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36"
+      },
+      "metrics": {
+        "absolute_drop": 0.016221487039405735,
+        "attack_success_rate": 0.125,
+        "attacked": {
+          "map50": 0.4475719511279404,
+          "map50_95": 0.2801208560210094
+        },
+        "clean": {
+          "map50": 0.46379343816734614,
+          "map50_95": 0.31260526826676477
+        },
+        "partial": false,
+        "per_class": {
+          "car": {
+            "attack_success_rate": 0.2,
+            "attacked_ap50": 0.5133175289359923,
+            "clean_ap50": 0.638905066977286
+          },
+          "person": {
+            "attack_success_rate": 0.0,
+            "attacked_ap50": 0.7524752475247525,
+            "clean_ap50": 0.7524752475247525
+          },
+          "truck": {
+            "attacked_ap50": 0.0769230769230769,
+            "clean_ap50": 0.0
+          }
+        },
+        "relative_drop": 0.034975671720376286
+      },
+      "reason": null,
+      "status": "completed"
+    },
+    "grid:fgsm@4.0": {
+      "cases": [
+        {
+          "image_id": "000902",
+          "lost_objects": 3,
+          "new_false_positives": 7,
+          "rank": 0,
+          "severity_score": 6.5
+        },
+        {
+          "image_id": "002571",
+          "lost_objects": 2,
+          "new_false_positives": 2,
+          "rank": 1,
+          "severity_score": 3.0
+        },
+        {
+          "image_id": "005866",
+          "lost_objects": 0,
+          "new_false_positives": 3,
+          "rank": 2,
+          "severity_score": 1.5
+        }
+      ],
+      "fingerprint": "c3b27561b8c982e122c5d186fc63a49a7be96669a8564fc9b1984d88e4a762dc",
+      "fingerprint_inputs": {
+        "attack_spec_sha256": "a6d81b6643af13e1d2f7983ce51340f54c26629304f1fdd98b954c236c1e735f",
+        "config_sha256": "f5d7f6ea3941dfd763d31e4a068f2d117e43128b2aeb5268b0e4c912e8ead976",
+        "dataset_version_sha256": "5b3d46a79658bc009e50c69c3e68dedbf49fa0d2e47d913c800e06a5a79f9774",
+        "docker_image_digest": "none",
+        "git_commit": "1111111111111111111111111111111111111111",
+        "git_dirty": false,
+        "lib_versions": {
+          "art": "1.20.1",
+          "numpy": "2.4.6",
+          "torch": "2.14.0+cpu",
+          "torchmetrics": "1.9.0",
+          "ultralytics": "8.4.163"
+        },
+        "params": {
+          "eps": 4.0
+        },
+        "seed": 0,
+        "slice_id": "50fc13ad-2fb7-5945-a945-0b7df1cb4c3f",
+        "slice_sha256": "0200cf36aea5ab2b4030691ca7ea3922329668f91a901f5f91cb03406335eb69",
+        "weights_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36"
+      },
+      "metrics": {
+        "absolute_drop": 0.3169287516986993,
+        "attack_success_rate": 0.625,
+        "attacked": {
+          "map50": 0.14686468646864687,
+          "map50_95": 0.04372937293729372
+        },
+        "clean": {
+          "map50": 0.46379343816734614,
+          "map50_95": 0.31260526826676477
+        },
+        "partial": false,
+        "per_class": {
+          "car": {
+            "attack_success_rate": 0.8,
+            "attacked_ap50": 0.08415841584158416,
+            "clean_ap50": 0.638905066977286
+          },
+          "person": {
+            "attack_success_rate": 0.3333333333333333,
+            "attacked_ap50": 0.3564356435643564,
+            "clean_ap50": 0.7524752475247525
+          },
+          "truck": {
+            "attacked_ap50": 0.0,
+            "clean_ap50": 0.0
+          }
+        },
+        "relative_drop": 0.6833403097530347
+      },
+      "reason": null,
+      "status": "completed"
+    },
+    "grid:fgsm@8.0": {
+      "cases": [
+        {
+          "image_id": "000902",
+          "lost_objects": 3,
+          "new_false_positives": 7,
+          "rank": 0,
+          "severity_score": 6.5
+        },
+        {
+          "image_id": "002571",
+          "lost_objects": 2,
+          "new_false_positives": 1,
+          "rank": 1,
+          "severity_score": 2.5
+        },
+        {
+          "image_id": "005866",
+          "lost_objects": 1,
+          "new_false_positives": 2,
+          "rank": 2,
+          "severity_score": 2.0
+        }
+      ],
+      "fingerprint": "45faf00328cb25342fdebcd67bd494957e2d8f0baec68fa5c5c735748a0fdcbb",
+      "fingerprint_inputs": {
+        "attack_spec_sha256": "a6d81b6643af13e1d2f7983ce51340f54c26629304f1fdd98b954c236c1e735f",
+        "config_sha256": "d798de69841905bbbe65f406b31b8b176309601fcecbf925b92b3771c949100d",
+        "dataset_version_sha256": "5b3d46a79658bc009e50c69c3e68dedbf49fa0d2e47d913c800e06a5a79f9774",
+        "docker_image_digest": "none",
+        "git_commit": "1111111111111111111111111111111111111111",
+        "git_dirty": false,
+        "lib_versions": {
+          "art": "1.20.1",
+          "numpy": "2.4.6",
+          "torch": "2.14.0+cpu",
+          "torchmetrics": "1.9.0",
+          "ultralytics": "8.4.163"
+        },
+        "params": {
+          "eps": 8.0
+        },
+        "seed": 0,
+        "slice_id": "50fc13ad-2fb7-5945-a945-0b7df1cb4c3f",
+        "slice_sha256": "0200cf36aea5ab2b4030691ca7ea3922329668f91a901f5f91cb03406335eb69",
+        "weights_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36"
+      },
+      "metrics": {
+        "absolute_drop": 0.2955233591269218,
+        "attack_success_rate": 0.75,
+        "attacked": {
+          "map50": 0.16827007904042435,
+          "map50_95": 0.046483876029879405
+        },
+        "clean": {
+          "map50": 0.46379343816734614,
+          "map50_95": 0.31260526826676477
+        },
+        "partial": false,
+        "per_class": {
+          "car": {
+            "attack_success_rate": 0.8,
+            "attacked_ap50": 0.1287128712871287,
+            "clean_ap50": 0.638905066977286
+          },
+          "person": {
+            "attack_success_rate": 0.6666666666666666,
+            "attacked_ap50": 0.3205418102785887,
+            "clean_ap50": 0.7524752475247525
+          },
+          "truck": {
+            "attacked_ap50": 0.05555555555555556,
+            "clean_ap50": 0.0
+          }
+        },
+        "relative_drop": 0.637187452014556
+      },
+      "reason": null,
+      "status": "completed"
+    },
+    "grid:fog@1.0": {
+      "cases": [
+        {
+          "image_id": "000902",
+          "lost_objects": 0,
+          "new_false_positives": 1,
+          "rank": 0,
+          "severity_score": 0.5
+        }
+      ],
+      "fingerprint": "d3c2701e260d415d75a55ed24d35c6bd8e3f672aea58db0123ebc696ac080b1c",
+      "fingerprint_inputs": {
+        "attack_spec_sha256": "1c0a2e649d9b01f4a900bbe7592adcf02134a8c8525ee76b9c60e4cb466a44e7",
+        "config_sha256": "8c6f1338f00959932ee1dedab1398d07a14842c5992efdd95c41cdb89f680394",
+        "dataset_version_sha256": "5b3d46a79658bc009e50c69c3e68dedbf49fa0d2e47d913c800e06a5a79f9774",
+        "docker_image_digest": "none",
+        "git_commit": "1111111111111111111111111111111111111111",
+        "git_dirty": false,
+        "lib_versions": {
+          "art": "1.20.1",
+          "numpy": "2.4.6",
+          "torch": "2.14.0+cpu",
+          "torchmetrics": "1.9.0",
+          "ultralytics": "8.4.163"
+        },
+        "params": {
+          "severity": 1.0
+        },
+        "seed": 0,
+        "slice_id": "50fc13ad-2fb7-5945-a945-0b7df1cb4c3f",
+        "slice_sha256": "0200cf36aea5ab2b4030691ca7ea3922329668f91a901f5f91cb03406335eb69",
+        "weights_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36"
+      },
+      "metrics": {
+        "absolute_drop": -0.009445190043301022,
+        "attack_success_rate": 0.0,
+        "attacked": {
+          "map50": 0.47323862821064716,
+          "map50_95": 0.31667862438417754
+        },
+        "clean": {
+          "map50": 0.46379343816734614,
+          "map50_95": 0.31260526826676477
+        },
+        "partial": false,
+        "per_class": {
+          "car": {
+            "attack_success_rate": 0.0,
+            "attacked_ap50": 0.6237623762376238,
+            "clean_ap50": 0.638905066977286
+          },
+          "person": {
+            "attack_success_rate": 0.0,
+            "attacked_ap50": 0.7524752475247525,
+            "clean_ap50": 0.7524752475247525
+          },
+          "truck": {
+            "attacked_ap50": 0.043478260869565216,
+            "clean_ap50": 0.0
+          }
+        },
+        "relative_drop": -0.020365079076200738
+      },
+      "reason": null,
+      "status": "completed"
+    },
+    "grid:fog@3.0": {
+      "cases": [],
+      "fingerprint": "6fe870b236c30ebdd5d6b92417eebe60e22786c0425c1f80daaf9cd370ce2592",
+      "fingerprint_inputs": {
+        "attack_spec_sha256": "1c0a2e649d9b01f4a900bbe7592adcf02134a8c8525ee76b9c60e4cb466a44e7",
+        "config_sha256": "7963981e14370080fe38744ef58aa41512e1f18ba45c1e50689db980fa66ba0f",
+        "dataset_version_sha256": "5b3d46a79658bc009e50c69c3e68dedbf49fa0d2e47d913c800e06a5a79f9774",
+        "docker_image_digest": "none",
+        "git_commit": "1111111111111111111111111111111111111111",
+        "git_dirty": false,
+        "lib_versions": {
+          "art": "1.20.1",
+          "numpy": "2.4.6",
+          "torch": "2.14.0+cpu",
+          "torchmetrics": "1.9.0",
+          "ultralytics": "8.4.163"
+        },
+        "params": {
+          "severity": 3.0
+        },
+        "seed": 0,
+        "slice_id": "50fc13ad-2fb7-5945-a945-0b7df1cb4c3f",
+        "slice_sha256": "0200cf36aea5ab2b4030691ca7ea3922329668f91a901f5f91cb03406335eb69",
+        "weights_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36"
+      },
+      "metrics": {
+        "absolute_drop": -0.0077729492406253264,
+        "attack_success_rate": 0.0,
+        "attacked": {
+          "map50": 0.47156638740797147,
+          "map50_95": 0.2826648049420326
+        },
+        "clean": {
+          "map50": 0.46379343816734614,
+          "map50_95": 0.31260526826676477
+        },
+        "partial": false,
+        "per_class": {
+          "car": {
+            "attack_success_rate": 0.0,
+            "attacked_ap50": 0.6237623762376238,
+            "clean_ap50": 0.638905066977286
+          },
+          "person": {
+            "attack_success_rate": 0.0,
+            "attacked_ap50": 0.7524752475247525,
+            "clean_ap50": 0.7524752475247525
+          },
+          "truck": {
+            "attacked_ap50": 0.03846153846153845,
+            "clean_ap50": 0.0
+          }
+        },
+        "relative_drop": -0.01675950671346214
+      },
+      "reason": null,
+      "status": "completed"
+    },
+    "grid:frost@1.0": {
+      "cases": [
+        {
+          "image_id": "000902",
+          "lost_objects": 1,
+          "new_false_positives": 1,
+          "rank": 0,
+          "severity_score": 1.5
+        }
+      ],
+      "fingerprint": "6cf57465d7ae9fd1129b79b268ba3ad3364310ffcaefa18fac31633e6a6c8feb",
+      "fingerprint_inputs": {
+        "attack_spec_sha256": "74736d1cc4065bf991282efb6f677f54f33fcabba9858b9532a1dac1b0b378fd",
+        "config_sha256": "2a928fb271c29c1ce2fe691ea0985618e787a42649ff35793e11f049c9d07033",
+        "dataset_version_sha256": "5b3d46a79658bc009e50c69c3e68dedbf49fa0d2e47d913c800e06a5a79f9774",
+        "docker_image_digest": "none",
+        "git_commit": "1111111111111111111111111111111111111111",
+        "git_dirty": false,
+        "lib_versions": {
+          "art": "1.20.1",
+          "numpy": "2.4.6",
+          "torch": "2.14.0+cpu",
+          "torchmetrics": "1.9.0",
+          "ultralytics": "8.4.163"
+        },
+        "params": {
+          "severity": 1.0
+        },
+        "seed": 0,
+        "slice_id": "50fc13ad-2fb7-5945-a945-0b7df1cb4c3f",
+        "slice_sha256": "0200cf36aea5ab2b4030691ca7ea3922329668f91a901f5f91cb03406335eb69",
+        "weights_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36"
+      },
+      "metrics": {
+        "absolute_drop": 0.01879893871740118,
+        "attack_success_rate": 0.125,
+        "attacked": {
+          "map50": 0.44499449944994496,
+          "map50_95": 0.28805909162344806
+        },
+        "clean": {
+          "map50": 0.46379343816734614,
+          "map50_95": 0.31260526826676477
+        },
+        "partial": false,
+        "per_class": {
+          "car": {
+            "attack_success_rate": 0.2,
+            "attacked_ap50": 0.5825082508250825,
+            "clean_ap50": 0.638905066977286
+          },
+          "person": {
+            "attack_success_rate": 0.0,
+            "attacked_ap50": 0.7524752475247525,
+            "clean_ap50": 0.7524752475247525
+          },
+          "truck": {
+            "attacked_ap50": 0.0,
+            "clean_ap50": 0.0
+          }
+        },
+        "relative_drop": 0.04053299846518773
+      },
+      "reason": null,
+      "status": "completed"
+    },
+    "grid:frost@3.0": {
+      "cases": [
+        {
+          "image_id": "000902",
+          "lost_objects": 2,
+          "new_false_positives": 0,
+          "rank": 0,
+          "severity_score": 2.0
+        },
+        {
+          "image_id": "002571",
+          "lost_objects": 2,
+          "new_false_positives": 0,
+          "rank": 1,
+          "severity_score": 2.0
+        }
+      ],
+      "fingerprint": "57279a514c88253db58fa14cd44e1865ee7a73861a62c9425f5ff182dc6fadf4",
+      "fingerprint_inputs": {
+        "attack_spec_sha256": "74736d1cc4065bf991282efb6f677f54f33fcabba9858b9532a1dac1b0b378fd",
+        "config_sha256": "fd027d19920f722e8928517072d3b0d943370e39286e188de366afbc2175cf22",
+        "dataset_version_sha256": "5b3d46a79658bc009e50c69c3e68dedbf49fa0d2e47d913c800e06a5a79f9774",
+        "docker_image_digest": "none",
+        "git_commit": "1111111111111111111111111111111111111111",
+        "git_dirty": false,
+        "lib_versions": {
+          "art": "1.20.1",
+          "numpy": "2.4.6",
+          "torch": "2.14.0+cpu",
+          "torchmetrics": "1.9.0",
+          "ultralytics": "8.4.163"
+        },
+        "params": {
+          "severity": 3.0
+        },
+        "seed": 0,
+        "slice_id": "50fc13ad-2fb7-5945-a945-0b7df1cb4c3f",
+        "slice_sha256": "0200cf36aea5ab2b4030691ca7ea3922329668f91a901f5f91cb03406335eb69",
+        "weights_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36"
+      },
+      "metrics": {
+        "absolute_drop": 0.04387348169082411,
+        "attack_success_rate": 0.5,
+        "attacked": {
+          "map50": 0.419919956476522,
+          "map50_95": 0.24941467060745584
+        },
+        "clean": {
+          "map50": 0.46379343816734614,
+          "map50_95": 0.31260526826676477
+        },
+        "partial": false,
+        "per_class": {
+          "car": {
+            "attack_success_rate": 0.8,
+            "attacked_ap50": 0.3822846219048135,
+            "clean_ap50": 0.638905066977286
+          },
+          "person": {
+            "attack_success_rate": 0.0,
+            "attacked_ap50": 0.7524752475247525,
+            "clean_ap50": 0.7524752475247525
+          },
+          "truck": {
+            "attacked_ap50": 0.125,
+            "clean_ap50": 0.0
+          }
+        },
+        "relative_drop": 0.09459702979884262
+      },
+      "reason": null,
+      "status": "completed"
+    },
+    "grid:motion_blur@1.0": {
+      "cases": [],
+      "fingerprint": "c276b578004c1a95b14bbdab02db574a0f6fd6f057ae0adb88185abb09253a9e",
+      "fingerprint_inputs": {
+        "attack_spec_sha256": "e935e0e29f06a4769d71805ba639ea9ecee51651e4a017c8fe95d54d8f9e1b7a",
+        "config_sha256": "fe03b9a6daff7cc4bbb666e35ed13456be11e5361c7422c87358f8b21c6c95c8",
+        "dataset_version_sha256": "5b3d46a79658bc009e50c69c3e68dedbf49fa0d2e47d913c800e06a5a79f9774",
+        "docker_image_digest": "none",
+        "git_commit": "1111111111111111111111111111111111111111",
+        "git_dirty": false,
+        "lib_versions": {
+          "art": "1.20.1",
+          "numpy": "2.4.6",
+          "torch": "2.14.0+cpu",
+          "torchmetrics": "1.9.0",
+          "ultralytics": "8.4.163"
+        },
+        "params": {
+          "severity": 1.0
+        },
+        "seed": 0,
+        "slice_id": "50fc13ad-2fb7-5945-a945-0b7df1cb4c3f",
+        "slice_sha256": "0200cf36aea5ab2b4030691ca7ea3922329668f91a901f5f91cb03406335eb69",
+        "weights_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36"
+      },
+      "metrics": {
+        "absolute_drop": 0.0025723160551349156,
+        "attack_success_rate": 0.0,
+        "attacked": {
+          "map50": 0.4612211221122112,
+          "map50_95": 0.3131188118811881
+        },
+        "clean": {
+          "map50": 0.46379343816734614,
+          "map50_95": 0.31260526826676477
+        },
+        "partial": false,
+        "per_class": {
+          "car": {
+            "attack_success_rate": 0.0,
+            "attacked_ap50": 0.6311881188118813,
+            "clean_ap50": 0.638905066977286
+          },
+          "person": {
+            "attack_success_rate": 0.0,
+            "attacked_ap50": 0.7524752475247525,
+            "clean_ap50": 0.7524752475247525
+          },
+          "truck": {
+            "attacked_ap50": 0.0,
+            "clean_ap50": 0.0
+          }
+        },
+        "relative_drop": 0.0055462536626203224
+      },
+      "reason": null,
+      "status": "completed"
+    },
+    "grid:motion_blur@3.0": {
+      "cases": [
+        {
+          "image_id": "000902",
+          "lost_objects": 3,
+          "new_false_positives": 0,
+          "rank": 0,
+          "severity_score": 3.0
+        },
+        {
+          "image_id": "002571",
+          "lost_objects": 2,
+          "new_false_positives": 0,
+          "rank": 1,
+          "severity_score": 2.0
+        }
+      ],
+      "fingerprint": "2ea42c226ecac32ac9d4f6b87be90c0c5bfc1b55c4348c0faff28682f94ecb82",
+      "fingerprint_inputs": {
+        "attack_spec_sha256": "e935e0e29f06a4769d71805ba639ea9ecee51651e4a017c8fe95d54d8f9e1b7a",
+        "config_sha256": "de67a0fa3b75f41fa80b4cf7afb0ab2383dd9b8c192e8e0a4562b11a217a4321",
+        "dataset_version_sha256": "5b3d46a79658bc009e50c69c3e68dedbf49fa0d2e47d913c800e06a5a79f9774",
+        "docker_image_digest": "none",
+        "git_commit": "1111111111111111111111111111111111111111",
+        "git_dirty": false,
+        "lib_versions": {
+          "art": "1.20.1",
+          "numpy": "2.4.6",
+          "torch": "2.14.0+cpu",
+          "torchmetrics": "1.9.0",
+          "ultralytics": "8.4.163"
+        },
+        "params": {
+          "severity": 3.0
+        },
+        "seed": 0,
+        "slice_id": "50fc13ad-2fb7-5945-a945-0b7df1cb4c3f",
+        "slice_sha256": "0200cf36aea5ab2b4030691ca7ea3922329668f91a901f5f91cb03406335eb69",
+        "weights_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36"
+      },
+      "metrics": {
+        "absolute_drop": 0.1749528578028801,
+        "attack_success_rate": 0.625,
+        "attacked": {
+          "map50": 0.288840580364466,
+          "map50_95": 0.12816859022883592
+        },
+        "clean": {
+          "map50": 0.46379343816734614,
+          "map50_95": 0.31260526826676477
+        },
+        "partial": false,
+        "per_class": {
+          "car": {
+            "attack_success_rate": 0.6,
+            "attacked_ap50": 0.5627062706270627,
+            "clean_ap50": 0.638905066977286
+          },
+          "person": {
+            "attack_success_rate": 0.6666666666666666,
+            "attacked_ap50": 0.30381547046633517,
+            "clean_ap50": 0.7524752475247525
+          },
+          "truck": {
+            "attacked_ap50": 0.0,
+            "clean_ap50": 0.0
+          }
+        },
+        "relative_drop": 0.3772215029479429
+      },
+      "reason": null,
+      "status": "completed"
+    },
+    "grid:pgd_l2@1.0": {
+      "cases": [
+        {
+          "image_id": "000902",
+          "lost_objects": 3,
+          "new_false_positives": 8,
+          "rank": 0,
+          "severity_score": 7.0
+        },
+        {
+          "image_id": "002571",
+          "lost_objects": 2,
+          "new_false_positives": 3,
+          "rank": 1,
+          "severity_score": 3.5
+        }
+      ],
+      "fingerprint": "d26ef4df1e51fdf847c9c21f5e60b8781a7a81f596198f027c72278a77b53cf4",
+      "fingerprint_inputs": {
+        "attack_spec_sha256": "fb54ce834934be1340423f2fb4283b37766e2c1ca74a8fceea9b762e64f7351e",
+        "config_sha256": "0ccc24747d05820740675ebfced884a2517989dd346965a9e90d54f2582a15d0",
+        "dataset_version_sha256": "5b3d46a79658bc009e50c69c3e68dedbf49fa0d2e47d913c800e06a5a79f9774",
+        "docker_image_digest": "none",
+        "git_commit": "1111111111111111111111111111111111111111",
+        "git_dirty": false,
+        "lib_versions": {
+          "art": "1.20.1",
+          "numpy": "2.4.6",
+          "torch": "2.14.0+cpu",
+          "torchmetrics": "1.9.0",
+          "ultralytics": "8.4.163"
+        },
+        "params": {
+          "eps": 1.0
+        },
+        "seed": 0,
+        "slice_id": "50fc13ad-2fb7-5945-a945-0b7df1cb4c3f",
+        "slice_sha256": "0200cf36aea5ab2b4030691ca7ea3922329668f91a901f5f91cb03406335eb69",
+        "weights_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36"
+      },
+      "metrics": {
+        "absolute_drop": 0.36426098492202164,
+        "attack_success_rate": 0.625,
+        "attacked": {
+          "map50": 0.09953245324532453,
+          "map50_95": 0.014297304730473047
+        },
+        "clean": {
+          "map50": 0.46379343816734614,
+          "map50_95": 0.31260526826676477
+        },
+        "partial": false,
+        "per_class": {
+          "car": {
+            "attack_success_rate": 0.8,
+            "attacked_ap50": 0.046122112211221124,
+            "clean_ap50": 0.638905066977286
+          },
+          "person": {
+            "attack_success_rate": 0.3333333333333333,
+            "attacked_ap50": 0.2524752475247525,
+            "clean_ap50": 0.7524752475247525
+          },
+          "truck": {
+            "attacked_ap50": 0.0,
+            "clean_ap50": 0.0
+          }
+        },
+        "relative_drop": 0.7853948653550998
+      },
+      "reason": null,
+      "status": "completed"
+    },
+    "grid:pgd_l2@2.0": {
+      "cases": [
+        {
+          "image_id": "000902",
+          "lost_objects": 3,
+          "new_false_positives": 13,
+          "rank": 0,
+          "severity_score": 9.5
+        },
+        {
+          "image_id": "002571",
+          "lost_objects": 3,
+          "new_false_positives": 9,
+          "rank": 1,
+          "severity_score": 7.5
+        },
+        {
+          "image_id": "005866",
+          "lost_objects": 2,
+          "new_false_positives": 5,
+          "rank": 2,
+          "severity_score": 4.5
+        }
+      ],
+      "fingerprint": "e678367ca49e90cab4fe99837c37ee63fc71afe8bfc3e2402b8309dd3fb91d39",
+      "fingerprint_inputs": {
+        "attack_spec_sha256": "fb54ce834934be1340423f2fb4283b37766e2c1ca74a8fceea9b762e64f7351e",
+        "config_sha256": "0474acc6a7b7f2a5a7bbe94a9e446acd3f77c740de5d0d21fde3d8ab891cdac2",
+        "dataset_version_sha256": "5b3d46a79658bc009e50c69c3e68dedbf49fa0d2e47d913c800e06a5a79f9774",
+        "docker_image_digest": "none",
+        "git_commit": "1111111111111111111111111111111111111111",
+        "git_dirty": false,
+        "lib_versions": {
+          "art": "1.20.1",
+          "numpy": "2.4.6",
+          "torch": "2.14.0+cpu",
+          "torchmetrics": "1.9.0",
+          "ultralytics": "8.4.163"
+        },
+        "params": {
+          "eps": 2.0
+        },
+        "seed": 0,
+        "slice_id": "50fc13ad-2fb7-5945-a945-0b7df1cb4c3f",
+        "slice_sha256": "0200cf36aea5ab2b4030691ca7ea3922329668f91a901f5f91cb03406335eb69",
+        "weights_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36"
+      },
+      "metrics": {
+        "absolute_drop": 0.46351483887884587,
+        "attack_success_rate": 1.0,
+        "attacked": {
+          "map50": 0.0002785992885002786,
+          "map50_95": 2.785992885002786e-05
+        },
+        "clean": {
+          "map50": 0.46379343816734614,
+          "map50_95": 0.31260526826676477
+        },
+        "partial": false,
+        "per_class": {
+          "car": {
+            "attack_success_rate": 1.0,
+            "attacked_ap50": 0.0008357978655008358,
+            "clean_ap50": 0.638905066977286
+          },
+          "person": {
+            "attack_success_rate": 1.0,
+            "attacked_ap50": 0.0,
+            "clean_ap50": 0.7524752475247525
+          },
+          "truck": {
+            "attacked_ap50": 0.0,
+            "clean_ap50": 0.0
+          }
+        },
+        "relative_drop": 0.9993993030828527
+      },
+      "reason": null,
+      "status": "completed"
+    },
+    "grid:pgd_linf@4.0": {
+      "cases": [
+        {
+          "image_id": "000902",
+          "lost_objects": 3,
+          "new_false_positives": 36,
+          "rank": 0,
+          "severity_score": 21.0
+        },
+        {
+          "image_id": "002571",
+          "lost_objects": 3,
+          "new_false_positives": 27,
+          "rank": 1,
+          "severity_score": 16.5
+        },
+        {
+          "image_id": "005866",
+          "lost_objects": 2,
+          "new_false_positives": 11,
+          "rank": 2,
+          "severity_score": 7.5
+        }
+      ],
+      "fingerprint": "f51ee10004263a778c0220777100591250b20c59990e39edf8e54fffa701c061",
+      "fingerprint_inputs": {
+        "attack_spec_sha256": "68fe8f72f176fe27981eadfe8b5e98bb36b8e85fc41c97b5702e2e149f52d72c",
+        "config_sha256": "905a01ddf3aec4a65edfc3e8f0f2d574c96d6f89ea657c830b7603a751fb2c43",
+        "dataset_version_sha256": "5b3d46a79658bc009e50c69c3e68dedbf49fa0d2e47d913c800e06a5a79f9774",
+        "docker_image_digest": "none",
+        "git_commit": "1111111111111111111111111111111111111111",
+        "git_dirty": false,
+        "lib_versions": {
+          "art": "1.20.1",
+          "numpy": "2.4.6",
+          "torch": "2.14.0+cpu",
+          "torchmetrics": "1.9.0",
+          "ultralytics": "8.4.163"
+        },
+        "params": {
+          "eps": 4.0
+        },
+        "seed": 0,
+        "slice_id": "50fc13ad-2fb7-5945-a945-0b7df1cb4c3f",
+        "slice_sha256": "0200cf36aea5ab2b4030691ca7ea3922329668f91a901f5f91cb03406335eb69",
+        "weights_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36"
+      },
+      "metrics": {
+        "absolute_drop": 0.4635929508288927,
+        "attack_success_rate": 1.0,
+        "attacked": {
+          "map50": 0.0002004873384534715,
+          "map50_95": 2.004873384534715e-05
+        },
+        "clean": {
+          "map50": 0.46379343816734614,
+          "map50_95": 0.31260526826676477
+        },
+        "partial": false,
+        "per_class": {
+          "car": {
+            "attack_success_rate": 1.0,
+            "attacked_ap50": 0.0006014620153604145,
+            "clean_ap50": 0.638905066977286
+          },
+          "person": {
+            "attack_success_rate": 1.0,
+            "attacked_ap50": 0.0,
+            "clean_ap50": 0.7524752475247525
+          },
+          "truck": {
+            "attacked_ap50": 0.0,
+            "clean_ap50": 0.0
+          }
+        },
+        "relative_drop": 0.9995677227792491
+      },
+      "reason": null,
+      "status": "completed"
+    },
+    "grid:pgd_linf@8.0": {
+      "cases": [],
+      "fingerprint": null,
+      "fingerprint_inputs": null,
+      "metrics": null,
+      "reason": "early_stop",
+      "status": "skipped"
+    },
+    "grid:snow@1.0": {
+      "cases": [
+        {
+          "image_id": "000902",
+          "lost_objects": 2,
+          "new_false_positives": 1,
+          "rank": 0,
+          "severity_score": 2.5
+        },
+        {
+          "image_id": "002571",
+          "lost_objects": 1,
+          "new_false_positives": 1,
+          "rank": 1,
+          "severity_score": 1.5
+        }
+      ],
+      "fingerprint": "069e7f1cd27e8293eb3512874719af0e9c3a3004fde73b4b4cd0ef3e024bb2e9",
+      "fingerprint_inputs": {
+        "attack_spec_sha256": "76c4d0938fcde338ff496a4c9e29ef4b3949a16ae410f1e2d409eab3b6ae7d9d",
+        "config_sha256": "7cadf488ffc01310b0ce481d6143a305743fe38301d2c19622d8cd11781bf7cd",
+        "dataset_version_sha256": "5b3d46a79658bc009e50c69c3e68dedbf49fa0d2e47d913c800e06a5a79f9774",
+        "docker_image_digest": "none",
+        "git_commit": "1111111111111111111111111111111111111111",
+        "git_dirty": false,
+        "lib_versions": {
+          "art": "1.20.1",
+          "numpy": "2.4.6",
+          "torch": "2.14.0+cpu",
+          "torchmetrics": "1.9.0",
+          "ultralytics": "8.4.163"
+        },
+        "params": {
+          "severity": 1.0
+        },
+        "seed": 0,
+        "slice_id": "50fc13ad-2fb7-5945-a945-0b7df1cb4c3f",
+        "slice_sha256": "0200cf36aea5ab2b4030691ca7ea3922329668f91a901f5f91cb03406335eb69",
+        "weights_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36"
+      },
+      "metrics": {
+        "absolute_drop": 0.07126451494535363,
+        "attack_success_rate": 0.375,
+        "attacked": {
+          "map50": 0.3925289232219925,
+          "map50_95": 0.27032769577324034
+        },
+        "clean": {
+          "map50": 0.46379343816734614,
+          "map50_95": 0.31260526826676477
+        },
+        "partial": false,
+        "per_class": {
+          "car": {
+            "attack_success_rate": 0.6,
+            "attacked_ap50": 0.42511152214122516,
+            "clean_ap50": 0.638905066977286
+          },
+          "person": {
+            "attack_success_rate": 0.0,
+            "attacked_ap50": 0.7524752475247525,
+            "clean_ap50": 0.7524752475247525
+          },
+          "truck": {
+            "attacked_ap50": 0.0,
+            "clean_ap50": 0.0
+          }
+        },
+        "relative_drop": 0.15365572058749122
+      },
+      "reason": null,
+      "status": "completed"
+    },
+    "grid:snow@3.0": {
+      "cases": [
+        {
+          "image_id": "000902",
+          "lost_objects": 2,
+          "new_false_positives": 0,
+          "rank": 0,
+          "severity_score": 2.0
+        },
+        {
+          "image_id": "002571",
+          "lost_objects": 2,
+          "new_false_positives": 0,
+          "rank": 1,
+          "severity_score": 2.0
+        }
+      ],
+      "fingerprint": "b74497a132d50ae2c3db207e3a91849a8f37a008dab799072a099ca5dd26a966",
+      "fingerprint_inputs": {
+        "attack_spec_sha256": "76c4d0938fcde338ff496a4c9e29ef4b3949a16ae410f1e2d409eab3b6ae7d9d",
+        "config_sha256": "64115e70700dae30ff217585c27ab23227aa9e3e77f348a422d54e3797ceb86c",
+        "dataset_version_sha256": "5b3d46a79658bc009e50c69c3e68dedbf49fa0d2e47d913c800e06a5a79f9774",
+        "docker_image_digest": "none",
+        "git_commit": "1111111111111111111111111111111111111111",
+        "git_dirty": false,
+        "lib_versions": {
+          "art": "1.20.1",
+          "numpy": "2.4.6",
+          "torch": "2.14.0+cpu",
+          "torchmetrics": "1.9.0",
+          "ultralytics": "8.4.163"
+        },
+        "params": {
+          "severity": 3.0
+        },
+        "seed": 0,
+        "slice_id": "50fc13ad-2fb7-5945-a945-0b7df1cb4c3f",
+        "slice_sha256": "0200cf36aea5ab2b4030691ca7ea3922329668f91a901f5f91cb03406335eb69",
+        "weights_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36"
+      },
+      "metrics": {
+        "absolute_drop": 0.16938264485246396,
+        "attack_success_rate": 0.5,
+        "attacked": {
+          "map50": 0.2944107933148822,
+          "map50_95": 0.17724670176941357
+        },
+        "clean": {
+          "map50": 0.46379343816734614,
+          "map50_95": 0.31260526826676477
+        },
+        "partial": false,
+        "per_class": {
+          "car": {
+            "attack_success_rate": 0.6,
+            "attacked_ap50": 0.3122752842350756,
+            "clean_ap50": 0.638905066977286
+          },
+          "person": {
+            "attack_success_rate": 0.3333333333333333,
+            "attacked_ap50": 0.5709570957095709,
+            "clean_ap50": 0.7524752475247525
+          },
+          "truck": {
+            "attacked_ap50": 0.0,
+            "clean_ap50": 0.0
+          }
+        },
+        "relative_drop": 0.36521138703852735
+      },
+      "reason": null,
+      "status": "completed"
+    },
+    "search:pgd_linf@1.3333333333333333#full/7": {
+      "cases": [
+        {
+          "image_id": "000902",
+          "lost_objects": 3,
+          "new_false_positives": 16,
+          "rank": 0,
+          "severity_score": 11.0
+        },
+        {
+          "image_id": "002571",
+          "lost_objects": 2,
+          "new_false_positives": 13,
+          "rank": 1,
+          "severity_score": 8.5
+        },
+        {
+          "image_id": "005866",
+          "lost_objects": 0,
+          "new_false_positives": 7,
+          "rank": 2,
+          "severity_score": 3.5
+        }
+      ],
+      "fingerprint": "60071b411117817435e61346eac0cc1da833c785c66d7b2343b4eb0e9e737964",
+      "fingerprint_inputs": {
+        "attack_spec_sha256": "68fe8f72f176fe27981eadfe8b5e98bb36b8e85fc41c97b5702e2e149f52d72c",
+        "config_sha256": "2ce62ec8e2598f9f6f3200f79ba093cb795b104f8e55272a8e3aaa0fc5cd2593",
+        "dataset_version_sha256": "5b3d46a79658bc009e50c69c3e68dedbf49fa0d2e47d913c800e06a5a79f9774",
+        "docker_image_digest": "none",
+        "git_commit": "1111111111111111111111111111111111111111",
+        "git_dirty": false,
+        "lib_versions": {
+          "art": "1.20.1",
+          "numpy": "2.4.6",
+          "torch": "2.14.0+cpu",
+          "torchmetrics": "1.9.0",
+          "ultralytics": "8.4.163"
+        },
+        "params": {
+          "eps": 1.3333333333333333
+        },
+        "seed": 0,
+        "slice_id": "50fc13ad-2fb7-5945-a945-0b7df1cb4c3f",
+        "slice_sha256": "0200cf36aea5ab2b4030691ca7ea3922329668f91a901f5f91cb03406335eb69",
+        "weights_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36"
+      },
+      "metrics": {
+        "absolute_drop": 0.34619167799132855,
+        "attack_success_rate": 0.625,
+        "attacked": {
+          "map50": 0.11760176017601758,
+          "map50_95": 0.04358950180732358
+        },
+        "clean": {
+          "map50": 0.46379343816734614,
+          "map50_95": 0.31260526826676477
+        },
+        "partial": false,
+        "per_class": {
+          "car": {
+            "attack_success_rate": 0.8,
+            "attacked_ap50": 0.012871287128712872,
+            "clean_ap50": 0.638905066977286
+          },
+          "person": {
+            "attack_success_rate": 0.3333333333333333,
+            "attacked_ap50": 0.3399339933993399,
+            "clean_ap50": 0.7524752475247525
+          },
+          "truck": {
+            "attacked_ap50": 0.0,
+            "clean_ap50": 0.0
+          }
+        },
+        "relative_drop": 0.7464350495325799
+      },
+      "reason": null,
+      "status": "completed"
+    },
+    "search:pgd_linf@1.3333333333333333#subset/5": {
+      "cases": [
+        {
+          "image_id": "000902",
+          "lost_objects": 3,
+          "new_false_positives": 16,
+          "rank": 0,
+          "severity_score": 11.0
+        },
+        {
+          "image_id": "002571",
+          "lost_objects": 2,
+          "new_false_positives": 13,
+          "rank": 1,
+          "severity_score": 8.5
+        }
+      ],
+      "fingerprint": "bf7c1b301418f97fcfa0ec259cbf07564c0c66c7c4cbd81cfce0af01748d8be9",
+      "fingerprint_inputs": {
+        "attack_spec_sha256": "68fe8f72f176fe27981eadfe8b5e98bb36b8e85fc41c97b5702e2e149f52d72c",
+        "config_sha256": "2ce62ec8e2598f9f6f3200f79ba093cb795b104f8e55272a8e3aaa0fc5cd2593",
+        "dataset_version_sha256": "5b3d46a79658bc009e50c69c3e68dedbf49fa0d2e47d913c800e06a5a79f9774",
+        "docker_image_digest": "none",
+        "eval_image_ids_sha256": "b0926dff6a6024b4f21d7a9980e1ab6bc9507cd37918c0b0ee4e494f20665960",
+        "git_commit": "1111111111111111111111111111111111111111",
+        "git_dirty": false,
+        "lib_versions": {
+          "art": "1.20.1",
+          "numpy": "2.4.6",
+          "torch": "2.14.0+cpu",
+          "torchmetrics": "1.9.0",
+          "ultralytics": "8.4.163"
+        },
+        "params": {
+          "eps": 1.3333333333333333
+        },
+        "seed": 0,
+        "slice_id": "50fc13ad-2fb7-5945-a945-0b7df1cb4c3f",
+        "slice_sha256": "0200cf36aea5ab2b4030691ca7ea3922329668f91a901f5f91cb03406335eb69",
+        "weights_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36"
+      },
+      "metrics": {
+        "absolute_drop": 0.39266252206616015,
+        "attack_success_rate": 0.8333333333333334,
+        "attacked": {
+          "map50": 0.16831683168316827,
+          "map50_95": 0.0673267326732673
+        },
+        "clean": {
+          "map50": 0.5609793537493284,
+          "map50_95": 0.37452433487260095
+        },
+        "partial": false,
+        "per_class": {
+          "car": {
+            "attack_success_rate": 1.0,
+            "attacked_ap50": 0.0,
+            "clean_ap50": 0.6829380612479853
+          },
+          "person": {
+            "attack_success_rate": 0.5,
+            "attacked_ap50": 0.5049504950495048,
+            "clean_ap50": 1.0
+          },
+          "truck": {
+            "attacked_ap50": 0.0,
+            "clean_ap50": 0.0
+          }
+        },
+        "relative_drop": 0.6999589547133672
+      },
+      "reason": null,
+      "status": "completed"
+    },
+    "search:pgd_linf@10.666666666666666#subset/2": {
+      "cases": [
+        {
+          "image_id": "002571",
+          "lost_objects": 3,
+          "new_false_positives": 36,
+          "rank": 0,
+          "severity_score": 21.0
+        },
+        {
+          "image_id": "000902",
+          "lost_objects": 3,
+          "new_false_positives": 24,
+          "rank": 1,
+          "severity_score": 15.0
+        }
+      ],
+      "fingerprint": "e1a4f3910983dd33a4c0f6013f4de9454799b27db809ed598ec65f49cf96e7bf",
+      "fingerprint_inputs": {
+        "attack_spec_sha256": "68fe8f72f176fe27981eadfe8b5e98bb36b8e85fc41c97b5702e2e149f52d72c",
+        "config_sha256": "996e64028ccc56816645a353a204e41b3e6911de13ee0a381c9a853edc8d2099",
+        "dataset_version_sha256": "5b3d46a79658bc009e50c69c3e68dedbf49fa0d2e47d913c800e06a5a79f9774",
+        "docker_image_digest": "none",
+        "eval_image_ids_sha256": "b0926dff6a6024b4f21d7a9980e1ab6bc9507cd37918c0b0ee4e494f20665960",
+        "git_commit": "1111111111111111111111111111111111111111",
+        "git_dirty": false,
+        "lib_versions": {
+          "art": "1.20.1",
+          "numpy": "2.4.6",
+          "torch": "2.14.0+cpu",
+          "torchmetrics": "1.9.0",
+          "ultralytics": "8.4.163"
+        },
+        "params": {
+          "eps": 10.666666666666666
+        },
+        "seed": 0,
+        "slice_id": "50fc13ad-2fb7-5945-a945-0b7df1cb4c3f",
+        "slice_sha256": "0200cf36aea5ab2b4030691ca7ea3922329668f91a901f5f91cb03406335eb69",
+        "weights_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36"
+      },
+      "metrics": {
+        "absolute_drop": 0.5609793537493284,
+        "attack_success_rate": 1.0,
+        "attacked": {
+          "map50": 0.0,
+          "map50_95": 0.0
+        },
+        "clean": {
+          "map50": 0.5609793537493284,
+          "map50_95": 0.37452433487260095
+        },
+        "partial": false,
+        "per_class": {
+          "car": {
+            "attack_success_rate": 1.0,
+            "attacked_ap50": 0.0,
+            "clean_ap50": 0.6829380612479853
+          },
+          "person": {
+            "attack_success_rate": 1.0,
+            "attacked_ap50": 0.0,
+            "clean_ap50": 1.0
+          },
+          "truck": {
+            "attacked_ap50": 0.0,
+            "clean_ap50": 0.0
+          }
+        },
+        "relative_drop": 1.0
+      },
+      "reason": null,
+      "status": "completed"
+    },
+    "search:pgd_linf@16.0#subset/3": {
+      "cases": [
+        {
+          "image_id": "000902",
+          "lost_objects": 3,
+          "new_false_positives": 43,
+          "rank": 0,
+          "severity_score": 24.5
+        },
+        {
+          "image_id": "002571",
+          "lost_objects": 3,
+          "new_false_positives": 28,
+          "rank": 1,
+          "severity_score": 17.0
+        }
+      ],
+      "fingerprint": "4ad4246c99e7d2fa042be349be33f5c56e55e5ea9eef5b491d91b23358be2dbd",
+      "fingerprint_inputs": {
+        "attack_spec_sha256": "68fe8f72f176fe27981eadfe8b5e98bb36b8e85fc41c97b5702e2e149f52d72c",
+        "config_sha256": "3a24b1fb67cef1f3c911bae5824ec822866b7d3174a15fb8dd1891b2523327d8",
+        "dataset_version_sha256": "5b3d46a79658bc009e50c69c3e68dedbf49fa0d2e47d913c800e06a5a79f9774",
+        "docker_image_digest": "none",
+        "eval_image_ids_sha256": "b0926dff6a6024b4f21d7a9980e1ab6bc9507cd37918c0b0ee4e494f20665960",
+        "git_commit": "1111111111111111111111111111111111111111",
+        "git_dirty": false,
+        "lib_versions": {
+          "art": "1.20.1",
+          "numpy": "2.4.6",
+          "torch": "2.14.0+cpu",
+          "torchmetrics": "1.9.0",
+          "ultralytics": "8.4.163"
+        },
+        "params": {
+          "eps": 16.0
+        },
+        "seed": 0,
+        "slice_id": "50fc13ad-2fb7-5945-a945-0b7df1cb4c3f",
+        "slice_sha256": "0200cf36aea5ab2b4030691ca7ea3922329668f91a901f5f91cb03406335eb69",
+        "weights_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36"
+      },
+      "metrics": {
+        "absolute_drop": 0.5609793537493284,
+        "attack_success_rate": 1.0,
+        "attacked": {
+          "map50": 0.0,
+          "map50_95": 0.0
+        },
+        "clean": {
+          "map50": 0.5609793537493284,
+          "map50_95": 0.37452433487260095
+        },
+        "partial": false,
+        "per_class": {
+          "car": {
+            "attack_success_rate": 1.0,
+            "attacked_ap50": 0.0,
+            "clean_ap50": 0.6829380612479853
+          },
+          "person": {
+            "attack_success_rate": 1.0,
+            "attacked_ap50": 0.0,
+            "clean_ap50": 1.0
+          },
+          "truck": {
+            "attacked_ap50": 0.0,
+            "clean_ap50": 0.0
+          }
+        },
+        "relative_drop": 1.0
+      },
+      "reason": null,
+      "status": "completed"
+    },
+    "search:pgd_linf@2.6666666666666665#subset/4": {
+      "cases": [
+        {
+          "image_id": "000902",
+          "lost_objects": 3,
+          "new_false_positives": 24,
+          "rank": 0,
+          "severity_score": 15.0
+        },
+        {
+          "image_id": "002571",
+          "lost_objects": 2,
+          "new_false_positives": 20,
+          "rank": 1,
+          "severity_score": 12.0
+        }
+      ],
+      "fingerprint": "4c04fba83d080ce08d577099b7e4df6d04aff9b0211aa56dcff87fccd4b513af",
+      "fingerprint_inputs": {
+        "attack_spec_sha256": "68fe8f72f176fe27981eadfe8b5e98bb36b8e85fc41c97b5702e2e149f52d72c",
+        "config_sha256": "fbe70522eb39066fb1ea60dbb4509c198bcae374d796bb7dbd128441930c9b92",
+        "dataset_version_sha256": "5b3d46a79658bc009e50c69c3e68dedbf49fa0d2e47d913c800e06a5a79f9774",
+        "docker_image_digest": "none",
+        "eval_image_ids_sha256": "b0926dff6a6024b4f21d7a9980e1ab6bc9507cd37918c0b0ee4e494f20665960",
+        "git_commit": "1111111111111111111111111111111111111111",
+        "git_dirty": false,
+        "lib_versions": {
+          "art": "1.20.1",
+          "numpy": "2.4.6",
+          "torch": "2.14.0+cpu",
+          "torchmetrics": "1.9.0",
+          "ultralytics": "8.4.163"
+        },
+        "params": {
+          "eps": 2.6666666666666665
+        },
+        "seed": 0,
+        "slice_id": "50fc13ad-2fb7-5945-a945-0b7df1cb4c3f",
+        "slice_sha256": "0200cf36aea5ab2b4030691ca7ea3922329668f91a901f5f91cb03406335eb69",
+        "weights_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36"
+      },
+      "metrics": {
+        "absolute_drop": 0.5422774835623096,
+        "attack_success_rate": 0.8333333333333334,
+        "attacked": {
+          "map50": 0.0187018701870187,
+          "map50_95": 0.00187018701870187
+        },
+        "clean": {
+          "map50": 0.5609793537493284,
+          "map50_95": 0.37452433487260095
+        },
+        "partial": false,
+        "per_class": {
+          "car": {
+            "attack_success_rate": 1.0,
+            "attacked_ap50": 0.0,
+            "clean_ap50": 0.6829380612479853
+          },
+          "person": {
+            "attack_success_rate": 0.5,
+            "attacked_ap50": 0.05610561056105612,
+            "clean_ap50": 1.0
+          },
+          "truck": {
+            "attacked_ap50": 0.0,
+            "clean_ap50": 0.0
+          }
+        },
+        "relative_drop": 0.966662106079263
+      },
+      "reason": null,
+      "status": "completed"
+    },
+    "search:pgd_linf@5.333333333333333#subset/1": {
+      "cases": [
+        {
+          "image_id": "000902",
+          "lost_objects": 3,
+          "new_false_positives": 35,
+          "rank": 0,
+          "severity_score": 20.5
+        },
+        {
+          "image_id": "002571",
+          "lost_objects": 3,
+          "new_false_positives": 30,
+          "rank": 1,
+          "severity_score": 18.0
+        }
+      ],
+      "fingerprint": "dc238c0141b4ac3b9735fdade1d79b40842fa19863e31ca1095a16abad91331f",
+      "fingerprint_inputs": {
+        "attack_spec_sha256": "68fe8f72f176fe27981eadfe8b5e98bb36b8e85fc41c97b5702e2e149f52d72c",
+        "config_sha256": "b6d867997c150980e389ceec480b447becd574dba8ecdb3a57609745955ca972",
+        "dataset_version_sha256": "5b3d46a79658bc009e50c69c3e68dedbf49fa0d2e47d913c800e06a5a79f9774",
+        "docker_image_digest": "none",
+        "eval_image_ids_sha256": "b0926dff6a6024b4f21d7a9980e1ab6bc9507cd37918c0b0ee4e494f20665960",
+        "git_commit": "1111111111111111111111111111111111111111",
+        "git_dirty": false,
+        "lib_versions": {
+          "art": "1.20.1",
+          "numpy": "2.4.6",
+          "torch": "2.14.0+cpu",
+          "torchmetrics": "1.9.0",
+          "ultralytics": "8.4.163"
+        },
+        "params": {
+          "eps": 5.333333333333333
+        },
+        "seed": 0,
+        "slice_id": "50fc13ad-2fb7-5945-a945-0b7df1cb4c3f",
+        "slice_sha256": "0200cf36aea5ab2b4030691ca7ea3922329668f91a901f5f91cb03406335eb69",
+        "weights_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36"
+      },
+      "metrics": {
+        "absolute_drop": 0.5609793537493284,
+        "attack_success_rate": 1.0,
+        "attacked": {
+          "map50": 0.0,
+          "map50_95": 0.0
+        },
+        "clean": {
+          "map50": 0.5609793537493284,
+          "map50_95": 0.37452433487260095
+        },
+        "partial": false,
+        "per_class": {
+          "car": {
+            "attack_success_rate": 1.0,
+            "attacked_ap50": 0.0,
+            "clean_ap50": 0.6829380612479853
+          },
+          "person": {
+            "attack_success_rate": 1.0,
+            "attacked_ap50": 0.0,
+            "clean_ap50": 1.0
+          },
+          "truck": {
+            "attacked_ap50": 0.0,
+            "clean_ap50": 0.0
+          }
+        },
+        "relative_drop": 1.0
+      },
+      "reason": null,
+      "status": "completed"
+    }
+  },
+  "schema": 1,
+  "searches": {
+    "pgd_linf": {
+      "bracket": [
+        0.0,
+        1.3333333333333333
+      ],
+      "breaking_point": 1.3333333333333333,
+      "class_filter": null,
+      "confidence_interval": [
+        0.26666666666666666,
+        0.6126027397260274
+      ],
+      "max_points": 13,
+      "message": null,
+      "metric_kind": "map50",
+      "near_threshold": false,
+      "points_used": 6,
+      "schema_version": 1,
+      "stage": "done",
+      "status": "found",
+      "threshold": 0.2,
+      "threshold_kind": "relative_drop",
+      "trajectory": [
+        {
+          "drop": 0.0,
+          "drop_ci": null,
+          "has_run": false,
+          "level": 0.0,
+          "order": 0,
+          "scope": "subset",
+          "synthetic": true
+        },
+        {
+          "drop": 1.0,
+          "drop_ci": null,
+          "has_run": true,
+          "level": 5.333333333333333,
+          "order": 1,
+          "scope": "subset",
+          "synthetic": false
+        },
+        {
+          "drop": 1.0,
+          "drop_ci": null,
+          "has_run": true,
+          "level": 10.666666666666666,
+          "order": 2,
+          "scope": "subset",
+          "synthetic": false
+        },
+        {
+          "drop": 1.0,
+          "drop_ci": null,
+          "has_run": true,
+          "level": 16.0,
+          "order": 3,
+          "scope": "subset",
+          "synthetic": false
+        },
+        {
+          "drop": 0.966662106079263,
+          "drop_ci": null,
+          "has_run": true,
+          "level": 2.6666666666666665,
+          "order": 4,
+          "scope": "subset",
+          "synthetic": false
+        },
+        {
+          "drop": 0.6999589547133672,
+          "drop_ci": null,
+          "has_run": true,
+          "level": 1.3333333333333333,
+          "order": 5,
+          "scope": "subset",
+          "synthetic": false
+        },
+        {
+          "drop": 0.0,
+          "drop_ci": [
+            0.0,
+            0.0
+          ],
+          "has_run": false,
+          "level": 0.0,
+          "order": 6,
+          "scope": "full",
+          "synthetic": true
+        },
+        {
+          "drop": 0.7464350495325799,
+          "drop_ci": [
+            0.4376436781609194,
+            1.0
+          ],
+          "has_run": true,
+          "level": 1.3333333333333333,
+          "order": 7,
+          "scope": "full",
+          "synthetic": false
+        }
+      ]
+    }
+  }
+}
