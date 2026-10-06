@@ -265,6 +265,49 @@ def test_git_dirty_goes_into_manifest(
     assert _manifest(store, report.outcomes[0].result).fingerprint_inputs.git_dirty
 
 
+class _FakeProvenance:
+    def __init__(self, commit: str, dirty: bool) -> None:
+        self.state = GitState(commit=commit, dirty=dirty)
+
+    def git(self) -> GitState:
+        return self.state
+
+    def lib_versions(self) -> Any:
+        return register_module.lib_versions()
+
+    def docker_image_digest(self) -> str:
+        return "sha256:" + "c" * 64
+
+
+def test_provenance_seam_goes_into_fingerprint_and_manifest(base: Base, store: LocalStore) -> None:
+    commit = "2" * 40
+    report = run_config(
+        store,
+        _config(base, [_attack("fgsm", [4])]),
+        provenance=_FakeProvenance(commit, dirty=True),
+    )
+    assert report.git_dirty
+    inputs = _manifest(store, report.outcomes[0].result).fingerprint_inputs
+    assert (inputs.git_commit, inputs.git_dirty) == (commit, True)
+    assert inputs.docker_image_digest == "sha256:" + "c" * 64
+    default = run_config(store, _config(base, [_attack("fgsm", [4])]))
+    assert default.outcomes[0].result.fingerprint != report.outcomes[0].result.fingerprint
+
+
+def test_clean_predictor_seam_is_used_only_without_cache(base: Base, store: LocalStore) -> None:
+    calls: list[int] = []
+
+    def predictor(loader: Any, estimator: Any, batch_size: int) -> dict[str, Prediction]:
+        calls.append(batch_size)
+        return run_module.predict_slice(loader, estimator, batch_size)
+
+    config = _config(base, [_attack("fgsm", [4])])
+    run_config(store, config, clean_predictor=predictor)
+    assert calls == [config.batch_size]
+    run_config(store, config, force=True, clean_predictor=predictor)
+    assert calls == [config.batch_size]
+
+
 class _Boom:
     """Perturbation lỗi ở level 4, chạy bình thường ở level khác."""
 
