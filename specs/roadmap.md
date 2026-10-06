@@ -204,12 +204,12 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 
 **Mục tiêu:** tách `JobRunner` (worker) và `Runner` (CLI) thành thành phần trách nhiệm đơn lẻ; attack và model cắm qua registry; không đổi kết quả.
 
-- [ ] Golden (người duyệt ghi trước khi đụng code): 10 spec × 2 level trên fixture, CPU, cả đường CLI lẫn worker; so theo luật 8 của `tech-stack.md` mục 9.
+- [x] Golden (người duyệt ghi trước khi đụng code, `6861ca8`): 9 spec × 2 level trên fixture, CPU, cả CLI lẫn worker; worker thêm patch × 2 level và một lần tìm ngưỡng; so theo luật 8 của `tech-stack.md` mục 9.
 - [ ] `FingerprintService` (gồm provenance) và `ManifestBuilder` dùng chung CLI và worker.
 - [ ] `ModelAdapter` (Protocol, khai báo năng lực) và adapter Ultralytics; `ModelProvider` nạp lười.
 - [ ] `PerturbationRegistry`: builder đăng ký theo tên adapter; spec cũ suy ra adapter từ `kind` và `art_class` (`spec_sha256` không đổi); patch đi qua registry; bỏ `isinstance` theo loại cụ thể.
 - [ ] Chính sách lỗi tập trung (phân loại lỗi → `failed`/`skipped`, OOM).
-- [ ] `RunPlanner` (quét lưới, dừng sớm, tìm ngưỡng) dùng chung; `JobRunner` và `Runner` chỉ còn phần điều phối.
+- [ ] `JobRunner` và `Runner` chỉ còn phần điều phối; thứ tự run và dừng sớm dùng chung khi có thể (không bắt buộc; tìm ngưỡng vẫn chỉ ở worker).
 
 **Demo:** chạy lại experiment fixture, golden khớp; thêm một builder giả mà không sửa factory.
 

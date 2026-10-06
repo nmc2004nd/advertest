@@ -44,6 +44,7 @@ class BuildContext:
     area_ratio: float | None = None
 
 class PerturbationRegistry:
+    def __init__(self, resolver: Callable[[AttackSpec], str] = effective_adapter) -> None: ...
     def register(self, builder: PerturbationBuilder) -> None: ...   # trùng tên adapter → lỗi
     def builder_for(self, spec: AttackSpec) -> PerturbationBuilder: ...
     def build(self, spec: AttackSpec, ctx: BuildContext) -> Perturbation: ...
@@ -84,11 +85,12 @@ class ErrorPolicy:                              # exception → (RunStatus, code
 
 ### Seam (Group 1, trước mọi thay đổi khác)
 
-- `JobRunner` nhận thêm tham số tùy chọn `perturbation_factory` và `provenance`. `Runner` và `run_config` (CLI) nhận thêm `provenance` (`perturbation_factory` đã có). Mặc định giữ hành vi hiện tại.
+- `JobRunner` nhận thêm tham số tùy chọn `perturbation_factory` và `provenance`. `Runner` và `run_config` (CLI) nhận thêm `provenance` và `clean_predictor` (mặc định `predict_slice`; `perturbation_factory` đã có). Mặc định giữ hành vi hiện tại.
 - Từ Group 2, test nghiệm thu chỉ thay thế qua seam, không patch tên ở cấp module nữa. Agent được đổi tên hay xóa các tên module cũ **sau khi** Group 2 xong.
 
 ### Registry
 
+- `builder_for` tìm tên adapter qua `resolver` của registry. Registry mặc định dùng `effective_adapter`; test truyền resolver riêng để chọn builder giả.
 - `builder_for` báo `UnsupportedAttack` khi không có adapter, với thông điệp như hiện tại.
 - Builder có `requires` chứa `gradients` mà `ctx.estimator is None` → `IncompatibleAttack` (run `skipped`, `incompatible`), như Phase 2.
 - `linf_eps` và `image_kind` lấy từ builder. `ml_core/runner/executor.py::linf_eps` và `ml_core/runner/images.py::perturbation_kind` không còn rẽ nhánh theo loại cụ thể.
@@ -114,7 +116,7 @@ class ErrorPolicy:                              # exception → (RunStatus, code
 
 ### Điều phối
 
-- `job.py` không còn import `build_fingerprint_inputs`, `Manifest`, `attacks.*` (trừ registry), hay `ml_core.models.estimator`.
+- `job.py` không còn import `build_fingerprint_inputs`, `Manifest`, `ml_core.models.estimator`, hay module `attacks` nào ngoài `attacks.builders` (registry perturbation) và `attacks.registry` (catalog). `UnsupportedAttack` và `IncompatibleAttack` được export lại từ `attacks.builders`. Phần patch (`patch_key`, train) rời `job.py` ở Group 6.
 - Đường dẫn artifact (`runs/<fp>/…` ở CLI, `runs/<run_id>/…` ở worker) gom vào một chỗ; layout không đổi.
 
 ## Decisions
@@ -123,6 +125,9 @@ class ErrorPolicy:                              # exception → (RunStatus, code
 - **Seam trước, tách sau; người duyệt chuyển test nghiệm thu sang seam ở Group 2.** *Lý do:* 7 chỗ trong `tests/acceptance` đang patch tên nội bộ (`job_module.build_perturbation` ×4, `job_module.git_state`, `run_module.git_state`, `run_module.predict_slice`); tách code trước sẽ làm vỡ test mà agent không được sửa. Người dùng chốt 2026-10-06.
 - **Số luồng torch nằm ngoài phạm vi R1.** *Lý do:* R1 không đổi hành vi run thật. Người dùng chốt 2026-10-06.
 - **Golden chạy torch 1 luồng với `use_deterministic_algorithms`.** *Lý do:* trên CPU nhiều luồng, failure case của PGD không tất định giữa các process; đo ngày 2026-10-06.
+- **Test nghiệm thu R1 được thêm theo group:** người duyệt thêm từng test ngay trước group làm nó pass, nên `make check` luôn xanh (`plan.md` bước 7). Người dùng chốt 2026-10-06 (kickoff).
+- **Registry nhận resolver tiêm vào được.** *Lý do:* chọn được builder giả khi chưa có trường `adapter`; R2 chỉ cần thay resolver. Người dùng chốt 2026-10-06 (kickoff).
+- **`predict_slice` chuyển sang seam `clean_predictor`.** *Lý do:* không còn patch tên cấp module nào trong test nghiệm thu. Người dùng chốt 2026-10-06 (kickoff).
 - **Tên nhánh `phaser1-<agent>`, test ở `tests/acceptance/phase_r1/`.** *Lý do:* các skill dùng `NN` như chỗ điền tên.
 
 ## Context

@@ -12,19 +12,24 @@
 
 ## Group 1 — Seam `[agent: worker]`
 
-2. `JobRunner` nhận `perturbation_factory` và `provenance` tùy chọn; `Runner` và `run_config` nhận `provenance`. Mặc định giữ hành vi.
+2. `JobRunner` nhận `perturbation_factory` và `provenance` tùy chọn; `Runner` và `run_config` nhận `provenance` và `clean_predictor`. Mặc định giữ hành vi.
 3. Định nghĩa `Provenance` (Protocol cùng cài đặt mặc định đọc env và git như `ml_core/runner/env.py`) ở `ml_core/runner/`.
 4. Không đổi gì khác; giữ nguyên các tên module cũ.
 
 ## Group 2 — Chuyển test nghiệm thu sang seam `[người duyệt]`
 
-5. Thay 7 chỗ patch tên nội bộ bằng seam, giữ nguyên assertion: `phase_06/test_grid_order_early_stop.py:56`, `phase_07/conftest.py:213`, `phase_07/test_search_e2e_backend.py:255`, `phase_08/conftest.py:325, 335, 336`, `phase_02/test_reproducibility.py:313` (`predict_slice`: thay qua `ModelProvider` giả hoặc giữ đến Group 4 rồi chuyển).
+5. Thay 7 chỗ patch tên nội bộ bằng seam, giữ nguyên assertion: `phase_06/test_grid_order_early_stop.py:56`, `phase_07/conftest.py:213`, `phase_07/test_search_e2e_backend.py:255`, `phase_08/conftest.py:325, 335, 336`, `phase_02/test_reproducibility.py:313` (`predict_slice` → seam `clean_predictor`).
 6. Thêm fixture checkpoint do code trước R1 ghi (một run PGD dừng ở batch 0) vào `tests/fixtures/golden/`.
-7. Viết test nghiệm thu kiến trúc và registry theo `validation.md` (fail trước refactor là đúng).
+7. Thêm test nghiệm thu R1 theo group, để `make check` luôn xanh:
+   - Group 2: `test_checkpoint_compat.py`, các test chính sách lỗi và provenance qua seam.
+   - Trước Group 3: phần registry thuần của `test_registry.py` (catalog → adapter, trùng tên).
+   - Trước Group 5: phần tích hợp qua runner (builder giả, `ModelProvider` giả) và phần kiến trúc `ml_core/runner/**`, `AnyPerturbation`.
+   - Trước Group 6: phần kiến trúc `job.py`.
+7b. Chạy experiment toàn catalog trên KITTI tại `6861ca8` (worker, CPU); ghi metric và thời gian vào `CHANGELOG.md` làm baseline cho Manual Checks.
 
 ## Group 3 — Registry perturbation `[agent: attack]`
 
-8. `attacks/builders.py`: `PerturbationBuilder`, `BuildContext`, `PerturbationRegistry`, `effective_adapter`, `DEFAULT_REGISTRY` với 4 builder (`art.evasion`, `corruption.imagecorruptions`, `occlusion.bbox`, `patch.robust_dpatch`), gồm `linf_eps` và `image_kind`.
+8. `attacks/builders.py`: `PerturbationBuilder`, `BuildContext`, `PerturbationRegistry`, `effective_adapter`, `PerturbationRegistry(resolver=effective_adapter)`, `DEFAULT_REGISTRY` với 4 builder (`art.evasion`, `corruption.imagecorruptions`, `occlusion.bbox`, `patch.robust_dpatch`), gồm `linf_eps` và `image_kind`; `attacks.builders` export lại `UnsupportedAttack`, `IncompatibleAttack`.
 9. `attacks/factory.py::build_perturbation` thành lớp chuyển tiếp gọi `DEFAULT_REGISTRY` (giữ chữ ký cho tới Group 5); bỏ `AnyPerturbation`.
 10. Unit test: builder giả đăng ký và dựng được; tên adapter trùng thì lỗi; thiếu estimator với builder cần gradient thì `IncompatibleAttack`.
 
