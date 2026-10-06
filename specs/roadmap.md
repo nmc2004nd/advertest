@@ -29,13 +29,19 @@
 | 4 ✅ | Yêu cầu truy cập, duyệt, RBAC | backend, frontend | 0 | 2, 3 |
 | 5 ✅ | Wizard tạo experiment, theo dõi tiến độ | frontend, backend | 3, 4 | 6 |
 | 6 ✅ | Đủ catalog, quét lưới, làm mờ ảnh | attack, ml-core, backend, frontend | 3, 5 | — |
-| 7 | Tự tìm ngưỡng | attack, frontend | 5, 6 | 8 |
+| 7 ✅ | Tự tìm ngưỡng | attack, frontend | 5, 6 | 8 |
 | 8 ✅ | Protocol, review, report | backend, frontend | 5 | 7 |
-| 9 | Máy thuê và ngân sách | backend | 3, 5 | 10 |
-| 10 | Dataset riêng | ml-core, frontend | 5 | 9 |
-| 11a | Landing page | frontend-landing | 8 | 9, 10 |
-| 11b | Giao diện ứng dụng | frontend, backend-report | 11a | 9, 10 |
-| 11c | Hoàn thiện: so sánh, bảo mật, tài liệu | frontend, backend | 9, 10, 11b | — |
+| 11a | Landing page | frontend-landing | 8 | R1, R4a |
+| R1 | Refactor lớp chạy giữ hành vi (runner, attack registry, model adapter) | ml-core, attack, worker | 8 | R4a |
+| R4a | Insight, template, Khám phá/Chính thức (backend) | backend | 8 | R1 |
+| 10 | Dataset riêng | ml-core, frontend | R1 | R3 |
+| R2 | Attack và model đăng ký qua web, tự kiểm tra spec | attack, backend, worker, frontend | R1, 10 | — |
+| R3 | Thử nhanh | worker, backend, frontend | R1 | 10, R2 |
+| R4b | UX ứng dụng (gộp 11b) | frontend | R4a, R2, 11a | — |
+| 9 | Máy thuê và ngân sách | backend | 3, 5 | — |
+| 11c | Hoàn thiện: so sánh, bảo mật, tài liệu | frontend, backend | 9, 10, R4b | — |
+
+Thứ tự sau review mentor (2026-10-06): R1 ∥ R4a → 10 → R2 → R3 → R4b → 9 → 11c. Bảng xếp theo thứ tự này.
 
 Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tuần 2 gồm phase 3–6, tuần 3 gồm phase 7–9, tuần 4 gồm phase 10–11. Nếu chỉ có 3 tuần, xem mục "Thứ tự cắt giảm".
 
@@ -194,6 +200,62 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 
 **Demo:** engineer gửi duyệt; reviewer khác review và approve; xuất report; trang xác minh báo khớp.
 
+## Phase R1 — Refactor lớp chạy giữ hành vi
+
+**Mục tiêu:** tách `JobRunner` (worker) và `Runner` (CLI) thành thành phần trách nhiệm đơn lẻ; attack và model cắm qua registry; không đổi kết quả.
+
+- [ ] Golden (người duyệt ghi trước khi đụng code): 10 spec × 2 level trên fixture, CPU, cả đường CLI lẫn worker; so theo luật 8 của `tech-stack.md` mục 9.
+- [ ] `FingerprintService` (gồm provenance) và `ManifestBuilder` dùng chung CLI và worker.
+- [ ] `ModelAdapter` (Protocol, khai báo năng lực) và adapter Ultralytics; `ModelProvider` nạp lười.
+- [ ] `PerturbationRegistry`: builder đăng ký theo tên adapter; spec cũ suy ra adapter từ `kind` và `art_class` (`spec_sha256` không đổi); patch đi qua registry; bỏ `isinstance` theo loại cụ thể.
+- [ ] Chính sách lỗi tập trung (phân loại lỗi → `failed`/`skipped`, OOM).
+- [ ] `RunPlanner` (quét lưới, dừng sớm, tìm ngưỡng) dùng chung; `JobRunner` và `Runner` chỉ còn phần điều phối.
+
+**Demo:** chạy lại experiment fixture, golden khớp; thêm một builder giả mà không sửa factory.
+
+## Phase R4a — Insight và luồng (backend)
+
+**Mục tiêu:** có dữ liệu cho trang kết quả mở đầu bằng kết luận, template và tách Khám phá/Chính thức.
+
+- [ ] View insight: điểm yếu chính (attack, level, class, mức sụt), ma trận độ bền attack × khoảng cường độ, câu kết luận sinh có quy tắc từ dữ liệu.
+- [ ] Template protocol (Kiểm tra nhanh, Tiêu chuẩn camera trước, Thời tiết, Đầy đủ) và preset experiment (Nhanh, Tiêu chuẩn, Chuyên sâu); gợi ý tiêu chí tự động.
+- [ ] Khám phá = protocol `dev-open`, trường `mode` trong view; "Nâng lên chính thức" tạo experiment mới theo protocol (nguyên tắc 11 của `mission.md`).
+
+**Demo:** experiment fixture có danh sách điểm yếu và ma trận; nâng một experiment Khám phá thành experiment Chính thức mới.
+
+## Phase R2 — Mở rộng attack và model qua cấu hình
+
+**Mục tiêu:** thêm attack và model không cần sửa code, vẫn có kiểm soát.
+
+- [ ] Attack spec trỏ tới adapter tổng quát (`adapter`, `adapter_params`); metadata hiển thị ngoài hash.
+- [ ] Catalog trong DB; vòng đời spec: admin tạo → tự kiểm tra trên fixture → reviewer duyệt kích hoạt; spec bất biến, sửa là tạo version mới.
+- [ ] Tự kiểm tra spec: chạy được, ảnh trong [0, 1], vùng pad không đổi, level "không biến đổi" cho ảnh y hệt, không phụ thuộc batch size, chuẩn nhiễu đúng khai báo.
+- [ ] Adapter model `torchvision_detection` và `onnx` (chỉ inference); đăng ký model qua web chỉ nhận ONNX hoặc safetensors (nguyên tắc 10 của `mission.md`).
+
+**Demo:** admin tạo một biến thể corruption, reviewer duyệt, engineer chọn được trong wizard; đăng ký một model ONNX và chạy corruption trên nó.
+
+## Phase R3 — Thử nhanh
+
+**Mục tiêu:** minh họa trực quan một attack trên một ảnh trong vài giây.
+
+- [ ] Chọn model, một ảnh, attack; tính sẵn mọi level một lần; ảnh sạch và ảnh bị tấn công cạnh nhau kèm box và bảng theo object.
+- [ ] Không tạo experiment, không vào report, luôn có nhãn "không phải kết quả kiểm thử"; ảnh upload giữ 24 giờ và vẫn làm mờ.
+
+**Demo:** kéo thanh trượt level và thấy object biến mất.
+
+## Phase R4b — UX ứng dụng
+
+**Mục tiêu:** giải quyết nhận xét M1–M8 của mentor; gộp các mục của Phase 11b.
+
+- [ ] Trang experiment là trung tâm: Tổng quan, Kết quả, Failure case, Review, Report; thanh vòng đời Tạo → Chạy → Phân tích → Gửi duyệt → Review → Report.
+- [ ] Wizard 3 bước; chip, thanh trượt, danh sách chọn thay ô gõ; mô tả attack, nhãn level, tên dataset/slice dễ đọc.
+- [ ] Mỗi biểu đồ có câu kết luận và "Cách đọc"; ma trận độ bền có chú thích thang màu; tooltip thuật ngữ.
+- [ ] Bảng ý nghĩa của từng quyết định ở hộp gửi duyệt, màn hình review, report.
+- [ ] Trang chủ "việc cần làm" theo vai trò.
+- [ ] Các mục của Phase 11b.
+
+**Demo:** người mới tạo experiment Khám phá trong 3 bước và đọc được điểm yếu chính mà không cần giải thích.
+
 ## Phase 9 — Máy thuê và ngân sách
 
 **Mục tiêu:** chạy trên GPU thuê trong phạm vi kinh phí.
@@ -239,6 +301,8 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 
 ## Phase 11b — Giao diện ứng dụng
 
+> Gộp vào Phase R4b (2026-10-06); danh sách dưới đây là các mục R4b phải bao gồm.
+
 **Mục tiêu:** áp dụng `design.md` cho toàn bộ ứng dụng, không đổi hành vi.
 
 - [ ] Token toàn cục, nút chuyển sáng/tối; bỏ phạm vi cô lập của landing.
@@ -269,7 +333,7 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 Cắt theo thứ tự sau:
 1. Pseudo-label cho dữ liệu không nhãn.
 2. So sánh nhiều experiment.
-3. Phase 11b (giao diện ứng dụng).
+3. Phần áp dụng `design.md` của Phase R4b (gộp từ 11b); giữ phần M1–M8.
 4. Khoảng tin cậy bootstrap và giai đoạn tìm trên tập nhỏ của phase 7 (giữ lõi quét thô → chia đôi).
 5. Trang admin chỉ để dạng bảng CRUD thô.
 

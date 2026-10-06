@@ -260,6 +260,8 @@ advertest/
 5. Không sửa hoặc nới test để test pass.
 6. Trước khi báo xong: chạy toàn bộ lệnh trong `validation.md` của phase và báo kết quả.
 7. Không thêm dependency ngoài file này khi chưa được duyệt.
+8. Golden tái lập: refactor lớp chạy (runner, worker, attack, model adapter) phải giữ `FingerprintInputs` và fingerprint giống từng byte khi ghim provenance (`git_commit`, `git_dirty`, `lib_versions`, `docker_image_digest`); metric trong sai số đã định; danh sách failure case giống hệt.
+9. Metadata hiển thị của attack (tên dễ đọc, mô tả, mức sát thực tế, chi phí, nhãn level) nằm ngoài `spec_sha256`; sửa metadata không tạo version mới nhưng phải ghi audit log.
 
 ## 10. Khoảng trống cần quyết định
 
@@ -268,6 +270,7 @@ advertest/
 - [ ] Nhà cung cấp GPU thuê.
 - [ ] Dịch vụ SMTP.
 - [ ] Nơi triển khai API, Postgres, MinIO.
+- [ ] Dependency mới cho Phase R2 (cần duyệt và pin trước khi dùng): `onnxruntime` (adapter ONNX, chỉ inference), `safetensors` (weights upload qua web).
 
 ## 11. Phiên bản đã pin (Phase 0)
 

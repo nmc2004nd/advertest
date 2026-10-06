@@ -54,6 +54,12 @@ Các nguyên tắc dưới đây là lý do tồn tại của sản phẩm. Feat
 
 9. **Tôn trọng quyền riêng tư.** Mặt người và biển số không được hiển thị rõ trên giao diện hay trong report. Việc làm mờ thực hiện ở tầng hiển thị/xuất, không thay đổi dữ liệu đưa vào model.
 
+10. **Không nạp code từ web.** Không nạp file chạy được code (pickle, `.pt`) từ upload qua web. Web chỉ nhận weights dạng ONNX hoặc safetensors; `.pt` chỉ đăng ký qua CLI sau khi có review. Thuật toán attack mới chỉ thêm qua repo và review, không upload qua web.
+    *Lý do:* nạp pickle là chạy code tùy ý trên worker.
+
+11. **Khám phá không thay cho kiểm thử chính thức.** Experiment Khám phá (protocol `dev-open`) không được gửi duyệt và không được dùng làm kết quả của report; report chỉ liệt kê nó ở mục Lịch sử với nhãn riêng. Muốn lên Chính thức thì tạo experiment mới theo protocol, không chuyển trực tiếp.
+    *Lý do:* giữ nguyên tắc 2 (tiêu chí chốt trước khi biết kết quả) mà vẫn cho phép thử nghiệm tự do.
+
 ## 5. Phạm vi hiện tại
 
 **Trong phạm vi:**
