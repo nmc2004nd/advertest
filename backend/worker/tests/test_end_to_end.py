@@ -40,8 +40,8 @@ from backend.app.services import compute_targets, experiments, registry
 from backend.app.storage import Buckets
 from backend.app.tests.db.conftest import _url, make_user
 from backend.app.tests.db.local_store_factory import LocalData, build_local_store
-from ml_core.runner import executor as executor_module
 from ml_core.models.register import lib_versions
+from ml_core.runner import executor as executor_module
 from ml_core.runner.config import LocalRunConfig
 from ml_core.runner.env import GitState
 from ml_core.store import PresignedStore
@@ -291,9 +291,7 @@ def test_seams_replace_perturbation_factory_and_provenance(
         return build_perturbation(spec, estimator)
 
     provenance = _DirtyProvenance()
-    runner = _runner(
-        setup, tmp_path, clock, perturbation_factory=factory, provenance=provenance
-    )
+    runner = _runner(setup, tmp_path, clock, perturbation_factory=factory, provenance=provenance)
     _lease_and_run(runner, setup)
     _, runs = _state(app_engine, setup.experiment_id)
     assert built == ["fgsm", "fgsm", "fgsm"]
