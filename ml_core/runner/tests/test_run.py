@@ -36,6 +36,7 @@ from advertest_contracts.models import (
 from attacks.art_adapter import ArtPerturbation, build_perturbation
 from attacks.registry import get_spec, load_catalog
 from ml_core.cli import app
+from ml_core.cli.evaluate import predict_slice
 from ml_core.data.dataset import save_dataset
 from ml_core.data.kitti import import_kitti
 from ml_core.data.mapping import build_mapping, save_mapping
@@ -299,7 +300,7 @@ def test_clean_predictor_seam_is_used_only_without_cache(base: Base, store: Loca
 
     def predictor(loader: Any, estimator: Any, batch_size: int) -> dict[str, Prediction]:
         calls.append(batch_size)
-        return run_module.predict_slice(loader, estimator, batch_size)
+        return predict_slice(loader, estimator, batch_size)
 
     config = _config(base, [_attack("fgsm", [4])])
     run_config(store, config, clean_predictor=predictor)
