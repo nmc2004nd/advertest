@@ -85,7 +85,9 @@ class ErrorPolicy:                              # exception → (RunStatus, code
 
 ### Seam (Group 1, trước mọi thay đổi khác)
 
-- `JobRunner` nhận thêm tham số tùy chọn `perturbation_factory` và `provenance`. `Runner` và `run_config` (CLI) nhận thêm `provenance` và `clean_predictor` (mặc định `predict_slice`; `perturbation_factory` đã có). Mặc định giữ hành vi hiện tại.
+- `JobRunner` nhận thêm tham số tùy chọn `perturbation_factory` và `provenance`. `Runner` và `run_config` (CLI) nhận thêm `provenance` và `clean_predictor` (`perturbation_factory` đã có). Mặc định giữ hành vi hiện tại.
+- Tới hết Group 2, giá trị mặc định của seam là `None`: lúc gọi vẫn tra tên ở cấp module (`build_perturbation`, `git_state`, `lib_versions`, `docker_image_digest`, `predict_slice`) để các patch cũ trong test nghiệm thu còn chạy. Sau Group 2, mặc định đổi thành `EnvProvenance()`, `build_perturbation` và `predict_slice`.
+- `PerturbationFactory` tạm được khai báo ở cả `ml_core/runner/run.py` và `job.py`, để worker không phải import module CLI. Group 5 gom về lõi dùng chung.
 - Từ Group 2, test nghiệm thu chỉ thay thế qua seam, không patch tên ở cấp module nữa. Agent được đổi tên hay xóa các tên module cũ **sau khi** Group 2 xong.
 
 ### Registry
