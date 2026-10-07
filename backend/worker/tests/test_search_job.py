@@ -313,8 +313,8 @@ def _runner(world: World, api: FakeApi, monkeypatch: pytest.MonkeyPatch) -> JobR
     )
     monkeypatch.setattr(runner, "calibrate_bundle", lambda bundle, loader, force=False: {})
     monkeypatch.setattr(
-        runner,
-        "_environment",
+        runner.pipeline,
+        "environment",
         lambda bundle: Environment(
             compute_target_id=None, gpu_model=None, cuda_version=None, driver_version=None
         ),

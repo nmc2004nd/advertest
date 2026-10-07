@@ -18,8 +18,9 @@ from uuid import UUID
 import numpy as np
 import torch
 
-from advertest_contracts.models import AttackSpec, CostProfile, Environment
+from advertest_contracts.models import AttackSpec, CostProfile, Environment, WorkerJobBundle
 from advertest_contracts.perturbation import Perturbation
+from advertest_worker.pipeline import RunPipeline
 from attacks.builders import DEFAULT_REGISTRY, BuildContext, PerturbationRegistry
 from attacks.patch.calibration import measure_sec_per_image_iteration
 from attacks.patch.geometry import Region, patch_side
@@ -163,3 +164,65 @@ def patch_training_cost(spec: AttackSpec, loader: SliceLoader, estimator: Any) -
     images = np.stack([item[0] for item in loaded])
     mask = letterbox_mask([item[3] for item in loaded])
     return measure_sec_per_image_iteration(spec, estimator, images, mask)
+
+
+def calibrate_bundle(
+    pipeline: RunPipeline, bundle: WorkerJobBundle, loader: SliceLoader, *, force: bool = False
+) -> dict[UUID, CostProfile]:
+    """Cost profile cho mọi attack của bundle; đo (và gửi lên API) attack chưa có profile,
+    hoặc mọi attack khi `force`. Attack không dùng được với model thì bỏ qua."""
+    profiles = {p.attack_spec_id: p for p in bundle.cost_profiles}
+    card = bundle.model_card
+    adapter = pipeline.adapter(bundle)
+    for attack in bundle.config.attacks:
+        spec = next(s for s in bundle.attack_specs if s.id == attack.attack_spec_id)
+        if (spec.id in profiles and not force) or (
+            spec.requires_gradients and not adapter.capabilities.gradients
+        ):
+            continue
+        levels = [r.level for r in bundle.runs if r.attack_spec_id == spec.id]
+        # Phase 7: attack tìm ngưỡng có thể chưa có run; đo ở `hi` (level 0 của PGD cho bước
+        # nhảy 0).
+        fallback = attack.search.hi if attack.search is not None else spec.primary_param.min
+        level = levels[0] if levels else fallback
+        try:
+            if spec.requires_training:
+                # Phase 6: đánh giá đo bằng patch ngẫu nhiên; chi phí train đo riêng bên dưới.
+                perturbation: Perturbation = calibration_patch(
+                    spec, loader, adapter.estimator(), pipeline.registry
+                )
+                level = spec.primary_param.max
+            else:
+                perturbation = pipeline.build_perturbation(spec, bundle)
+        except Exception:
+            logger.warning("Không dựng được %s để calibration", spec.name, exc_info=True)
+            continue
+        profile = calibrate(
+            loader=loader,
+            estimator=adapter,
+            perturbation=perturbation,
+            level=level,
+            seed=attack.seed,
+            device=pipeline.device,
+            compute_target_id=bundle.config.compute_target_id,
+            model_version_id=card.id,
+            attack_spec_id=spec.id,
+            environment=pipeline.environment(bundle),
+            now=pipeline.clock(),
+        )
+        if spec.requires_training:
+            try:
+                seconds = patch_training_cost(spec, loader, adapter.estimator())
+            except Exception:  # thiếu chi phí train chỉ làm ước lượng thiếu, không dừng job
+                logger.warning("Không đo được chi phí train %s", spec.name, exc_info=True)
+            else:
+                profile = profile.model_copy(update={"sec_per_image_iteration": seconds})
+        logger.info(
+            "Calibration %s: batch %d, %.3f s/ảnh",
+            spec.name,
+            profile.batch_size,
+            profile.sec_per_image,
+        )
+        pipeline.client.cost_profile(profile)
+        profiles[spec.id] = profile
+    return profiles
