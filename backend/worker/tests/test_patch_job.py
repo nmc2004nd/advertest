@@ -19,7 +19,8 @@ from advertest_contracts.models import (
     WorkerJobBundle,
 )
 from advertest_worker.early_stop import RunLedger
-from advertest_worker.job import JobRunner, _Finisher
+from advertest_worker.finish import RunFinisher
+from advertest_worker.job import JobRunner
 from ml_core.runner.manifest import ManifestBuilder
 
 MOCKS = Path(__file__).resolve().parents[3] / "contracts/mocks"
@@ -68,9 +69,10 @@ def test_training_seconds_added_to_gpu_seconds() -> None:
     spec = next(s for s in bundle.attack_specs if s.requires_training)
     manifest = Manifest.model_validate_json((MOCKS / "manifest/patch_run.json").read_text())
     client = _Client()
-    runner = cast(
-        Any, SimpleNamespace(client=client, clock=lambda: datetime(2026, 10, 1, tzinfo=UTC))
-    )
+
+    def clock() -> datetime:
+        return datetime(2026, 10, 1, tzinfo=UTC)
+
     environment = Environment(
         compute_target_id=None, gpu_model=None, cuda_version=None, driver_version=None
     )
@@ -82,11 +84,12 @@ def test_training_seconds_added_to_gpu_seconds() -> None:
             environment=environment,
             ledger=RunLedger(bundle),
             outcomes={},
-            manifests=ManifestBuilder(lambda: environment, runner.clock),
+            manifests=ManifestBuilder(lambda: environment, clock),
         ),
     )
-    finish = _Finisher(
-        runner,
+    finish = RunFinisher(
+        client,
+        "cpu",
         job,
         run,
         spec,

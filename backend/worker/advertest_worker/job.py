@@ -23,7 +23,6 @@ import logging
 import re
 import threading
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
@@ -32,26 +31,20 @@ import httpx
 import numpy as np
 import torch
 
-from advertest_contracts.enums import EvalScope, RunMode, RunStatus, SkipReason
+from advertest_contracts.enums import EvalScope, RunMode, RunStatus
 from advertest_contracts.models import (
     AttackConfig,
     AttackSpec,
     BundleRun,
     CostProfile,
     Environment,
-    FailureCaseRecord,
     FingerprintInputs,
-    Progress,
     ProgressReport,
-    RunCompletion,
-    RunMetrics,
-    RunResult,
     RunSkipRequest,
     RunStartRequest,
     SearchResult,
     SearchResultReport,
     SearchRunCreate,
-    StatusReason,
     WorkerDirective,
     WorkerJobBundle,
     WorkerLease,
@@ -63,12 +56,13 @@ from advertest_worker.client import ApiError, LeaseLost, WorkerClient
 from advertest_worker.config import HEARTBEAT_INTERVAL_S
 from advertest_worker.early_stop import RunLedger
 from advertest_worker.errors import WORKER_POLICY, StopExperiment
+from advertest_worker.finish import RunFinisher
 from advertest_worker.patch import PatchJob, obtain_patch
 from advertest_worker.search import KnownRun, PointOutcome, SearchDriver
+from advertest_worker.state import DirectiveBox, JobState
 from attacks.builders import DEFAULT_REGISTRY, BuildContext, PerturbationRegistry
 from attacks.patch.geometry import patch_key
 from ml_core.metrics.bootstrap import (
-    dump_run_predictions,
     load_run_predictions,
     run_predictions_key,
 )
@@ -78,10 +72,7 @@ from ml_core.runner.cache_loader import ShaCacheLoader
 from ml_core.runner.candidates import StoreCandidates
 from ml_core.runner.env import describe_device, environment
 from ml_core.runner.errors import (
-    CANCELLED_REASON,
-    TIME_LIMIT_REASON,
     ErrorAction,
-    ErrorDecision,
 )
 from ml_core.runner.executor import (
     RunContext,
@@ -92,7 +83,7 @@ from ml_core.runner.executor import (
 from ml_core.runner.fingerprint import FingerprintService, fingerprint
 from ml_core.runner.images import letterbox_mask
 from ml_core.runner.manifest import ManifestBuilder
-from ml_core.runner.paths import artifact_uri, checkpoint_key, run_id_prefix
+from ml_core.runner.paths import checkpoint_key, run_id_prefix
 from ml_core.runner.perturbations import (
     ModelSource,
     PerturbationFactory,
@@ -114,25 +105,6 @@ def utcnow() -> datetime:
 
 
 # ---------------------------------------------------------------- heartbeat
-
-
-@dataclass
-class DirectiveBox:
-    """Chỉ thị mới nhất từ API (heartbeat hoặc progress), dùng chung giữa hai luồng."""
-
-    directive: WorkerDirective | None = None
-    lease_lost: bool = False
-    lock: threading.Lock = field(default_factory=threading.Lock)
-
-    def update(self, directive: WorkerDirective) -> None:
-        with self.lock:
-            self.directive = directive
-
-    def current(self) -> WorkerDirective | None:
-        with self.lock:
-            if self.lease_lost:
-                raise LeaseLost(409, "conflict", "Lease đã mất (heartbeat)")
-            return self.directive
 
 
 class Heartbeat(threading.Thread):
@@ -170,27 +142,6 @@ class Heartbeat(threading.Thread):
 
 
 # ---------------------------------------------------------------- chạy job
-
-
-@dataclass
-class _Job:
-    lease: WorkerLease
-    bundle: WorkerJobBundle
-    loader: ShaCacheLoader
-    box: DirectiveBox
-    environment: Environment
-    profiles: dict[UUID, CostProfile]
-    specs: dict[UUID, AttackSpec]
-    remaining_seconds: float | None
-    ledger: RunLedger
-    context: RunContext | None = None
-    # Phase 7: mọi run đã biết (bundle và run tạo động), kết quả của run trong phiên và prediction
-    # theo ảnh của run đã hoàn tất trong phiên (bootstrap).
-    runs: dict[UUID, BundleRun] = field(default_factory=dict)
-    outcomes: dict[UUID, PointOutcome] = field(default_factory=dict)
-    predictions: dict[UUID, dict[str, Prediction]] = field(default_factory=dict)
-    fingerprints: FingerprintService | None = None
-    manifests: ManifestBuilder | None = None
 
 
 class JobRunner:
@@ -316,7 +267,7 @@ class JobRunner:
         self, lease: WorkerLease, bundle: WorkerJobBundle, loader: ShaCacheLoader, box: DirectiveBox
     ) -> None:
         limit = bundle.limit
-        job = _Job(
+        job = JobState(
             lease=lease,
             bundle=bundle,
             loader=loader,
@@ -360,14 +311,14 @@ class JobRunner:
                 return
 
     @staticmethod
-    def _directive_stops(job: _Job) -> bool:
+    def _directive_stops(job: JobState) -> bool:
         directive = job.box.current()
         if directive is not None and directive.action != "continue":
             logger.info("Dừng experiment theo chỉ thị %s", directive.action)
             return True
         return False
 
-    def _inputs(self, job: _Job, run: BundleRun, spec: AttackSpec) -> FingerprintInputs:
+    def _inputs(self, job: JobState, run: BundleRun, spec: AttackSpec) -> FingerprintInputs:
         assert job.fingerprints is not None
         image_ids = self._image_ids(job, run)
         return job.fingerprints.inputs(
@@ -379,7 +330,7 @@ class JobRunner:
         )
 
     @staticmethod
-    def _image_ids(job: _Job, run: BundleRun) -> list[str] | None:
+    def _image_ids(job: JobState, run: BundleRun) -> list[str] | None:
         """Ảnh của run trên tập con (Phase 7); `None` với run toàn slice."""
         if run.scope != EvalScope.SUBSET:
             return None
@@ -392,7 +343,7 @@ class JobRunner:
 
     # ------------------------------------------------------------------ tìm ngưỡng (Phase 7)
 
-    def _search(self, job: _Job, attack: AttackConfig) -> bool:
+    def _search(self, job: JobState, attack: AttackConfig) -> bool:
         """Một attack tìm ngưỡng; `True` nếu experiment phải dừng."""
         bundle = job.bundle
         spec = job.specs[attack.attack_spec_id]
@@ -407,14 +358,14 @@ class JobRunner:
             attack=attack,
             spec=spec,
             context=self._context(job),
-            hooks=_JobSearchHooks(self, job, attack, spec),
+            hooks=JobStateSearchHooks(self, job, attack, spec),
             known_runs=known,
             previous=previous,
         )
         logger.info("[%s] tìm ngưỡng", spec.name)
         return driver.run()
 
-    def _skip_early_stop(self, job: _Job, run_id: UUID, name: str, level: float) -> bool:
+    def _skip_early_stop(self, job: JobState, run_id: UUID, name: str, level: float) -> bool:
         """Phase 6 (plan task 16): bỏ run `queued` khi level nhỏ hơn của cùng attack đã làm model
         sụp."""
         if job.ledger.status(run_id) != RunStatus.QUEUED:
@@ -435,7 +386,7 @@ class JobRunner:
         logger.info("[%s %g] bỏ qua: dừng sớm (sụp ở %g)", name, level, stop.trigger_level)
         return True
 
-    def _context(self, job: _Job) -> RunContext:
+    def _context(self, job: JobState) -> RunContext:
         if job.context is None:
             bundle = job.bundle
             batch = min((p.batch_size for p in job.profiles.values()), default=DEFAULT_BATCH_SIZE)
@@ -455,7 +406,7 @@ class JobRunner:
     # ------------------------------------------------------------------ một run
 
     def _run_one(
-        self, job: _Job, run_id: UUID, spec: AttackSpec, inputs: FingerprintInputs
+        self, job: JobState, run_id: UUID, spec: AttackSpec, inputs: FingerprintInputs
     ) -> None:
         bundle, lease = job.bundle, job.lease
         run = job.runs[run_id]
@@ -484,8 +435,17 @@ class JobRunner:
         prefix = run_id_prefix(run_id)
         image_ids = self._image_ids(job, run)
         images_total = len(image_ids) if image_ids is not None else len(bundle.slice.image_ids)
-        finish = _Finisher(
-            self, job, run, spec, fp, inputs, store, prefix, images_total=images_total
+        finish = RunFinisher(
+            self.client,
+            self.device,
+            job,
+            run,
+            spec,
+            fp,
+            inputs,
+            store,
+            prefix,
+            images_total=images_total,
         )
 
         if spec.requires_gradients and not self._adapter(bundle).capabilities.gradients:
@@ -519,12 +479,12 @@ class JobRunner:
 
     def _run_batches(
         self,
-        job: _Job,
+        job: JobState,
         run_id: UUID,
         spec: AttackSpec,
         store: PresignedStore,
         prefix: str,
-        finish: _Finisher,
+        finish: RunFinisher,
         executor: RunExecutor,
         batch_index: int,
     ) -> None:
@@ -597,7 +557,7 @@ class JobRunner:
         finish.completed(executor)
 
     def _patch_perturbation(
-        self, job: _Job, run_id: UUID, spec: AttackSpec, store: PresignedStore
+        self, job: JobState, run_id: UUID, spec: AttackSpec, store: PresignedStore
     ) -> tuple[Perturbation, float]:
         """Phase 6 (plan task 17): lấy patch đã train (hoặc train trên slice huấn luyện, báo tiến
         độ `phase = training`), rồi dựng adapter dán patch. Trả kèm thời gian train để cộng vào
@@ -672,7 +632,7 @@ class JobRunner:
 
     def _executor(
         self,
-        job: _Job,
+        job: JobState,
         run_id: UUID,
         fp: str,
         level: float,
@@ -699,7 +659,7 @@ class JobRunner:
         return RunExecutor.from_checkpoint(data, **args), run.checkpoint.batch_index + 1
 
     def _shrink_batch(
-        self, job: _Job, spec: AttackSpec, profile: CostProfile | None, batch_size: int
+        self, job: JobState, spec: AttackSpec, profile: CostProfile | None, batch_size: int
     ) -> int:
         """Hết VRAM giữa chừng: giảm batch size một bậc, gửi cost profile cập nhật."""
         smaller = max(1, batch_size // 2)
@@ -715,167 +675,14 @@ class JobRunner:
         return smaller
 
 
-# ---------------------------------------------------------------- hoàn tất run
-
-
-class _Finisher:
-    """Dựng `RunResult` + `RunCompletion` và gửi `complete` cho một run."""
-
-    def __init__(
-        self,
-        runner: JobRunner,
-        job: _Job,
-        run: BundleRun,
-        spec: AttackSpec,
-        fp: str,
-        inputs: FingerprintInputs,
-        store: PresignedStore,
-        prefix: str,
-        *,
-        images_total: int,
-    ) -> None:
-        self.runner = runner
-        self.job = job
-        self.run = run
-        self.run_id = run.run_id
-        self.spec = spec
-        self.level = run.level
-        self.images_total = images_total
-        self.fp = fp
-        self.inputs = inputs
-        self.store = store
-        self.prefix = prefix
-        # Thời gian train patch của run (Phase 6): API ghi đè `gpu_seconds` của run bằng giá trị
-        # gửi khi hoàn tất, nên phải cộng vào đây (review Group 3 #1).
-        self.extra_seconds = 0.0
-
-    def _manifest(self) -> str:
-        assert self.job.manifests is not None
-        return artifact_uri(
-            self.job.manifests.write(self.store, self.prefix, self.run_id, self.inputs)
-        )
-
-    def _send(
-        self,
-        status: RunStatus,
-        reason: StatusReason | None,
-        executor: RunExecutor | None,
-        metrics: RunMetrics | None = None,
-        cases: list[FailureCaseRecord] | None = None,
-        predictions_key: str | None = None,
-    ) -> None:
-        cases = cases or []
-        result = RunResult(
-            run_id=self.run_id,
-            experiment_id=self.job.bundle.experiment_id,
-            fingerprint=self.fp,
-            attack_spec_id=self.spec.id,
-            level=self.level,
-            status=status,
-            status_reason=reason,
-            progress=Progress(
-                images_done=executor.images_done if executor else 0,
-                images_total=self.images_total,
-            ),
-            metrics=metrics,
-            gpu_seconds=(executor.processing_seconds if executor else 0.0) + self.extra_seconds,
-            cost=None,
-            failure_case_ids=[case.id for case in cases],
-            manifest_uri=self._manifest(),
-            scope=self.run.scope,
-            search_order=self.run.search_order,
-            predictions_key=predictions_key,
-        )
-        self.runner.client.complete(
-            self.run_id,
-            RunCompletion(lease_id=self.job.lease.lease_id, run_result=result, failure_cases=cases),
-        )
-        self.job.ledger.record(self.run_id, status, metrics)
-        message = reason.message if reason is not None else None
-        self.job.outcomes[self.run_id] = PointOutcome(status, metrics, message)
-        logger.info("[%s %g] %s", self.spec.name, self.level, status)
-
-    def _discard_candidates(self, executor: RunExecutor | None) -> None:
-        """Run không hoàn tất: ứng viên đã upload không phải kết quả, xóa đi."""
-        if executor is None:
-            return
-        for image_id in executor.offered:
-            try:
-                executor.candidates.discard(image_id)
-            except Exception:
-                logger.warning("Không xóa được ứng viên %s", image_id, exc_info=True)
-
-    def _predictions(self, executor: RunExecutor) -> str:
-        """Prediction theo ảnh của run (Phase 7, plan task 13a): upload để bootstrap dùng lại."""
-        key = run_predictions_key(self.run_id)
-        device = describe_device(self.runner.device)
-        self.store.put(key, dump_run_predictions(self.run_id, executor.predictions, device))
-        return key
-
-    def completed(self, executor: RunExecutor) -> None:
-        finalized = executor.finalize(self.run_id)
-        key = self._predictions(executor)
-        self._send(
-            RunStatus.COMPLETED,
-            None,
-            executor,
-            finalized.metrics,
-            finalized.failure_cases,
-            predictions_key=key,
-        )
-        self.job.predictions[self.run_id] = dict(executor.predictions)
-
-    def ended(self, decision: ErrorDecision, exc: Exception, executor: RunExecutor | None) -> None:
-        """Gửi kết quả theo quyết định của chính sách lỗi (không gồm `PROPAGATE`)."""
-        self.extra_seconds += decision.device_seconds
-        if decision.status == RunStatus.CANCELLED:
-            self.cancelled(executor)
-        elif decision.status == RunStatus.STOPPED_LIMIT:
-            self.stopped(executor)
-        elif decision.status == RunStatus.SKIPPED and decision.reason is not None:
-            self.skipped(decision.reason.message)
-        else:
-            self.failed(exc, executor)
-
-    def stopped(self, executor: RunExecutor | None) -> None:
-        reason = TIME_LIMIT_REASON
-        if executor is None or executor.images_done == 0:
-            self._send(RunStatus.STOPPED_LIMIT, reason, executor)
-            return
-        finalized = executor.finalize(self.run_id, partial=True)
-        self._send(
-            RunStatus.STOPPED_LIMIT,
-            reason,
-            executor,
-            finalized.metrics,
-            finalized.failure_cases,
-            predictions_key=self._predictions(executor),
-        )
-
-    def cancelled(self, executor: RunExecutor | None) -> None:
-        self._discard_candidates(executor)
-        self._send(RunStatus.CANCELLED, CANCELLED_REASON, executor)
-
-    def skipped(self, message: str) -> None:
-        self._send(
-            RunStatus.SKIPPED, StatusReason(code=SkipReason.INCOMPATIBLE, message=message), None
-        )
-
-    def failed(self, exc: Exception, executor: RunExecutor | None) -> None:
-        message = f"{type(exc).__name__}: {exc}"
-        logger.error("[%s %g] failed: %s", self.spec.name, self.level, message, exc_info=exc)
-        self._discard_candidates(executor)
-        self._send(RunStatus.FAILED, StatusReason(code="error", message=message), executor)
-
-
 # ---------------------------------------------------------------- hook của tìm ngưỡng (Phase 7)
 
 
-class _JobSearchHooks:
+class JobStateSearchHooks:
     """`SearchHooks` của `SearchDriver` trên API và model thật."""
 
     def __init__(
-        self, runner: JobRunner, job: _Job, attack: AttackConfig, spec: AttackSpec
+        self, runner: JobRunner, job: JobState, attack: AttackConfig, spec: AttackSpec
     ) -> None:
         self.runner = runner
         self.job = job
