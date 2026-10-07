@@ -41,8 +41,6 @@ from advertest_contracts.models import (
     Environment,
     FailureCaseRecord,
     FingerprintInputs,
-    LibVersions,
-    Manifest,
     Progress,
     ProgressReport,
     RunCompletion,
@@ -78,16 +76,9 @@ from ml_core.metrics.bootstrap import (
 )
 from ml_core.metrics.filters import Prediction
 from ml_core.models.estimator import build_estimator
-from ml_core.models.register import lib_versions
 from ml_core.runner.cache_loader import ShaCacheLoader
 from ml_core.runner.candidates import StoreCandidates
-from ml_core.runner.env import (
-    GitState,
-    describe_device,
-    docker_image_digest,
-    environment,
-    git_state,
-)
+from ml_core.runner.env import describe_device, environment
 from ml_core.runner.executor import (
     RunContext,
     RunExecutor,
@@ -95,16 +86,17 @@ from ml_core.runner.executor import (
     linf_eps,
     load_clean_predictions,
 )
-from ml_core.runner.fingerprint import build_fingerprint_inputs, fingerprint
+from ml_core.runner.fingerprint import FingerprintService, fingerprint
 from ml_core.runner.images import letterbox_mask, perturbation_kind
-from ml_core.runner.provenance import Provenance
+from ml_core.runner.manifest import ManifestBuilder
+from ml_core.runner.paths import artifact_uri, checkpoint_key, run_id_prefix
+from ml_core.runner.provenance import EnvProvenance, Provenance
 from ml_core.search.subset import eval_image_ids_sha256, select_subset
 from ml_core.store import KeyNotFoundError, PresignedStore
 
 logger = logging.getLogger(__name__)
 _PREDICTIONS_KEY = re.compile(r"runs/([0-9a-f-]{36})/predictions\.json")
 DEFAULT_BATCH_SIZE = 8  # chỉ dùng khi không có cost profile (calibration thất bại)
-ARTIFACTS_URI = "s3://artifacts/"
 BatchHook = Callable[[UUID, Sequence[str]], None]
 # Dựng perturbation từ spec và estimator của model (mặc định `attacks.factory.build_perturbation`).
 PerturbationFactory = Callable[[AttackSpec, Any], Perturbation]
@@ -177,15 +169,6 @@ class _StopExperiment(Exception):
     """Run kết thúc vì bị hủy hoặc chạm giới hạn: không chạy các run sau."""
 
 
-@dataclass(frozen=True)
-class _Provenance:
-    """Nguồn gốc mã và môi trường cho fingerprint, đọc một lần mỗi experiment."""
-
-    git: GitState
-    versions: LibVersions
-    digest: str
-
-
 @dataclass
 class _Job:
     lease: WorkerLease
@@ -203,7 +186,8 @@ class _Job:
     runs: dict[UUID, BundleRun] = field(default_factory=dict)
     outcomes: dict[UUID, PointOutcome] = field(default_factory=dict)
     predictions: dict[UUID, dict[str, Prediction]] = field(default_factory=dict)
-    provenance: _Provenance | None = None
+    fingerprints: FingerprintService | None = None
+    manifests: ManifestBuilder | None = None
 
 
 class JobRunner:
@@ -228,7 +212,7 @@ class JobRunner:
         self.clock = clock
         self.on_batch = on_batch
         self.perturbation_factory = perturbation_factory
-        self.provenance = provenance
+        self.provenance = provenance or EnvProvenance()
         self._estimators: dict[str, Any] = {}
 
     # ------------------------------------------------------------------ chuẩn bị
@@ -245,13 +229,6 @@ class JobRunner:
         # (giữ được patch cấp module tới khi test chuyển sang seam, Phase R1).
         factory = self.perturbation_factory or build_perturbation
         return factory(spec, self._estimator(bundle))
-
-    def _read_provenance(self) -> _Provenance:
-        if self.provenance is None:
-            # Như `_build_perturbation`: tra tên của module này lúc gọi.
-            return _Provenance(git_state(), lib_versions(), docker_image_digest())
-        p = self.provenance
-        return _Provenance(p.git(), p.lib_versions(), p.docker_image_digest())
 
     def _environment(self, bundle: WorkerJobBundle) -> Environment:
         return environment(self.device).model_copy(
@@ -347,6 +324,15 @@ class JobRunner:
             ledger=RunLedger(bundle),
             runs={run.run_id: run for run in bundle.runs},
         )
+        # Provenance đọc một lần mỗi experiment, ở run đầu tiên cần fingerprint.
+        job.fingerprints = FingerprintService(
+            self.provenance,
+            params=bundle.inference_params,
+            mapping=bundle.class_mapping,
+            slice_spec=bundle.slice,
+            weights_sha256=bundle.model_card.weights_sha256,
+        )
+        job.manifests = ManifestBuilder(lambda: job.environment, self.clock)
         for run in bundle.runs:
             if run.search_order is not None:
                 continue  # run tìm ngưỡng chạy trong vòng lặp tìm kiếm (Phase 7)
@@ -378,23 +364,12 @@ class JobRunner:
         return False
 
     def _inputs(self, job: _Job, run: BundleRun, spec: AttackSpec) -> FingerprintInputs:
-        bundle = job.bundle
-        if job.provenance is None:
-            job.provenance = self._read_provenance()
-        git, versions, digest = job.provenance.git, job.provenance.versions, job.provenance.digest
+        assert job.fingerprints is not None
         image_ids = self._image_ids(job, run)
-        return build_fingerprint_inputs(
-            spec=spec,
-            level=run.level,
-            seed=run.seed,
-            params=bundle.inference_params,
-            mapping=bundle.class_mapping,
-            slice_spec=bundle.slice,
-            weights_sha256=bundle.model_card.weights_sha256,
-            git_commit=git.commit,
-            git_dirty=git.dirty,
-            lib_versions=versions,
-            docker_image_digest=digest,
+        return job.fingerprints.inputs(
+            spec,
+            run.level,
+            run.seed,
             patch_key=run.patch_key,
             eval_image_ids_sha256=(None if image_ids is None else eval_image_ids_sha256(image_ids)),
         )
@@ -502,7 +477,7 @@ class JobRunner:
             lambda key, method: self.client.artifact_url(run_id, lease.lease_id, key, method),
             self.url_http,
         )
-        prefix = f"runs/{run_id}"
+        prefix = run_id_prefix(run_id)
         image_ids = self._image_ids(job, run)
         images_total = len(image_ids) if image_ids is not None else len(bundle.slice.image_ids)
         finish = _Finisher(
@@ -579,7 +554,7 @@ class JobRunner:
                     batch_size = self._shrink_batch(job, spec, profile, batch_size)
                     profile = job.profiles.get(spec.id)
                     continue
-                key = f"{prefix}/checkpoints/{batch_index}.json"
+                key = checkpoint_key(prefix, batch_index)
                 store.put(key, json.dumps(executor.to_checkpoint()).encode())
                 directive = self.client.progress(
                     run_id,
@@ -771,16 +746,10 @@ class _Finisher:
         self.extra_seconds = 0.0
 
     def _manifest(self) -> str:
-        manifest = Manifest(
-            run_id=self.run_id,
-            fingerprint=self.fp,
-            fingerprint_inputs=self.inputs,
-            environment=self.job.environment,
-            created_at=self.runner.clock(),
+        assert self.job.manifests is not None
+        return artifact_uri(
+            self.job.manifests.write(self.store, self.prefix, self.run_id, self.inputs)
         )
-        key = f"{self.prefix}/manifest.json"
-        self.store.put(key, (manifest.model_dump_json(indent=2) + "\n").encode())
-        return ARTIFACTS_URI + key
 
     def _send(
         self,

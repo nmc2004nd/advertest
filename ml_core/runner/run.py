@@ -16,7 +16,6 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -26,7 +25,6 @@ from advertest_contracts.models import (
     EvalMetrics,
     FingerprintInputs,
     InferenceParams,
-    Manifest,
     Progress,
     RunResult,
     StatusReason,
@@ -38,17 +36,10 @@ from ml_core.cli.cache import Prediction
 from ml_core.cli.evaluate import load_model_from_store, predict_slice
 from ml_core.data.loader import SliceLoader
 from ml_core.models.estimator import build_estimator
-from ml_core.models.register import lib_versions
 from ml_core.models.wrapper import DEFAULT_INFERENCE_PARAMS
 from ml_core.runner.candidates import MemoryCandidates
 from ml_core.runner.config import LocalRunConfig, experiment_id, resolve_specs
-from ml_core.runner.env import (
-    default_device,
-    describe_device,
-    docker_image_digest,
-    environment,
-    git_state,
-)
+from ml_core.runner.env import default_device, describe_device, environment
 from ml_core.runner.executor import (
     RunContext,
     RunExecutor,
@@ -56,29 +47,28 @@ from ml_core.runner.executor import (
     linf_eps,
     load_clean_predictions,
 )
-from ml_core.runner.fingerprint import build_fingerprint_inputs, fingerprint
+from ml_core.runner.fingerprint import FingerprintService, fingerprint
 from ml_core.runner.images import amplified_perturbation, letterbox_mask, perturbation_kind
-from ml_core.runner.provenance import Provenance
+from ml_core.runner.manifest import ManifestBuilder
+from ml_core.runner.paths import (
+    attempt_prefix,
+    case_record_key,
+    fingerprint_prefix,
+    rerun_prefix,
+    result_key,
+)
+from ml_core.runner.provenance import EnvProvenance, Provenance
 from ml_core.store import ArtifactStore
 
-__all__ = ["amplified_perturbation", "letterbox_mask"]
+__all__ = ["amplified_perturbation", "letterbox_mask", "result_key", "run_prefix"]
+
+# `ml_core/cli/run.py` (`advertest show`) import hai tên này từ module này.
+run_prefix = fingerprint_prefix
 
 PerturbationFactory = Callable[[AttackSpec, Any], Perturbation]
 # Prediction thô trên ảnh sạch khi chưa có cache: (loader, estimator, batch_size) → theo ảnh.
 CleanPredictor = Callable[[SliceLoader, Any, int], dict[str, Prediction]]
 ProgressFn = Callable[[str], None]
-
-
-def run_prefix(fp: str) -> str:
-    return f"runs/{fp}"
-
-
-def result_key(prefix: str) -> str:
-    return f"{prefix}/result.json"
-
-
-def manifest_key(prefix: str) -> str:
-    return f"{prefix}/manifest.json"
 
 
 @dataclass(frozen=True)
@@ -117,17 +107,7 @@ class Runner:
         self.params = params
         self.device = config.device or default_device()
         self.specs = resolve_specs(config)
-        self.clean_predictor = clean_predictor
-        # Không truyền `provenance` thì tra `git_state`, `lib_versions`, `docker_image_digest` của
-        # module này lúc gọi (giữ được patch cấp module tới khi test chuyển sang seam, Phase R1).
-        if provenance is None:
-            self.git = git_state()
-            self.versions = lib_versions()
-            self.docker_digest = docker_image_digest()
-        else:
-            self.git = provenance.git()
-            self.versions = provenance.lib_versions()
-            self.docker_digest = provenance.docker_image_digest()
+        self.clean_predictor = clean_predictor or predict_slice
         self.experiment_id = experiment_id(config)
 
         self.loader = SliceLoader.from_ids(store, config.slice_id, config.mapping_id)
@@ -139,6 +119,15 @@ class Runner:
             )
         self.slice = self.loader.slice
         self.mapping = self.loader.mapping
+        self.fingerprints = FingerprintService(
+            provenance or EnvProvenance(),
+            params=params,
+            mapping=self.mapping,
+            slice_spec=self.slice,
+            weights_sha256=self.card.weights_sha256,
+        )
+        self.git = self.fingerprints.git  # đọc provenance ngay khi dựng runner
+        self.manifests = ManifestBuilder(lambda: environment(self.device))
         self._estimator: Any = None
 
     # ------------------------------------------------------------------ chuẩn bị
@@ -161,9 +150,7 @@ class Runner:
             self.config.batch_size,
             lambda: describe_device(self.device),
             self.progress,
-            self.clean_predictor
-            # Tra `predict_slice` lúc gọi: test cũ thay hàm này để kiểm tra đã dùng cache.
-            or (lambda loader, estimator, batch_size: predict_slice(loader, estimator, batch_size)),
+            self.clean_predictor,
         )
 
     # ------------------------------------------------------------------ chạy
@@ -181,21 +168,6 @@ class Runner:
                 outcome = self._run_one(spec, float(level), attack.seed, context)
                 report.outcomes.append(outcome)
         return report
-
-    def _fingerprint_inputs(self, spec: AttackSpec, level: float, seed: int) -> FingerprintInputs:
-        return build_fingerprint_inputs(
-            spec=spec,
-            level=level,
-            seed=seed,
-            params=self.params,
-            mapping=self.mapping,
-            slice_spec=self.slice,
-            weights_sha256=self.card.weights_sha256,
-            git_commit=self.git.commit,
-            git_dirty=self.git.dirty,
-            lib_versions=self.versions,
-            docker_image_digest=self.docker_digest,
-        )
 
     def _result(
         self,
@@ -223,16 +195,7 @@ class Runner:
         )
 
     def _write_manifest(self, prefix: str, run_id: UUID, inputs: FingerprintInputs) -> str:
-        manifest = Manifest(
-            run_id=run_id,
-            fingerprint=fingerprint(inputs),
-            fingerprint_inputs=inputs,
-            environment=environment(self.device),
-            created_at=datetime.now(UTC),
-        )
-        key = manifest_key(prefix)
-        self.store.put(key, (manifest.model_dump_json(indent=2) + "\n").encode())
-        return key
+        return self.manifests.write(self.store, prefix, run_id, inputs)
 
     def _write_result(self, prefix: str, result: RunResult) -> None:
         self.store.put(result_key(prefix), (result.model_dump_json(indent=2) + "\n").encode())
@@ -244,9 +207,9 @@ class Runner:
         seed: int,
         context: RunContext,
     ) -> RunOutcome:
-        inputs = self._fingerprint_inputs(spec, level, seed)
+        inputs = self.fingerprints.inputs(spec, level, seed)
         fp = fingerprint(inputs)
-        base = run_prefix(fp)
+        base = fingerprint_prefix(fp)
         has_result = self.store.exists(result_key(base))
 
         if has_result and not self.force:
@@ -270,7 +233,7 @@ class Runner:
             return RunOutcome(result=result, spec_name=spec.name, prefix=None)
 
         run_id = uuid4()
-        attempt = f"{base}/attempts/{run_id}"
+        attempt = attempt_prefix(base, run_id)
         perturbation: Perturbation | None = None
         reason: str | None = None
         if spec.requires_gradients and not self.card.supports_gradients:
@@ -297,7 +260,7 @@ class Runner:
             self._write_result(attempt, result)
             return RunOutcome(result=result, spec_name=spec.name, prefix=attempt)
 
-        prefix = f"{base}/reruns/{run_id}" if has_result else base
+        prefix = rerun_prefix(base, run_id) if has_result else base
         state = _Execution()
         try:
             result = self._execute(
@@ -382,7 +345,7 @@ class Runner:
 
         finalized = executor.finalize(run_id)
         for record in finalized.failure_cases:
-            key = f"{prefix}/cases/{record.image_id}/record.json"
+            key = case_record_key(prefix, record.image_id)
             self.store.put(key, (record.model_dump_json(indent=2) + "\n").encode())
         manifest_uri = self._write_manifest(prefix, run_id, inputs)
         result = self._result(
