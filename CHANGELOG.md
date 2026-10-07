@@ -21,7 +21,35 @@ Các phase đã đóng trước phase gần nhất nằm trong `changelog/archiv
 
 ## Phase R1 — Refactor lớp chạy giữ hành vi
 
-**Trạng thái:** đang làm. Group 0 (golden, `6861ca8`) và Group 1 xong.
+**Trạng thái:** đang làm. Group 0 (golden, `6861ca8`), Group 1 và Group 2 xong (Group 2 còn bước 7b).
+
+### Phase R1 — Group 2 (người duyệt, Claude làm theo ủy quyền) — 2026-10-07
+Nhánh `phaser1-reviewer` @ `b2034e7` (tách từ `dev` @ `e192dbd`), 2 commit; chỉ sửa `tests/acceptance/` và `tests/fixtures/golden/`. Claude viết test và review thay người duyệt theo ủy quyền của người dùng (2026-10-07); review không độc lập với con người. Người dùng chấp nhận các test này là test nghiệm thu của người duyệt.
+### Thêm
+- `phase_r1/test_checkpoint_compat.py` và fixture `tests/fixtures/golden/phase_r1_checkpoint.json` (ghi bằng worktree tạm tại `6861ca8`, `ADVERTEST_RECORD_GOLDEN=1`; run PGD dừng ở batch 0, ảnh 000902, fingerprint `4d82f99c…`).
+- `phase_r1/test_error_policy.py`: builder lỗi ở run thứ hai qua seam `perturbation_factory`; provenance giả `dirty = true` → `git_dirty` trong manifest.
+### Thay đổi
+- `phase_05/conftest.py`: `Api` có `perturbation_factory`, `provenance` (mặc định `None`), truyền vào `JobRunner`; phase 6–8 dùng lại.
+- phase_06/07/08: spy/flaky gán `api.perturbation_factory` (bọc `api.perturbation_factory or attacks.factory.build_perturbation`, giữ thứ tự chồng spy); `dirty_tree` dùng `api.provenance`. Bỏ patch `run_module.git_state` ở phase_08 vì manifest worker lấy git từ `fingerprint_inputs` (patch đó vốn không tác dụng; assertion giữ nguyên).
+- phase_02: `run_config(..., clean_predictor=no_predict)`.
+- Không còn `setattr(job_module|run_module, ...)` trong `tests/acceptance`; không đổi assertion, không nới sai số.
+### Contract
+- Không đổi.
+### Quyết định
+- Nhánh R1 merge vào `dev`, không vào `main` (`main` chưa có `dev`). Người dùng chốt 2026-10-07; ghi tại `requirements.md` `## Decisions`.
+- `attacks.factory.build_perturbation` giữ nguyên tên đến hết R1 (test nghiệm thu phase_06/07/08/r1 import tên này làm mặc định của seam). Người dùng chốt 2026-10-07; ghi tại `requirements.md` `## Decisions`.
+- Giới hạn của test checkpoint: chỉ JSON checkpoint do code trước R1 ghi; artifact ứng viên batch 0 do code hiện tại ghi (R1 không đổi layout artifact). Ghi tại `validation.md` `### Checkpoint`.
+### Số liệu đo được
+- `make check` tại `b2034e7`: pass (1481 Python + 372 frontend; nghiệm thu không db 332 passed).
+- `make test-db` đầy đủ: 699 passed, 25 phút (theo báo cáo review).
+- Thử đột biến test checkpoint: đổi version trong fixture thành 99 → test fail đúng.
+### Tồn đọng
+- Bước 7b: baseline KITTI toàn catalog tại `6861ca8` (worker, CPU), người dùng tự chạy; chưa có metric và thời gian.
+- Phần registry thuần của `test_registry.py` (catalog → adapter, trùng tên): phải có trước khi giao Group 3.
+- `test_architecture_r1.py` (AST, gồm "không còn test patch cấp module"): trước Group 5.
+- Sau Group 2, agent đổi mặc định seam thành `EnvProvenance()`, `build_perturbation`, `predict_slice` (`requirements.md` `### Seam`).
+- Còn patch cấp lớp/module ngoài phạm vi 7 chỗ: `UltralyticsDetector.forward`, `SearchDriver._bootstrap` (phase_07/conftest.py:214-215), `env_module.REPO_ROOT` (phase_02). `ModelAdapter` ở Group 5 có thể đi vòng qua `forward` và làm sai số đếm lần gọi model ở phase_07; theo dõi khi review Group 5.
+- Lỗi có từ trước: chạy test db của phase_r1 trước phase_06 trong cùng phiên thì phase_06 lỗi FK khi setup; thứ tự mặc định pass.
 
 ### Phase R1 — Group 1 (worker) — 2026-10-07
 Nhánh `phaser1-worker` @ `d032885` (tách từ `dev` @ `e1840c5`), 5 commit; chỉ sửa `ml_core/runner/` và `backend/worker/`.

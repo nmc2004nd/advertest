@@ -17,6 +17,7 @@
 
 ### Checkpoint — `test_checkpoint_compat.py` (`db`)
 - [ ] Checkpoint do code trước R1 ghi (fixture Group 2): worker sau R1 chạy tiếp từ batch kế tiếp, kết quả cuối khớp với run không gián đoạn (metric trong sai số).
+  > Giới hạn: fixture chỉ thay JSON checkpoint; artifact ứng viên của batch 0 do code hiện tại ghi (chấp nhận vì R1 không đổi layout artifact).
 
 ### Kiến trúc — `test_architecture_r1.py` (AST, không cần DB)
 - [ ] `ml_core/runner/**` và `backend/worker/advertest_worker/**` không import `attacks.art_adapter`, `attacks.corruptions.adapter`, `attacks.occlusion.adapter`, `attacks.patch.adapter`; không có `isinstance` với các lớp perturbation cụ thể.
@@ -31,8 +32,8 @@
 - [ ] Spec white-box với model không hỗ trợ gradient (qua `ModelProvider` giả) → `skipped` (`incompatible`), thông điệp như Phase 2; corruption trên cùng model → `completed`.
 
 ### Chính sách lỗi — qua seam, worker thật (`db`)
-- [ ] Builder ném lỗi ở run thứ hai → run đó `failed` (`error`), các run khác `completed` (tương đương `phase_07/test_search_e2e_backend.py`, `phase_08` sau khi chuyển sang seam).
-- [ ] Provenance giả có `dirty = true` → `git_dirty` trong manifest đúng (như `phase_08`).
+- [x] Builder ném lỗi ở run thứ hai → run đó `failed` (`error`), các run khác `completed` (tương đương `phase_07/test_search_e2e_backend.py`, `phase_08` sau khi chuyển sang seam).
+- [x] Provenance giả có `dirty = true` → `git_dirty` trong manifest đúng (như `phase_08`).
 
 ## Manual Checks
 
