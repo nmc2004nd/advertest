@@ -21,7 +21,42 @@ Các phase đã đóng trước phase gần nhất nằm trong `changelog/archiv
 
 ## Phase R1 — Refactor lớp chạy giữ hành vi
 
-**Trạng thái:** đang làm. Group 0 (golden, `6861ca8`), Group 1, Group 2 (cả bước 7b), Group 3 và Group 4 xong.
+**Trạng thái:** đang làm. Group 0 (golden, `6861ca8`), Group 1, Group 2 (cả bước 7b), Group 3, Group 4 và Group 5 xong.
+
+### Phase R1 — Group 5 (worker) — 2026-10-07
+Nhánh `phaser1-worker` @ `a20936e` (tách từ `phaser1-reviewer` @ `86d71dc`), 5 commit: `86d71dc` (test nghiệm thu trước G5, agent viết theo ủy quyền của người duyệt), `65b5953`, `ec79b6a`, `702f8dc`, `a20936e`; code chỉ sửa `ml_core/runner/` và `backend/worker/`. Diff so với `dev`: 21 file, +1090/−388.
+### Thêm
+- `FingerprintService` (thay `job._inputs`, `run._fingerprint_inputs`) và `ManifestBuilder` (thay `_Finisher._manifest`, `run._write_manifest`) dùng chung CLI và worker.
+- `ml_core/runner/errors.py`: `ErrorPolicy`, `CORE_POLICY`; `advertest_worker/errors.py`: `WORKER_POLICY = CORE_POLICY.with_rules(...)` (`LeaseLost`, `StopExperiment`, `PatchInterrupted`). `_run_one` của CLI và worker dùng chung.
+- `ml_core/runner/paths.py`: gom đường dẫn artifact (`runs/`, `cases/`, `candidates/`); layout không đổi.
+- Seam mới `registry` (`PerturbationRegistry`) và `model_provider` (`ModelSource.get(card, params, device)`) cho `Runner`, `run_config`, `JobRunner`.
+- Test nghiệm thu `tests/acceptance/phase_r1/test_architecture_r1.py` (phần runner/worker; phần `job.py` để G6) và `test_registry.py` (builder giả qua runner CLI, white-box với `ModelProvider` giả).
+### Thay đổi
+- Runner CLI, worker và `calibrate.py` dựng perturbation qua registry (patch qua `BuildContext.patch`), nạp model qua `ModelProvider`; bỏ `isinstance` trong `executor.linf_eps` và rẽ nhánh `kind` trong `images.perturbation_kind`.
+- Mặc định seam đổi thành `EnvProvenance()` và `predict_slice`.
+- `job.py` 983 → 962 dòng; `run.py` 430 → 384 dòng.
+- Unit test worker (`test_run`, `test_executor`, `test_calibrate`, `test_patch_job`, `test_search_job`) chuyển từ patch tên module sang seam; review xác nhận không test nào bị làm yếu.
+- Hành vi khác có chủ đích: `IncompatibleAttack` ném ra giữa lúc chạy batch cho `skipped` thay vì `failed`; `ModelProvider` cache theo `(sha, params, device)` nên worker không dùng lại estimator giữa các bundle khác `InferenceParams`.
+### Contract
+- Không đổi.
+### Quyết định
+- `registry` là seam chính (nguồn `linf_eps`/`image_kind`); `perturbation_factory(spec, estimator | None)` giữ chữ ký, phải nhất quán với `registry`. Người duyệt chốt 2026-10-07 (review phát hiện 2); ghi tại `requirements.md` `### Seam` và `## Decisions`.
+- `ErrorPolicy` hai tầng `CORE_POLICY`/`WORKER_POLICY`; hết VRAM ở batch 1 hoặc ngoài vòng batch → `failed`; `IncompatibleAttack` lúc chạy → `skipped`. Ghi tại `requirements.md` `### Chính sách lỗi`.
+- Khóa cache `ModelProvider` `(weights_sha256, InferenceParams, device)`, cache không giới hạn. Ghi tại `requirements.md` `### Model`.
+- Lỗi `ModelProvider.get` trong phép kiểm gradient của worker để R2 sửa. Người duyệt chốt 2026-10-07 (review phát hiện 3); ghi tại `requirements.md` `## Decisions` và `roadmap.md` Phase R2.
+- Người duyệt xác nhận đã ủy quyền cho agent viết test nghiệm thu ở `86d71dc` (review phát hiện 1).
+### Số liệu đo được
+- `make check TORCH=cpu` tại `a20936e`: exit 0, nghiệm thu 343 passed.
+- `make test-db TORCH=cpu` tại `a20936e`: 699 passed (lần chạy của reviewer 25 phút); gồm golden worker, checkpoint, chính sách lỗi.
+- Test R1 mới: trước G5 có 3 test fail (2 kiến trúc, 1 `ModelProvider` giả), sau G5 0 fail.
+### Tồn đọng
+- Chưa xóa `attacks/factory.py` (Decisions giữ tên tới hết R1; thư mục của agent attack).
+- `run.py` còn alias `run_prefix`, `result_key` cho `ml_core/cli/run.py` (ngoài phạm vi); dọn ở G6/G7.
+- `job.py` còn import `attacks.patch.geometry`; mục kiến trúc `job.py` để G6.
+- R2: đưa `ModelProvider.get` trong phép kiểm gradient (`job.py:491`, `job.py:246`) vào `try` để lỗi chỉ làm run `failed`; xét giới hạn cache `ModelProvider`.
+- `ErrorPolicy.decide` trả `failed` cho cả `BaseException` không khớp luật (vô hại vì nơi gọi chỉ bắt `Exception`); có thể cho fallback ném tiếp.
+- Chạy riêng một phần test DB thì phải đặt `backend/worker` trước `tests/acceptance` (fixture nghiệm thu xóa `attack_specs`).
+- Manual Checks R1 (KITTI toàn catalog so baseline bước 7b, thời gian chênh dưới 5%) chưa làm.
 
 ### Phase R1 — Group 2 bước 7b (người duyệt) — 2026-10-07
 Baseline KITTI toàn catalog trước refactor, làm mốc cho Manual Checks của `validation.md` (metric lệch trong sai số, thời gian chênh dưới 5%).

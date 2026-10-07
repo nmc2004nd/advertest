@@ -3,7 +3,7 @@
 > Phân chia thư mục:
 > `attacks/` (agent `attack`); `ml_core/models/` (agent `ml-model`); `ml_core/runner/`, `backend/worker/` (agent `worker`, như Phase 7); `tests/acceptance/phase_r1/`, `tests/fixtures/golden/` (người duyệt).
 >
-> Thứ tự: Group 0 ✅ → Group 1 ✅ → Group 2 ✅ → (Group 3 ✅, 4 ✅ song song) → Group 5 → Group 6 → Group 7.
+> Thứ tự: Group 0 ✅ → Group 1 ✅ → Group 2 ✅ → (Group 3 ✅, 4 ✅ song song) → Group 5 ✅ → Group 6 → Group 7.
 > Mọi group của agent: golden R1 (CLI; worker qua `make test-db`) và test nghiệm thu Phase 0–8 phải pass ở **mỗi commit**, không chỉ cuối group.
 
 ## Group 0 — Golden `[người duyệt]` ✅
@@ -39,12 +39,12 @@
 11. `ml_core/models/adapter.py`: `Capabilities`, `ModelAdapter`, `UltralyticsAdapter` (bọc `UltralyticsDetector` và `build_estimator`), `ModelProvider`.
 12. Unit test: cache trả cùng instance theo khóa; model không hỗ trợ gradient → `estimator()` báo `NoGradients`.
 
-## Group 5 — Lõi dùng chung `[agent: worker]`
+## Group 5 — Lõi dùng chung `[agent: worker]` ✅
 
-13. `FingerprintService` (thay `job._inputs` và `run._fingerprint_inputs`), `ManifestBuilder` (thay `_Finisher._manifest` và `run._write_manifest`).
-14. `ErrorPolicy` theo bảng trong `requirements.md`; `job._run_one` và `run._run_one` dùng chung.
-15. Hai runner và `calibrate.py` dựng perturbation qua registry (patch qua `BuildContext.patch`), nạp model qua `ModelProvider`; bỏ `isinstance` trong `executor.linf_eps` và rẽ nhánh `kind` trong `images.perturbation_kind`.
-16. Gom đường dẫn artifact; xóa lớp chuyển tiếp `attacks/factory.py` khi không còn chỗ gọi.
+13. ✅ `FingerprintService` (thay `job._inputs` và `run._fingerprint_inputs`), `ManifestBuilder` (thay `_Finisher._manifest` và `run._write_manifest`).
+14. ✅ `ErrorPolicy` theo bảng trong `requirements.md`; `job._run_one` và `run._run_one` dùng chung.
+15. ✅ Hai runner và `calibrate.py` dựng perturbation qua registry (patch qua `BuildContext.patch`), nạp model qua `ModelProvider`; bỏ `isinstance` trong `executor.linf_eps` và rẽ nhánh `kind` trong `images.perturbation_kind`.
+16. ✅ Gom đường dẫn artifact; xóa lớp chuyển tiếp `attacks/factory.py` khi không còn chỗ gọi.
 
 ## Group 6 — Điều phối mỏng `[agent: worker]`
 

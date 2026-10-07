@@ -20,16 +20,16 @@
   > Giới hạn: fixture chỉ thay JSON checkpoint; artifact ứng viên của batch 0 do code hiện tại ghi (chấp nhận vì R1 không đổi layout artifact).
 
 ### Kiến trúc — `test_architecture_r1.py` (AST, không cần DB)
-- [ ] `ml_core/runner/**` và `backend/worker/advertest_worker/**` không import `attacks.art_adapter`, `attacks.corruptions.adapter`, `attacks.occlusion.adapter`, `attacks.patch.adapter`; không có `isinstance` với các lớp perturbation cụ thể.
-- [ ] `attacks/` không còn tên `AnyPerturbation`.
+- [x] `ml_core/runner/**` và `backend/worker/advertest_worker/**` không import `attacks.art_adapter`, `attacks.corruptions.adapter`, `attacks.occlusion.adapter`, `attacks.patch.adapter`; không có `isinstance` với các lớp perturbation cụ thể.
+- [x] `attacks/` không còn tên `AnyPerturbation`.
 - [ ] `backend/worker/advertest_worker/job.py` không import `build_fingerprint_inputs`, `Manifest`, `ml_core.models.estimator`, hay module `attacks` nào ngoài `attacks.builders` và `attacks.registry`.
-- [ ] Không còn test nghiệm thu nào patch `build_perturbation`, `git_state` hay `predict_slice` ở cấp module.
+- [x] Không còn test nghiệm thu nào patch `build_perturbation`, `git_state` hay `predict_slice` ở cấp module.
 
 ### Registry — `test_registry.py`
 - [x] Mọi spec của catalog có `effective_adapter` thuộc 4 adapter mặc định; `spec_sha256` không đổi so với `contracts/seeds/attack_specs.json`.
-- [ ] Builder giả (adapter `test.identity`, nhân ảnh với 1) đăng ký vào registry của test, có resolver riêng, truyền vào runner CLI qua `perturbation_factory`: run `completed`, ảnh sau biến đổi y hệt ảnh gốc; không sửa file nào ngoài test.
+- [x] Builder giả (adapter `test.identity`, nhân ảnh với 1) đăng ký vào registry của test, có resolver riêng, truyền vào runner CLI qua `perturbation_factory`: run `completed`, ảnh sau biến đổi y hệt ảnh gốc; không sửa file nào ngoài test.
 - [x] Đăng ký trùng tên adapter → lỗi.
-- [ ] Spec white-box với model không hỗ trợ gradient (qua `ModelProvider` giả) → `skipped` (`incompatible`), thông điệp như Phase 2; corruption trên cùng model → `completed`.
+- [x] Spec white-box với model không hỗ trợ gradient (qua `ModelProvider` giả) → `skipped` (`incompatible`), thông điệp như Phase 2; corruption trên cùng model → `completed`.
 
 ### Chính sách lỗi — qua seam, worker thật (`db`)
 - [x] Builder ném lỗi ở run thứ hai → run đó `failed` (`error`), các run khác `completed` (tương đương `phase_07/test_search_e2e_backend.py`, `phase_08` sau khi chuyển sang seam).

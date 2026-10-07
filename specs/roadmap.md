@@ -205,10 +205,10 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 **Mục tiêu:** tách `JobRunner` (worker) và `Runner` (CLI) thành thành phần trách nhiệm đơn lẻ; attack và model cắm qua registry; không đổi kết quả.
 
 - [x] Golden (người duyệt ghi trước khi đụng code, `6861ca8`): 9 spec × 2 level trên fixture, CPU, cả CLI lẫn worker; worker thêm patch × 2 level và một lần tìm ngưỡng; so theo luật 8 của `tech-stack.md` mục 9.
-- [ ] `FingerprintService` (gồm provenance) và `ManifestBuilder` dùng chung CLI và worker.
+- [x] `FingerprintService` (gồm provenance) và `ManifestBuilder` dùng chung CLI và worker.
 - [x] `ModelAdapter` (Protocol, khai báo năng lực) và adapter Ultralytics; `ModelProvider` nạp lười.
-- [ ] `PerturbationRegistry`: builder đăng ký theo tên adapter; spec cũ suy ra adapter từ `kind` và `art_class` (`spec_sha256` không đổi); patch đi qua registry; bỏ `isinstance` theo loại cụ thể.
-- [ ] Chính sách lỗi tập trung (phân loại lỗi → `failed`/`skipped`, OOM).
+- [x] `PerturbationRegistry`: builder đăng ký theo tên adapter; spec cũ suy ra adapter từ `kind` và `art_class` (`spec_sha256` không đổi); patch đi qua registry; bỏ `isinstance` theo loại cụ thể.
+- [x] Chính sách lỗi tập trung (phân loại lỗi → `failed`/`skipped`, OOM).
 - [ ] `JobRunner` và `Runner` chỉ còn phần điều phối; thứ tự run và dừng sớm dùng chung khi có thể (không bắt buộc; tìm ngưỡng vẫn chỉ ở worker).
 
 **Demo:** chạy lại experiment fixture, golden khớp; thêm một builder giả mà không sửa factory.
@@ -231,6 +231,7 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 - [ ] Catalog trong DB; vòng đời spec: admin tạo → tự kiểm tra trên fixture → reviewer duyệt kích hoạt; spec bất biến, sửa là tạo version mới.
 - [ ] Tự kiểm tra spec: chạy được, ảnh trong [0, 1], vùng pad không đổi, level "không biến đổi" cho ảnh y hệt, không phụ thuộc batch size, chuẩn nhiễu đúng khai báo.
 - [ ] Adapter model `torchvision_detection` và `onnx` (chỉ inference); đăng ký model qua web chỉ nhận ONNX hoặc safetensors (nguyên tắc 10 của `mission.md`).
+- [ ] Worker: lỗi `ModelProvider.get` khi kiểm gradient chỉ làm run `failed`, không dừng experiment (tồn đọng R1 Group 5); xét giới hạn cache `ModelProvider`.
 
 **Demo:** admin tạo một biến thể corruption, reviewer duyệt, engineer chọn được trong wizard; đăng ký một model ONNX và chạy corruption trên nó.
 
