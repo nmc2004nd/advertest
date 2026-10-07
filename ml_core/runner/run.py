@@ -30,12 +30,11 @@ from advertest_contracts.models import (
     StatusReason,
 )
 from advertest_contracts.perturbation import Perturbation
-from attacks.builders import IncompatibleAttack
-from attacks.factory import build_perturbation
+from attacks.builders import DEFAULT_REGISTRY, IncompatibleAttack, PerturbationRegistry
 from ml_core.cli.cache import Prediction
-from ml_core.cli.evaluate import load_model_from_store, predict_slice
+from ml_core.cli.evaluate import predict_slice
 from ml_core.data.loader import SliceLoader
-from ml_core.models.estimator import build_estimator
+from ml_core.models.adapter import ModelAdapter, ModelProvider
 from ml_core.models.wrapper import DEFAULT_INFERENCE_PARAMS
 from ml_core.runner.candidates import MemoryCandidates
 from ml_core.runner.config import LocalRunConfig, experiment_id, resolve_specs
@@ -45,11 +44,10 @@ from ml_core.runner.executor import (
     RunContext,
     RunExecutor,
     build_context,
-    linf_eps,
     load_clean_predictions,
 )
 from ml_core.runner.fingerprint import FingerprintService, fingerprint
-from ml_core.runner.images import amplified_perturbation, letterbox_mask, perturbation_kind
+from ml_core.runner.images import amplified_perturbation, letterbox_mask
 from ml_core.runner.manifest import ManifestBuilder
 from ml_core.runner.paths import (
     attempt_prefix,
@@ -57,6 +55,12 @@ from ml_core.runner.paths import (
     fingerprint_prefix,
     rerun_prefix,
     result_key,
+)
+from ml_core.runner.perturbations import (
+    ModelSource,
+    PerturbationFactory,
+    gradient_estimator,
+    registry_factory,
 )
 from ml_core.runner.provenance import EnvProvenance, Provenance
 from ml_core.store import ArtifactStore
@@ -66,7 +70,6 @@ __all__ = ["amplified_perturbation", "letterbox_mask", "result_key", "run_prefix
 # `ml_core/cli/run.py` (`advertest show`) import hai tên này từ module này.
 run_prefix = fingerprint_prefix
 
-PerturbationFactory = Callable[[AttackSpec, Any], Perturbation]
 # Prediction thô trên ảnh sạch khi chưa có cache: (loader, estimator, batch_size) → theo ảnh.
 CleanPredictor = Callable[[SliceLoader, Any, int], dict[str, Prediction]]
 ProgressFn = Callable[[str], None]
@@ -95,16 +98,20 @@ class Runner:
         *,
         force: bool = False,
         progress: ProgressFn | None = None,
-        perturbation_factory: PerturbationFactory = build_perturbation,
+        perturbation_factory: PerturbationFactory | None = None,
         params: InferenceParams = DEFAULT_INFERENCE_PARAMS,
         provenance: Provenance | None = None,
         clean_predictor: CleanPredictor | None = None,
+        registry: PerturbationRegistry = DEFAULT_REGISTRY,
+        model_provider: ModelSource | None = None,
     ) -> None:
         self.store = store
         self.config = config
         self.force = force
         self.progress = progress or (lambda _message: None)
-        self.perturbation_factory = perturbation_factory
+        self.registry = registry
+        self.perturbation_factory = perturbation_factory or registry_factory(registry)
+        self.models = model_provider or ModelProvider(store)
         self.params = params
         self.device = config.device or default_device()
         self.specs = resolve_specs(config)
@@ -130,17 +137,17 @@ class Runner:
         )
         self.git = self.fingerprints.git  # đọc provenance ngay khi dựng runner
         self.manifests = ManifestBuilder(lambda: environment(self.device))
-        self._estimator: Any = None
+        self._adapter: ModelAdapter | None = None
 
     # ------------------------------------------------------------------ chuẩn bị
 
     @property
-    def estimator(self) -> Any:
-        """Nạp model khi cần lần đầu (không nạp nếu mọi run đều cached và cache sạch có sẵn)."""
-        if self._estimator is None:
-            model = load_model_from_store(self.store, self.card.weights_sha256)
-            self._estimator = build_estimator(model, self.params, self.device)
-        return self._estimator
+    def adapter(self) -> ModelAdapter:
+        """Adapter của model; model chỉ được nạp khi predict hoặc lấy estimator lần đầu (không nạp
+        nếu mọi run đều cached và cache sạch có sẵn)."""
+        if self._adapter is None:
+            self._adapter = self.models.get(self.card, self.params, self.device)
+        return self._adapter
 
     def clean_predictions(self) -> dict[str, Prediction]:
         """Prediction thô trên ảnh sạch từ cache của Phase 1; chưa có thì chạy như `eval`."""
@@ -148,7 +155,7 @@ class Runner:
             self.store,
             self.loader,
             self.params,
-            lambda: self.estimator,
+            lambda: self.adapter,
             self.config.batch_size,
             lambda: describe_device(self.device),
             self.progress,
@@ -239,11 +246,11 @@ class Runner:
         prefix = rerun_prefix(base, run_id) if has_result else base
         state = _Execution()
         try:
-            if spec.requires_gradients and not self.card.supports_gradients:
+            if spec.requires_gradients and not self.adapter.capabilities.gradients:
                 raise IncompatibleAttack(
                     f"{spec.name} cần gradient nhưng model {self.card.name} không hỗ trợ gradient"
                 )
-            perturbation = self.perturbation_factory(spec, self.estimator)
+            perturbation = self.perturbation_factory(spec, gradient_estimator(self.adapter))
             result = self._execute(
                 perturbation, spec, level, seed, run_id, fp, inputs, prefix, context, state
             )
@@ -302,18 +309,19 @@ class Runner:
         state: _Execution,
     ) -> RunResult:
         total = len(self.slice.image_ids)
+        builder = self.registry.builder_for(spec)
         executor = RunExecutor(
             fingerprint=fp,
             level=level,
             seed=seed,
             perturbation=perturbation,
-            estimator=self.estimator,
+            estimator=self.adapter,
             context=context,
             candidates=MemoryCandidates(
                 self.store,
                 prefix,
-                linf_eps(spec, perturbation, level),
-                perturbation_kind(spec),
+                builder.linf_eps(spec, level),
+                builder.image_kind,
             ),
         )
         for batch in executor.batches(self.loader, self.config.batch_size):
@@ -356,9 +364,11 @@ def run_config(
     *,
     force: bool = False,
     progress: ProgressFn | None = None,
-    perturbation_factory: PerturbationFactory = build_perturbation,
+    perturbation_factory: PerturbationFactory | None = None,
     provenance: Provenance | None = None,
     clean_predictor: CleanPredictor | None = None,
+    registry: PerturbationRegistry = DEFAULT_REGISTRY,
+    model_provider: ModelSource | None = None,
 ) -> RunReport:
     runner = Runner(
         store,
@@ -368,5 +378,7 @@ def run_config(
         perturbation_factory=perturbation_factory,
         provenance=provenance,
         clean_predictor=clean_predictor,
+        registry=registry,
+        model_provider=model_provider,
     )
     return runner.run()

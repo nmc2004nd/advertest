@@ -25,7 +25,6 @@ import numpy as np
 from numpy.typing import NDArray
 
 from advertest_contracts.models import (
-    AttackSpec,
     CaseBox,
     CaseDetections,
     CaseIgnoreRegion,
@@ -36,7 +35,6 @@ from advertest_contracts.models import (
     compute_failure_case_id,
 )
 from advertest_contracts.perturbation import Perturbation
-from attacks.art_adapter import ArtPerturbation
 from ml_core.cli.cache import Prediction, load_predictions, prediction_cache_key, save_predictions
 from ml_core.cli.evaluate import ground_truth, predict_slice
 from ml_core.data.loader import Batch, SliceLoader
@@ -208,14 +206,6 @@ class FinalizedRun:
     metrics: RunMetrics
     failure_cases: list[FailureCaseRecord]
     images_done: int
-
-
-def linf_eps(spec: AttackSpec, perturbation: Perturbation, level: float) -> float | None:
-    """eps trên ảnh [0, 1] của attack ART L∞ (để khuếch đại ảnh nhiễu); `None` với chuẩn khác và
-    với phép biến đổi không phải attack ART (corruption, occlusion, patch)."""
-    if not isinstance(perturbation, ArtPerturbation):
-        return None
-    return perturbation.eps(level) if str(spec.fixed_params.get("norm")) == "inf" else None
 
 
 class RunExecutor:

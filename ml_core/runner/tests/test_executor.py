@@ -22,6 +22,7 @@ from PIL import Image
 
 from advertest_contracts.enums import PerturbationImageKind
 from attacks.art_adapter import build_perturbation
+from attacks.builders import DEFAULT_REGISTRY
 from attacks.registry import load_catalog
 from ml_core.cli.evaluate import ground_truth
 from ml_core.data.loader import Batch
@@ -34,7 +35,6 @@ from ml_core.runner.executor import (
     RunContext,
     RunExecutor,
     build_context,
-    linf_eps,
 )
 from ml_core.runner.images import thumbnail_webp
 from ml_core.runner.run import Runner
@@ -116,13 +116,13 @@ def setup(base: Base, tmp_path_factory: pytest.TempPathFactory) -> dict[str, Any
     )
     context = build_context(runner.loader, _clean_predictions(runner), runner.params, 2)
     spec = runner.specs[0]
-    perturbation = build_perturbation(spec, runner.estimator)
+    perturbation = build_perturbation(spec, runner.adapter.estimator())
     return {
         "runner": runner,
         "estimator": FakeEstimator(runner.card.class_names.index("car")),
         "context": context,
         "perturbation": perturbation,
-        "eps": linf_eps(spec, perturbation, 8.0),
+        "eps": DEFAULT_REGISTRY.builder_for(spec).linf_eps(spec, 8.0),
     }
 
 
@@ -452,18 +452,22 @@ def test_targets_carry_image_id_and_ignore_boxes(setup: dict[str, Any]) -> None:
 
 
 def test_linf_eps_only_for_art_linf(setup: dict[str, Any]) -> None:
-    runner = setup["runner"]
-    recording = _RecordingPerturbation()
-    assert linf_eps(recording.spec, recording, 1) is None
+    catalog = {s.name: s for s in load_catalog()}
+    for name in ("pgd_l2", "fog", "bbox_occlusion", "adv_patch"):
+        assert DEFAULT_REGISTRY.builder_for(catalog[name]).linf_eps(catalog[name], 1) is None
     assert setup["eps"] == pytest.approx(8 / 255)
-    assert runner.specs[0].name == "fgsm"
+    assert setup["runner"].specs[0].name == "fgsm"
 
 
 def test_third_image_kind_and_content(setup: dict[str, Any]) -> None:
     """Phase 6 (plan task 19): ảnh thứ ba theo loại phép thử, ghi vào failure case."""
-    from ml_core.runner.images import difference_image, perturbation_kind, third_image
+    from ml_core.runner.images import difference_image, third_image
 
     catalog = {s.name: s for s in load_catalog()}
+
+    def perturbation_kind(spec: Any) -> PerturbationImageKind:
+        return DEFAULT_REGISTRY.builder_for(spec).image_kind
+
     assert perturbation_kind(catalog["fgsm"]) == PerturbationImageKind.AMPLIFIED_NOISE
     assert perturbation_kind(catalog["fog"]) == PerturbationImageKind.DIFFERENCE
     assert perturbation_kind(catalog["bbox_occlusion"]) == PerturbationImageKind.DIFFERENCE

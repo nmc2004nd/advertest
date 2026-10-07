@@ -65,17 +65,15 @@ from advertest_worker.early_stop import RunLedger
 from advertest_worker.errors import WORKER_POLICY, StopExperiment
 from advertest_worker.patch import PatchJob, obtain_patch
 from advertest_worker.search import KnownRun, PointOutcome, SearchDriver
-from attacks.factory import build_perturbation
-from attacks.patch.adapter import PatchPerturbation
+from attacks.builders import DEFAULT_REGISTRY, BuildContext, PerturbationRegistry
 from attacks.patch.geometry import patch_key
-from ml_core.cli.evaluate import load_model_from_store
 from ml_core.metrics.bootstrap import (
     dump_run_predictions,
     load_run_predictions,
     run_predictions_key,
 )
 from ml_core.metrics.filters import Prediction
-from ml_core.models.estimator import build_estimator
+from ml_core.models.adapter import ModelAdapter, ModelProvider
 from ml_core.runner.cache_loader import ShaCacheLoader
 from ml_core.runner.candidates import StoreCandidates
 from ml_core.runner.env import describe_device, environment
@@ -89,13 +87,18 @@ from ml_core.runner.executor import (
     RunContext,
     RunExecutor,
     build_context,
-    linf_eps,
     load_clean_predictions,
 )
 from ml_core.runner.fingerprint import FingerprintService, fingerprint
-from ml_core.runner.images import letterbox_mask, perturbation_kind
+from ml_core.runner.images import letterbox_mask
 from ml_core.runner.manifest import ManifestBuilder
 from ml_core.runner.paths import artifact_uri, checkpoint_key, run_id_prefix
+from ml_core.runner.perturbations import (
+    ModelSource,
+    PerturbationFactory,
+    gradient_estimator,
+    registry_factory,
+)
 from ml_core.runner.provenance import EnvProvenance, Provenance
 from ml_core.search.subset import eval_image_ids_sha256, select_subset
 from ml_core.store import KeyNotFoundError, PresignedStore
@@ -104,8 +107,6 @@ logger = logging.getLogger(__name__)
 _PREDICTIONS_KEY = re.compile(r"runs/([0-9a-f-]{36})/predictions\.json")
 DEFAULT_BATCH_SIZE = 8  # chỉ dùng khi không có cost profile (calibration thất bại)
 BatchHook = Callable[[UUID, Sequence[str]], None]
-# Dựng perturbation từ spec và estimator của model (mặc định `attacks.factory.build_perturbation`).
-PerturbationFactory = Callable[[AttackSpec, Any], Perturbation]
 
 
 def utcnow() -> datetime:
@@ -205,6 +206,8 @@ class JobRunner:
         on_batch: BatchHook | None = None,
         perturbation_factory: PerturbationFactory | None = None,
         provenance: Provenance | None = None,
+        registry: PerturbationRegistry = DEFAULT_REGISTRY,
+        model_provider: ModelSource | None = None,
     ) -> None:
         self.client = client
         self.cache = cache
@@ -213,25 +216,20 @@ class JobRunner:
         self.heartbeat_interval_s = heartbeat_interval_s
         self.clock = clock
         self.on_batch = on_batch
-        self.perturbation_factory = perturbation_factory
+        self.registry = registry
+        self.perturbation_factory = perturbation_factory or registry_factory(registry)
         self.provenance = provenance or EnvProvenance()
+        self.models = model_provider or ModelProvider(cache.store)
         self.errors = WORKER_POLICY
-        self._estimators: dict[str, Any] = {}
 
     # ------------------------------------------------------------------ chuẩn bị
 
-    def _estimator(self, bundle: WorkerJobBundle) -> Any:
-        sha = bundle.model_card.weights_sha256
-        if sha not in self._estimators:
-            model = load_model_from_store(self.cache.store, sha)
-            self._estimators[sha] = build_estimator(model, bundle.inference_params, self.device)
-        return self._estimators[sha]
+    def _adapter(self, bundle: WorkerJobBundle) -> ModelAdapter:
+        """Adapter của model (cache theo khóa trong `ModelProvider`); model nạp lười."""
+        return self.models.get(bundle.model_card, bundle.inference_params, self.device)
 
     def _build_perturbation(self, spec: AttackSpec, bundle: WorkerJobBundle) -> Perturbation:
-        # Không truyền `perturbation_factory` thì tra `build_perturbation` của module này lúc gọi
-        # (giữ được patch cấp module tới khi test chuyển sang seam, Phase R1).
-        factory = self.perturbation_factory or build_perturbation
-        return factory(spec, self._estimator(bundle))
+        return self.perturbation_factory(spec, gradient_estimator(self._adapter(bundle)))
 
     def _environment(self, bundle: WorkerJobBundle) -> Environment:
         return environment(self.device).model_copy(
@@ -245,10 +243,11 @@ class JobRunner:
         hoặc mọi attack khi `force`. Attack không dùng được với model thì bỏ qua."""
         profiles = {p.attack_spec_id: p for p in bundle.cost_profiles}
         card = bundle.model_card
+        adapter = self._adapter(bundle)
         for attack in bundle.config.attacks:
             spec = next(s for s in bundle.attack_specs if s.id == attack.attack_spec_id)
             if (spec.id in profiles and not force) or (
-                spec.requires_gradients and not card.supports_gradients
+                spec.requires_gradients and not adapter.capabilities.gradients
             ):
                 continue
             levels = [r.level for r in bundle.runs if r.attack_spec_id == spec.id]
@@ -259,7 +258,9 @@ class JobRunner:
             try:
                 if spec.requires_training:
                     # Phase 6: đánh giá đo bằng patch ngẫu nhiên; chi phí train đo riêng bên dưới.
-                    perturbation: Perturbation = calibration_patch(spec, loader)
+                    perturbation: Perturbation = calibration_patch(
+                        spec, loader, adapter.estimator(), self.registry
+                    )
                     level = spec.primary_param.max
                 else:
                     perturbation = self._build_perturbation(spec, bundle)
@@ -268,7 +269,7 @@ class JobRunner:
                 continue
             profile = calibrate(
                 loader=loader,
-                estimator=self._estimator(bundle),
+                estimator=adapter,
                 perturbation=perturbation,
                 level=level,
                 seed=attack.seed,
@@ -281,7 +282,7 @@ class JobRunner:
             )
             if spec.requires_training:
                 try:
-                    seconds = patch_training_cost(spec, loader, self._estimator(bundle))
+                    seconds = patch_training_cost(spec, loader, adapter.estimator())
                 except Exception:  # thiếu chi phí train chỉ làm ước lượng thiếu, không dừng job
                     logger.warning("Không đo được chi phí train %s", spec.name, exc_info=True)
                 else:
@@ -442,7 +443,7 @@ class JobRunner:
                 self.cache.store,
                 job.loader,
                 bundle.inference_params,
-                lambda: self._estimator(bundle),
+                lambda: self._adapter(bundle),
                 batch,
                 lambda: describe_device(self.device),
             )
@@ -487,7 +488,7 @@ class JobRunner:
             self, job, run, spec, fp, inputs, store, prefix, images_total=images_total
         )
 
-        if spec.requires_gradients and not bundle.model_card.supports_gradients:
+        if spec.requires_gradients and not self._adapter(bundle).capabilities.gradients:
             finish.skipped(f"{spec.name} cần gradient nhưng model không hỗ trợ gradient")
             return
         executor: RunExecutor | None = None
@@ -499,8 +500,9 @@ class JobRunner:
                 )
             else:
                 perturbation = self._build_perturbation(spec, bundle)
+            builder = self.registry.builder_for(spec)
             candidates = StoreCandidates(
-                store, prefix, linf_eps(spec, perturbation, run.level), perturbation_kind(spec)
+                store, prefix, builder.linf_eps(spec, run.level), builder.image_kind
             )
             # Checkpoint hỏng hoặc không tải được: run failed, run khác chạy tiếp.
             executor, batch_index = self._executor(
@@ -596,7 +598,7 @@ class JobRunner:
 
     def _patch_perturbation(
         self, job: _Job, run_id: UUID, spec: AttackSpec, store: PresignedStore
-    ) -> tuple[PatchPerturbation, float]:
+    ) -> tuple[Perturbation, float]:
         """Phase 6 (plan task 17): lấy patch đã train (hoặc train trên slice huấn luyện, báo tiến
         độ `phase = training`), rồi dựng adapter dán patch. Trả kèm thời gian train để cộng vào
         `gpu_seconds` của run."""
@@ -631,7 +633,7 @@ class JobRunner:
         obtained = obtain_patch(
             PatchJob(
                 spec=spec,
-                estimator=self._estimator(bundle),
+                estimator=self._adapter(bundle).estimator(),
                 patch=patch,
                 run_id=run_id,
                 lease_id=job.lease.lease_id,
@@ -646,10 +648,12 @@ class JobRunner:
             images,
             mask,
         )
-        return (
-            PatchPerturbation(spec, obtained.patch, area_ratio=run.level),
-            obtained.training_seconds,
+        context = BuildContext(
+            estimator=gradient_estimator(self._adapter(bundle)),
+            patch=obtained.patch,
+            area_ratio=run.level,
         )
+        return self.registry.build(spec, context), obtained.training_seconds
 
     @staticmethod
     def _drop_checkpoint(store: PresignedStore, previous: str | None, current: str) -> None:
@@ -684,7 +688,7 @@ class JobRunner:
             "level": level,
             "seed": seed,
             "perturbation": perturbation,
-            "estimator": self._estimator(job.bundle),
+            "estimator": self._adapter(job.bundle),
             "context": context if image_ids is None else context.restricted(image_ids),
             "candidates": candidates,
         }

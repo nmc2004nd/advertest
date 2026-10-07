@@ -20,7 +20,7 @@ import torch
 
 from advertest_contracts.models import AttackSpec, CostProfile, Environment
 from advertest_contracts.perturbation import Perturbation
-from attacks.patch.adapter import PatchPerturbation
+from attacks.builders import DEFAULT_REGISTRY, BuildContext, PerturbationRegistry
 from attacks.patch.calibration import measure_sec_per_image_iteration
 from attacks.patch.geometry import Region, patch_side
 from attacks.patch.training import training_params
@@ -134,9 +134,15 @@ def calibrate(
 # ---------------------------------------------------------------- patch (Phase 6)
 
 
-def calibration_patch(spec: AttackSpec, loader: SliceLoader) -> PatchPerturbation:
+def calibration_patch(
+    spec: AttackSpec,
+    loader: SliceLoader,
+    estimator: Any,
+    registry: PerturbationRegistry = DEFAULT_REGISTRY,
+) -> Perturbation:
     """Patch ngẫu nhiên ở `area_ratio` lớn nhất, đặt vừa ảnh đầu của slice: đo `sec_per_image` của
-    giai đoạn đánh giá (dán patch rồi predict) mà không cần patch đã train."""
+    giai đoạn đánh giá (dán patch rồi predict) mà không cần patch đã train. Dựng qua registry
+    (`BuildContext.patch`)."""
     _, _, _, info = loader.load(loader.slice.image_ids[0])
     mask = letterbox_mask([info])[0, 0]
     rows = np.flatnonzero(mask.any(axis=1))
@@ -144,7 +150,10 @@ def calibration_patch(spec: AttackSpec, loader: SliceLoader) -> PatchPerturbatio
     region = Region(int(rows[0]), int(rows[-1]) + 1, int(cols[0]), int(cols[-1]) + 1)
     side = patch_side(spec.primary_param.max, region)
     patch = np.random.default_rng(0).random((3, side, side)).astype(np.float32)
-    return PatchPerturbation(spec, patch, area_ratio=spec.primary_param.max)
+    area_ratio = spec.primary_param.max
+    return registry.build(
+        spec, BuildContext(estimator=estimator, patch=patch, area_ratio=area_ratio)
+    )
 
 
 def patch_training_cost(spec: AttackSpec, loader: SliceLoader, estimator: Any) -> float:
