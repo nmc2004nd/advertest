@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from advertest_contracts.perturbation import Perturbation
-from attacks.art_adapter import ArtPerturbation, UnsupportedAttack
+from attacks.art_adapter import ArtPerturbation, IncompatibleAttack
 from attacks.corruptions.adapter import CorruptionPerturbation
 from attacks.factory import build_perturbation
 from attacks.occlusion.adapter import OcclusionPerturbation
@@ -37,12 +37,13 @@ def test_occlusion_without_estimator() -> None:
 
 def test_attacks_go_to_art_adapter() -> None:
     assert isinstance(build_perturbation(spec("fgsm"), fd.estimator()), ArtPerturbation)
-    with pytest.raises(UnsupportedAttack, match="estimator"):
+    with pytest.raises(IncompatibleAttack, match="không hỗ trợ gradient"):
         build_perturbation(spec("pgd_linf"), None)
 
 
-def test_patch_not_supported_until_group_2() -> None:
-    with pytest.raises(UnsupportedAttack, match="RobustDPatch"):
+def test_patch_needs_trained_patch() -> None:
+    # Patch đã train chỉ truyền được qua `BuildContext` của registry (Phase R1).
+    with pytest.raises(ValueError, match="patch đã train"):
         build_perturbation(spec("adv_patch"), fd.estimator())
 
 
