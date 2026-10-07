@@ -19,6 +19,34 @@ Các phase đã đóng trước phase gần nhất nằm trong `changelog/archiv
 
 ---
 
+## Phase R1 — Refactor lớp chạy giữ hành vi
+
+**Trạng thái:** đang làm. Group 0 (golden, `6861ca8`) và Group 1 xong.
+
+### Phase R1 — Group 1 (worker) — 2026-10-07
+Nhánh `phaser1-worker` @ `d032885` (tách từ `dev` @ `e1840c5`), 5 commit; chỉ sửa `ml_core/runner/` và `backend/worker/`.
+### Thêm
+- `ml_core/runner/provenance.py`: `Provenance` (Protocol: `git`, `lib_versions`, `docker_image_digest`) và cài đặt mặc định `EnvProvenance` đọc env và git.
+- Seam `provenance`, `clean_predictor` (alias `CleanPredictor`) cho `Runner` và `run_config`.
+- Seam `perturbation_factory`, `provenance` cho `JobRunner`; hai chỗ dựng perturbation (calibration, run) đi qua `_build_perturbation`; provenance vẫn đọc một lần mỗi experiment.
+- Unit test: provenance qua env; seam provenance và clean_predictor ở CLI; seam factory và provenance ở worker (`db`: build lỗi ở run 2 → `failed`, run 1 `completed`; `git_dirty` vào manifest; provenance đọc một lần).
+### Thay đổi
+- Không đổi hành vi; giữ nguyên các tên module cũ (7 chỗ patch trong `tests/acceptance` vẫn chạy).
+### Contract
+- Không đổi.
+### Quyết định
+- Seam mặc định `None` (tra tên cấp module lúc gọi: `build_perturbation`, `git_state`, `lib_versions`, `docker_image_digest`, `predict_slice`) cho tới hết Group 2; sau đó đổi mặc định thành `EnvProvenance()`, `build_perturbation`, `predict_slice`. Người duyệt chấp nhận 2026-10-07; ghi tại `requirements.md` `### Seam`.
+- `PerturbationFactory` tạm khai báo ở cả `ml_core/runner/run.py` và `backend/worker/advertest_worker/job.py` để worker không import module CLI; Group 5 gom về lõi dùng chung (`requirements.md` `### Seam`).
+- Plan ghi 3 chỗ dựng perturbation, thực tế 2 (search đi qua đường run).
+### Số liệu đo được
+- Unit: 1481 Python + 372 frontend pass; nghiệm thu không db 332 passed; `make test-db` 696 passed (24 phút, theo báo cáo agent).
+### Tồn đọng
+- `make check` đỏ ở `ruff format --check` của `scripts/export_demo_data.py:17` (có sẵn trên `dev` từ `660e631`); người duyệt format trên `dev` trong commit riêng.
+- Group 2: fixture `JobRunner` trong conftest `phase_03`/`phase_05` cần truyền seam; chuyển 7 chỗ patch cấp module sang seam.
+- Lỗ hổng độ phủ từ kickoff (người duyệt tự quyết): chưa có test cho `LeaseLost`, `PatchInterrupted`, thông điệp `UnsupportedAttack`, calibration qua registry.
+
+---
+
 ## Phase 8 — Protocol, review và report
 
 **Trạng thái:** ✅ Hoàn thành 2026-10-02 theo xác nhận của người dùng. Group 0–7 đã merge; Manual Checks đạt; mục Automated Tests pass trên CI được giữ chưa đánh dấu để test lại và cập nhật sau.

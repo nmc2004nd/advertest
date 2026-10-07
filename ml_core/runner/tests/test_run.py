@@ -36,6 +36,7 @@ from advertest_contracts.models import (
 from attacks.art_adapter import ArtPerturbation, build_perturbation
 from attacks.registry import get_spec, load_catalog
 from ml_core.cli import app
+from ml_core.cli.evaluate import predict_slice
 from ml_core.data.dataset import save_dataset
 from ml_core.data.kitti import import_kitti
 from ml_core.data.mapping import build_mapping, save_mapping
@@ -263,6 +264,49 @@ def test_git_dirty_goes_into_manifest(
     report = run_config(store, _config(base, [_attack("fgsm", [4])]))
     assert report.git_dirty
     assert _manifest(store, report.outcomes[0].result).fingerprint_inputs.git_dirty
+
+
+class _FakeProvenance:
+    def __init__(self, commit: str, dirty: bool) -> None:
+        self.state = GitState(commit=commit, dirty=dirty)
+
+    def git(self) -> GitState:
+        return self.state
+
+    def lib_versions(self) -> Any:
+        return register_module.lib_versions()
+
+    def docker_image_digest(self) -> str:
+        return "sha256:" + "c" * 64
+
+
+def test_provenance_seam_goes_into_fingerprint_and_manifest(base: Base, store: LocalStore) -> None:
+    commit = "2" * 40
+    report = run_config(
+        store,
+        _config(base, [_attack("fgsm", [4])]),
+        provenance=_FakeProvenance(commit, dirty=True),
+    )
+    assert report.git_dirty
+    inputs = _manifest(store, report.outcomes[0].result).fingerprint_inputs
+    assert (inputs.git_commit, inputs.git_dirty) == (commit, True)
+    assert inputs.docker_image_digest == "sha256:" + "c" * 64
+    default = run_config(store, _config(base, [_attack("fgsm", [4])]))
+    assert default.outcomes[0].result.fingerprint != report.outcomes[0].result.fingerprint
+
+
+def test_clean_predictor_seam_is_used_only_without_cache(base: Base, store: LocalStore) -> None:
+    calls: list[int] = []
+
+    def predictor(loader: Any, estimator: Any, batch_size: int) -> dict[str, Prediction]:
+        calls.append(batch_size)
+        return predict_slice(loader, estimator, batch_size)
+
+    config = _config(base, [_attack("fgsm", [4])])
+    run_config(store, config, clean_predictor=predictor)
+    assert calls == [config.batch_size]
+    run_config(store, config, force=True, clean_predictor=predictor)
+    assert calls == [config.batch_size]
 
 
 class _Boom:

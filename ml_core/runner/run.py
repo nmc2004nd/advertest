@@ -58,11 +58,14 @@ from ml_core.runner.executor import (
 )
 from ml_core.runner.fingerprint import build_fingerprint_inputs, fingerprint
 from ml_core.runner.images import amplified_perturbation, letterbox_mask, perturbation_kind
+from ml_core.runner.provenance import Provenance
 from ml_core.store import ArtifactStore
 
 __all__ = ["amplified_perturbation", "letterbox_mask"]
 
 PerturbationFactory = Callable[[AttackSpec, Any], Perturbation]
+# Prediction thô trên ảnh sạch khi chưa có cache: (loader, estimator, batch_size) → theo ảnh.
+CleanPredictor = Callable[[SliceLoader, Any, int], dict[str, Prediction]]
 ProgressFn = Callable[[str], None]
 
 
@@ -103,6 +106,8 @@ class Runner:
         progress: ProgressFn | None = None,
         perturbation_factory: PerturbationFactory = build_perturbation,
         params: InferenceParams = DEFAULT_INFERENCE_PARAMS,
+        provenance: Provenance | None = None,
+        clean_predictor: CleanPredictor | None = None,
     ) -> None:
         self.store = store
         self.config = config
@@ -112,9 +117,17 @@ class Runner:
         self.params = params
         self.device = config.device or default_device()
         self.specs = resolve_specs(config)
-        self.git = git_state()
-        self.versions = lib_versions()
-        self.docker_digest = docker_image_digest()
+        self.clean_predictor = clean_predictor
+        # Không truyền `provenance` thì tra `git_state`, `lib_versions`, `docker_image_digest` của
+        # module này lúc gọi (giữ được patch cấp module tới khi test chuyển sang seam, Phase R1).
+        if provenance is None:
+            self.git = git_state()
+            self.versions = lib_versions()
+            self.docker_digest = docker_image_digest()
+        else:
+            self.git = provenance.git()
+            self.versions = provenance.lib_versions()
+            self.docker_digest = provenance.docker_image_digest()
         self.experiment_id = experiment_id(config)
 
         self.loader = SliceLoader.from_ids(store, config.slice_id, config.mapping_id)
@@ -148,8 +161,9 @@ class Runner:
             self.config.batch_size,
             lambda: describe_device(self.device),
             self.progress,
-            # Tra `predict_slice` lúc gọi: test thay hàm này để kiểm tra đã dùng cache.
-            lambda loader, estimator, batch_size: predict_slice(loader, estimator, batch_size),
+            self.clean_predictor
+            # Tra `predict_slice` lúc gọi: test cũ thay hàm này để kiểm tra đã dùng cache.
+            or (lambda loader, estimator, batch_size: predict_slice(loader, estimator, batch_size)),
         )
 
     # ------------------------------------------------------------------ chạy
@@ -401,8 +415,16 @@ def run_config(
     force: bool = False,
     progress: ProgressFn | None = None,
     perturbation_factory: PerturbationFactory = build_perturbation,
+    provenance: Provenance | None = None,
+    clean_predictor: CleanPredictor | None = None,
 ) -> RunReport:
     runner = Runner(
-        store, config, force=force, progress=progress, perturbation_factory=perturbation_factory
+        store,
+        config,
+        force=force,
+        progress=progress,
+        perturbation_factory=perturbation_factory,
+        provenance=provenance,
+        clean_predictor=clean_predictor,
     )
     return runner.run()

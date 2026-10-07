@@ -3,18 +3,18 @@
 > Phân chia thư mục:
 > `attacks/` (agent `attack`); `ml_core/models/` (agent `ml-model`); `ml_core/runner/`, `backend/worker/` (agent `worker`, như Phase 7); `tests/acceptance/phase_r1/`, `tests/fixtures/golden/` (người duyệt).
 >
-> Thứ tự: Group 0 ✅ → Group 1 → Group 2 → (Group 3, 4 song song) → Group 5 → Group 6 → Group 7.
+> Thứ tự: Group 0 ✅ → Group 1 ✅ → Group 2 → (Group 3, 4 song song) → Group 5 → Group 6 → Group 7.
 > Mọi group của agent: golden R1 (CLI; worker qua `make test-db`) và test nghiệm thu Phase 0–8 phải pass ở **mỗi commit**, không chỉ cuối group.
 
 ## Group 0 — Golden `[người duyệt]` ✅
 
 1. ✅ Golden CLI và worker trên code trước refactor (`6861ca8`); ghim provenance, torch 1 luồng.
 
-## Group 1 — Seam `[agent: worker]`
+## Group 1 — Seam `[agent: worker]` ✅
 
-2. `JobRunner` nhận `perturbation_factory` và `provenance` tùy chọn; `Runner` và `run_config` nhận `provenance` và `clean_predictor`. Mặc định giữ hành vi.
-3. Định nghĩa `Provenance` (Protocol cùng cài đặt mặc định đọc env và git như `ml_core/runner/env.py`) ở `ml_core/runner/`.
-4. Không đổi gì khác; giữ nguyên các tên module cũ.
+2. ✅ `JobRunner` nhận `perturbation_factory` và `provenance` tùy chọn; `Runner` và `run_config` nhận `provenance` và `clean_predictor`. Mặc định giữ hành vi.
+3. ✅ Định nghĩa `Provenance` (Protocol cùng cài đặt mặc định đọc env và git như `ml_core/runner/env.py`) ở `ml_core/runner/`.
+4. ✅ Không đổi gì khác; giữ nguyên các tên module cũ.
 
 ## Group 2 — Chuyển test nghiệm thu sang seam `[người duyệt]`
 

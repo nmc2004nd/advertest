@@ -25,10 +25,11 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session, sessionmaker
 
 from advertest_contracts.enums import ExperimentStatus, RunStatus
-from advertest_contracts.models import CostProfile
+from advertest_contracts.models import CostProfile, Manifest
 from advertest_worker.cache import JobCache
 from advertest_worker.client import LeaseLost, WorkerClient
 from advertest_worker.job import JobRunner
+from attacks.factory import build_perturbation
 from attacks.registry import get_spec, load_catalog
 from backend.admin_cli.seed import load_attack_specs
 from backend.app.api.deps import Storage, get_clock, get_sessionmaker, get_storage
@@ -39,8 +40,10 @@ from backend.app.services import compute_targets, experiments, registry
 from backend.app.storage import Buckets
 from backend.app.tests.db.conftest import _url, make_user
 from backend.app.tests.db.local_store_factory import LocalData, build_local_store
+from ml_core.models.register import lib_versions
 from ml_core.runner import executor as executor_module
 from ml_core.runner.config import LocalRunConfig
+from ml_core.runner.env import GitState
 from ml_core.store import PresignedStore
 
 pytestmark = pytest.mark.db
@@ -168,7 +171,13 @@ def _submit(
 
 
 def _runner(
-    setup: Setup, tmp_path: Path, clock: FakeClock, *, on_batch: Any = None, heartbeat: float = 3600
+    setup: Setup,
+    tmp_path: Path,
+    clock: FakeClock,
+    *,
+    on_batch: Any = None,
+    heartbeat: float = 3600,
+    **seams: Any,
 ) -> JobRunner:
     return JobRunner(
         setup.client,
@@ -178,6 +187,7 @@ def _runner(
         heartbeat_interval_s=heartbeat,
         clock=clock,
         on_batch=on_batch,
+        **seams,
     )
 
 
@@ -250,6 +260,48 @@ def test_worker_completes_experiment_then_cache_skips(
     assert [r.cached_from_run_id for r in runs2] == [r.id for r in runs]
     assert [r.metrics for r in runs2] == [r.metrics for r in runs]
     assert batches == []  # attack không được gọi
+
+
+class _DirtyProvenance:
+    def __init__(self) -> None:
+        self.reads = 0
+
+    def git(self) -> GitState:
+        self.reads += 1
+        return GitState(commit="d" * 40, dirty=True)
+
+    def lib_versions(self) -> Any:
+        return lib_versions()
+
+    def docker_image_digest(self) -> str:
+        return "none"
+
+
+def test_seams_replace_perturbation_factory_and_provenance(
+    app_engine: Engine, world: World, api: TestClient, clock: FakeClock, buckets: Buckets,
+    tmp_path: Path,
+) -> None:  # fmt: skip
+    setup = _submit(app_engine, world, api, clock, seed=105)
+    built: list[str] = []
+
+    def factory(spec: Any, estimator: Any) -> Any:
+        built.append(spec.name)
+        if len(built) == 3:  # calibration, run 1, run 2
+            raise RuntimeError("builder hỏng")
+        return build_perturbation(spec, estimator)
+
+    provenance = _DirtyProvenance()
+    runner = _runner(setup, tmp_path, clock, perturbation_factory=factory, provenance=provenance)
+    _lease_and_run(runner, setup)
+    _, runs = _state(app_engine, setup.experiment_id)
+    assert built == ["fgsm", "fgsm", "fgsm"]
+    assert [r.status for r in runs] == [RunStatus.COMPLETED, RunStatus.FAILED]
+    assert provenance.reads == 1  # đọc một lần mỗi experiment
+    manifest = Manifest.model_validate_json(
+        buckets.artifacts.get(f"runs/{runs[0].id}/manifest.json")
+    )
+    assert manifest.fingerprint_inputs.git_commit == "d" * 40
+    assert manifest.fingerprint_inputs.git_dirty
 
 
 def test_resume_after_worker_dies(
