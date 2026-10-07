@@ -34,6 +34,11 @@ DEFAULT_EPS_STEP_RATIO = 0.25
 _ADAPTER_PARAMS = frozenset({"eps_step_ratio"})
 
 
+def level_to_eps(spec: AttackSpec, level: float) -> float:
+    """`level` theo đơn vị của spec → `eps` trên ảnh [0, 1]."""
+    return level * _UNIT_SCALE[spec.primary_param.unit]
+
+
 class UnsupportedAttack(ValueError):
     """Spec không dựng được bằng adapter ART (sai `kind`, `art_class` hay đơn vị)."""
 
@@ -62,7 +67,7 @@ class ArtPerturbation:
 
     def eps(self, level: float) -> float:
         """`level` theo đơn vị của spec → `eps` trên ảnh [0, 1]."""
-        return level * _UNIT_SCALE[self.spec.primary_param.unit]
+        return level_to_eps(self.spec, level)
 
     def apply(
         self,
