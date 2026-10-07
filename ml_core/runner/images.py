@@ -10,8 +10,7 @@ import numpy as np
 from numpy.typing import NDArray
 from PIL import Image
 
-from advertest_contracts.enums import AttackKind, PerturbationImageKind
-from advertest_contracts.models import AttackSpec
+from advertest_contracts.enums import PerturbationImageKind
 from ml_core.preprocess import LetterboxInfo
 
 THUMB_WIDTH = 320  # requirements.md Phase 3, mục Failure case trong chế độ batch
@@ -78,16 +77,6 @@ def difference_image(
     if peak <= 0:
         return np.zeros(clean.shape, dtype=np.float32)
     return (delta / peak).astype(np.float32)
-
-
-def perturbation_kind(spec: AttackSpec) -> PerturbationImageKind:
-    """Nội dung ảnh thứ ba theo loại phép thử: nhiễu khuếch đại (FGSM, PGD), vị trí patch (spec
-    cần train), vùng khác biệt (corruption, occlusion)."""
-    if spec.kind != AttackKind.ATTACK:
-        return PerturbationImageKind.DIFFERENCE
-    if spec.requires_training:
-        return PerturbationImageKind.PATCH_LOCATION
-    return PerturbationImageKind.AMPLIFIED_NOISE
 
 
 def third_image(

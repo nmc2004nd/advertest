@@ -30,6 +30,7 @@ from advertest_contracts.models import CaseArtifacts
 from ml_core.privacy.blur import blur_regions
 from ml_core.privacy.regions import Box
 from ml_core.runner.images import png_bytes, third_image, thumbnail_webp
+from ml_core.runner.paths import candidate_prefix, case_prefix
 from ml_core.store import ArtifactStore, DeletableStore
 
 
@@ -115,7 +116,7 @@ class MemoryCandidates:
         if image_id not in self._items:
             raise KeyError(f"Không có ảnh ứng viên {image_id} trong bộ nhớ")
         shown = self._items.pop(image_id)
-        base = f"{self.prefix}/cases/{image_id}"
+        base = case_prefix(self.prefix, image_id)
         for name, data in _images(shown).items():
             self.store.put(f"{base}/{name}", data)
         return CaseArtifacts(
@@ -151,7 +152,7 @@ class StoreCandidates:
         self.kind = kind
 
     def candidate_prefix(self, image_id: str) -> str:
-        return f"{self.prefix}/candidates/{image_id}"
+        return candidate_prefix(self.prefix, image_id)
 
     def add(
         self,
@@ -175,7 +176,7 @@ class StoreCandidates:
 
     def promote(self, image_id: str, case_id: UUID) -> CaseArtifacts:
         source = self.candidate_prefix(image_id)
-        base = f"{self.prefix}/cases/{case_id}"
+        base = case_prefix(self.prefix, case_id)
         for name in CANDIDATE_FILES:
             # Gọi lại được: worker có thể chết giữa lúc hoàn tất rồi chạy lại `finalize`.
             if not self.store.exists(f"{base}/{name}"):

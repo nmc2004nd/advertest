@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 import pytest
@@ -94,8 +95,8 @@ def test_patch_calibration_measures_evaluation_and_training(base: Base) -> None:
     card = load_card(store, base.card.weights_sha256)
     estimator = build_estimator(load_model_from_store(store, card.weights_sha256), device="cpu")
     spec = get_spec(load_catalog(), name="adv_patch")
-    perturbation = calibration_patch(spec, loader)
-    assert perturbation.area_ratio == spec.primary_param.max
+    perturbation = calibration_patch(spec, loader, estimator)
+    assert cast(Any, perturbation).area_ratio == spec.primary_param.max
     image, target, _, info = loader.load(loader.slice.image_ids[0])
     out = perturbation.apply(
         image[None], [{**target, "image_id": "x"}], spec.primary_param.max, 0,

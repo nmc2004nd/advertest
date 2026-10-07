@@ -89,6 +89,7 @@ class ErrorPolicy:                              # exception → (RunStatus, code
 - Tới hết Group 2, giá trị mặc định của seam là `None`: lúc gọi vẫn tra tên ở cấp module (`build_perturbation`, `git_state`, `lib_versions`, `docker_image_digest`, `predict_slice`) để các patch cũ trong test nghiệm thu còn chạy. Sau Group 2, mặc định đổi thành `EnvProvenance()`, `build_perturbation` và `predict_slice`.
 - `PerturbationFactory` tạm được khai báo ở cả `ml_core/runner/run.py` và `job.py`, để worker không phải import module CLI. Group 5 gom về lõi dùng chung.
 - Từ Group 2, test nghiệm thu chỉ thay thế qua seam, không patch tên ở cấp module nữa. Agent được đổi tên hay xóa các tên module cũ **sau khi** Group 2 xong.
+- Từ Group 5, `Runner`, `run_config` và `JobRunner` nhận thêm seam `registry` (`PerturbationRegistry`, mặc định `DEFAULT_REGISTRY`) và `model_provider` (`ModelSource.get(card, params, device)`, mặc định `ModelProvider`). `registry` là seam chính: `linf_eps` và `image_kind` lấy từ builder của nó. `perturbation_factory(spec, estimator | None)` giữ chữ ký nhưng phải nhất quán với `registry`: builder mới phải được đăng ký vào `registry` truyền vào, không chỉ truyền qua `perturbation_factory`.
 
 ### Registry
 
@@ -103,6 +104,7 @@ class ErrorPolicy:                              # exception → (RunStatus, code
 
 - `ModelProvider` thay `JobRunner._estimator` và `Runner.estimator`, nạp model một lần cho mỗi khóa cache.
 - Model có `supports_gradients = false` → `Capabilities.gradients = false`. Thông điệp `skipped` giữ như hiện tại.
+- Khóa cache `(weights_sha256, InferenceParams, device)`. Worker không dùng lại estimator giữa các bundle khác `InferenceParams` (trước R1 cache theo sha). Cache không giới hạn; xét giới hạn ở R2.
 
 ### Chính sách lỗi
 
@@ -115,6 +117,9 @@ class ErrorPolicy:                              # exception → (RunStatus, code
 | `LeaseLost` | dừng experiment, không gửi gì thêm |
 | Hết VRAM | giảm batch một bậc rồi chạy lại batch (như `_shrink_batch`) |
 | Exception khác | run `failed` (`error`), các run khác chạy tiếp |
+
+- Cài đặt hai tầng: `CORE_POLICY` (`ml_core/runner/errors.py`) dùng chung cho CLI và worker; worker dùng `WORKER_POLICY = CORE_POLICY.with_rules(...)` cho `LeaseLost`, `StopExperiment`, `PatchInterrupted`. Hết VRAM ở batch 1 hoặc ngoài vòng batch → run `failed`.
+- `IncompatibleAttack` ném ra khi đang chạy batch cũng cho `skipped` (`incompatible`); trước R1 là `failed`. Đây là khác biệt có chủ đích và không xảy ra với catalog hiện tại.
 
 ### Điều phối
 
@@ -134,6 +139,8 @@ class ErrorPolicy:                              # exception → (RunStatus, code
 - **Nhánh R1 merge vào `dev`, không vào `main`.** *Lý do:* `main` chưa có `dev` (spec R1, Group 0/1); merge thẳng vào `main` kéo theo 127 file ngoài group. Người dùng chốt 2026-10-07.
 - **`attacks.factory.build_perturbation` giữ nguyên tên đến hết R1.** *Lý do:* test nghiệm thu phase_06/07/08/r1 import tên này làm mặc định của seam `perturbation_factory`; agent không được sửa test. Người dùng chốt 2026-10-07.
 - **`ModelProvider.get` báo `ValueError` khi `ModelCard.framework` khác `ultralytics`, cho tới khi R2 thêm adapter.** *Lý do:* R1 chỉ có adapter Ultralytics; báo lỗi rõ ràng tốt hơn nạp sai. Người duyệt chốt 2026-10-07 (review Group 4).
+- **`registry` là seam chính của việc dựng perturbation; `perturbation_factory` phải nhất quán với nó.** *Lý do:* `linf_eps`/`image_kind` đọc từ builder của `registry`; builder chỉ truyền qua `perturbation_factory` sẽ báo `UnsupportedAttack`. Người duyệt chốt 2026-10-07 (review Group 5, phát hiện 2).
+- **Lỗi `ModelProvider.get` trong phép kiểm gradient của worker (`job.py:491`, `job.py:246`) để R2 sửa.** *Lý do:* R1 chỉ có ultralytics nên lỗi chưa xảy ra được; khi có adapter khác thì lỗi này phải chỉ làm run `failed`, không dừng cả experiment. Người duyệt chốt 2026-10-07 (review Group 5, phát hiện 3).
 
 ## Context
 

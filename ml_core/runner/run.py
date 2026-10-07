@@ -16,7 +16,6 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -26,59 +25,54 @@ from advertest_contracts.models import (
     EvalMetrics,
     FingerprintInputs,
     InferenceParams,
-    Manifest,
     Progress,
     RunResult,
     StatusReason,
 )
 from advertest_contracts.perturbation import Perturbation
-from attacks.art_adapter import IncompatibleAttack
-from attacks.factory import build_perturbation
+from attacks.builders import DEFAULT_REGISTRY, IncompatibleAttack, PerturbationRegistry
 from ml_core.cli.cache import Prediction
-from ml_core.cli.evaluate import load_model_from_store, predict_slice
+from ml_core.cli.evaluate import predict_slice
 from ml_core.data.loader import SliceLoader
-from ml_core.models.estimator import build_estimator
-from ml_core.models.register import lib_versions
+from ml_core.models.adapter import ModelAdapter, ModelProvider
 from ml_core.models.wrapper import DEFAULT_INFERENCE_PARAMS
 from ml_core.runner.candidates import MemoryCandidates
 from ml_core.runner.config import LocalRunConfig, experiment_id, resolve_specs
-from ml_core.runner.env import (
-    default_device,
-    describe_device,
-    docker_image_digest,
-    environment,
-    git_state,
-)
+from ml_core.runner.env import default_device, describe_device, environment
+from ml_core.runner.errors import CORE_POLICY, ErrorAction, ErrorDecision
 from ml_core.runner.executor import (
     RunContext,
     RunExecutor,
     build_context,
-    linf_eps,
     load_clean_predictions,
 )
-from ml_core.runner.fingerprint import build_fingerprint_inputs, fingerprint
-from ml_core.runner.images import amplified_perturbation, letterbox_mask, perturbation_kind
-from ml_core.runner.provenance import Provenance
+from ml_core.runner.fingerprint import FingerprintService, fingerprint
+from ml_core.runner.images import amplified_perturbation, letterbox_mask
+from ml_core.runner.manifest import ManifestBuilder
+from ml_core.runner.paths import (
+    attempt_prefix,
+    case_record_key,
+    fingerprint_prefix,
+    rerun_prefix,
+    result_key,
+)
+from ml_core.runner.perturbations import (
+    ModelSource,
+    PerturbationFactory,
+    gradient_estimator,
+    registry_factory,
+)
+from ml_core.runner.provenance import EnvProvenance, Provenance
 from ml_core.store import ArtifactStore
 
-__all__ = ["amplified_perturbation", "letterbox_mask"]
+__all__ = ["amplified_perturbation", "letterbox_mask", "result_key", "run_prefix"]
 
-PerturbationFactory = Callable[[AttackSpec, Any], Perturbation]
+# `ml_core/cli/run.py` (`advertest show`) import hai tên này từ module này.
+run_prefix = fingerprint_prefix
+
 # Prediction thô trên ảnh sạch khi chưa có cache: (loader, estimator, batch_size) → theo ảnh.
 CleanPredictor = Callable[[SliceLoader, Any, int], dict[str, Prediction]]
 ProgressFn = Callable[[str], None]
-
-
-def run_prefix(fp: str) -> str:
-    return f"runs/{fp}"
-
-
-def result_key(prefix: str) -> str:
-    return f"{prefix}/result.json"
-
-
-def manifest_key(prefix: str) -> str:
-    return f"{prefix}/manifest.json"
 
 
 @dataclass(frozen=True)
@@ -104,31 +98,26 @@ class Runner:
         *,
         force: bool = False,
         progress: ProgressFn | None = None,
-        perturbation_factory: PerturbationFactory = build_perturbation,
+        perturbation_factory: PerturbationFactory | None = None,
         params: InferenceParams = DEFAULT_INFERENCE_PARAMS,
         provenance: Provenance | None = None,
         clean_predictor: CleanPredictor | None = None,
+        registry: PerturbationRegistry = DEFAULT_REGISTRY,
+        model_provider: ModelSource | None = None,
     ) -> None:
         self.store = store
         self.config = config
         self.force = force
         self.progress = progress or (lambda _message: None)
-        self.perturbation_factory = perturbation_factory
+        self.registry = registry
+        self.perturbation_factory = perturbation_factory or registry_factory(registry)
+        self.models = model_provider or ModelProvider(store)
         self.params = params
         self.device = config.device or default_device()
         self.specs = resolve_specs(config)
-        self.clean_predictor = clean_predictor
-        # Không truyền `provenance` thì tra `git_state`, `lib_versions`, `docker_image_digest` của
-        # module này lúc gọi (giữ được patch cấp module tới khi test chuyển sang seam, Phase R1).
-        if provenance is None:
-            self.git = git_state()
-            self.versions = lib_versions()
-            self.docker_digest = docker_image_digest()
-        else:
-            self.git = provenance.git()
-            self.versions = provenance.lib_versions()
-            self.docker_digest = provenance.docker_image_digest()
+        self.clean_predictor = clean_predictor or predict_slice
         self.experiment_id = experiment_id(config)
+        self.errors = CORE_POLICY
 
         self.loader = SliceLoader.from_ids(store, config.slice_id, config.mapping_id)
         self.card = self.loader.card
@@ -139,17 +128,26 @@ class Runner:
             )
         self.slice = self.loader.slice
         self.mapping = self.loader.mapping
-        self._estimator: Any = None
+        self.fingerprints = FingerprintService(
+            provenance or EnvProvenance(),
+            params=params,
+            mapping=self.mapping,
+            slice_spec=self.slice,
+            weights_sha256=self.card.weights_sha256,
+        )
+        self.git = self.fingerprints.git  # đọc provenance ngay khi dựng runner
+        self.manifests = ManifestBuilder(lambda: environment(self.device))
+        self._adapter: ModelAdapter | None = None
 
     # ------------------------------------------------------------------ chuẩn bị
 
     @property
-    def estimator(self) -> Any:
-        """Nạp model khi cần lần đầu (không nạp nếu mọi run đều cached và cache sạch có sẵn)."""
-        if self._estimator is None:
-            model = load_model_from_store(self.store, self.card.weights_sha256)
-            self._estimator = build_estimator(model, self.params, self.device)
-        return self._estimator
+    def adapter(self) -> ModelAdapter:
+        """Adapter của model; model chỉ được nạp khi predict hoặc lấy estimator lần đầu (không nạp
+        nếu mọi run đều cached và cache sạch có sẵn)."""
+        if self._adapter is None:
+            self._adapter = self.models.get(self.card, self.params, self.device)
+        return self._adapter
 
     def clean_predictions(self) -> dict[str, Prediction]:
         """Prediction thô trên ảnh sạch từ cache của Phase 1; chưa có thì chạy như `eval`."""
@@ -157,13 +155,11 @@ class Runner:
             self.store,
             self.loader,
             self.params,
-            lambda: self.estimator,
+            lambda: self.adapter,
             self.config.batch_size,
             lambda: describe_device(self.device),
             self.progress,
-            self.clean_predictor
-            # Tra `predict_slice` lúc gọi: test cũ thay hàm này để kiểm tra đã dùng cache.
-            or (lambda loader, estimator, batch_size: predict_slice(loader, estimator, batch_size)),
+            self.clean_predictor,
         )
 
     # ------------------------------------------------------------------ chạy
@@ -181,21 +177,6 @@ class Runner:
                 outcome = self._run_one(spec, float(level), attack.seed, context)
                 report.outcomes.append(outcome)
         return report
-
-    def _fingerprint_inputs(self, spec: AttackSpec, level: float, seed: int) -> FingerprintInputs:
-        return build_fingerprint_inputs(
-            spec=spec,
-            level=level,
-            seed=seed,
-            params=self.params,
-            mapping=self.mapping,
-            slice_spec=self.slice,
-            weights_sha256=self.card.weights_sha256,
-            git_commit=self.git.commit,
-            git_dirty=self.git.dirty,
-            lib_versions=self.versions,
-            docker_image_digest=self.docker_digest,
-        )
 
     def _result(
         self,
@@ -223,16 +204,7 @@ class Runner:
         )
 
     def _write_manifest(self, prefix: str, run_id: UUID, inputs: FingerprintInputs) -> str:
-        manifest = Manifest(
-            run_id=run_id,
-            fingerprint=fingerprint(inputs),
-            fingerprint_inputs=inputs,
-            environment=environment(self.device),
-            created_at=datetime.now(UTC),
-        )
-        key = manifest_key(prefix)
-        self.store.put(key, (manifest.model_dump_json(indent=2) + "\n").encode())
-        return key
+        return self.manifests.write(self.store, prefix, run_id, inputs)
 
     def _write_result(self, prefix: str, result: RunResult) -> None:
         self.store.put(result_key(prefix), (result.model_dump_json(indent=2) + "\n").encode())
@@ -244,9 +216,9 @@ class Runner:
         seed: int,
         context: RunContext,
     ) -> RunOutcome:
-        inputs = self._fingerprint_inputs(spec, level, seed)
+        inputs = self.fingerprints.inputs(spec, level, seed)
         fp = fingerprint(inputs)
-        base = run_prefix(fp)
+        base = fingerprint_prefix(fp)
         has_result = self.store.exists(result_key(base))
 
         if has_result and not self.force:
@@ -270,53 +242,26 @@ class Runner:
             return RunOutcome(result=result, spec_name=spec.name, prefix=None)
 
         run_id = uuid4()
-        attempt = f"{base}/attempts/{run_id}"
-        perturbation: Perturbation | None = None
-        reason: str | None = None
-        if spec.requires_gradients and not self.card.supports_gradients:
-            reason = f"{spec.name} cần gradient nhưng model {self.card.name} không hỗ trợ gradient"
-        else:
-            try:
-                perturbation = self.perturbation_factory(spec, self.estimator)
-            except IncompatibleAttack as exc:
-                reason = str(exc)
-            except Exception as exc:  # lỗi khi dựng attack: run này failed, các run khác chạy tiếp
-                return self._failed(spec, level, run_id, fp, inputs, attempt, exc, _Execution())
-        if perturbation is None:
-            self.progress(f"[{spec.name} {level:g}] skipped: {reason}")
-            manifest_uri = self._write_manifest(attempt, run_id, inputs)
-            result = self._result(
-                run_id,
-                fp,
-                spec,
-                level,
-                RunStatus.SKIPPED,
-                status_reason=StatusReason(code=SkipReason.INCOMPATIBLE, message=reason or "-"),
-                manifest_uri=manifest_uri,
-            )
-            self._write_result(attempt, result)
-            return RunOutcome(result=result, spec_name=spec.name, prefix=attempt)
-
-        prefix = f"{base}/reruns/{run_id}" if has_result else base
+        attempt = attempt_prefix(base, run_id)
+        prefix = rerun_prefix(base, run_id) if has_result else base
         state = _Execution()
         try:
+            if spec.requires_gradients and not self.adapter.capabilities.gradients:
+                raise IncompatibleAttack(
+                    f"{spec.name} cần gradient nhưng model {self.card.name} không hỗ trợ gradient"
+                )
+            perturbation = self.perturbation_factory(spec, gradient_estimator(self.adapter))
             result = self._execute(
-                perturbation,
-                spec,
-                level,
-                seed,
-                run_id,
-                fp,
-                inputs,
-                prefix,
-                context,
-                state,
+                perturbation, spec, level, seed, run_id, fp, inputs, prefix, context, state
             )
-        except Exception as exc:  # một run lỗi không dừng các run khác (requirements.md, CLI)
-            return self._failed(spec, level, run_id, fp, inputs, attempt, exc, state)
+        except Exception as exc:  # bảng `CORE_POLICY`: một run lỗi không dừng các run khác
+            decision = self.errors.decide(exc)
+            if decision.action is ErrorAction.PROPAGATE:
+                raise
+            return self._ended(spec, level, run_id, fp, inputs, attempt, decision, state)
         return RunOutcome(result=result, spec_name=spec.name, prefix=prefix)
 
-    def _failed(
+    def _ended(
         self,
         spec: AttackSpec,
         level: float,
@@ -324,19 +269,23 @@ class Runner:
         fp: str,
         inputs: FingerprintInputs,
         attempt: str,
-        exc: Exception,
+        decision: ErrorDecision,
         state: _Execution,
     ) -> RunOutcome:
-        message = f"{type(exc).__name__}: {exc}"
-        self.progress(f"[{spec.name} {level:g}] failed: {message}")
+        """Run `skipped` (`incompatible`) hoặc `failed`: ghi manifest và kết quả vào `attempts/`."""
+        status = decision.status or RunStatus.FAILED
+        reason = decision.reason
+        self.progress(
+            f"[{spec.name} {level:g}] {status.value}: {reason.message if reason else '-'}"
+        )
         manifest_uri = self._write_manifest(attempt, run_id, inputs)
         result = self._result(
             run_id,
             fp,
             spec,
             level,
-            RunStatus.FAILED,
-            status_reason=StatusReason(code="error", message=message),
+            status,
+            status_reason=reason,
             progress=Progress(
                 images_done=state.images_done, images_total=len(self.slice.image_ids)
             ),
@@ -360,18 +309,19 @@ class Runner:
         state: _Execution,
     ) -> RunResult:
         total = len(self.slice.image_ids)
+        builder = self.registry.builder_for(spec)
         executor = RunExecutor(
             fingerprint=fp,
             level=level,
             seed=seed,
             perturbation=perturbation,
-            estimator=self.estimator,
+            estimator=self.adapter,
             context=context,
             candidates=MemoryCandidates(
                 self.store,
                 prefix,
-                linf_eps(spec, perturbation, level),
-                perturbation_kind(spec),
+                builder.linf_eps(spec, level),
+                builder.image_kind,
             ),
         )
         for batch in executor.batches(self.loader, self.config.batch_size):
@@ -382,7 +332,7 @@ class Runner:
 
         finalized = executor.finalize(run_id)
         for record in finalized.failure_cases:
-            key = f"{prefix}/cases/{record.image_id}/record.json"
+            key = case_record_key(prefix, record.image_id)
             self.store.put(key, (record.model_dump_json(indent=2) + "\n").encode())
         manifest_uri = self._write_manifest(prefix, run_id, inputs)
         result = self._result(
@@ -414,9 +364,11 @@ def run_config(
     *,
     force: bool = False,
     progress: ProgressFn | None = None,
-    perturbation_factory: PerturbationFactory = build_perturbation,
+    perturbation_factory: PerturbationFactory | None = None,
     provenance: Provenance | None = None,
     clean_predictor: CleanPredictor | None = None,
+    registry: PerturbationRegistry = DEFAULT_REGISTRY,
+    model_provider: ModelSource | None = None,
 ) -> RunReport:
     runner = Runner(
         store,
@@ -426,5 +378,7 @@ def run_config(
         perturbation_factory=perturbation_factory,
         provenance=provenance,
         clean_predictor=clean_predictor,
+        registry=registry,
+        model_provider=model_provider,
     )
     return runner.run()

@@ -257,15 +257,6 @@ def test_fingerprint_changes_with_level_seed_and_spec(base: Base, store: LocalSt
     assert len({o.result.fingerprint for o in report.outcomes}) == 4
 
 
-def test_git_dirty_goes_into_manifest(
-    base: Base, store: LocalStore, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(run_module, "git_state", lambda: GitState(commit=COMMIT, dirty=True))
-    report = run_config(store, _config(base, [_attack("fgsm", [4])]))
-    assert report.git_dirty
-    assert _manifest(store, report.outcomes[0].result).fingerprint_inputs.git_dirty
-
-
 class _FakeProvenance:
     def __init__(self, commit: str, dirty: bool) -> None:
         self.state = GitState(commit=commit, dirty=dirty)
@@ -278,6 +269,14 @@ class _FakeProvenance:
 
     def docker_image_digest(self) -> str:
         return "sha256:" + "c" * 64
+
+
+def test_git_dirty_goes_into_manifest(base: Base, store: LocalStore) -> None:
+    report = run_config(
+        store, _config(base, [_attack("fgsm", [4])]), provenance=_FakeProvenance(COMMIT, True)
+    )
+    assert report.git_dirty
+    assert _manifest(store, report.outcomes[0].result).fingerprint_inputs.git_dirty
 
 
 def test_provenance_seam_goes_into_fingerprint_and_manifest(base: Base, store: LocalStore) -> None:

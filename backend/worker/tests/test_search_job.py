@@ -39,12 +39,12 @@ from advertest_contracts.models import (
     WorkerDirective,
     WorkerLease,
 )
-from advertest_worker import job as job_module
 from advertest_worker.client import ApiError, LeaseLost
 from advertest_worker.job import DirectiveBox, JobRunner, read_predictions_file
 from attacks.registry import get_spec, load_catalog
 from ml_core.metrics.bootstrap import dump_run_predictions, load_run_predictions
 from ml_core.metrics.filters import Prediction
+from ml_core.models.adapter import Capabilities
 from ml_core.runner.run import Runner
 from ml_core.runner.tests.test_run import Base, _attack, _build, _config
 from ml_core.search.subset import eval_image_ids_sha256, select_subset
@@ -281,12 +281,34 @@ def _bundle(
     )
 
 
+class _EstimatorProvider:
+    """`ModelSource` trả adapter bọc estimator có sẵn của world (không nạp model)."""
+
+    def __init__(self, estimator: Any) -> None:
+        self.estimator = estimator
+
+    def get(self, card: Any, params: Any, device: str) -> Any:
+        estimator = self.estimator
+        return SimpleNamespace(
+            card=card,
+            capabilities=Capabilities(gradients=True),
+            class_names=lambda: list(card.class_names),
+            predict=lambda images, batch_size=None: estimator.predict(
+                images, batch_size=batch_size or len(images)
+            ),
+            estimator=lambda: estimator,
+        )
+
+
 def _runner(world: World, api: FakeApi, monkeypatch: pytest.MonkeyPatch) -> JobRunner:
     runner = JobRunner(
-        cast(Any, api), cast(Any, SimpleNamespace(store=world.store)), "cpu", url_http=api.http()
+        cast(Any, api),
+        cast(Any, SimpleNamespace(store=world.store)),
+        "cpu",
+        url_http=api.http(),
+        perturbation_factory=lambda spec, est: FakePerturbation(spec),
+        model_provider=_EstimatorProvider(world.estimator),
     )
-    runner._estimators[world.runner_cfg.card.weights_sha256] = world.estimator
-    monkeypatch.setattr(job_module, "build_perturbation", lambda spec, est: FakePerturbation(spec))
     monkeypatch.setattr(runner, "calibrate_bundle", lambda bundle, loader, force=False: {})
     monkeypatch.setattr(
         runner,
