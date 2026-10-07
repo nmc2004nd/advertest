@@ -21,7 +21,29 @@ Các phase đã đóng trước phase gần nhất nằm trong `changelog/archiv
 
 ## Phase R1 — Refactor lớp chạy giữ hành vi
 
-**Trạng thái:** đang làm. Group 0 (golden, `6861ca8`), Group 1, Group 2 (còn bước 7b), Group 3 và Group 4 xong.
+**Trạng thái:** đang làm. Group 0 (golden, `6861ca8`), Group 1, Group 2 (cả bước 7b), Group 3 và Group 4 xong.
+
+### Phase R1 — Group 2 bước 7b (người duyệt) — 2026-10-07
+Baseline KITTI toàn catalog trước refactor, làm mốc cho Manual Checks của `validation.md` (metric lệch trong sai số, thời gian chênh dưới 5%).
+### Cách chạy (lần đo sau R1 phải giữ nguyên)
+- Code: git worktree tại `6861ca8`; worker chạy trên máy (`advertest-worker run --once`, `--extra cpu`, `WORKER_DEVICE=cpu`, `GIT_COMMIT` = `6861ca8…`), cache worker trống riêng (`CACHE_DIR`); stack compose riêng (`-p advertest-r1base`, volume mới), DB mới seed.
+- Dữ liệu: KITTI training đầy đủ (dataset `cfd54b7f…`); slice đánh giá 50 ảnh seed 42 (`536c007e-e845-5bf1-802a-ac1594c354d2`); slice huấn luyện patch 50 ảnh seed 43, `--exclude-slice` slice đánh giá (`e0387847-2f82-53fb-8f96-077b8e592133`); model YOLOv8n `81686f0e…`, mapping kitti-coco `820ed6c7…`.
+- Config: preset "Toàn bộ catalog" của wizard (43 run): `fgsm`, `pgd_linf` eps 4, 8, 16, 32; `pgd_l2` 2, 4, 8, 16; 5 corruption × severity 1–5; `bbox_occlusion` 0.225, 0.45, 0.675, 0.9; `adv_patch` 0.1, 0.25; seed 0, `early_stop` bật, `--time-limit 86400`. File ở `data/r1-baseline/catalog50.yaml` (không commit); kết quả từng run ở `data/r1-baseline/runs.json`.
+### Số liệu đo được
+- Experiment `705c482b-1e14-47eb-ae40-6b763bd573cf`: `completed`; 37 run `completed`, 6 run `skipped` (`early_stop`: `pgd_linf` sụp ở eps 4, `pgd_l2` sụp ở 2); `git_dirty = false`.
+- Thời gian: tổng thời gian xử lý batch 5131,1 s; wall clock của worker 1:36:02 (gồm calibration lần đầu khoảng 1,3–1,4 s/ảnh); RSS tối đa 5,2 GB. Train và đánh giá `adv_patch` chiếm 4880 s (95%).
+- mAP sạch (mọi run): mAP50 0,4698, mAP50-95 0,2865.
+- mAP50 / mAP50-95 sau tấn công (thời gian xử lý của run), theo level:
+  - `fgsm`: 4: 0.1408 / 0.0424 (9.4 s); 8: 0.1252 / 0.0404 (9.4 s); 16: 0.0827 / 0.0318 (8.8 s); 32: 0.0296 / 0.0112 (9.4 s)
+  - `pgd_linf`: 4: 0.0033 / 0.0008 (59.9 s); 8: early_stop; 16: early_stop; 32: early_stop
+  - `pgd_l2`: 2: 0.0123 / 0.0036 (65.5 s); 4: early_stop; 8: early_stop; 16: early_stop
+  - `fog`: 1: 0.4594 / 0.2620 (3.0 s); 2: 0.4452 / 0.2541 (3.1 s); 3: 0.4330 / 0.2379 (3.1 s); 4: 0.4320 / 0.2391 (3.0 s); 5: 0.4147 / 0.2259 (3.0 s)
+  - `snow`: 1: 0.4164 / 0.2176 (3.3 s); 2: 0.2564 / 0.1437 (3.2 s); 3: 0.2756 / 0.1419 (3.2 s); 4: 0.2270 / 0.1034 (3.2 s); 5: 0.2110 / 0.1106 (3.1 s)
+  - `frost`: 1: 0.4264 / 0.2425 (2.3 s); 2: 0.4069 / 0.2078 (2.3 s); 3: 0.3210 / 0.1641 (2.3 s); 4: 0.2974 / 0.1499 (2.4 s); 5: 0.2577 / 0.1279 (2.3 s)
+  - `motion_blur`: 1: 0.4507 / 0.2151 (4.8 s); 2: 0.3623 / 0.1501 (5.4 s); 3: 0.2075 / 0.0831 (4.3 s); 4: 0.1183 / 0.0478 (4.5 s); 5: 0.0928 / 0.0330 (4.7 s)
+  - `contrast`: 1: 0.4632 / 0.2656 (2.3 s); 2: 0.4427 / 0.2522 (2.3 s); 3: 0.4031 / 0.2186 (2.3 s); 4: 0.3153 / 0.1632 (2.4 s); 5: 0.1332 / 0.0725 (2.4 s)
+  - `bbox_occlusion`: 0.225: 0.3220 / 0.1750 (2.5 s); 0.45: 0.0984 / 0.0540 (2.5 s); 0.675: 0.0303 / 0.0150 (2.5 s); 0.9: 0.0113 / 0.0051 (2.5 s)
+  - `adv_patch`: 0.1: 0.0722 / 0.0466 (2486.4 s); 0.25: 0.0497 / 0.0344 (2394.0 s)
 
 ### Phase R1 — Group 4 (ml-model) — 2026-10-07
 Nhánh `phaser1-ml-model` @ `6ddf3df` (tách từ `dev` @ `6e97bc2`), 2 commit (`ec24bb8`, `6ddf3df`); code chỉ sửa `ml_core/models/`.
@@ -89,7 +111,7 @@ Nhánh `phaser1-reviewer` @ `b2034e7` (tách từ `dev` @ `e192dbd`), 2 commit; 
 - `make test-db` đầy đủ: 699 passed, 25 phút (theo báo cáo review).
 - Thử đột biến test checkpoint: đổi version trong fixture thành 99 → test fail đúng.
 ### Tồn đọng
-- Bước 7b: baseline KITTI toàn catalog tại `6861ca8` (worker, CPU), người dùng tự chạy; chưa có metric và thời gian.
+- ~~Bước 7b~~: đã chạy, xem mục "Group 2 bước 7b".
 - Phần registry thuần của `test_registry.py` (catalog → adapter, trùng tên): phải có trước khi giao Group 3.
 - `test_architecture_r1.py` (AST, gồm "không còn test patch cấp module"): trước Group 5.
 - Sau Group 2, agent đổi mặc định seam thành `EnvProvenance()`, `build_perturbation`, `predict_slice` (`requirements.md` `### Seam`).
