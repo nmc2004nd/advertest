@@ -6,8 +6,9 @@ Layout giữ nguyên như trước R1:
   `failed` hoặc `skipped`.
 - Worker (theo run): `runs/<run_id>/`, URI gửi cho API có tiền tố `s3://artifacts/`.
 
-Trong mỗi thư mục run: `manifest.json`, `result.json` (chỉ CLI), `cases/<id>/record.json`,
-`checkpoints/<batch>.json` (chỉ worker). Ảnh của failure case do `ml_core.runner.candidates` ghi.
+Trong mỗi thư mục run: `manifest.json`, `result.json` (chỉ CLI), `cases/<id>/` (ảnh, và
+`record.json` ở CLI), `candidates/<image_id>/` và `checkpoints/<batch>.json` (chỉ worker).
+`predictions.json` của worker theo `ml_core.metrics.bootstrap.run_predictions_key`.
 """
 
 from __future__ import annotations
@@ -41,8 +42,18 @@ def result_key(prefix: str) -> str:
     return f"{prefix}/result.json"
 
 
+def case_prefix(prefix: str, case_dir: object) -> str:
+    """Thư mục của một failure case: theo `image_id` ở CLI, theo `case_id` ở worker."""
+    return f"{prefix}/cases/{case_dir}"
+
+
+def candidate_prefix(prefix: str, image_id: str) -> str:
+    """Ảnh ứng viên failure case của worker, trước khi chốt top-K."""
+    return f"{prefix}/candidates/{image_id}"
+
+
 def case_record_key(prefix: str, image_id: str) -> str:
-    return f"{prefix}/cases/{image_id}/record.json"
+    return f"{case_prefix(prefix, image_id)}/record.json"
 
 
 def checkpoint_key(prefix: str, batch_index: int) -> str:
