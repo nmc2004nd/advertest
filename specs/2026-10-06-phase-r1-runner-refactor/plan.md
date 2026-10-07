@@ -21,8 +21,9 @@
 5. Thay 7 chỗ patch tên nội bộ bằng seam, giữ nguyên assertion: `phase_06/test_grid_order_early_stop.py:56`, `phase_07/conftest.py:213`, `phase_07/test_search_e2e_backend.py:255`, `phase_08/conftest.py:325, 335, 336`, `phase_02/test_reproducibility.py:313` (`predict_slice` → seam `clean_predictor`).
 6. Thêm fixture checkpoint do code trước R1 ghi (một run PGD dừng ở batch 0) vào `tests/fixtures/golden/`.
 7. Thêm test nghiệm thu R1 theo group, để `make check` luôn xanh:
+   Test viết trước một group chưa pass được thì chỉ commit trên `phaser1-reviewer`, không merge vào `dev`; agent của group đó tách nhánh từ `phaser1-reviewer`, nên test vào `dev` cùng lúc với group.
    - Group 2: `test_checkpoint_compat.py`, các test chính sách lỗi và provenance qua seam.
-   - Trước Group 3: phần registry thuần của `test_registry.py` (catalog → adapter, trùng tên).
+   - Trước Group 3: phần registry thuần của `test_registry.py` (catalog → adapter, trùng tên) — `4912d86`; nhánh `phaser1-attack` tách từ `phaser1-reviewer`.
    - Trước Group 5: phần tích hợp qua runner (builder giả, `ModelProvider` giả) và phần kiến trúc `ml_core/runner/**`, `AnyPerturbation`.
    - Trước Group 6: phần kiến trúc `job.py`.
 7b. Chạy experiment toàn catalog trên KITTI tại `6861ca8` (worker, CPU); ghi metric và thời gian vào `CHANGELOG.md` làm baseline cho Manual Checks.
