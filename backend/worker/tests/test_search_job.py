@@ -40,7 +40,8 @@ from advertest_contracts.models import (
     WorkerLease,
 )
 from advertest_worker.client import ApiError, LeaseLost
-from advertest_worker.job import JobRunner, read_predictions_file
+from advertest_worker.job import JobRunner
+from advertest_worker.search_hooks import read_predictions_file
 from advertest_worker.state import DirectiveBox
 from attacks.registry import get_spec, load_catalog
 from ml_core.metrics.bootstrap import dump_run_predictions, load_run_predictions

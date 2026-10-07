@@ -4,14 +4,12 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from types import SimpleNamespace
-from typing import Any, cast
+from typing import Any
 from uuid import UUID
 
 from advertest_contracts.enums import RunStatus
 from advertest_contracts.models import MapPair, RunMetrics, RunSkipRequest, WorkerJobBundle
-from advertest_worker.early_stop import RunLedger
-from advertest_worker.job import JobRunner
+from advertest_worker.early_stop import RunLedger, skip_early_stop
 
 MOCK = Path(__file__).resolve().parents[3] / "contracts/mocks/worker_job_bundle"
 
@@ -75,19 +73,16 @@ class _Client:
         self.skipped.append((run_id, body))
 
 
-def test_runner_reports_skip_and_updates_ledger() -> None:
+def test_skip_reports_to_api_and_updates_ledger() -> None:
     bundle = _bundle()
     runs = _runs(bundle)
     client = _Client()
-    runner = JobRunner.__new__(JobRunner)
-    runner.client = cast(Any, client)
-    lease = SimpleNamespace(lease_id=UUID(int=7))
-    job = cast(Any, SimpleNamespace(lease=lease, ledger=RunLedger(bundle)))
-    assert runner._skip_early_stop(job, runs[32], "fgsm", 32)
+    ledger = RunLedger(bundle)
+    assert skip_early_stop(client, ledger, UUID(int=7), runs[32], "fgsm", 32)
     ((run_id, body),) = client.skipped
     assert run_id == runs[32] and body.trigger_run_id == runs[8] and body.code == "early_stop"
     assert body.lease_id == UUID(int=7)
-    assert job.ledger.status(runs[32]) == RunStatus.SKIPPED
+    assert ledger.status(runs[32]) == RunStatus.SKIPPED
     # Gọi lại: run đã bị bỏ, không gửi lần nữa.
-    assert not runner._skip_early_stop(job, runs[32], "fgsm", 32)
+    assert not skip_early_stop(client, ledger, UUID(int=7), runs[32], "fgsm", 32)
     assert len(client.skipped) == 1

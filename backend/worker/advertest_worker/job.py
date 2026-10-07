@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 import threading
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
@@ -39,31 +38,23 @@ from advertest_contracts.models import (
     Environment,
     FingerprintInputs,
     ProgressReport,
-    RunSkipRequest,
     RunStartRequest,
-    SearchResult,
-    SearchResultReport,
-    SearchRunCreate,
     WorkerJobBundle,
     WorkerLease,
 )
 from advertest_contracts.perturbation import Perturbation
 from advertest_worker.cache import JobCache
 from advertest_worker.calibrate import calibrate, calibration_patch, patch_training_cost
-from advertest_worker.client import ApiError, LeaseLost, WorkerClient
+from advertest_worker.client import LeaseLost, WorkerClient
 from advertest_worker.config import HEARTBEAT_INTERVAL_S
-from advertest_worker.early_stop import RunLedger
+from advertest_worker.early_stop import RunLedger, skip_early_stop
 from advertest_worker.errors import WORKER_POLICY, StopExperiment
 from advertest_worker.finish import RunFinisher
 from advertest_worker.patch import patch_perturbation
 from advertest_worker.search import KnownRun, PointOutcome, SearchDriver
+from advertest_worker.search_hooks import JobSearchHooks
 from advertest_worker.state import DirectiveBox, JobState
 from attacks.builders import DEFAULT_REGISTRY, PerturbationRegistry
-from ml_core.metrics.bootstrap import (
-    load_run_predictions,
-    run_predictions_key,
-)
-from ml_core.metrics.filters import Prediction
 from ml_core.models.adapter import ModelAdapter, ModelProvider
 from ml_core.runner.cache_loader import ShaCacheLoader
 from ml_core.runner.candidates import StoreCandidates
@@ -88,10 +79,9 @@ from ml_core.runner.perturbations import (
 )
 from ml_core.runner.provenance import EnvProvenance, Provenance
 from ml_core.search.subset import eval_image_ids_sha256, select_subset
-from ml_core.store import KeyNotFoundError, PresignedStore
+from ml_core.store import PresignedStore
 
 logger = logging.getLogger(__name__)
-_PREDICTIONS_KEY = re.compile(r"runs/([0-9a-f-]{36})/predictions\.json")
 DEFAULT_BATCH_SIZE = 8  # chỉ dùng khi không có cost profile (calibration thất bại)
 BatchHook = Callable[[UUID, Sequence[str]], None]
 
@@ -292,7 +282,9 @@ class JobRunner:
             if self._directive_stops(job):
                 return
             spec = job.specs[run.attack_spec_id]
-            if self._skip_early_stop(job, run.run_id, spec.name, run.level):
+            if skip_early_stop(
+                self.client, job.ledger, lease.lease_id, run.run_id, spec.name, run.level
+            ):
                 continue
             try:
                 self._run_one(job, run.run_id, spec, self._inputs(job, run, spec))
@@ -354,33 +346,12 @@ class JobRunner:
             attack=attack,
             spec=spec,
             context=self._context(job),
-            hooks=JobStateSearchHooks(self, job, attack, spec),
+            hooks=JobSearchHooks(self.client, self.url_http, self._run, job, attack, spec),
             known_runs=known,
             previous=previous,
         )
         logger.info("[%s] tìm ngưỡng", spec.name)
         return driver.run()
-
-    def _skip_early_stop(self, job: JobState, run_id: UUID, name: str, level: float) -> bool:
-        """Phase 6 (plan task 16): bỏ run `queued` khi level nhỏ hơn của cùng attack đã làm model
-        sụp."""
-        if job.ledger.status(run_id) != RunStatus.QUEUED:
-            return False
-        stop = job.ledger.decision(run_id)
-        if stop is None:
-            return False
-        self.client.skip(
-            run_id,
-            RunSkipRequest(
-                lease_id=job.lease.lease_id,
-                code="early_stop",
-                trigger_run_id=stop.trigger_run_id,
-                message=f"Bỏ qua: model đã sụp ở level {stop.trigger_level:g}",
-            ),
-        )
-        job.ledger.record(run_id, RunStatus.SKIPPED)
-        logger.info("[%s %g] bỏ qua: dừng sớm (sụp ở %g)", name, level, stop.trigger_level)
-        return True
 
     def _context(self, job: JobState) -> RunContext:
         if job.context is None:
@@ -400,6 +371,9 @@ class JobRunner:
         return job.context
 
     # ------------------------------------------------------------------ một run
+
+    def _run(self, job: JobState, run_id: UUID, spec: AttackSpec) -> None:
+        self._run_one(job, run_id, spec, self._inputs(job, job.runs[run_id], spec))
 
     def _run_one(
         self, job: JobState, run_id: UUID, spec: AttackSpec, inputs: FingerprintInputs
@@ -618,97 +592,3 @@ class JobRunner:
             self.client.cost_profile(updated)
             job.profiles[spec.id] = updated
         return smaller
-
-
-# ---------------------------------------------------------------- hook của tìm ngưỡng (Phase 7)
-
-
-class JobStateSearchHooks:
-    """`SearchHooks` của `SearchDriver` trên API và model thật."""
-
-    def __init__(
-        self, runner: JobRunner, job: JobState, attack: AttackConfig, spec: AttackSpec
-    ) -> None:
-        self.runner = runner
-        self.job = job
-        self.attack = attack
-        self.spec = spec
-
-    def should_stop(self) -> bool:
-        directive = self.job.box.current()
-        return directive is not None and directive.action != "continue"
-
-    def create_run(self, attack_spec_id: UUID, level: float, scope: EvalScope, order: int) -> UUID:
-        job = self.job
-        run = self.runner.client.create_search_run(
-            job.bundle.experiment_id,
-            SearchRunCreate(
-                lease_id=job.lease.lease_id,
-                attack_spec_id=attack_spec_id,
-                level=level,
-                scope=scope,
-                search_order=order,
-            ),
-        )
-        if (run.attack_spec_id, run.level, run.scope, run.search_order) != (
-            attack_spec_id,
-            level,
-            scope,
-            order,
-        ):
-            raise ValueError(f"API tạo run {run.run_id} không khớp điểm đã yêu cầu")
-        job.runs[run.run_id] = run
-        job.ledger.add(run)
-        return run.run_id
-
-    def execute(self, run_id: UUID) -> PointOutcome:
-        job = self.job
-        run = job.runs[run_id]
-        try:
-            self.runner._run_one(job, run_id, self.spec, self.runner._inputs(job, run, self.spec))
-        except StopExperiment:
-            outcome = job.outcomes.get(run_id, PointOutcome(RunStatus.CANCELLED, None))
-            return PointOutcome(outcome.status, outcome.metrics, outcome.message, stop=True)
-        return job.outcomes[run_id]
-
-    def report(self, result: SearchResult) -> None:
-        self.runner.client.search_result(
-            self.job.bundle.experiment_id,
-            SearchResultReport(lease_id=self.job.lease.lease_id, result=result),
-        )
-
-    def predictions(self, run_id: UUID) -> dict[str, Prediction] | None:
-        """Prediction của run hoàn tất trong phiên này (bộ nhớ); run đã kết thúc ở phiên trước
-        hoặc trúng cache thì đọc `runs/<run_id>/predictions.json` qua `artifact-url` của chính run
-        (đề xuất contract 001, plan task 18b). Không có file → `None` (bỏ khỏi bootstrap)."""
-        cached = self.job.predictions.get(run_id)
-        if cached is not None:
-            return cached
-        runner, lease_id = self.runner, self.job.lease.lease_id
-        store = PresignedStore(
-            lambda key, method: runner.client.artifact_url(run_id, lease_id, key, method),
-            runner.url_http,
-        )
-        try:
-            return read_predictions_file(store.get(run_predictions_key(run_id)))
-        except KeyNotFoundError:
-            logger.warning("Run %s không có file prediction: bỏ khỏi bootstrap", run_id)
-        except LeaseLost:
-            raise
-        except (ApiError, httpx.HTTPError, ValueError):
-            # Review task 18b #1: lỗi đọc file (MinIO, API từ chối, file hỏng) không được làm sập
-            # job; điểm bị bỏ khỏi bootstrap như khi không có file.
-            logger.warning(
-                "Không đọc được prediction của run %s: bỏ khỏi bootstrap", run_id, exc_info=True
-            )
-        return None
-
-
-def read_predictions_file(data: bytes) -> dict[str, Prediction]:
-    """File prediction của một run. Bản sao do API tạo khi trúng cache giữ khóa của run gốc trong
-    trường `key`: đọc theo đúng run ghi trong file (vẫn kiểm file nhất quán với khóa của nó)."""
-    key = json.loads(data).get("key")
-    match = _PREDICTIONS_KEY.fullmatch(key) if isinstance(key, str) else None
-    if match is None:
-        raise ValueError(f"File prediction có khóa không hợp lệ: {key!r}")
-    return load_run_predictions(data, UUID(match.group(1)))
