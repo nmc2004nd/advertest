@@ -3,7 +3,7 @@
 > Phân chia thư mục:
 > `attacks/` (agent `attack`); `ml_core/models/` (agent `ml-model`); `ml_core/runner/`, `backend/worker/` (agent `worker`, như Phase 7); `tests/acceptance/phase_r1/`, `tests/fixtures/golden/` (người duyệt).
 >
-> Thứ tự: Group 0 ✅ → Group 1 ✅ → Group 2 ✅ (còn 7b) → (Group 3, 4 song song) → Group 5 → Group 6 → Group 7.
+> Thứ tự: Group 0 ✅ → Group 1 ✅ → Group 2 ✅ (còn 7b) → (Group 3 ✅, 4 song song) → Group 5 → Group 6 → Group 7.
 > Mọi group của agent: golden R1 (CLI; worker qua `make test-db`) và test nghiệm thu Phase 0–8 phải pass ở **mỗi commit**, không chỉ cuối group.
 
 ## Group 0 — Golden `[người duyệt]` ✅
@@ -28,11 +28,11 @@
    - Trước Group 6: phần kiến trúc `job.py`.
 7b. Chạy experiment toàn catalog trên KITTI tại `6861ca8` (worker, CPU); ghi metric và thời gian vào `CHANGELOG.md` làm baseline cho Manual Checks.
 
-## Group 3 — Registry perturbation `[agent: attack]`
+## Group 3 — Registry perturbation `[agent: attack]` ✅
 
-8. `attacks/builders.py`: `PerturbationBuilder`, `BuildContext`, `PerturbationRegistry`, `effective_adapter`, `PerturbationRegistry(resolver=effective_adapter)`, `DEFAULT_REGISTRY` với 4 builder (`art.evasion`, `corruption.imagecorruptions`, `occlusion.bbox`, `patch.robust_dpatch`), gồm `linf_eps` và `image_kind`; `attacks.builders` export lại `UnsupportedAttack`, `IncompatibleAttack`.
-9. `attacks/factory.py::build_perturbation` thành lớp chuyển tiếp gọi `DEFAULT_REGISTRY` (giữ chữ ký cho tới Group 5); bỏ `AnyPerturbation`.
-10. Unit test: builder giả đăng ký và dựng được; tên adapter trùng thì lỗi; thiếu estimator với builder cần gradient thì `IncompatibleAttack`.
+8. ✅ `attacks/builders.py`: `PerturbationBuilder`, `BuildContext`, `PerturbationRegistry`, `effective_adapter`, `PerturbationRegistry(resolver=effective_adapter)`, `DEFAULT_REGISTRY` với 4 builder (`art.evasion`, `corruption.imagecorruptions`, `occlusion.bbox`, `patch.robust_dpatch`), gồm `linf_eps` và `image_kind`; `attacks.builders` export lại `UnsupportedAttack`, `IncompatibleAttack`.
+9. ✅ `attacks/factory.py::build_perturbation` thành lớp chuyển tiếp gọi `DEFAULT_REGISTRY` (giữ chữ ký cho tới Group 5); bỏ `AnyPerturbation`.
+10. ✅ Unit test: builder giả đăng ký và dựng được; tên adapter trùng thì lỗi; thiếu estimator với builder cần gradient thì `IncompatibleAttack`.
 
 ## Group 4 — Model adapter `[agent: ml-model]`
 

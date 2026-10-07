@@ -21,7 +21,30 @@ Các phase đã đóng trước phase gần nhất nằm trong `changelog/archiv
 
 ## Phase R1 — Refactor lớp chạy giữ hành vi
 
-**Trạng thái:** đang làm. Group 0 (golden, `6861ca8`), Group 1 và Group 2 xong (Group 2 còn bước 7b).
+**Trạng thái:** đang làm. Group 0 (golden, `6861ca8`), Group 1, Group 2 (còn bước 7b) và Group 3 xong.
+
+### Phase R1 — Group 3 (attack) — 2026-10-07
+Nhánh `phaser1-attack` @ `1107b4b` (tách từ `phaser1-reviewer` @ `da010c9`), 3 commit của agent (`f3738a0`, `10bc702`, `fe5a9b7`) và 1 commit spec của người duyệt (`1107b4b`); code chỉ sửa `attacks/`. Nhánh mang theo `4912d86`, `da010c9` (phần registry thuần của `test_registry.py`, plan bước 7).
+### Thêm
+- `attacks/builders.py`: `PerturbationBuilder`, `BuildContext`, `PerturbationRegistry` (có resolver), `effective_adapter`, 4 builder mặc định (`art.evasion`, `corruption.imagecorruptions`, `occlusion.bbox`, `patch.robust_dpatch`) kèm `linf_eps` và `image_kind`, `DEFAULT_REGISTRY`; export lại `UnsupportedAttack`, `IncompatibleAttack`.
+- `attacks/art_adapter.py::level_to_eps` (tách ra, giữ nguyên công thức).
+- `attacks/tests/test_builders.py` (18 test): builder giả, trùng tên, thiếu estimator, `linf_eps`, `image_kind`, cả 10 spec catalog.
+### Thay đổi
+- `attacks/factory.py::build_perturbation` chuyển tiếp qua `DEFAULT_REGISTRY`, trả `Perturbation`; bỏ `AnyPerturbation`. Giữ tên và chữ ký đến Group 5.
+- Kiểu lỗi của `build_perturbation` (người duyệt chấp nhận 2026-10-07): spec white-box với estimator `None` báo `IncompatibleAttack("{name} cần gradient nhưng model không hỗ trợ gradient")` thay cho `UnsupportedAttack`; `adv_patch` không có patch đã train báo `ValueError("... patch đã train")` thay cho `UnsupportedAttack` (patch chỉ truyền qua `BuildContext`). Runner không tới hai đường này (CLI kiểm `supports_gradients` trước và chặn `requires_training`; worker đi `_patch_perturbation`), golden không đổi. Sửa 2 unit test trong `attacks/tests/test_factory.py` theo đó.
+### Contract
+- Không đổi (`make contracts-check` pass).
+### Quyết định
+- Đăng ký trùng tên adapter báo `ValueError`, registry giữ builder đăng ký trước. Người duyệt chốt 2026-10-07; ghi tại `requirements.md` `### Registry` (`1107b4b`).
+- `effective_adapter`: `kind=attack` với `art_class == "RobustDPatch"` → `patch.robust_dpatch`, `art_class` khác → `art.evasion` (art_class lạ vẫn ra thông điệp cũ của `ArtPerturbation`). Khác `perturbation_kind` cũ (dựa `requires_training`) nhưng cho cùng kết quả trên catalog hiện có.
+### Số liệu đo được
+- `make check` tại `fe5a9b7`: pass (1499 Python + 372 frontend; nghiệm thu không db 337 passed, gồm `phase_r1/test_registry.py` 5 passed).
+- `make test-db` tại `fe5a9b7`: 699 passed, exit 0, 24m48s (người duyệt chạy lại 2026-10-07).
+### Tồn đọng
+- Cho Group 5: `PatchBuilder.requires={"gradients"}` nên khi dựng patch phải truyền estimator khác `None`; dựng patch qua `DEFAULT_REGISTRY.build(spec, BuildContext(estimator, patch=..., area_ratio=run.level))`, calibration dùng `area_ratio = primary_param.max`; thay `executor.linf_eps`/`images.perturbation_kind` bằng `builder.linf_eps(spec, level)`/`builder.image_kind`.
+- Cho Group 5: `executor.linf_eps` hiện chỉ trả eps với `ArtPerturbation`, nên các test phase_07/08/r1 bọc perturbation qua seam đang có eps `None`; sau khi chuyển sang `builder.linf_eps`, ảnh nhiễu khuếch đại của failure case trong các test đó sẽ có eps. Golden mặc định không ảnh hưởng; review Group 5 kiểm lại.
+- R2 có thể xem lại `PatchBuilder.requires` (đánh giá patch đã train không dùng estimator).
+- Validation `### Registry` còn 2 mục tích hợp qua runner (builder giả qua `perturbation_factory`, `ModelProvider` giả) và mục kiến trúc `AnyPerturbation` (đã không còn theo grep, chờ `test_architecture_r1.py`): test viết trước Group 5.
 
 ### Phase R1 — Group 2 (người duyệt, Claude làm theo ủy quyền) — 2026-10-07
 Nhánh `phaser1-reviewer` @ `b2034e7` (tách từ `dev` @ `e192dbd`), 2 commit; chỉ sửa `tests/acceptance/` và `tests/fixtures/golden/`. Claude viết test và review thay người duyệt theo ủy quyền của người dùng (2026-10-07); review không độc lập với con người. Người dùng chấp nhận các test này là test nghiệm thu của người duyệt.

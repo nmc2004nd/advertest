@@ -26,9 +26,9 @@
 - [ ] Không còn test nghiệm thu nào patch `build_perturbation`, `git_state` hay `predict_slice` ở cấp module.
 
 ### Registry — `test_registry.py`
-- [ ] Mọi spec của catalog có `effective_adapter` thuộc 4 adapter mặc định; `spec_sha256` không đổi so với `contracts/seeds/attack_specs.json`.
+- [x] Mọi spec của catalog có `effective_adapter` thuộc 4 adapter mặc định; `spec_sha256` không đổi so với `contracts/seeds/attack_specs.json`.
 - [ ] Builder giả (adapter `test.identity`, nhân ảnh với 1) đăng ký vào registry của test, có resolver riêng, truyền vào runner CLI qua `perturbation_factory`: run `completed`, ảnh sau biến đổi y hệt ảnh gốc; không sửa file nào ngoài test.
-- [ ] Đăng ký trùng tên adapter → lỗi.
+- [x] Đăng ký trùng tên adapter → lỗi.
 - [ ] Spec white-box với model không hỗ trợ gradient (qua `ModelProvider` giả) → `skipped` (`incompatible`), thông điệp như Phase 2; corruption trên cùng model → `completed`.
 
 ### Chính sách lỗi — qua seam, worker thật (`db`)
