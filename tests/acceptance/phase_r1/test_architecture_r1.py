@@ -2,7 +2,7 @@
 
 Thêm trước Group 5 (plan.md bước 7): runner và worker không phụ thuộc lớp perturbation cụ thể;
 `attacks/` không còn `AnyPerturbation`; test nghiệm thu không patch tên module nội bộ. Phần
-`job.py` được thêm trước Group 6.
+`job.py` được thêm trước Group 6 (điều phối mỏng).
 
 Chỉ xét mã chạy: bỏ qua thư mục `tests/` của từng gói.
 """
@@ -29,6 +29,11 @@ CONCRETE_CLASSES = {
     "PatchPerturbation",
 }
 PATCHED_NAMES = {"build_perturbation", "git_state", "predict_slice"}
+
+JOB = REPO / "backend" / "worker" / "advertest_worker" / "job.py"
+JOB_FORBIDDEN_NAMES = {"build_fingerprint_inputs", "Manifest"}
+JOB_FORBIDDEN_MODULE = "ml_core.models.estimator"
+JOB_ALLOWED_ATTACKS = {"attacks.builders", "attacks.registry"}
 
 
 def _sources(root: Path) -> Iterator[Path]:
@@ -127,4 +132,38 @@ def test_acceptance_tests_do_not_patch_module_names() -> None:
                 continue
             if hit:
                 offenders.append(f"{path.relative_to(REPO)}:{node.lineno}")
+    assert not offenders, "\n".join(offenders)
+
+
+def _job_forbidden(module: str, name: str | None) -> bool:
+    """`import module` (name `None`) hoặc `from module import name`."""
+    full = module if name is None else f"{module}.{name}"
+    if name in JOB_FORBIDDEN_NAMES:
+        return True
+    if full == JOB_FORBIDDEN_MODULE or full.startswith(JOB_FORBIDDEN_MODULE + "."):
+        return True
+    if module != "attacks" and not module.startswith("attacks."):
+        return False
+    # `from attacks import builders` xét `attacks.builders`; còn lại xét module được import.
+    target = full if module == "attacks" else module
+    return target not in JOB_ALLOWED_ATTACKS
+
+
+def test_job_imports_only_orchestration_dependencies() -> None:
+    """`job.py` không import `build_fingerprint_inputs`, `Manifest`, `ml_core.models.estimator`,
+    hay module `attacks` nào ngoài `attacks.builders` và `attacks.registry`."""
+    offenders = []
+    for node in ast.walk(_parse(JOB)):
+        if isinstance(node, ast.Import):
+            offenders += [
+                f"job.py:{node.lineno} import {a.name}"
+                for a in node.names
+                if _job_forbidden(a.name, None)
+            ]
+        elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+            offenders += [
+                f"job.py:{node.lineno} from {node.module} import {a.name}"
+                for a in node.names
+                if _job_forbidden(node.module, a.name)
+            ]
     assert not offenders, "\n".join(offenders)
