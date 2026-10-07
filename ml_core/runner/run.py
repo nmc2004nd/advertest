@@ -30,7 +30,7 @@ from advertest_contracts.models import (
     StatusReason,
 )
 from advertest_contracts.perturbation import Perturbation
-from attacks.art_adapter import IncompatibleAttack
+from attacks.builders import IncompatibleAttack
 from attacks.factory import build_perturbation
 from ml_core.cli.cache import Prediction
 from ml_core.cli.evaluate import load_model_from_store, predict_slice
@@ -40,6 +40,7 @@ from ml_core.models.wrapper import DEFAULT_INFERENCE_PARAMS
 from ml_core.runner.candidates import MemoryCandidates
 from ml_core.runner.config import LocalRunConfig, experiment_id, resolve_specs
 from ml_core.runner.env import default_device, describe_device, environment
+from ml_core.runner.errors import CORE_POLICY, ErrorAction, ErrorDecision
 from ml_core.runner.executor import (
     RunContext,
     RunExecutor,
@@ -109,6 +110,7 @@ class Runner:
         self.specs = resolve_specs(config)
         self.clean_predictor = clean_predictor or predict_slice
         self.experiment_id = experiment_id(config)
+        self.errors = CORE_POLICY
 
         self.loader = SliceLoader.from_ids(store, config.slice_id, config.mapping_id)
         self.card = self.loader.card
@@ -234,52 +236,25 @@ class Runner:
 
         run_id = uuid4()
         attempt = attempt_prefix(base, run_id)
-        perturbation: Perturbation | None = None
-        reason: str | None = None
-        if spec.requires_gradients and not self.card.supports_gradients:
-            reason = f"{spec.name} cần gradient nhưng model {self.card.name} không hỗ trợ gradient"
-        else:
-            try:
-                perturbation = self.perturbation_factory(spec, self.estimator)
-            except IncompatibleAttack as exc:
-                reason = str(exc)
-            except Exception as exc:  # lỗi khi dựng attack: run này failed, các run khác chạy tiếp
-                return self._failed(spec, level, run_id, fp, inputs, attempt, exc, _Execution())
-        if perturbation is None:
-            self.progress(f"[{spec.name} {level:g}] skipped: {reason}")
-            manifest_uri = self._write_manifest(attempt, run_id, inputs)
-            result = self._result(
-                run_id,
-                fp,
-                spec,
-                level,
-                RunStatus.SKIPPED,
-                status_reason=StatusReason(code=SkipReason.INCOMPATIBLE, message=reason or "-"),
-                manifest_uri=manifest_uri,
-            )
-            self._write_result(attempt, result)
-            return RunOutcome(result=result, spec_name=spec.name, prefix=attempt)
-
         prefix = rerun_prefix(base, run_id) if has_result else base
         state = _Execution()
         try:
+            if spec.requires_gradients and not self.card.supports_gradients:
+                raise IncompatibleAttack(
+                    f"{spec.name} cần gradient nhưng model {self.card.name} không hỗ trợ gradient"
+                )
+            perturbation = self.perturbation_factory(spec, self.estimator)
             result = self._execute(
-                perturbation,
-                spec,
-                level,
-                seed,
-                run_id,
-                fp,
-                inputs,
-                prefix,
-                context,
-                state,
+                perturbation, spec, level, seed, run_id, fp, inputs, prefix, context, state
             )
-        except Exception as exc:  # một run lỗi không dừng các run khác (requirements.md, CLI)
-            return self._failed(spec, level, run_id, fp, inputs, attempt, exc, state)
+        except Exception as exc:  # bảng `CORE_POLICY`: một run lỗi không dừng các run khác
+            decision = self.errors.decide(exc)
+            if decision.action is ErrorAction.PROPAGATE:
+                raise
+            return self._ended(spec, level, run_id, fp, inputs, attempt, decision, state)
         return RunOutcome(result=result, spec_name=spec.name, prefix=prefix)
 
-    def _failed(
+    def _ended(
         self,
         spec: AttackSpec,
         level: float,
@@ -287,19 +262,23 @@ class Runner:
         fp: str,
         inputs: FingerprintInputs,
         attempt: str,
-        exc: Exception,
+        decision: ErrorDecision,
         state: _Execution,
     ) -> RunOutcome:
-        message = f"{type(exc).__name__}: {exc}"
-        self.progress(f"[{spec.name} {level:g}] failed: {message}")
+        """Run `skipped` (`incompatible`) hoặc `failed`: ghi manifest và kết quả vào `attempts/`."""
+        status = decision.status or RunStatus.FAILED
+        reason = decision.reason
+        self.progress(
+            f"[{spec.name} {level:g}] {status.value}: {reason.message if reason else '-'}"
+        )
         manifest_uri = self._write_manifest(attempt, run_id, inputs)
         result = self._result(
             run_id,
             fp,
             spec,
             level,
-            RunStatus.FAILED,
-            status_reason=StatusReason(code="error", message=message),
+            status,
+            status_reason=reason,
             progress=Progress(
                 images_done=state.images_done, images_total=len(self.slice.image_ids)
             ),

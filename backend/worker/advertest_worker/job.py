@@ -32,7 +32,7 @@ import httpx
 import numpy as np
 import torch
 
-from advertest_contracts.enums import EvalScope, RunMode, RunStatus, SkipReason, StopReason
+from advertest_contracts.enums import EvalScope, RunMode, RunStatus, SkipReason
 from advertest_contracts.models import (
     AttackConfig,
     AttackSpec,
@@ -62,9 +62,9 @@ from advertest_worker.calibrate import calibrate, calibration_patch, patch_train
 from advertest_worker.client import ApiError, LeaseLost, WorkerClient
 from advertest_worker.config import HEARTBEAT_INTERVAL_S
 from advertest_worker.early_stop import RunLedger
-from advertest_worker.patch import PatchInterrupted, PatchJob, obtain_patch
+from advertest_worker.errors import WORKER_POLICY, StopExperiment
+from advertest_worker.patch import PatchJob, obtain_patch
 from advertest_worker.search import KnownRun, PointOutcome, SearchDriver
-from attacks.art_adapter import IncompatibleAttack
 from attacks.factory import build_perturbation
 from attacks.patch.adapter import PatchPerturbation
 from attacks.patch.geometry import patch_key
@@ -79,6 +79,12 @@ from ml_core.models.estimator import build_estimator
 from ml_core.runner.cache_loader import ShaCacheLoader
 from ml_core.runner.candidates import StoreCandidates
 from ml_core.runner.env import describe_device, environment
+from ml_core.runner.errors import (
+    CANCELLED_REASON,
+    TIME_LIMIT_REASON,
+    ErrorAction,
+    ErrorDecision,
+)
 from ml_core.runner.executor import (
     RunContext,
     RunExecutor,
@@ -165,10 +171,6 @@ class Heartbeat(threading.Thread):
 # ---------------------------------------------------------------- chạy job
 
 
-class _StopExperiment(Exception):
-    """Run kết thúc vì bị hủy hoặc chạm giới hạn: không chạy các run sau."""
-
-
 @dataclass
 class _Job:
     lease: WorkerLease
@@ -213,6 +215,7 @@ class JobRunner:
         self.on_batch = on_batch
         self.perturbation_factory = perturbation_factory
         self.provenance = provenance or EnvProvenance()
+        self.errors = WORKER_POLICY
         self._estimators: dict[str, Any] = {}
 
     # ------------------------------------------------------------------ chuẩn bị
@@ -345,7 +348,7 @@ class JobRunner:
                 continue
             try:
                 self._run_one(job, run.run_id, spec, self._inputs(job, run, spec))
-            except _StopExperiment:
+            except StopExperiment:
                 return
         for attack in bundle.config.attacks:
             if attack.mode != RunMode.SEARCH:
@@ -487,6 +490,7 @@ class JobRunner:
         if spec.requires_gradients and not bundle.model_card.supports_gradients:
             finish.skipped(f"{spec.name} cần gradient nhưng model không hỗ trợ gradient")
             return
+        executor: RunExecutor | None = None
         try:
             if spec.requires_training:
                 perturbation: Perturbation
@@ -495,104 +499,100 @@ class JobRunner:
                 )
             else:
                 perturbation = self._build_perturbation(spec, bundle)
-        except IncompatibleAttack as exc:
-            finish.skipped(str(exc))
-            return
-        except PatchInterrupted as exc:  # hủy hoặc chạm giới hạn giữa lúc train patch
-            finish.extra_seconds = exc.seconds
-            if exc.directive.action == "cancel":
-                finish.cancelled(None)
-            else:
-                finish.stopped(None)
-            raise _StopExperiment from exc
-        except LeaseLost:
-            raise
-        except Exception as exc:  # lỗi khi dựng attack: run này failed, run khác chạy tiếp
-            finish.failed(exc, None)
-            return
-
-        candidates = StoreCandidates(
-            store, prefix, linf_eps(spec, perturbation, run.level), perturbation_kind(spec)
-        )
-        try:
+            candidates = StoreCandidates(
+                store, prefix, linf_eps(spec, perturbation, run.level), perturbation_kind(spec)
+            )
+            # Checkpoint hỏng hoặc không tải được: run failed, run khác chạy tiếp.
             executor, batch_index = self._executor(
                 job, run_id, fp, run.level, run.seed, perturbation, candidates, image_ids
             )
-        except LeaseLost:
-            raise
-        except Exception as exc:  # checkpoint hỏng hoặc không tải được: run failed, run khác chạy
-            finish.failed(exc, None)
-            return
+            self._run_batches(job, run_id, spec, store, prefix, finish, executor, batch_index)
+        except Exception as exc:  # bảng `WORKER_POLICY`
+            decision = self.errors.decide(exc)
+            if decision.action is ErrorAction.PROPAGATE:
+                raise
+            finish.ended(decision, exc, executor)
+            if decision.stops_experiment:
+                raise StopExperiment from exc
+
+    def _run_batches(
+        self,
+        job: _Job,
+        run_id: UUID,
+        spec: AttackSpec,
+        store: PresignedStore,
+        prefix: str,
+        finish: _Finisher,
+        executor: RunExecutor,
+        batch_index: int,
+    ) -> None:
+        lease, run = job.lease, job.runs[run_id]
         profile = job.profiles.get(spec.id)
         batch_size = profile.batch_size if profile else DEFAULT_BATCH_SIZE
         # Checkpoint mà API đang trỏ tới (từ bundle khi chạy tiếp); bị xóa khi có checkpoint mới.
         previous_key = run.checkpoint.key if run.checkpoint is not None else None
-        try:
-            while executor.remaining_ids():
-                directive = job.box.current()
-                if directive is not None and directive.action == "cancel":
-                    finish.cancelled(executor)
-                    raise _StopExperiment
-                if directive is not None and directive.action == "stop_limit":
-                    finish.stopped(executor)
-                    raise _StopExperiment
-                next_size = min(batch_size, len(executor.remaining_ids()))
-                if (
-                    profile is not None
-                    and job.remaining_seconds is not None
-                    and profile.sec_per_image * next_size > job.remaining_seconds
-                ):
-                    logger.info("Không đủ thời gian cho batch kế tiếp; dừng")
-                    finish.stopped(executor)
-                    raise _StopExperiment
-                batch = next(executor.batches(job.loader, batch_size))
-                try:
-                    elapsed = executor.process_batch(batch)
-                except torch.cuda.OutOfMemoryError:
-                    if batch_size == 1:
-                        raise
-                    batch_size = self._shrink_batch(job, spec, profile, batch_size)
-                    profile = job.profiles.get(spec.id)
-                    continue
-                key = checkpoint_key(prefix, batch_index)
-                store.put(key, json.dumps(executor.to_checkpoint()).encode())
-                directive = self.client.progress(
-                    run_id,
-                    ProgressReport(
-                        lease_id=lease.lease_id,
-                        images_done=executor.images_done,
-                        batch_index=batch_index,
-                        checkpoint_key=key,
-                        processing_seconds_delta=elapsed,
-                    ),
-                )
-                job.box.update(directive)
-                job.remaining_seconds = directive.remaining_seconds
-                self._drop_checkpoint(store, previous_key, key)
-                previous_key = key
-                batch_index += 1
-                logger.info(
-                    "[%s %g] %d/%d ảnh",
-                    spec.name,
-                    run.level,
-                    executor.images_done,
-                    executor.images_total,
-                )
-                if self.on_batch is not None:
-                    self.on_batch(run_id, batch.image_ids)
-                # Dừng ngay sau batch hiện tại (requirements.md, Luồng xử lý bước 5): hủy luôn
-                # thắng; chạm giới hạn chỉ dừng khi còn ảnh chưa xử lý.
-                if directive.action == "cancel":
-                    finish.cancelled(executor)
-                    raise _StopExperiment
-                if directive.action == "stop_limit" and executor.remaining_ids():
-                    finish.stopped(executor)
-                    raise _StopExperiment
-            finish.completed(executor)
-        except (LeaseLost, _StopExperiment):
-            raise
-        except Exception as exc:  # một run lỗi không dừng các run khác
-            finish.failed(exc, executor)
+        while executor.remaining_ids():
+            directive = job.box.current()
+            if directive is not None and directive.action == "cancel":
+                finish.cancelled(executor)
+                raise StopExperiment
+            if directive is not None and directive.action == "stop_limit":
+                finish.stopped(executor)
+                raise StopExperiment
+            next_size = min(batch_size, len(executor.remaining_ids()))
+            if (
+                profile is not None
+                and job.remaining_seconds is not None
+                and profile.sec_per_image * next_size > job.remaining_seconds
+            ):
+                logger.info("Không đủ thời gian cho batch kế tiếp; dừng")
+                finish.stopped(executor)
+                raise StopExperiment
+            batch = next(executor.batches(job.loader, batch_size))
+            try:
+                elapsed = executor.process_batch(batch)
+            except Exception as exc:
+                retry = self.errors.decide(exc).action is ErrorAction.RETRY_SMALLER
+                if not retry or batch_size == 1:
+                    raise
+                batch_size = self._shrink_batch(job, spec, profile, batch_size)
+                profile = job.profiles.get(spec.id)
+                continue
+            key = checkpoint_key(prefix, batch_index)
+            store.put(key, json.dumps(executor.to_checkpoint()).encode())
+            directive = self.client.progress(
+                run_id,
+                ProgressReport(
+                    lease_id=lease.lease_id,
+                    images_done=executor.images_done,
+                    batch_index=batch_index,
+                    checkpoint_key=key,
+                    processing_seconds_delta=elapsed,
+                ),
+            )
+            job.box.update(directive)
+            job.remaining_seconds = directive.remaining_seconds
+            self._drop_checkpoint(store, previous_key, key)
+            previous_key = key
+            batch_index += 1
+            logger.info(
+                "[%s %g] %d/%d ảnh",
+                spec.name,
+                run.level,
+                executor.images_done,
+                executor.images_total,
+            )
+            if self.on_batch is not None:
+                self.on_batch(run_id, batch.image_ids)
+            # Dừng ngay sau batch hiện tại (requirements.md, Luồng xử lý bước 5): hủy luôn
+            # thắng; chạm giới hạn chỉ dừng khi còn ảnh chưa xử lý.
+            if directive.action == "cancel":
+                finish.cancelled(executor)
+                raise StopExperiment
+            if directive.action == "stop_limit" and executor.remaining_ids():
+                finish.stopped(executor)
+                raise StopExperiment
+        finish.completed(executor)
 
     def _patch_perturbation(
         self, job: _Job, run_id: UUID, spec: AttackSpec, store: PresignedStore
@@ -821,10 +821,20 @@ class _Finisher:
         )
         self.job.predictions[self.run_id] = dict(executor.predictions)
 
+    def ended(self, decision: ErrorDecision, exc: Exception, executor: RunExecutor | None) -> None:
+        """Gửi kết quả theo quyết định của chính sách lỗi (không gồm `PROPAGATE`)."""
+        self.extra_seconds += decision.device_seconds
+        if decision.status == RunStatus.CANCELLED:
+            self.cancelled(executor)
+        elif decision.status == RunStatus.STOPPED_LIMIT:
+            self.stopped(executor)
+        elif decision.status == RunStatus.SKIPPED and decision.reason is not None:
+            self.skipped(decision.reason.message)
+        else:
+            self.failed(exc, executor)
+
     def stopped(self, executor: RunExecutor | None) -> None:
-        reason = StatusReason(
-            code=StopReason.TIME, message="Chạm giới hạn thời gian của experiment"
-        )
+        reason = TIME_LIMIT_REASON
         if executor is None or executor.images_done == 0:
             self._send(RunStatus.STOPPED_LIMIT, reason, executor)
             return
@@ -840,11 +850,7 @@ class _Finisher:
 
     def cancelled(self, executor: RunExecutor | None) -> None:
         self._discard_candidates(executor)
-        self._send(
-            RunStatus.CANCELLED,
-            StatusReason(code="cancelled", message="Experiment bị hủy"),
-            executor,
-        )
+        self._send(RunStatus.CANCELLED, CANCELLED_REASON, executor)
 
     def skipped(self, message: str) -> None:
         self._send(
@@ -904,7 +910,7 @@ class _JobSearchHooks:
         run = job.runs[run_id]
         try:
             self.runner._run_one(job, run_id, self.spec, self.runner._inputs(job, run, self.spec))
-        except _StopExperiment:
+        except StopExperiment:
             outcome = job.outcomes.get(run_id, PointOutcome(RunStatus.CANCELLED, None))
             return PointOutcome(outcome.status, outcome.metrics, outcome.message, stop=True)
         return job.outcomes[run_id]
