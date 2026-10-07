@@ -28,9 +28,9 @@ from sqlalchemy import Engine, create_engine, select, text
 from sqlalchemy.orm import Session
 
 from advertest_contracts.models import SearchResult, SearchResultReport, SearchRunCreate
-from advertest_worker import job as job_module
 from advertest_worker import search as search_module
 from advertest_worker.client import WorkerClient
+from attacks.factory import build_perturbation
 from attacks.registry import get_spec, load_catalog
 from backend.app.db import models as m
 from ml_core.models.wrapper import UltralyticsDetector
@@ -166,7 +166,7 @@ def _is(result: SearchResult, name: str | None) -> bool:
     return name is None or result.attack_spec_id == get_spec(load_catalog(), name=name).id
 
 
-def install(mp: pytest.MonkeyPatch, rec: Recorder) -> None:
+def install(mp: pytest.MonkeyPatch, rec: Recorder, api: Any) -> None:
     report, create = WorkerClient.search_result, WorkerClient.create_search_run
 
     def spy_report(self: WorkerClient, experiment_id: UUID, body: SearchResultReport) -> None:
@@ -180,7 +180,7 @@ def install(mp: pytest.MonkeyPatch, rec: Recorder) -> None:
         rec.created.append((rec.session, body))
         return create(self, experiment_id, body)
 
-    original_build = job_module.build_perturbation
+    original_build = api.perturbation_factory or build_perturbation
 
     def spy_build(spec: Any, estimator: Any) -> Any:
         perturbation = original_build(spec, estimator)
@@ -210,15 +210,15 @@ def install(mp: pytest.MonkeyPatch, rec: Recorder) -> None:
 
     mp.setattr(WorkerClient, "search_result", spy_report)
     mp.setattr(WorkerClient, "create_search_run", spy_create)
-    mp.setattr(job_module, "build_perturbation", spy_build)
+    api.perturbation_factory = spy_build
     mp.setattr(UltralyticsDetector, "forward", counted)
     mp.setattr(search_module.SearchDriver, "_bootstrap", watched)
 
 
 @pytest.fixture
-def recorder(monkeypatch: pytest.MonkeyPatch) -> Recorder:
+def recorder(monkeypatch: pytest.MonkeyPatch, api: Any) -> Recorder:
     rec = Recorder()
-    install(monkeypatch, rec)
+    install(monkeypatch, rec, api)
     return rec
 
 
@@ -258,7 +258,7 @@ def pgd_search(
         mp.setenv("GIT_COMMIT", uuid.uuid4().hex + uuid.uuid4().hex[:8])
         mp.delenv("DOCKER_IMAGE_DIGEST", raising=False)
         mp.setenv("TRUSTED_PROXIES", "testclient")
-        install(mp, rec)
+        install(mp, rec, session_api)
         attacks = [attack("fgsm", [2, 4]), search_attack("pgd_linf", **PGD_SEARCH)]
         target, client, experiment_id = setup(session_api, attacks)
         estimate = ok(

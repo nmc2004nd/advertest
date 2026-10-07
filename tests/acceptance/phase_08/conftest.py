@@ -32,7 +32,7 @@ from sqlalchemy import Engine, create_engine, select, text
 from sqlalchemy.orm import Session
 
 from advertest_contracts.models import ExperimentDetail
-from advertest_worker import job as job_module
+from attacks.factory import build_perturbation
 from attacks.registry import get_spec, load_catalog
 from backend.app.api import public
 from backend.app.db import models as m
@@ -45,8 +45,8 @@ from backend.app.storage import (
     Buckets,
     make_s3_client,
 )
-from ml_core.runner import env as env_module
-from ml_core.runner import run as run_module
+from ml_core.runner.env import GitState
+from ml_core.runner.provenance import EnvProvenance
 
 from ._phase05 import load
 
@@ -311,10 +311,10 @@ def flow(api: Any) -> Flow:
 
 
 @pytest.fixture
-def fail_first_build(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+def fail_first_build(api: Any) -> list[str]:
     """Lần dựng attack đầu tiên lỗi (giả lập hết bộ nhớ): run đó `failed`, run khác chạy tiếp."""
     calls: list[str] = []
-    original = job_module.build_perturbation
+    original = api.perturbation_factory or build_perturbation
 
     def flaky(spec: Any, *args: Any, **kwargs: Any) -> Any:
         calls.append(spec.name)
@@ -322,15 +322,19 @@ def fail_first_build(monkeypatch: pytest.MonkeyPatch) -> list[str]:
             raise RuntimeError("Giả lập hết bộ nhớ khi dựng attack")
         return original(spec, *args, **kwargs)
 
-    monkeypatch.setattr(job_module, "build_perturbation", flaky)
+    api.perturbation_factory = flaky
     return calls
 
 
 @pytest.fixture
-def dirty_tree(monkeypatch: pytest.MonkeyPatch) -> None:
+def dirty_tree(api: Any) -> None:
     """Worker chạy từ working tree có thay đổi chưa commit."""
     commit = uuid.uuid4().hex + uuid.uuid4().hex[:8]
-    state = env_module.GitState(commit=commit, dirty=True)
-    # Worker lấy git cho fingerprint (`job.git_state`); RunExecutor lấy cho manifest.
-    monkeypatch.setattr(job_module, "git_state", lambda: state)
-    monkeypatch.setattr(run_module, "git_state", lambda: state)
+    state = GitState(commit=commit, dirty=True)
+
+    class DirtyProvenance(EnvProvenance):
+        def git(self) -> GitState:
+            return state
+
+    # Worker lấy git một lần mỗi experiment cho fingerprint; manifest dùng lại `fingerprint_inputs`.
+    api.provenance = DirtyProvenance()

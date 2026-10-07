@@ -17,8 +17,8 @@ from sqlalchemy.orm import Session
 
 from advertest_contracts.enums import RunStatus
 from advertest_contracts.models import ProgressReport, RunSkipRequest
-from advertest_worker import job as job_module
 from advertest_worker.client import LeaseLost, WorkerClient
+from attacks.factory import build_perturbation
 from backend.app.db import models as m
 from ml_core.runner.grid import coarse_to_fine
 
@@ -37,10 +37,10 @@ COLLAPSED = {
 
 
 @pytest.fixture
-def applied(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[tuple[str, float]]]:
+def applied(api: Any) -> Iterator[list[tuple[str, float]]]:
     """(attack, level) mỗi lần worker gọi `Perturbation.apply` (giữ nguyên đối tượng thật)."""
     calls: list[tuple[str, float]] = []
-    original = job_module.build_perturbation
+    original = api.perturbation_factory or build_perturbation
 
     def spy(spec: Any, estimator: Any) -> Any:
         perturbation = original(spec, estimator)
@@ -53,7 +53,7 @@ def applied(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[tuple[str, float]]
         perturbation.apply = recorded
         return perturbation
 
-    monkeypatch.setattr(job_module, "build_perturbation", spy)
+    api.perturbation_factory = spy
     yield calls
 
 

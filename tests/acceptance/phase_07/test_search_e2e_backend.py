@@ -12,8 +12,8 @@ import pytest
 
 from advertest_contracts.enums import EvalScope, SearchStage, SearchStatus
 from advertest_contracts.models import ProgressReport, RunView, SearchResult
-from advertest_worker import job as job_module
 from advertest_worker.client import WorkerClient
+from attacks.factory import build_perturbation
 from attacks.registry import get_spec, load_catalog
 
 from .conftest import (
@@ -231,12 +231,10 @@ def test_cancel_during_search(api: Any, recorder: Recorder) -> None:
     assert result.bracket == cancelled_at.bracket
 
 
-def test_unrecoverable_point_error_fails_search_only(
-    api: Any, recorder: Recorder, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_unrecoverable_point_error_fails_search_only(api: Any, recorder: Recorder) -> None:
     """FGSM ném lỗi ở eps 4 (estimator giả): tìm ngưỡng FGSM `failed` kèm thông điệp; tìm ngưỡng
     `fog` trong cùng experiment vẫn có kết quả."""
-    original = job_module.build_perturbation
+    original = api.perturbation_factory or build_perturbation
 
     def broken(spec: Any, estimator: Any) -> Any:
         perturbation = original(spec, estimator)
@@ -252,7 +250,7 @@ def test_unrecoverable_point_error_fails_search_only(
         perturbation.apply = maybe_fail
         return perturbation
 
-    monkeypatch.setattr(job_module, "build_perturbation", broken)
+    api.perturbation_factory = broken
     attacks = [
         search_attack("fgsm", **FGSM_SEARCH),
         search_attack("fog", threshold=0.2, lo=1, hi=5, tol=4 / 256),

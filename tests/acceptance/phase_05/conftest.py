@@ -40,7 +40,7 @@ from ultralytics.nn.tasks import DetectionModel
 from advertest_contracts.models import CostProfile, ErrorResponse, GradientCheck
 from advertest_worker.cache import JobCache
 from advertest_worker.client import WorkerClient
-from advertest_worker.job import BatchHook, JobRunner
+from advertest_worker.job import BatchHook, JobRunner, PerturbationFactory
 from attacks.registry import get_spec, load_catalog
 from backend.admin_cli import cli as admin_cli
 from backend.admin_cli.seed import AdminAccount, seed
@@ -64,6 +64,7 @@ from backend.app.storage import (
 from ml_core.cli import app as ml_app
 from ml_core.fixtures import FIXTURES_DIR
 from ml_core.models import register as register_module
+from ml_core.runner.provenance import Provenance
 
 REPO = Path(__file__).resolve().parents[3]
 KITTI_ROOT = FIXTURES_DIR / "kitti"
@@ -306,6 +307,10 @@ class Api:
     world: World
     tmp: Path
     clock: FakeClock = field(default_factory=FakeClock)
+    # Seam của worker (Phase R1): test thay cách dựng perturbation và provenance qua đây thay vì
+    # patch tên cấp module của `advertest_worker.job`.
+    perturbation_factory: PerturbationFactory | None = None
+    provenance: Provenance | None = None
 
     def app(self) -> FastAPI:
         app = create_app()
@@ -414,6 +419,8 @@ class Api:
             heartbeat_interval_s=heartbeat,
             clock=self.clock,
             on_batch=on_batch,
+            perturbation_factory=self.perturbation_factory,
+            provenance=self.provenance,
         )
         lease = runner.client.lease()
         assert lease is not None and str(lease.experiment_id) == experiment_id

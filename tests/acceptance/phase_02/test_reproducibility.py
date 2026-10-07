@@ -24,7 +24,6 @@ from attacks.registry import get_spec, load_catalog
 from ml_core.data.mapping import save_mapping
 from ml_core.models.wrapper import DEFAULT_INFERENCE_PARAMS
 from ml_core.runner import env as env_module
-from ml_core.runner import run as run_module
 from ml_core.runner.config import LocalRunConfig
 from ml_core.runner.fingerprint import build_fingerprint_inputs, fingerprint
 from ml_core.runner.run import run_config
@@ -286,7 +285,6 @@ def test_clean_map_comes_from_phase1_cache(
     pipeline: Pipeline,
     sweep: Sweep,
     git_commit: None,
-    monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     out = tmp_path / "eval.json"
@@ -310,9 +308,12 @@ def test_clean_map_comes_from_phase1_cache(
     def no_predict(*args: object, **kwargs: object) -> None:
         raise AssertionError("prediction ảnh sạch phải lấy từ cache")
 
-    monkeypatch.setattr(run_module, "predict_slice", no_predict)
     config = LocalRunConfig.model_validate(pipeline.config([attack_entry("fgsm", [4])]))
-    result = run_config(pipeline.store, config, force=True).outcomes[0].result
+    result = (
+        run_config(pipeline.store, config, force=True, clean_predictor=no_predict)
+        .outcomes[0]
+        .result
+    )
     assert result.metrics is not None
     assert result.metrics.clean.map50 == pytest.approx(evaluated["metrics"]["map50"], abs=1e-9)
 
