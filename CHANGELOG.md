@@ -21,7 +21,29 @@ Các phase đã đóng trước phase gần nhất nằm trong `changelog/archiv
 
 ## Phase R1 — Refactor lớp chạy giữ hành vi
 
-**Trạng thái:** đang làm. Group 0 (golden, `6861ca8`), Group 1, Group 2 (còn bước 7b) và Group 3 xong.
+**Trạng thái:** đang làm. Group 0 (golden, `6861ca8`), Group 1, Group 2 (còn bước 7b), Group 3 và Group 4 xong.
+
+### Phase R1 — Group 4 (ml-model) — 2026-10-07
+Nhánh `phaser1-ml-model` @ `6ddf3df` (tách từ `dev` @ `6e97bc2`), 2 commit (`ec24bb8`, `6ddf3df`); code chỉ sửa `ml_core/models/`.
+### Thêm
+- `ml_core/models/adapter.py`: `Capabilities(gradients)`, `NoGradients(RuntimeError)`, `ModelAdapter` (Protocol: `card`, `capabilities`, `class_names()`, `predict(images, batch_size=None)`, `estimator()`), `UltralyticsAdapter` (nạp lười, chỉ dựng `build_estimator(load(card), params, device)` ở lần gọi `predict`/`estimator` đầu tiên; `class_names()` lấy từ card), `ModelProvider(store, *, load_model=None)` cache theo `(weights_sha256, InferenceParams, device)`, `store_loader(store)` đọc `models/<sha>/weights.pt`.
+- `ml_core/models/tests/test_adapter.py` (5 test): cache trả cùng instance theo khóa, nạp lười một lần, `NoGradients`, `predict` khớp estimator, framework khác ultralytics → `ValueError`.
+### Thay đổi
+- Không (chưa nơi nào ngoài `ml_core/models/` dùng adapter; tích hợp ở Group 5).
+### Contract
+- Không đổi.
+### Quyết định
+- `ModelProvider.get` báo `ValueError` khi `ModelCard.framework` khác `ultralytics`, cho tới khi R2 thêm adapter. Người duyệt chấp nhận 2026-10-07 (review phát hiện #3); ghi tại `requirements.md` `## Decisions`.
+- `ModelAdapter.predict(images, batch_size: int | None = None)`, mặc định cả lô trong một batch (khác chữ ký gợi ý trong `requirements.md`, spec cho phép). Ghi tại `requirements.md` `## Data / Fields`.
+- `store_loader` chép logic của `ml_core/cli/evaluate.py::load_model_from_store` để `ml_core/models` không import ngược `ml_core.cli`; trùng code tạm thời.
+### Số liệu đo được
+- `make check` tại `6ddf3df`: exit 0 (mypy 307 file; nghiệm thu không db 337 passed).
+- `make test-db` tại `6ddf3df`: lần chạy của agent 697 passed, 2 failed (`phase_r1/test_golden_worker.py`, `phase_r1/test_checkpoint_compat.py`: failure case PGD lệch `new_false_positives` 37≠36, 32≠30); chạy riêng 2 file pass trên cả nhánh lẫn `dev`. Lần chạy của reviewer: 699 passed, 0 failed, 24m49s.
+### Tồn đọng
+- Golden worker có thể không ổn định khi chạy cả suite `make test-db` (1/2 lần lệch ở trên). Nếu lặp lại ở Group 5, xử lý theo Open Question về số luồng torch trước khi đi tiếp.
+- Cho Group 5: thay `Runner.estimator`/`JobRunner._estimator` bằng `provider.get(card, params, device)`; không gọi `estimator()` cho corruption/occlusion (model không gradient báo `NoGradients`, validation "corruption trên cùng model → completed" sẽ fail); truyền đúng batch size hiện tại cho `predict`; xác nhận khóa cache `(sha, params, device)` không đổi kết quả golden (worker hiện cache theo sha).
+- Cho Group 5/6: cho `load_model_from_store` dùng lại `store_loader` hoặc bỏ.
+- Adapter giữ `card` của lần gọi đầu cho mỗi khóa; hai card cùng sha khác `supports_gradients` sẽ nhận capabilities cũ. Chấp nhận vì card định danh theo sha.
 
 ### Phase R1 — Group 3 (attack) — 2026-10-07
 Nhánh `phaser1-attack` @ `1107b4b` (tách từ `phaser1-reviewer` @ `da010c9`), 3 commit của agent (`f3738a0`, `10bc702`, `fe5a9b7`) và 1 commit spec của người duyệt (`1107b4b`); code chỉ sửa `attacks/`. Nhánh mang theo `4912d86`, `da010c9` (phần registry thuần của `test_registry.py`, plan bước 7).

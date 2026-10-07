@@ -3,7 +3,7 @@
 > Phân chia thư mục:
 > `attacks/` (agent `attack`); `ml_core/models/` (agent `ml-model`); `ml_core/runner/`, `backend/worker/` (agent `worker`, như Phase 7); `tests/acceptance/phase_r1/`, `tests/fixtures/golden/` (người duyệt).
 >
-> Thứ tự: Group 0 ✅ → Group 1 ✅ → Group 2 ✅ (còn 7b) → (Group 3 ✅, 4 song song) → Group 5 → Group 6 → Group 7.
+> Thứ tự: Group 0 ✅ → Group 1 ✅ → Group 2 ✅ (còn 7b) → (Group 3 ✅, 4 ✅ song song) → Group 5 → Group 6 → Group 7.
 > Mọi group của agent: golden R1 (CLI; worker qua `make test-db`) và test nghiệm thu Phase 0–8 phải pass ở **mỗi commit**, không chỉ cuối group.
 
 ## Group 0 — Golden `[người duyệt]` ✅
@@ -34,7 +34,7 @@
 9. ✅ `attacks/factory.py::build_perturbation` thành lớp chuyển tiếp gọi `DEFAULT_REGISTRY` (giữ chữ ký cho tới Group 5); bỏ `AnyPerturbation`.
 10. ✅ Unit test: builder giả đăng ký và dựng được; tên adapter trùng thì lỗi; thiếu estimator với builder cần gradient thì `IncompatibleAttack`.
 
-## Group 4 — Model adapter `[agent: ml-model]`
+## Group 4 — Model adapter `[agent: ml-model]` ✅
 
 11. `ml_core/models/adapter.py`: `Capabilities`, `ModelAdapter`, `UltralyticsAdapter` (bọc `UltralyticsDetector` và `build_estimator`), `ModelProvider`.
 12. Unit test: cache trả cùng instance theo khóa; model không hỗ trợ gradient → `estimator()` báo `NoGradients`.

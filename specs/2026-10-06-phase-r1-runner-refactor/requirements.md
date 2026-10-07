@@ -59,7 +59,7 @@ class ModelAdapter(Protocol):
     card: ModelCard
     capabilities: Capabilities
     def class_names(self) -> list[str]: ...
-    def predict(self, images: ImageBatch) -> list[Prediction]: ...
+    def predict(self, images: ImageBatch, batch_size: int | None = None) -> list[Prediction]: ...  # None: cả lô một batch
     def estimator(self) -> BaseEstimator: ...  # NoGradients khi capabilities.gradients = False
 class ModelProvider:                            # cache theo (weights_sha256, InferenceParams, device)
     def get(self, card: ModelCard, params: InferenceParams, device: str) -> ModelAdapter: ...
@@ -133,6 +133,7 @@ class ErrorPolicy:                              # exception → (RunStatus, code
 - **Tên nhánh `phaser1-<agent>`, test ở `tests/acceptance/phase_r1/`.** *Lý do:* các skill dùng `NN` như chỗ điền tên.
 - **Nhánh R1 merge vào `dev`, không vào `main`.** *Lý do:* `main` chưa có `dev` (spec R1, Group 0/1); merge thẳng vào `main` kéo theo 127 file ngoài group. Người dùng chốt 2026-10-07.
 - **`attacks.factory.build_perturbation` giữ nguyên tên đến hết R1.** *Lý do:* test nghiệm thu phase_06/07/08/r1 import tên này làm mặc định của seam `perturbation_factory`; agent không được sửa test. Người dùng chốt 2026-10-07.
+- **`ModelProvider.get` báo `ValueError` khi `ModelCard.framework` khác `ultralytics`, cho tới khi R2 thêm adapter.** *Lý do:* R1 chỉ có adapter Ultralytics; báo lỗi rõ ràng tốt hơn nạp sai. Người duyệt chốt 2026-10-07 (review Group 4).
 
 ## Context
 
