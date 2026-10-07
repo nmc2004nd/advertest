@@ -28,7 +28,6 @@ from typing import Any
 from uuid import UUID
 
 import httpx
-import numpy as np
 import torch
 
 from advertest_contracts.enums import EvalScope, RunMode, RunStatus
@@ -45,7 +44,6 @@ from advertest_contracts.models import (
     SearchResult,
     SearchResultReport,
     SearchRunCreate,
-    WorkerDirective,
     WorkerJobBundle,
     WorkerLease,
 )
@@ -57,11 +55,10 @@ from advertest_worker.config import HEARTBEAT_INTERVAL_S
 from advertest_worker.early_stop import RunLedger
 from advertest_worker.errors import WORKER_POLICY, StopExperiment
 from advertest_worker.finish import RunFinisher
-from advertest_worker.patch import PatchJob, obtain_patch
+from advertest_worker.patch import patch_perturbation
 from advertest_worker.search import KnownRun, PointOutcome, SearchDriver
 from advertest_worker.state import DirectiveBox, JobState
-from attacks.builders import DEFAULT_REGISTRY, BuildContext, PerturbationRegistry
-from attacks.patch.geometry import patch_key
+from attacks.builders import DEFAULT_REGISTRY, PerturbationRegistry
 from ml_core.metrics.bootstrap import (
     load_run_predictions,
     run_predictions_key,
@@ -81,7 +78,6 @@ from ml_core.runner.executor import (
     load_clean_predictions,
 )
 from ml_core.runner.fingerprint import FingerprintService, fingerprint
-from ml_core.runner.images import letterbox_mask
 from ml_core.runner.manifest import ManifestBuilder
 from ml_core.runner.paths import checkpoint_key, run_id_prefix
 from ml_core.runner.perturbations import (
@@ -455,8 +451,16 @@ class JobRunner:
         try:
             if spec.requires_training:
                 perturbation: Perturbation
-                perturbation, finish.extra_seconds = self._patch_perturbation(
-                    job, run_id, spec, store
+                perturbation, finish.extra_seconds = patch_perturbation(
+                    job,
+                    run_id,
+                    spec,
+                    store,
+                    cache=self.cache,
+                    client=self.client,
+                    clock=self.clock,
+                    adapter=lambda: self._adapter(bundle),
+                    registry=self.registry,
                 )
             else:
                 perturbation = self._build_perturbation(spec, bundle)
@@ -555,65 +559,6 @@ class JobRunner:
                 finish.stopped(executor)
                 raise StopExperiment
         finish.completed(executor)
-
-    def _patch_perturbation(
-        self, job: JobState, run_id: UUID, spec: AttackSpec, store: PresignedStore
-    ) -> tuple[Perturbation, float]:
-        """Phase 6 (plan task 17): lấy patch đã train (hoặc train trên slice huấn luyện, báo tiến
-        độ `phase = training`), rồi dựng adapter dán patch. Trả kèm thời gian train để cộng vào
-        `gpu_seconds` của run."""
-        bundle = job.bundle
-        run = job.runs[run_id]
-        patch = next(p for p in bundle.patches if p.key == run.patch_key)
-        training = next(s for s in bundle.training_slices if s.id == patch.training_slice_id)
-        # Review Group 3 #2: không tin khóa và kích thước patch của bundle mà không đối chiếu.
-        expected = patch_key(
-            spec,
-            weights_sha256=bundle.model_card.weights_sha256,
-            training_slice_sha256=training.slice_sha256,
-            area_ratio=run.level,
-            seed=run.seed,
-        )
-        if patch.key != expected or patch.area_ratio != run.level:
-            raise ValueError(
-                f"Patch trong bundle ({patch.key}, area_ratio {patch.area_ratio}) không khớp run"
-                f" (khóa tính lại {expected}, area_ratio {run.level})"
-            )
-        images = mask = None
-        if patch.artifact is None:
-            loader = self.cache.training_loader(bundle, training)
-            loaded = [loader.load(image_id) for image_id in training.image_ids]
-            images = np.stack([item[0] for item in loaded])
-            mask = letterbox_mask([item[3] for item in loaded])
-
-        def on_directive(directive: WorkerDirective) -> None:
-            job.box.update(directive)
-            job.remaining_seconds = directive.remaining_seconds
-
-        obtained = obtain_patch(
-            PatchJob(
-                spec=spec,
-                estimator=self._adapter(bundle).estimator(),
-                patch=patch,
-                run_id=run_id,
-                lease_id=job.lease.lease_id,
-                seed=run.seed,
-                weights_sha256=bundle.model_card.weights_sha256,
-                training_slice_sha256=training.slice_sha256,
-                store=store,
-                client=self.client,
-                clock=self.clock,
-                on_directive=on_directive,
-            ),
-            images,
-            mask,
-        )
-        context = BuildContext(
-            estimator=gradient_estimator(self._adapter(bundle)),
-            patch=obtained.patch,
-            area_ratio=run.level,
-        )
-        return self.registry.build(spec, context), obtained.training_seconds
 
     @staticmethod
     def _drop_checkpoint(store: PresignedStore, previous: str | None, current: str) -> None:

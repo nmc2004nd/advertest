@@ -9,6 +9,9 @@
 3. Train xong: upload `patch.npy`, `patch.png`, đăng ký (`register_patch`). Khóa đã có (worker khác
    đăng ký trước) thì API trả bản cũ: dùng bản đó.
 
+4. `patch_perturbation`: đối chiếu khóa patch của bundle với run, lấy hoặc train patch như trên,
+   rồi dựng perturbation dán patch qua registry (`BuildContext.patch`).
+
 Thời gian train (`TrainingState.seconds`, cộng dồn qua các lần chạy tiếp) được trả về để worker
 cộng vào `gpu_seconds` của run (review Group 3 #1): API ghi đè `gpu_seconds` của run bằng giá trị
 trong `RunResult` khi hoàn tất.
@@ -23,6 +26,8 @@ from datetime import datetime
 from typing import Any, Protocol
 from uuid import UUID
 
+import numpy as np
+
 from advertest_contracts.enums import RunPhase
 from advertest_contracts.models import (
     AttackSpec,
@@ -33,10 +38,17 @@ from advertest_contracts.models import (
     WorkerDirective,
     patch_prefix,
 )
-from advertest_contracts.perturbation import ImageBatch, MaskBatch
+from advertest_contracts.perturbation import ImageBatch, MaskBatch, Perturbation
+from advertest_worker.cache import JobCache
 from advertest_worker.client import LeaseLost
+from advertest_worker.state import JobState
+from attacks.builders import BuildContext, PerturbationRegistry
 from attacks.patch.artifact import build_artifact, load_patch
+from attacks.patch.geometry import patch_key
 from attacks.patch.training import PatchArray, PatchTrainer, TrainingState, training_params
+from ml_core.models.adapter import ModelAdapter
+from ml_core.runner.images import letterbox_mask
+from ml_core.runner.perturbations import gradient_estimator
 
 logger = logging.getLogger(__name__)
 
@@ -184,3 +196,68 @@ def _delete_quietly(store: PatchStore, key: str) -> None:
         raise
     except Exception:
         logger.warning("Không xóa được checkpoint patch %s", key, exc_info=True)
+
+
+def patch_perturbation(
+    job: JobState,
+    run_id: UUID,
+    spec: AttackSpec,
+    store: PatchStore,
+    *,
+    cache: JobCache,
+    client: PatchClient,
+    clock: Callable[[], datetime],
+    adapter: Callable[[], ModelAdapter],
+    registry: PerturbationRegistry,
+) -> tuple[Perturbation, float]:
+    """Phase 6 (plan task 17): lấy patch đã train (hoặc train trên slice huấn luyện, báo tiến
+    độ `phase = training`), rồi dựng adapter dán patch. Trả kèm thời gian train để cộng vào
+    `gpu_seconds` của run. Model (`adapter`) chỉ nạp sau khi khóa patch đã được đối chiếu."""
+    bundle = job.bundle
+    run = job.runs[run_id]
+    patch = next(p for p in bundle.patches if p.key == run.patch_key)
+    training = next(s for s in bundle.training_slices if s.id == patch.training_slice_id)
+    # Review Group 3 #2: không tin khóa và kích thước patch của bundle mà không đối chiếu.
+    expected = patch_key(
+        spec,
+        weights_sha256=bundle.model_card.weights_sha256,
+        training_slice_sha256=training.slice_sha256,
+        area_ratio=run.level,
+        seed=run.seed,
+    )
+    if patch.key != expected or patch.area_ratio != run.level:
+        raise ValueError(
+            f"Patch trong bundle ({patch.key}, area_ratio {patch.area_ratio}) không khớp run"
+            f" (khóa tính lại {expected}, area_ratio {run.level})"
+        )
+    images = mask = None
+    if patch.artifact is None:
+        loader = cache.training_loader(bundle, training)
+        loaded = [loader.load(image_id) for image_id in training.image_ids]
+        images = np.stack([item[0] for item in loaded])
+        mask = letterbox_mask([item[3] for item in loaded])
+
+    obtained = obtain_patch(
+        PatchJob(
+            spec=spec,
+            estimator=adapter().estimator(),
+            patch=patch,
+            run_id=run_id,
+            lease_id=job.lease.lease_id,
+            seed=run.seed,
+            weights_sha256=bundle.model_card.weights_sha256,
+            training_slice_sha256=training.slice_sha256,
+            store=store,
+            client=client,
+            clock=clock,
+            on_directive=job.apply,
+        ),
+        images,
+        mask,
+    )
+    context = BuildContext(
+        estimator=gradient_estimator(adapter()),
+        patch=obtained.patch,
+        area_ratio=run.level,
+    )
+    return registry.build(spec, context), obtained.training_seconds
