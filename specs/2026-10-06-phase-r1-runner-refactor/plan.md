@@ -3,7 +3,7 @@
 > Phân chia thư mục:
 > `attacks/` (agent `attack`); `ml_core/models/` (agent `ml-model`); `ml_core/runner/`, `backend/worker/` (agent `worker`, như Phase 7); `tests/acceptance/phase_r1/`, `tests/fixtures/golden/` (người duyệt).
 >
-> Thứ tự: Group 0 ✅ → Group 1 ✅ → Group 2 → (Group 3, 4 song song) → Group 5 → Group 6 → Group 7.
+> Thứ tự: Group 0 ✅ → Group 1 ✅ → Group 2 ✅ (còn 7b) → (Group 3, 4 song song) → Group 5 → Group 6 → Group 7.
 > Mọi group của agent: golden R1 (CLI; worker qua `make test-db`) và test nghiệm thu Phase 0–8 phải pass ở **mỗi commit**, không chỉ cuối group.
 
 ## Group 0 — Golden `[người duyệt]` ✅

@@ -131,6 +131,8 @@ class ErrorPolicy:                              # exception → (RunStatus, code
 - **Registry nhận resolver tiêm vào được.** *Lý do:* chọn được builder giả khi chưa có trường `adapter`; R2 chỉ cần thay resolver. Người dùng chốt 2026-10-06 (kickoff).
 - **`predict_slice` chuyển sang seam `clean_predictor`.** *Lý do:* không còn patch tên cấp module nào trong test nghiệm thu. Người dùng chốt 2026-10-06 (kickoff).
 - **Tên nhánh `phaser1-<agent>`, test ở `tests/acceptance/phase_r1/`.** *Lý do:* các skill dùng `NN` như chỗ điền tên.
+- **Nhánh R1 merge vào `dev`, không vào `main`.** *Lý do:* `main` chưa có `dev` (spec R1, Group 0/1); merge thẳng vào `main` kéo theo 127 file ngoài group. Người dùng chốt 2026-10-07.
+- **`attacks.factory.build_perturbation` giữ nguyên tên đến hết R1.** *Lý do:* test nghiệm thu phase_06/07/08/r1 import tên này làm mặc định của seam `perturbation_factory`; agent không được sửa test. Người dùng chốt 2026-10-07.
 
 ## Context
 
