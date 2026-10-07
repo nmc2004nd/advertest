@@ -14,9 +14,7 @@ API = "http://localhost:8000"  # Đổi theo cổng API đang chạy.
 
 def main() -> None:
     if len(sys.argv) != 3:
-        raise SystemExit(
-            "Cách dùng: python scripts/export_demo_data.py <experiment_id> <email>"
-        )
+        raise SystemExit("Cách dùng: python scripts/export_demo_data.py <experiment_id> <email>")
 
     exp_id, email = sys.argv[1], sys.argv[2]
     session = requests.Session()
