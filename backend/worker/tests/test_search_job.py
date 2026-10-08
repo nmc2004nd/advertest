@@ -40,7 +40,9 @@ from advertest_contracts.models import (
     WorkerLease,
 )
 from advertest_worker.client import ApiError, LeaseLost
-from advertest_worker.job import DirectiveBox, JobRunner, read_predictions_file
+from advertest_worker.job import JobRunner
+from advertest_worker.search_hooks import read_predictions_file
+from advertest_worker.state import DirectiveBox
 from attacks.registry import get_spec, load_catalog
 from ml_core.metrics.bootstrap import dump_run_predictions, load_run_predictions
 from ml_core.metrics.filters import Prediction
@@ -311,8 +313,8 @@ def _runner(world: World, api: FakeApi, monkeypatch: pytest.MonkeyPatch) -> JobR
     )
     monkeypatch.setattr(runner, "calibrate_bundle", lambda bundle, loader, force=False: {})
     monkeypatch.setattr(
-        runner,
-        "_environment",
+        runner.pipeline,
+        "environment",
         lambda bundle: Environment(
             compute_target_id=None, gpu_model=None, cuda_version=None, driver_version=None
         ),

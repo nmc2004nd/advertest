@@ -21,7 +21,38 @@ Các phase đã đóng trước phase gần nhất nằm trong `changelog/archiv
 
 ## Phase R1 — Refactor lớp chạy giữ hành vi
 
-**Trạng thái:** đang làm. Group 0 (golden, `6861ca8`), Group 1, Group 2 (cả bước 7b), Group 3, Group 4 và Group 5 xong.
+**Trạng thái:** đang làm. Group 0 (golden, `6861ca8`), Group 1, Group 2 (cả bước 7b), Group 3, Group 4, Group 5 và Group 6 xong; còn Group 7 (người duyệt).
+
+### Phase R1 — Group 6 (worker) — 2026-10-09
+Nhánh `phaser1-worker` @ `8cf49cd` (tách từ `phaser1-reviewer` @ `5dec5e1` = `dev` `5c1a5e4` + test G6), 6 commit: `5dec5e1` (test kiến trúc `job.py`, agent viết theo ủy quyền của người duyệt), `d3b9539`, `9bb0516`, `a368f0f`, `cd0e93c`, `8cf49cd`. Diff so với `dev`: 13 file, +1091/−801.
+### Thêm
+- `advertest_worker/pipeline.py`: `RunPipeline` (chạy một run); `finish.py`: `RunFinisher` (thay `_Finisher`); `state.py`: `JobState`, `DirectiveBox`; `search_hooks.py`: `JobSearchHooks`, `read_predictions_file`; `patch.py`: `patch_perturbation`; `early_stop.py`: `skip_early_stop`; `calibrate.py`: `calibrate_bundle`.
+- Phần `job.py` của `tests/acceptance/phase_r1/test_architecture_r1.py` (`5dec5e1`); trước G6 1 test fail (`job.py:69 attacks.patch.geometry`), sau G6 5 passed.
+### Thay đổi
+- `job.py` 962 → 237 dòng. Trách nhiệm còn lại: `Heartbeat`; `JobRunner.__init__` (nối seam); `calibrate_bundle` (ủy quyền); `run_lease` (bundle, cache, heartbeat, `LeaseLost`); `_run_bundle` (`JobState`, dựng `FingerprintService`/`ManifestBuilder`, thứ tự run, directive, dừng sớm, tìm ngưỡng); `_search` (`SearchDriver`). `job.py` export lại `DirectiveBox`, `BatchHook`, `PerturbationFactory` qua `__all__` nên import cũ ở phase_03/05 và `backend/app/tests` vẫn chạy.
+- Review so từng hàm: chỉ chuyển code, không đổi logic (`job.apply(directive)` và `JobState.stop_requested()` tương đương code cũ).
+- Unit test worker `test_patch_job`, `test_early_stop`, `test_search_job` đổi theo tên mới; review xác nhận không bị làm yếu, `test_patch_job` thêm kiểm "không nạp model trước khi đối chiếu khóa".
+- `docker/postgres/test-db.sh` (`8cf49cd`): trên CPU lai (có `/sys/devices/cpu_core/cpus`) chạy test qua `taskset -c <P-core>` và đặt `OMP_NUM_THREADS` = số lõi vật lý nếu chưa đặt; `ADVERTEST_TEST_NO_PIN=1` để tắt; áp dụng cả `make test-e2e`. Agent worker sửa `docker/` theo ủy quyền của người duyệt (review phát hiện 8).
+### Contract
+- Không đổi.
+### Quyết định
+- Dừng sớm và tìm ngưỡng chỉ có ở worker; CLI chỉ dùng chung `ml_core/runner/grid.py` (thêm dừng sớm cho CLI sẽ đổi hành vi). Review phát hiện 4; ghi tại `requirements.md` `## Decisions`.
+- Test kiến trúc `5dec5e1` do agent viết theo ủy quyền của người duyệt, không độc lập; người duyệt đã đọc và chấp nhận nội dung (review phát hiện 1, 2026-10-08).
+- Golden worker lệch 36↔37 (`grid:pgd_linf@4.0` `new_false_positives`, `search … #subset/1` 32↔30, checkpoint `000902` 36↔37) do oneDNN chọn cách chia khối theo loại lõi (P/E) chạy phép tính torch đầu tiên của process trên i5-1340P, không do refactor. Người duyệt chọn ghim test-db vào P-core (2026-10-08); golden R1 tái lập trên nhánh oneDNN P-core. Ghi tại `requirements.md` `## Decisions`.
+- 3 lần `make test-db` pass @ `8cf49cd` (có ghim) được coi là đạt điều kiện "≥2 lần pass" của quyết định #6 (người duyệt chốt 2026-10-09).
+### Số liệu đo được
+- `make check TORCH=cpu` @ `8cf49cd`: exit 0, nghiệm thu 344 passed.
+- `make test-db TORCH=cpu` @ `cd0e93c` (chưa ghim): agent 699 passed (26:45); reviewer lần 1 699 passed (24:40), lần 2 2 failed (24:42).
+- `make test-db TORCH=cpu` @ `8cf49cd` (ghim P-core 0–7, `OMP_NUM_THREADS=12`): 699 passed ba lần (23:01, 23:09 agent; 23:28 reviewer).
+- Probe PGD L∞ eps 4, ảnh `000902`, seed 0, 1 luồng: `taskset cpu0` 60 FP, `cpu8` 78 FP, ổn định qua nhiều process. Tắt `torch.backends.mkldnn` cho kết quả giống nhau trên hai loại lõi nhưng PGD chậm ~20% (3.9 s so với 3.2 s) và khác golden hiện tại.
+- Ghim P-core mà không đặt số luồng (torch 8 luồng): phase_08 `test_max_drop_uses_trigger_run_for_early_stop` fail ổn định; với `OMP_NUM_THREADS=12` pass trên cả P và E.
+### Tồn đọng
+- `test-db.sh:57`: không kiểm `lscpu`; thiếu `lscpu` thì `OMP_NUM_THREADS=0` (review phát hiện 10, để sau). Số luồng 12 trên 8 CPU logic gây oversubscription nhẹ (có chủ đích).
+- Worker production trên CPU lai vẫn cho failure case PGD khác nhau theo loại lõi; loại lõi và số luồng không có trong fingerprint hay `Environment` (phát hiện 9). Test dừng sớm Phase 8 phụ thuộc 12 luồng (phát hiện 11). Đã mở rộng Open Question số luồng torch trong `requirements.md`.
+- Phương án dự phòng chưa dùng: tắt oneDNN trong `pinned_threads` (không phụ thuộc loại lõi, chậm ~20%, phải ghi lại golden).
+- `run.py` còn alias `run_prefix`, `result_key` cho `ml_core/cli/run.py`; `attacks/factory.py` chưa xóa.
+- `JobRunner` vẫn giữ thứ tự run, `_search` và việc dựng `FingerprintService`/`ManifestBuilder` (task 18 nói "chỉ còn lease, heartbeat, directive, API"); review chấp nhận vì test kiến trúc đạt.
+- Manual Checks R1 (KITTI toàn catalog so baseline bước 7b, thời gian chênh dưới 5%) chưa làm; mục "ghi `job.py` vào CHANGELOG" có số liệu ở trên, chờ người duyệt xác nhận ở Group 7.
 
 ### Phase R1 — Group 5 (worker) — 2026-10-07
 Nhánh `phaser1-worker` @ `a20936e` (tách từ `phaser1-reviewer` @ `86d71dc`), 5 commit: `86d71dc` (test nghiệm thu trước G5, agent viết theo ủy quyền của người duyệt), `65b5953`, `ec79b6a`, `702f8dc`, `a20936e`; code chỉ sửa `ml_core/runner/` và `backend/worker/`. Diff so với `dev`: 21 file, +1090/−388.

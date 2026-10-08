@@ -209,7 +209,7 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 - [x] `ModelAdapter` (Protocol, khai báo năng lực) và adapter Ultralytics; `ModelProvider` nạp lười.
 - [x] `PerturbationRegistry`: builder đăng ký theo tên adapter; spec cũ suy ra adapter từ `kind` và `art_class` (`spec_sha256` không đổi); patch đi qua registry; bỏ `isinstance` theo loại cụ thể.
 - [x] Chính sách lỗi tập trung (phân loại lỗi → `failed`/`skipped`, OOM).
-- [ ] `JobRunner` và `Runner` chỉ còn phần điều phối; thứ tự run và dừng sớm dùng chung khi có thể (không bắt buộc; tìm ngưỡng vẫn chỉ ở worker).
+- [x] `JobRunner` và `Runner` chỉ còn phần điều phối; thứ tự run và dừng sớm dùng chung khi có thể (không bắt buộc; tìm ngưỡng vẫn chỉ ở worker).
 
 **Demo:** chạy lại experiment fixture, golden khớp; thêm một builder giả mà không sửa factory.
 

@@ -141,6 +141,8 @@ class ErrorPolicy:                              # exception → (RunStatus, code
 - **`ModelProvider.get` báo `ValueError` khi `ModelCard.framework` khác `ultralytics`, cho tới khi R2 thêm adapter.** *Lý do:* R1 chỉ có adapter Ultralytics; báo lỗi rõ ràng tốt hơn nạp sai. Người duyệt chốt 2026-10-07 (review Group 4).
 - **`registry` là seam chính của việc dựng perturbation; `perturbation_factory` phải nhất quán với nó.** *Lý do:* `linf_eps`/`image_kind` đọc từ builder của `registry`; builder chỉ truyền qua `perturbation_factory` sẽ báo `UnsupportedAttack`. Người duyệt chốt 2026-10-07 (review Group 5, phát hiện 2).
 - **Lỗi `ModelProvider.get` trong phép kiểm gradient của worker (`job.py:491`, `job.py:246`) để R2 sửa.** *Lý do:* R1 chỉ có ultralytics nên lỗi chưa xảy ra được; khi có adapter khác thì lỗi này phải chỉ làm run `failed`, không dừng cả experiment. Người duyệt chốt 2026-10-07 (review Group 5, phát hiện 3).
+- **Dừng sớm và tìm ngưỡng chỉ có ở worker; CLI chỉ dùng chung `ml_core/runner/grid.py`.** *Lý do:* CLI chưa bao giờ có dừng sớm, thêm vào sẽ đổi hành vi run. Người duyệt chốt 2026-10-08 (review Group 6, phát hiện 4).
+- **`make test-db`/`test-e2e` ghim P-core trên CPU lai (`taskset`, `OMP_NUM_THREADS` = số lõi vật lý); golden R1 được ghi và tái lập trên nhánh oneDNN P-core.** *Lý do:* oneDNN chọn cách chia khối theo loại lõi chạy phép tính torch đầu tiên, nên failure case PGD lệch 36↔37 giữa P-core và E-core. Agent worker sửa `docker/postgres/test-db.sh` theo ủy quyền. Người duyệt chốt 2026-10-08 (review Group 6, phát hiện 6, 8).
 
 ## Context
 
@@ -154,4 +156,4 @@ class ErrorPolicy:                              # exception → (RunStatus, code
 
 ## Open Questions
 
-- [ ] Số luồng torch ảnh hưởng tới failure case của attack lặp (PGD) trên CPU nhưng không có trong fingerprint hay `Environment`. Nên ghi vào `Environment`, để runner tự ghim, hay chấp nhận như hiện tại? Quyết ở R2 hoặc trước khi chạy experiment chính thức trên nhiều máy.
+- [ ] Số luồng torch và loại lõi CPU (P/E trên CPU lai, qua oneDNN) ảnh hưởng tới failure case của attack lặp (PGD) trên CPU nhưng không có trong fingerprint hay `Environment`. Worker production trên CPU lai vẫn chưa tất định theo loại lõi; test dừng sớm Phase 8 chỉ pass khi có 12 luồng. Nên ghi vào `Environment`, để runner tự ghim (hoặc tắt oneDNN, chậm ~20%, phải ghi lại golden), hay chấp nhận như hiện tại? Quyết ở R2 hoặc trước khi chạy experiment chính thức trên nhiều máy.

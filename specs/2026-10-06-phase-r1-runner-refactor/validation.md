@@ -13,16 +13,16 @@
 
 ### Golden — `test_golden_cli.py`, `test_golden_worker.py` (`db`)
 - [x] Ghi trên code trước refactor (Group 0, `6861ca8`).
-- [ ] Pass ở cuối mỗi group của agent: tập run, trạng thái, `fingerprint_inputs` và `fingerprint` giống từng byte; metric trong sai số; failure case giống hệt.
+- [x] Pass ở cuối mỗi group của agent: tập run, trạng thái, `fingerprint_inputs` và `fingerprint` giống từng byte; metric trong sai số; failure case giống hệt.
 
 ### Checkpoint — `test_checkpoint_compat.py` (`db`)
-- [ ] Checkpoint do code trước R1 ghi (fixture Group 2): worker sau R1 chạy tiếp từ batch kế tiếp, kết quả cuối khớp với run không gián đoạn (metric trong sai số).
+- [x] Checkpoint do code trước R1 ghi (fixture Group 2): worker sau R1 chạy tiếp từ batch kế tiếp, kết quả cuối khớp với run không gián đoạn (metric trong sai số).
   > Giới hạn: fixture chỉ thay JSON checkpoint; artifact ứng viên của batch 0 do code hiện tại ghi (chấp nhận vì R1 không đổi layout artifact).
 
 ### Kiến trúc — `test_architecture_r1.py` (AST, không cần DB)
 - [x] `ml_core/runner/**` và `backend/worker/advertest_worker/**` không import `attacks.art_adapter`, `attacks.corruptions.adapter`, `attacks.occlusion.adapter`, `attacks.patch.adapter`; không có `isinstance` với các lớp perturbation cụ thể.
 - [x] `attacks/` không còn tên `AnyPerturbation`.
-- [ ] `backend/worker/advertest_worker/job.py` không import `build_fingerprint_inputs`, `Manifest`, `ml_core.models.estimator`, hay module `attacks` nào ngoài `attacks.builders` và `attacks.registry`.
+- [x] `backend/worker/advertest_worker/job.py` không import `build_fingerprint_inputs`, `Manifest`, `ml_core.models.estimator`, hay module `attacks` nào ngoài `attacks.builders` và `attacks.registry`.
 - [x] Không còn test nghiệm thu nào patch `build_perturbation`, `git_state` hay `predict_slice` ở cấp module.
 
 ### Registry — `test_registry.py`
