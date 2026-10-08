@@ -45,4 +45,18 @@ export ADVERTEST_TEST_APP_URL="postgresql+psycopg://advertest_app:app-test@127.0
 export ADVERTEST_TEST_MINIO_ENDPOINT="http://127.0.0.1:$MINIO_PORT"
 export ADVERTEST_TEST_MINIO_ACCESS_KEY="$MINIO_KEY"
 export ADVERTEST_TEST_MINIO_SECRET_KEY="$MINIO_SECRET"
-"$@"
+
+# CPU lai (Intel P-core/E-core): oneDNN chia khối theo loại lõi chạy phép tính torch đầu tiên của
+# process và giữ cả process, nên PGD 1 luồng vẫn cho failure case khác nhau giữa P-core và E-core
+# (golden R1 lệch 36↔37). Golden ghi trên P-core: ghim test vào P-core từ đầu process.
+# Ghim làm torch tự giảm số luồng mặc định; test không ghim luồng (Phase 8, dừng sớm) cần số luồng
+# như khi không ghim (số lõi vật lý), nên giữ bằng OMP_NUM_THREADS (trừ khi đã đặt sẵn).
+# ADVERTEST_TEST_NO_PIN=1 để tắt.
+P_CORES="/sys/devices/cpu_core/cpus"
+if [ -z "${ADVERTEST_TEST_NO_PIN:-}" ] && [ -r "$P_CORES" ] && command -v taskset >/dev/null; then
+  export OMP_NUM_THREADS="${OMP_NUM_THREADS:-$(lscpu -p=CORE,SOCKET | grep -v '^#' | sort -u | wc -l)}"
+  echo ">> CPU lai: ghim test vào P-core $(cat "$P_CORES"), OMP_NUM_THREADS=$OMP_NUM_THREADS" >&2
+  taskset -c "$(cat "$P_CORES")" "$@"
+else
+  "$@"
+fi
