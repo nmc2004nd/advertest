@@ -3,7 +3,7 @@
 > Phân chia thư mục:
 > `attacks/` (agent `attack`); `ml_core/models/` (agent `ml-model`); `ml_core/runner/`, `backend/worker/` (agent `worker`, như Phase 7); `tests/acceptance/phase_r1/`, `tests/fixtures/golden/` (người duyệt).
 >
-> Thứ tự: Group 0 ✅ → Group 1 ✅ → Group 2 ✅ → (Group 3 ✅, 4 ✅ song song) → Group 5 ✅ → Group 6 → Group 7.
+> Thứ tự: Group 0 ✅ → Group 1 ✅ → Group 2 ✅ → (Group 3 ✅, 4 ✅ song song) → Group 5 ✅ → Group 6 ✅ → Group 7.
 > Mọi group của agent: golden R1 (CLI; worker qua `make test-db`) và test nghiệm thu Phase 0–8 phải pass ở **mỗi commit**, không chỉ cuối group.
 
 ## Group 0 — Golden `[người duyệt]` ✅
@@ -16,7 +16,7 @@
 3. ✅ Định nghĩa `Provenance` (Protocol cùng cài đặt mặc định đọc env và git như `ml_core/runner/env.py`) ở `ml_core/runner/`.
 4. ✅ Không đổi gì khác; giữ nguyên các tên module cũ.
 
-## Group 2 — Chuyển test nghiệm thu sang seam `[người duyệt]`
+## Group 2 — Chuyển test nghiệm thu sang seam `[người duyệt]` ✅
 
 5. Thay 7 chỗ patch tên nội bộ bằng seam, giữ nguyên assertion: `phase_06/test_grid_order_early_stop.py:56`, `phase_07/conftest.py:213`, `phase_07/test_search_e2e_backend.py:255`, `phase_08/conftest.py:325, 335, 336`, `phase_02/test_reproducibility.py:313` (`predict_slice` → seam `clean_predictor`).
 6. Thêm fixture checkpoint do code trước R1 ghi (một run PGD dừng ở batch 0) vào `tests/fixtures/golden/`.
@@ -25,7 +25,7 @@
    - Group 2: `test_checkpoint_compat.py`, các test chính sách lỗi và provenance qua seam.
    - Trước Group 3: phần registry thuần của `test_registry.py` (catalog → adapter, trùng tên) — `4912d86`; nhánh `phaser1-attack` tách từ `phaser1-reviewer`.
    - Trước Group 5: phần tích hợp qua runner (builder giả, `ModelProvider` giả) và phần kiến trúc `ml_core/runner/**`, `AnyPerturbation`.
-   - Trước Group 6: phần kiến trúc `job.py`.
+   - ✅ Trước Group 6: phần kiến trúc `job.py` — `5dec5e1`.
 7b. ✅ Chạy experiment toàn catalog trên KITTI tại `6861ca8` (worker, CPU); ghi metric và thời gian vào `CHANGELOG.md` làm baseline cho Manual Checks.
 
 ## Group 3 — Registry perturbation `[agent: attack]` ✅
@@ -46,10 +46,10 @@
 15. ✅ Hai runner và `calibrate.py` dựng perturbation qua registry (patch qua `BuildContext.patch`), nạp model qua `ModelProvider`; bỏ `isinstance` trong `executor.linf_eps` và rẽ nhánh `kind` trong `images.perturbation_kind`.
 16. ✅ Gom đường dẫn artifact; xóa lớp chuyển tiếp `attacks/factory.py` khi không còn chỗ gọi.
 
-## Group 6 — Điều phối mỏng `[agent: worker]`
+## Group 6 — Điều phối mỏng `[agent: worker]` ✅
 
-17. Tách `_Finisher`, `_JobSearchHooks`, dừng sớm và patch khỏi `JobRunner` thành module riêng trong `backend/worker/advertest_worker/` hoặc `ml_core/runner/` (dùng chung với CLI khi có thể: thứ tự run và dừng sớm theo `ml_core/runner/grid.py`).
-18. `JobRunner` chỉ còn lease, heartbeat, directive, API; đạt các điều kiện kiến trúc trong `validation.md`.
+17. ✅ Tách `_Finisher`, `_JobSearchHooks`, dừng sớm và patch khỏi `JobRunner` thành module riêng trong `backend/worker/advertest_worker/` hoặc `ml_core/runner/` (dùng chung với CLI khi có thể: thứ tự run và dừng sớm theo `ml_core/runner/grid.py`).
+18. ✅ `JobRunner` chỉ còn lease, heartbeat, directive, API; đạt các điều kiện kiến trúc trong `validation.md`.
 
 ## Group 7 — Kiểm tra cuối `[người duyệt]`
 
