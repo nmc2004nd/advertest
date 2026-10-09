@@ -2,6 +2,8 @@
 
 - Experiment fixture chạy bằng worker thật: `weaknesses` đúng luật và đúng thứ tự, tối đa 5; ma trận
   đủ 4 dải, ô trống là `null`; `partial` đúng khi có run `stopped_limit` hoặc experiment chưa xong.
+- Run `skipped` vì `cached` có metric được tính như run đã chạy; level `skipped` vì `early_stop`
+  lấy mức sụt của run kích hoạt, cả ở điểm yếu lẫn ô ma trận (Chốt ở Group 1).
 - Bảng đầu vào → `Conclusion.code` (`no_data`, `robust`, `weak`, `weak_class`); cùng đầu vào cho
   cùng `text` (hàm thuần `backend.app.insight.phrases.conclude`, Chốt ở Group 0).
 - `mode`: experiment gắn protocol `dev` là `exploration`, protocol khác là `official`; lọc `?mode=`.
@@ -17,8 +19,10 @@ from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import Engine
+from sqlalchemy.orm import Session
 
-from advertest_contracts.enums import ConclusionCode
+from advertest_contracts.enums import ConclusionCode, RunStatus
 from advertest_contracts.models import (
     MAX_WEAKNESSES,
     ROBUSTNESS_BANDS,
@@ -27,6 +31,7 @@ from advertest_contracts.models import (
     ExperimentInsight,
     Weakness,
 )
+from backend.app.db import models as m
 
 from .conftest import P5, create_protocol, max_drop, ok, post, required_grid
 
@@ -62,15 +67,30 @@ def _class_drop(metrics: dict[str, Any]) -> dict[str, float]:
     return drops
 
 
+def _with_metrics(runs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Run tính vào insight: `completed`, `stopped_limit`, `skipped` vì `cached` (metric chép từ
+    run gốc); level `skipped` vì `early_stop` mang metric của run kích hoạt (Chốt ở Group 1)."""
+    by_id = {r["run_id"]: r for r in runs}
+    out = []
+    for run in runs:
+        reason = (run.get("status_reason") or {}).get("code")
+        metrics = run["metrics"]
+        if run["status"] == "skipped" and reason == "early_stop":
+            metrics = by_id[run["status_reason"]["trigger_run_id"]]["metrics"]
+        elif run["status"] not in ("completed", "stopped_limit") and not (
+            run["status"] == "skipped" and reason == "cached"
+        ):
+            continue
+        if not metrics or metrics["relative_drop"] is None:
+            continue
+        out.append({**run, "metrics": metrics})
+    return out
+
+
 def _expected(runs: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, list[Any]]]:
     """Điểm yếu (grid) và ma trận theo luật của requirements.md, từ run có metric."""
     by_attack: dict[str, list[dict[str, Any]]] = {}
-    for run in runs:
-        metrics = run["metrics"]
-        if run["status"] not in ("completed", "stopped_limit") or not metrics:
-            continue
-        if metrics["relative_drop"] is None:
-            continue
+    for run in _with_metrics(runs):
         by_attack.setdefault(run["attack_spec_id"], []).append(run)
     weaknesses = []
     matrix: dict[str, list[Any]] = {}
@@ -168,7 +188,9 @@ def test_partial_when_unfinished_or_stopped_limit(
     api: Any, engineer: tuple[TestClient, Any], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     client, target = engineer
-    queued = _create(api, client, target, {"fgsm": [2.0]})
+    # Level 1.0 không có trong experiment thứ hai: run 2.0 ở đó không trúng cache nên vẫn tốn thời
+    # gian và chạm giới hạn.
+    queued = _create(api, client, target, {"fgsm": [1.0]})
     insight = _insight(client, queued)
     assert insight.partial is True
     assert insight.conclusion.code == ConclusionCode.NO_DATA
@@ -192,6 +214,81 @@ def test_partial_when_unfinished_or_stopped_limit(
     runs = _runs(client, stopped)
     assert any(r["status"] == "stopped_limit" for r in runs)
     assert _insight(client, stopped).partial is True
+
+
+def _assert_matches_rules(insight: ExperimentInsight, runs: list[dict[str, Any]]) -> None:
+    want, matrix = _expected(runs)
+    assert [str(w.attack_spec_id) for w in insight.weaknesses] == [
+        w["attack_spec_id"] for w in want
+    ]
+    for got, exp in zip(insight.weaknesses, want, strict=True):
+        assert got.level == exp["level"]
+        assert got.relative_drop == pytest.approx(exp["relative_drop"])
+    rows = {str(r.attack_spec_id): r for r in insight.matrix}
+    assert set(rows) == set(matrix)
+    for spec_id, cells in matrix.items():
+        drops = [c.max_relative_drop for c in rows[spec_id].cells]
+        assert drops == [None if c is None else pytest.approx(c) for c in cells]
+
+
+def test_cached_runs_count_as_data(api: Any, engineer: tuple[TestClient, Any]) -> None:
+    client, target = engineer
+    attacks = {"fgsm": [1.0, 2.0, 4.0]}
+    first = _create(api, client, target, attacks)
+    api.work(target, first)
+    second = _create(api, client, target, attacks)
+    api.work(target, second)
+    runs = _runs(client, second)
+    assert {(r["status"], r["status_reason"]["code"]) for r in runs} == {("skipped", "cached")}
+
+    insight = _insight(client, second)
+    assert insight.conclusion.code in (ConclusionCode.WEAK, ConclusionCode.WEAK_CLASS)
+    assert insight.weaknesses and insight.matrix
+    _assert_matches_rules(insight, runs)
+    original = _insight(client, first)
+    assert insight.weaknesses == original.weaknesses
+    assert insight.matrix == original.matrix
+
+
+# Như Phase 6 (`test_grid_order_early_stop.py`): run được ghi là đã sụp trước khi worker nhận
+# experiment, worker tự đánh dấu các level lớn hơn là `skipped` vì `early_stop`.
+COLLAPSED = {
+    "clean": {"map50": 0.6, "map50_95": 0.4},
+    "attacked": {"map50": 0.01, "map50_95": 0.005},
+    "relative_drop": 0.98,
+    "absolute_drop": 0.59,
+    "attack_success_rate": None,
+    "partial": False,
+}
+
+
+def test_early_stopped_levels_take_trigger_drop(
+    api: Any, engineer: tuple[TestClient, Any], owner_engine: Engine
+) -> None:
+    client, target = engineer
+    # fgsm: eps tối đa 32. Dải: 2 và 8 ở (0, .25], 16 ở (.25, .5], 32 ở (.75, 1];
+    # (.5, .75] không có level nào.
+    experiment_id = _create(api, client, target, {"fgsm": [2.0, 8.0, 16.0, 32.0]})
+    trigger = next(r for r in _runs(client, experiment_id) if r["level"] == 8.0)["run_id"]
+    with Session(owner_engine) as session, session.begin():
+        row = session.get(m.Run, UUID(trigger))
+        assert row is not None
+        row.status = RunStatus.COMPLETED
+        row.metrics = COLLAPSED
+        row.fingerprint = uuid4().hex * 2
+        row.manifest_uri = f"s3://artifacts/runs/{trigger}/manifest.json"
+        row.images_done = row.images_total
+    api.work(target, experiment_id)
+
+    runs = _runs(client, experiment_id)
+    skipped = {r["level"] for r in runs if (r["status_reason"] or {}).get("code") == "early_stop"}
+    assert skipped == {16.0, 32.0}
+    insight = _insight(client, experiment_id)
+    _assert_matches_rules(insight, runs)
+    cells = insight.matrix[0].cells
+    assert cells[1].max_relative_drop == pytest.approx(0.98)  # 16: dừng sớm, không phải null
+    assert cells[2].max_relative_drop is None and cells[2].runs == 0  # không có level nào
+    assert cells[3].max_relative_drop == pytest.approx(0.98)  # 32: dừng sớm
 
 
 def test_insight_unknown_experiment_is_404(api: Any, engineer: tuple[TestClient, Any]) -> None:

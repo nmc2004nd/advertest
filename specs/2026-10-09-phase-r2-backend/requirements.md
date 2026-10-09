@@ -238,23 +238,38 @@ Test gọi trực tiếp các tên dưới đây. Đổi tên hoặc chữ ký t
 
 Test của group chưa làm chỉ có trên nhánh `phaser2-reviewer`. Test gọi interface mới qua import trong thân hàm, nên khi interface chưa có thì từng test fail riêng, không chặn cả lượt chạy.
 
-### DB (migration `0011_phase_r2`)
+### Chốt ở Group 1 (2026-10-09)
+
+Quyết định sau review Group 1 (`.claude/handoff/phaser2-g1-review.md`):
+- **Run trúng cache có trong insight.** Run `skipped` vì `cached` mang metric chép từ run gốc, nên được tính như run đã chạy: ở `has_data`, điểm yếu và ma trận.
+- **Ô ma trận của level dừng sớm.** Level `skipped` vì `early_stop` lấy `relative_drop` của run kích hoạt (`status_reason.trigger_run_id`), như ranking Phase 6, và được đếm vào `runs` của ô. Ô chỉ `null` khi dải không có level nào.
+- **Kiểm `promoted_from`.** `POST /experiments` với `promoted_from` trỏ tới experiment không phải Khám phá, hoặc chưa kết thúc, trả 422 và không ghi audit `experiment.promoted`. Experiment không tồn tại cũng trả 422.
+- **Nguồn "đã kết thúc"** là experiment `completed` hoặc `cancelled`. `stopped_limit` là trạng thái của run, không phải của experiment.
+- **Version attack bắt buộc.** `promote` dùng spec version mà protocol ghim trong `required_attacks`, không phải version đang `active`. Nếu version đó đã `retired`, bản nháp vẫn dựng được, còn `POST /experiments` trả 422.
+- **Protocol không `active`.** `POST /experiments/draft` với protocol `draft` hoặc `retired` trả 409. Gửi `attack_spec_ids` kèm protocol không phải `dev` trả 422.
+- **`training_slice_id`.** `promote` không tự điền `training_slice_id` cho attack bắt buộc cần train mà nguồn không có. Người dùng phải điền; nếu thiếu thì lỗi hiện ở `POST /experiments`.
+- **Attack bắt buộc tìm ngưỡng** trong bản nháp: `tol = min((hi − lo)/256, max_tol)`, `bootstrap = max(200, min_bootstrap)`.
+- **Thứ tự điểm yếu.** Khi cùng `level_ratio` và cùng mức sụt, điểm gãy (`relative_drop = null`) xếp sau điểm quét lưới.
+- **`level_label`** luôn `null` cho tới Group 4 (cột `attack_specs.metadata`). Group 4 nối nhãn vào insight; validation Group 4 kiểm nhãn trong insight.
+- **Migration tách đôi.** `0011` (Group 1) chỉ thêm `experiments.promoted_from`; phần DB còn lại của R2 ở `0012` (Group 4).
+
+### DB (migration `0011` của Group 1 và `0012` của Group 4)
 
 - `attack_specs`: thêm `status`, `metadata` (JSONB), `created_by`, `approved_by`, `approved_at`, `check` (JSONB). Spec trong seed được backfill `status = active` (hoặc `retired` nếu `is_active = false`), rồi bỏ cột `is_active`.
 - `model_versions`: thêm `status` (backfill `ready`) và `check` (JSONB).
 - Bảng mới: `tool_jobs` (kind, payload, status, lease, result, created_by, created_at) và `quick_tries` (id, owner, tool_job_id, input_uri, expires_at, deleted_at).
-- `experiments`: thêm `promoted_from`.
+- `experiments`: thêm `promoted_from` (migration `0011`, Group 1). Các thay đổi khác trong mục này ở migration `0012` (Group 4).
 - Migration tự `GRANT` quyền cho `advertest_app` trên bảng mới.
 
 ## Behaviour
 
 ### Insight
 
-- Insight tính từ run đã có metric (`completed`, hoặc `stopped_limit` có `partial`). `partial = true` khi có run `stopped_limit` hoặc experiment chưa xong.
+- Insight tính từ run đã có metric: `completed`, `stopped_limit` có `partial`, và `skipped` vì `cached` (metric chép từ run gốc). `partial = true` khi có run `stopped_limit` hoặc experiment chưa xong.
 - **Điểm yếu (grid):** với mỗi attack quét lưới, chọn level nhỏ nhất có `relative_drop ≥ 0.3`. Nếu không có level nào đạt, chọn level có `relative_drop` lớn nhất. Lấy thêm class có mức sụt AP50 tương đối lớn nhất tại level đó. Run `skipped` vì `early_stop` lấy theo run kích hoạt, như ranking Phase 6.
 - **Điểm yếu (search):** điểm gãy `found` của từng attack tìm ngưỡng.
-- Sắp xếp điểm yếu: điểm có `level_ratio` nhỏ hơn đứng trước (gãy sớm hơn thì nghiêm trọng hơn); bằng nhau thì `relative_drop` lớn hơn đứng trước. Giữ tối đa 5. Chỉ đưa vào điểm có `relative_drop ≥ 0.1` hoặc có điểm gãy.
-- **Ma trận:** mỗi attack quét lưới một hàng, 4 dải `level_ratio`. Mỗi ô lấy `relative_drop` lớn nhất của các run thuộc dải; dải không có run thì ô là `null`.
+- Sắp xếp điểm yếu: điểm có `level_ratio` nhỏ hơn đứng trước (gãy sớm hơn thì nghiêm trọng hơn); bằng nhau thì `relative_drop` lớn hơn đứng trước, điểm gãy xếp sau điểm quét lưới. Giữ tối đa 5. Chỉ đưa vào điểm có `relative_drop ≥ 0.1` hoặc có điểm gãy.
+- **Ma trận:** mỗi attack quét lưới một hàng, 4 dải `level_ratio`. Mỗi ô lấy `relative_drop` lớn nhất của các run thuộc dải; level `skipped` vì `early_stop` lấy mức sụt của run kích hoạt. Dải không có level nào thì ô là `null`.
 - **Câu kết luận:** sinh theo luật, cùng đầu vào cho cùng câu. Các code:
   - `no_data`: chưa run nào có metric.
   - `robust`: không có điểm yếu nào.
@@ -268,10 +283,10 @@ Test của group chưa làm chỉ có trên nhánh `phaser2-reviewer`. Test gọ
 
 - `mode = exploration` khi và chỉ khi protocol của experiment có status `dev`. Gửi duyệt experiment Khám phá trả 409 như hiện tại (nguyên tắc 11).
 - `POST /experiments/{id}/promote {protocol_id}` trả `ExperimentClone`, **không tạo experiment**. Người dùng xem ước lượng rồi mới `POST /experiments` với `promoted_from` (nguyên tắc 5).
-  - Experiment nguồn phải có `mode = exploration` và đã kết thúc (`completed`, `stopped_limit` hoặc `cancelled`); protocol đích phải `active`. Sai thì trả 409.
-  - Config đích giữ model, slice, class mapping và compute target của nguồn. Attack đích là các attack bắt buộc của protocol, với spec version đang `active`, level bắt buộc, cộng các level nguồn đã chạy cho cùng spec. Attack có ở nguồn mà protocol không yêu cầu vẫn được giữ.
+  - Experiment nguồn phải có `mode = exploration` và đã kết thúc (`completed` hoặc `cancelled`); protocol đích phải `active`. Sai thì trả 409.
+  - Config đích giữ model, slice, class mapping và compute target của nguồn. Attack đích là các attack bắt buộc của protocol, với spec version mà protocol ghim, level bắt buộc, cộng các level nguồn đã chạy cho cùng spec. Attack có ở nguồn mà protocol không yêu cầu vẫn được giữ.
   - Slice nhỏ hơn `min_slice_size` không chặn tạo bản nháp; `warnings` ghi rõ, và compliance sẽ chặn khi gửi duyệt.
-- Experiment mới không kế thừa run, kết quả hay verdict nào của experiment nguồn. `promoted_from` chỉ để truy vết và ghi audit log.
+- Experiment mới không kế thừa run, kết quả hay verdict nào của experiment nguồn. `promoted_from` chỉ để truy vết và ghi audit log. `POST /experiments` kiểm `promoted_from` là experiment Khám phá đã kết thúc; sai thì trả 422.
 
 ### Template, preset, gợi ý tiêu chí
 
