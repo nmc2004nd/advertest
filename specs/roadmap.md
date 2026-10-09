@@ -223,7 +223,7 @@ Insight và luồng (từ R4a):
 - [ ] Khám phá = protocol `dev-open`, trường `mode` trong view; "Nâng lên chính thức" tạo experiment mới theo protocol (nguyên tắc 11 của `mission.md`).
 
 Mở rộng attack và model qua cấu hình (từ R2):
-- [ ] Attack spec trỏ tới adapter tổng quát (`adapter`, `adapter_params`); metadata hiển thị ngoài hash.
+- [ ] Attack spec trỏ tới adapter tổng quát (`adapter`; tham số adapter nằm ở `fixed_params`); metadata hiển thị ngoài hash.
 - [ ] Catalog trong DB; vòng đời spec: admin tạo → tự kiểm tra trên fixture → reviewer duyệt kích hoạt; spec bất biến, sửa là tạo version mới.
 - [ ] Tự kiểm tra spec: chạy được, ảnh trong [0, 1], vùng pad không đổi, level "không biến đổi" cho ảnh y hệt, không phụ thuộc batch size, chuẩn nhiễu đúng khai báo.
 - [ ] Adapter model `torchvision_detection` và `onnx` (chỉ inference); đăng ký model qua API chỉ nhận ONNX hoặc safetensors (nguyên tắc 10 của `mission.md`).
