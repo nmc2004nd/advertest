@@ -126,6 +126,7 @@ from backend.app.auth import sessions
 from backend.app.auth.deps import CurrentUser, Principal
 from backend.app.auth.permissions import guard
 from backend.app.db import models as m
+from backend.app.insight import service as insight_service
 from backend.app.protocols import service as protocol_service
 from backend.app.reports import service as report_service
 from backend.app.reviews import service as review_service
@@ -529,8 +530,6 @@ def list_experiments(
 ) -> ExperimentPage:
     """Mới nhất trước; `owner=me` chỉ experiment của mình; `mode` lọc Khám phá/Chính thức
     (Phase R2)."""
-    if mode is not None:
-        not_implemented()  # Phase R2 Group 1
     with transaction(factory) as session:
         return experiment_views.list_experiments(
             session,
@@ -538,6 +537,7 @@ def list_experiments(
             owner=owner,
             status=status,
             model_version_id=model,
+            mode=mode,
             cursor=cursor,
             limit=limit,
         )
@@ -992,9 +992,10 @@ R2_RESPONSES: dict[int | str, dict[str, Any]] = NOT_IMPLEMENTED_RESPONSE | {
     responses=R2_RESPONSES,
     **guard(P.EXPERIMENT_READ),
 )
-def get_insight(experiment_id: UUID) -> ExperimentInsight:
+def get_insight(experiment_id: UUID, factory: Sessions) -> ExperimentInsight:
     """Điểm yếu chính, ma trận độ bền và câu kết luận từ các run đã có metric."""
-    not_implemented()
+    with transaction(factory) as session:
+        return insight_service.insight(session, experiment_id)
 
 
 @router.post(
