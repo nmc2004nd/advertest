@@ -27,7 +27,7 @@ from advertest_contracts.enums import (
     Role,
 )
 from advertest_contracts.models import (
-    AttackSpec,
+    AttackSpecView,
     ClassMappingSummary,
     ComputeTargetPublic,
     DatasetSummary,
@@ -228,7 +228,7 @@ def test_class_mappings_filtered_by_dataset_version_and_model(
 
 
 def test_attack_specs_only_active(client: TestClient, world: World) -> None:
-    ids = {x.id for x in _get(client, "/attack-specs", list[AttackSpec])}
+    ids = {x.id for x in _get(client, "/attack-specs", list[AttackSpecView])}
     assert world.spec_active in ids
     assert world.spec_inactive not in ids
 

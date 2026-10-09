@@ -121,5 +121,6 @@ def test_every_permission_with_a_route_is_covered() -> None:
         Permission.EXPERIMENT_CANCEL_OWN,
     } <= set(REPRESENTATIVES)
     # Phase 6: attack_catalog.manage (/admin/attack-specs). Phase 8 Group 0:
-    # experiment.submit_review, review.comment, report.export.
-    assert len(REPRESENTATIVES) == 18
+    # experiment.submit_review, review.comment, report.export. Phase R2 Group 0:
+    # attack_catalog.approve, quick_try.use, model.manage (POST /models).
+    assert len(REPRESENTATIVES) == 21
