@@ -33,13 +33,13 @@
 | 8 ✅ | Protocol, review, report | backend, frontend | 5 | 7 |
 | 11a | Landing page | frontend-landing | 8 | R1 |
 | R1 | Refactor lớp chạy giữ hành vi (runner, attack registry, model adapter) | ml-core, attack, worker | 8 | — |
-| 10 | Dataset riêng | ml-core, frontend | R1 | — |
-| R2 | Backend: insight, template, Khám phá/Chính thức, attack và model qua cấu hình, thử nhanh (gộp R4a, R2, backend R3 cũ) | backend, worker, attack, ml-core | R1, 10 | — |
+| R2 | Backend: insight, template, Khám phá/Chính thức, attack và model qua cấu hình, thử nhanh (gộp R4a, R2, backend R3 cũ) | backend, worker, attack, ml-core | R1 | — |
 | R3 | UX ứng dụng: sửa và bổ sung giao diện (gộp R4b, 11b, giao diện R3 cũ) | frontend | R2, 11a | — |
+| 10 | Dataset riêng (giao diện map class theo UX mới của R3) | ml-core, frontend | R1 | — |
 | 9 | Máy thuê và ngân sách | backend | 3, 5 | — |
 | 11c | Hoàn thiện: so sánh, bảo mật, tài liệu | frontend, backend | 9, 10, R3 | — |
 
-Thứ tự sau review mentor (2026-10-06), gộp phase ngày 2026-10-09: R1 → 10 → R2 (backend) → R3 (giao diện) → 9 → 11c. Bảng xếp theo thứ tự này.
+Thứ tự sau review mentor (2026-10-06), gộp phase và đổi thứ tự ngày 2026-10-09: R1 → R2 (backend) → R3 (giao diện) → 10 → 9 → 11c. R2 không cần gì từ Phase 10; Phase 10 làm sau để màn hình map class dùng luôn UX mới, và vẫn thuộc nhóm "Không cắt". Bảng xếp theo thứ tự này.
 
 Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tuần 2 gồm phase 3–6, tuần 3 gồm phase 7–9, tuần 4 gồm phase 10–11. Nếu chỉ có 3 tuần, xem mục "Thứ tự cắt giảm".
 
