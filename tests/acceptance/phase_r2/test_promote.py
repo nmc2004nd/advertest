@@ -7,6 +7,8 @@
 - Nguồn `official` hoặc chưa kết thúc → 409; protocol đích không `active` → 409.
 - Tạo từ bản nháp: experiment mới có `promoted_from` (audit log `experiment.promoted`), không kế
   thừa run nào của nguồn.
+- `POST /experiments` với `promoted_from` không phải experiment Khám phá đã kết thúc → 422, không
+  ghi audit `experiment.promoted` (Chốt ở Group 1).
 """
 
 from __future__ import annotations
@@ -112,11 +114,30 @@ def test_promote_rejects_official_or_unfinished_source(api: Any, setup: dict[str
     status, code, _ = error(_promote(setup["owner"], unfinished, setup["protocol"]["id"]))
     assert (status, code) == (409, "conflict")
 
-    official = _experiment(api, setup, {"fgsm": [2.0, 4.0]}, protocol_id=setup["protocol"]["id"])
+    # Worker nhận experiment theo `submitted_at` rồi `id`; đồng hồ test đứng yên nên chạy xong từng
+    # experiment trước khi tạo experiment kế tiếp.
     api.work(setup["target"], unfinished)
+    official = _experiment(api, setup, {"fgsm": [2.0, 4.0]}, protocol_id=setup["protocol"]["id"])
     api.work(setup["target"], official)
     status, code, _ = error(_promote(setup["owner"], official, setup["protocol"]["id"]))
     assert (status, code) == (409, "conflict")
+
+
+def test_create_rejects_promoted_from_not_finished_exploration(
+    api: Any, setup: dict[str, Any]
+) -> None:
+    official = _experiment(api, setup, {"fgsm": [2.0, 4.0]}, protocol_id=setup["protocol"]["id"])
+    api.work(setup["target"], official)
+    unfinished = _experiment(api, setup, {"fgsm": [2.0]})
+    before = len(audit_entries(api.engine, "experiment.promoted"))
+    for source in (unfinished, official):
+        body = api.body(
+            setup["target"], [P5.attack("fgsm", [2.0, 4.0])],
+            protocol_id=setup["protocol"]["id"], promoted_from=source,
+        )  # fmt: skip
+        response = post(setup["owner"], "/experiments", body)
+        assert response.status_code == 422, (source, response.text)
+    assert len(audit_entries(api.engine, "experiment.promoted")) == before
 
 
 def test_promote_rejects_inactive_target_protocol(api: Any, setup: dict[str, Any]) -> None:
