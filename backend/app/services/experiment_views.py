@@ -120,6 +120,13 @@ def _run_stats(
     }
 
 
+def mode_of(protocol_status: ProtocolStatus) -> ExperimentMode:
+    """Phase R2: Khám phá khi và chỉ khi protocol có status dev (mission.md nguyên tắc 11)."""
+    if protocol_status == ProtocolStatus.DEV:
+        return ExperimentMode.EXPLORATION
+    return ExperimentMode.OFFICIAL
+
+
 def _summary(
     experiment: m.Experiment, refs: _Refs, stats: tuple[dict[str, int], int, int]
 ) -> ExperimentSummary:
@@ -138,12 +145,7 @@ def _summary(
         progress=Progress(images_done=images_done, images_total=images_total),
         created_at=experiment.created_at,
         finished_at=experiment.finished_at,
-        # Phase R2: Khám phá khi và chỉ khi protocol có status dev (mission.md nguyên tắc 11).
-        mode=(
-            ExperimentMode.EXPLORATION
-            if refs.protocol_status == ProtocolStatus.DEV
-            else ExperimentMode.OFFICIAL
-        ),
+        mode=mode_of(refs.protocol_status),
     )
 
 
@@ -170,6 +172,7 @@ def list_experiments(
     owner: Owner = "all",
     status: ExperimentStatus | None = None,
     model_version_id: UUID | None = None,
+    mode: ExperimentMode | None = None,
     cursor: str | None = None,
     limit: int = 50,
 ) -> ExperimentPage:
@@ -181,6 +184,9 @@ def list_experiments(
         query = query.where(m.Experiment.status == status)
     if model_version_id is not None:
         query = query.where(m.Experiment.model_version_id == model_version_id)
+    if mode is not None:
+        dev = m.Protocol.status == ProtocolStatus.DEV  # `_with_refs` đã join protocols
+        query = query.where(dev if mode == ExperimentMode.EXPLORATION else ~dev)
     query = pagination.apply(
         query, m.Experiment.created_at, m.Experiment.id, pagination.decode(cursor), limit
     )
@@ -405,7 +411,7 @@ def manifest(session: Session, read: Callable[[str], bytes], run_id: UUID) -> Ma
 # ---------------------------------------------------------------- nhân bản
 
 
-def _current_version(session: Session, name: str) -> m.AttackSpecRow | None:
+def current_version(session: Session, name: str) -> m.AttackSpecRow | None:
     return session.scalar(
         select(m.AttackSpecRow)
         .where(m.AttackSpecRow.name == name, m.AttackSpecRow.is_active)
@@ -426,7 +432,7 @@ def clone(session: Session, experiment_id: UUID) -> ExperimentClone:
     warnings: list[CloneWarning] = []
     for attack in config.attacks:
         row = session.get(m.AttackSpecRow, attack.attack_spec_id)
-        current = None if row is None or row.is_active else _current_version(session, row.name)
+        current = None if row is None or row.is_active else current_version(session, row.name)
         if row is not None and current is not None and current.version > row.version:
             attacks.append(
                 attack.model_copy(

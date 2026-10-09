@@ -347,6 +347,8 @@ class Experiment(Base):
     created_at: Mapped[datetime] = _created_at()
     cloned_from: Mapped[UUID | None] = mapped_column(ForeignKey("experiments.id"))
     finished_at: Mapped[datetime | None]
+    # Phase R2: experiment Khám phá nguồn khi nâng lên chính thức (chỉ để truy vết).
+    promoted_from: Mapped[UUID | None] = mapped_column(ForeignKey("experiments.id"))
     # Phase 8: gửi duyệt và nhận review. Trigger DB: người nhận khác người tạo; experiment đã khóa
     # (`locked_at`) chỉ đổi được trạng thái review và các cột nhận/quyết định.
     # `submitted_at` (Phase 0) là thời điểm vào hàng đợi (Phase 5); gửi duyệt dùng cột riêng.
