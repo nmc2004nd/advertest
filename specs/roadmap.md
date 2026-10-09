@@ -31,17 +31,15 @@
 | 6 ✅ | Đủ catalog, quét lưới, làm mờ ảnh | attack, ml-core, backend, frontend | 3, 5 | — |
 | 7 ✅ | Tự tìm ngưỡng | attack, frontend | 5, 6 | 8 |
 | 8 ✅ | Protocol, review, report | backend, frontend | 5 | 7 |
-| 11a | Landing page | frontend-landing | 8 | R1, R4a |
-| R1 | Refactor lớp chạy giữ hành vi (runner, attack registry, model adapter) | ml-core, attack, worker | 8 | R4a |
-| R4a | Insight, template, Khám phá/Chính thức (backend) | backend | 8 | R1 |
-| 10 | Dataset riêng | ml-core, frontend | R1 | R3 |
-| R2 | Attack và model đăng ký qua web, tự kiểm tra spec | attack, backend, worker, frontend | R1, 10 | — |
-| R3 | Thử nhanh | worker, backend, frontend | R1 | 10, R2 |
-| R4b | UX ứng dụng (gộp 11b) | frontend | R4a, R2, 11a | — |
+| 11a | Landing page | frontend-landing | 8 | R1 |
+| R1 | Refactor lớp chạy giữ hành vi (runner, attack registry, model adapter) | ml-core, attack, worker | 8 | — |
+| 10 | Dataset riêng | ml-core, frontend | R1 | — |
+| R2 | Backend: insight, template, Khám phá/Chính thức, attack và model qua cấu hình, thử nhanh (gộp R4a, R2, backend R3 cũ) | backend, worker, attack, ml-core | R1, 10 | — |
+| R3 | UX ứng dụng: sửa và bổ sung giao diện (gộp R4b, 11b, giao diện R3 cũ) | frontend | R2, 11a | — |
 | 9 | Máy thuê và ngân sách | backend | 3, 5 | — |
-| 11c | Hoàn thiện: so sánh, bảo mật, tài liệu | frontend, backend | 9, 10, R4b | — |
+| 11c | Hoàn thiện: so sánh, bảo mật, tài liệu | frontend, backend | 9, 10, R3 | — |
 
-Thứ tự sau review mentor (2026-10-06): R1 ∥ R4a → 10 → R2 → R3 → R4b → 9 → 11c. Bảng xếp theo thứ tự này.
+Thứ tự sau review mentor (2026-10-06), gộp phase ngày 2026-10-09: R1 → 10 → R2 (backend) → R3 (giao diện) → 9 → 11c. Bảng xếp theo thứ tự này.
 
 Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tuần 2 gồm phase 3–6, tuần 3 gồm phase 7–9, tuần 4 gồm phase 10–11. Nếu chỉ có 3 tuần, xem mục "Thứ tự cắt giảm".
 
@@ -213,49 +211,46 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 
 **Demo:** chạy lại experiment fixture, golden khớp; thêm một builder giả mà không sửa factory.
 
-## Phase R4a — Insight và luồng (backend)
+## Phase R2 — Backend: insight, mở rộng qua cấu hình, thử nhanh
 
-**Mục tiêu:** có dữ liệu cho trang kết quả mở đầu bằng kết luận, template và tách Khám phá/Chính thức.
+> Gộp R4a, R2 và phần backend/worker của R3 cũ (2026-10-09). Phase này không làm giao diện mới; giao diện của các mục dưới đây thuộc Phase R3.
 
+**Mục tiêu:** có đủ dữ liệu và API cho trang kết quả mở đầu bằng kết luận, cho template và luồng Khám phá/Chính thức, cho attack/model đăng ký qua cấu hình và cho thử nhanh.
+
+Insight và luồng (từ R4a):
 - [ ] View insight: điểm yếu chính (attack, level, class, mức sụt), ma trận độ bền attack × khoảng cường độ, câu kết luận sinh có quy tắc từ dữ liệu.
 - [ ] Template protocol (Kiểm tra nhanh, Tiêu chuẩn camera trước, Thời tiết, Đầy đủ) và preset experiment (Nhanh, Tiêu chuẩn, Chuyên sâu); gợi ý tiêu chí tự động.
 - [ ] Khám phá = protocol `dev-open`, trường `mode` trong view; "Nâng lên chính thức" tạo experiment mới theo protocol (nguyên tắc 11 của `mission.md`).
 
-**Demo:** experiment fixture có danh sách điểm yếu và ma trận; nâng một experiment Khám phá thành experiment Chính thức mới.
-
-## Phase R2 — Mở rộng attack và model qua cấu hình
-
-**Mục tiêu:** thêm attack và model không cần sửa code, vẫn có kiểm soát.
-
+Mở rộng attack và model qua cấu hình (từ R2):
 - [ ] Attack spec trỏ tới adapter tổng quát (`adapter`, `adapter_params`); metadata hiển thị ngoài hash.
 - [ ] Catalog trong DB; vòng đời spec: admin tạo → tự kiểm tra trên fixture → reviewer duyệt kích hoạt; spec bất biến, sửa là tạo version mới.
 - [ ] Tự kiểm tra spec: chạy được, ảnh trong [0, 1], vùng pad không đổi, level "không biến đổi" cho ảnh y hệt, không phụ thuộc batch size, chuẩn nhiễu đúng khai báo.
-- [ ] Adapter model `torchvision_detection` và `onnx` (chỉ inference); đăng ký model qua web chỉ nhận ONNX hoặc safetensors (nguyên tắc 10 của `mission.md`).
+- [ ] Adapter model `torchvision_detection` và `onnx` (chỉ inference); đăng ký model qua API chỉ nhận ONNX hoặc safetensors (nguyên tắc 10 của `mission.md`).
 - [ ] Worker: lỗi `ModelProvider.get` khi kiểm gradient chỉ làm run `failed`, không dừng experiment (tồn đọng R1 Group 5); xét giới hạn cache `ModelProvider`.
 
-**Demo:** admin tạo một biến thể corruption, reviewer duyệt, engineer chọn được trong wizard; đăng ký một model ONNX và chạy corruption trên nó.
+Thử nhanh (backend/worker của R3 cũ):
+- [ ] API nhận model, một ảnh, attack; tính sẵn mọi level một lần; trả ảnh sạch, ảnh bị tấn công, box và bảng theo object cho từng level.
+- [ ] Không tạo experiment, không vào report, response luôn mang nhãn "không phải kết quả kiểm thử"; ảnh upload giữ 24 giờ và vẫn làm mờ.
 
-## Phase R3 — Thử nhanh
+**Demo (qua API/CLI):** experiment fixture có danh sách điểm yếu và ma trận; nâng một experiment Khám phá thành experiment Chính thức mới; admin tạo một biến thể corruption, reviewer duyệt, biến thể có trong catalog; đăng ký một model ONNX và chạy corruption trên nó; gọi thử nhanh một ảnh nhận đủ mọi level trong vài giây.
 
-**Mục tiêu:** minh họa trực quan một attack trên một ảnh trong vài giây.
+## Phase R3 — UX ứng dụng
 
-- [ ] Chọn model, một ảnh, attack; tính sẵn mọi level một lần; ảnh sạch và ảnh bị tấn công cạnh nhau kèm box và bảng theo object.
-- [ ] Không tạo experiment, không vào report, luôn có nhãn "không phải kết quả kiểm thử"; ảnh upload giữ 24 giờ và vẫn làm mờ.
+> Gộp R4b, 11b và phần giao diện của R3 cũ (2026-10-09). Giao diện cơ bản đã có từ Phase 5–8: phase này **sửa và bổ sung** trên trang sẵn có, không viết lại.
 
-**Demo:** kéo thanh trượt level và thấy object biến mất.
-
-## Phase R4b — UX ứng dụng
-
-**Mục tiêu:** giải quyết nhận xét M1–M8 của mentor; gộp các mục của Phase 11b.
+**Mục tiêu:** giải quyết nhận xét M1–M8 của mentor và đưa các API của Phase R2 lên giao diện.
 
 - [ ] Trang experiment là trung tâm: Tổng quan, Kết quả, Failure case, Review, Report; thanh vòng đời Tạo → Chạy → Phân tích → Gửi duyệt → Review → Report.
-- [ ] Wizard 3 bước; chip, thanh trượt, danh sách chọn thay ô gõ; mô tả attack, nhãn level, tên dataset/slice dễ đọc.
-- [ ] Mỗi biểu đồ có câu kết luận và "Cách đọc"; ma trận độ bền có chú thích thang màu; tooltip thuật ngữ.
+- [ ] Wizard 3 bước dùng template/preset; chip, thanh trượt, danh sách chọn thay ô gõ; mô tả attack, nhãn level, tên dataset/slice dễ đọc; chọn được Khám phá hoặc Chính thức.
+- [ ] Kết quả mở đầu bằng điểm yếu chính và ma trận độ bền (có chú thích thang màu); mỗi biểu đồ có câu kết luận và "Cách đọc"; tooltip thuật ngữ; nút "Nâng lên chính thức".
 - [ ] Bảng ý nghĩa của từng quyết định ở hộp gửi duyệt, màn hình review, report.
 - [ ] Trang chủ "việc cần làm" theo vai trò.
+- [ ] Admin: tạo attack spec, xem kết quả tự kiểm tra; reviewer duyệt kích hoạt; đăng ký model ONNX/safetensors.
+- [ ] Thử nhanh: chọn model, ảnh, attack; ảnh sạch và ảnh bị tấn công cạnh nhau kèm box và bảng theo object; thanh trượt level; nhãn "không phải kết quả kiểm thử".
 - [ ] Các mục của Phase 11b.
 
-**Demo:** người mới tạo experiment Khám phá trong 3 bước và đọc được điểm yếu chính mà không cần giải thích.
+**Demo:** người mới tạo experiment Khám phá trong 3 bước và đọc được điểm yếu chính mà không cần giải thích; kéo thanh trượt level trong thử nhanh và thấy object biến mất.
 
 ## Phase 9 — Máy thuê và ngân sách
 
@@ -302,7 +297,7 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 
 ## Phase 11b — Giao diện ứng dụng
 
-> Gộp vào Phase R4b (2026-10-06); danh sách dưới đây là các mục R4b phải bao gồm.
+> Gộp vào Phase R4b (2026-10-06), nay là Phase R3 (2026-10-09); danh sách dưới đây là các mục R3 phải bao gồm.
 
 **Mục tiêu:** áp dụng `design.md` cho toàn bộ ứng dụng, không đổi hành vi.
 
@@ -334,7 +329,7 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 Cắt theo thứ tự sau:
 1. Pseudo-label cho dữ liệu không nhãn.
 2. So sánh nhiều experiment.
-3. Phần áp dụng `design.md` của Phase R4b (gộp từ 11b); giữ phần M1–M8.
+3. Phần áp dụng `design.md` của Phase R3 (gộp từ 11b); giữ phần M1–M8.
 4. Khoảng tin cậy bootstrap và giai đoạn tìm trên tập nhỏ của phase 7 (giữ lõi quét thô → chia đôi).
 5. Trang admin chỉ để dạng bảng CRUD thô.
 

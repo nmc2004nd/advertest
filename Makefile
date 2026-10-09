@@ -22,10 +22,10 @@ define require_file
 	@if [ ! -e "$(1)" ]; then echo ">> Chưa có $(1) ($(2))"; exit 1; fi
 endef
 
-.PHONY: help up down migrate contracts contracts-check fixtures lint typecheck test test-db test-acceptance test-e2e check
+.PHONY: help up down migrate contracts contracts-check fixtures lint typecheck test test-db test-acceptance test-e2e check check-fast
 
 help:
-	@echo "up | down | migrate | contracts | contracts-check | fixtures | lint | typecheck | test | test-db | test-acceptance | test-e2e | check"
+	@echo "up | down | migrate | contracts | contracts-check | fixtures | lint | typecheck | test | test-db | test-acceptance | test-e2e | check | check-fast P=<đường dẫn>"
 
 up:
 	$(call require_file,$(COMPOSE_FILE),Phase 0 Group 7)
@@ -83,3 +83,23 @@ test-acceptance: fixtures
 	$(call pytest_allow_empty,tests/acceptance -m "not db")
 
 check: lint typecheck contracts-check test test-acceptance
+
+# Vòng lặp nhanh trong lúc implement, chỉ trên đường dẫn P (thư mục hoặc file, cách nhau bởi dấu cách).
+# Python: ruff + mypy (cache tăng dần) + pytest "not db" trên P; frontend/: lint, typecheck, test.
+# Không thay `make check`: check đầy đủ vẫn bắt buộc ở cuối group và trước merge.
+P ?=
+PY_P := $(filter-out frontend frontend/%,$(P))
+FE_P := $(filter frontend frontend/%,$(P))
+check-fast:
+	@test -n "$(strip $(P))" || { echo ">> Dùng: make check-fast P='backend/app tests/acceptance/phase_r2'"; exit 2; }
+ifneq ($(strip $(PY_P)),)
+	$(UV_RUN) ruff check $(PY_P)
+	$(UV_RUN) ruff format --check $(PY_P)
+	$(UV_RUN) mypy
+	$(call pytest_allow_empty,-q --tb=short -m "not db" $(PY_P))
+endif
+ifneq ($(strip $(FE_P)),)
+	$(PNPM) lint
+	$(PNPM) typecheck
+	@if grep -q '"test":' frontend/package.json; then $(PNPM) test; fi
+endif

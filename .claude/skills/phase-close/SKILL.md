@@ -11,7 +11,9 @@ Skill này chỉ được sửa: `CHANGELOG.md` và `changelog/archive/`, các �
 
 Đọc theo bảng "Đọc gì" trong `CLAUDE.md`. Nguồn chính là handoff `.claude/handoff/phaseNN-gG-implement.md` và `phaseNN-gG-review.md` (số liệu, kết quả validation, tồn đọng, quyết định); không dựa vào lịch sử chat. Chèn mục mới vào `CHANGELOG.md` bằng `Edit` ngay dưới tiêu đề phase, không Read nguyên file. Nó không sửa code, contract hay nội dung spec. Đề xuất thay đổi spec luôn ở dạng diff chờ duyệt.
 
-## Chế độ 1: Đóng một group
+Mặc định **đóng một lần cho cả phase** (chế độ 2 rồi chế độ 3), sau khi `phase-review` cả phase báo sẵn sàng merge. Chế độ 1 chỉ dùng khi người dùng muốn merge riêng một group trước (thường là group rủi ro đã review riêng). Khi đóng cả phase, các group chưa có mục changelog được ghi theo mẫu của chế độ 1 bước 2 (gom từ các handoff implement) trước khi viết tổng kết.
+
+## Chế độ 1: Đóng một group (tùy chọn)
 
 Điều kiện: người dùng đã xác nhận nhánh được review (skill `phase-review`) và đồng ý merge. Nếu prompt chưa nói rõ điều này, hỏi bằng `AskUserQuestion`: "Đã review và đồng ý merge" / "Chưa review, dừng lại" (khuyến nghị chạy `phase-review` trước).
 
@@ -42,7 +44,7 @@ Skill này chỉ được sửa: `CHANGELOG.md` và `changelog/archive/`, các �
 
 ## Chế độ 2: Đóng cả phase
 
-1. Kiểm tra mọi group của phase đã đóng: `grep -c '\[ \]' plan.md` bằng 0.
+1. Kiểm tra mọi task của phase đã xong: `grep -c '\[ \]' plan.md` bằng 0 (`phase-implement` đánh dấu khi xong group). Đọc `phaseNN-review.md` (hoặc các `phaseNN-gG-review.md`): mọi review phải có kết luận SẴN SÀNG MERGE. Ghi mục changelog cho các group chưa có mục (mẫu ở chế độ 1 bước 2).
 2. Đi qua **Definition of Done** trong `validation.md` từng mục:
    - mục tự động: xác minh bằng bằng chứng hoặc chạy `make check`;
    - Manual Checks và các mục cần người duyệt: hỏi bằng `AskUserQuestion` với `multiSelect: true`, mỗi câu gom tối đa 4 mục kiểm tra liên quan (ví dụ "Kiểm tra trên điện thoại"), `question` là "Những mục nào đã làm và đạt?". Mục không được chọn coi là **chưa đạt**. Cần nhiều câu thì dùng nhiều lượt gọi (tối đa 4 câu mỗi lượt).

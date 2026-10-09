@@ -32,7 +32,9 @@ Chỉ mở rộng phạm vi đọc khi mục đã đọc tham chiếu sang mục
 ## Phiên làm việc
 
 - **Mỗi lần gọi skill (`phase-*`, `contract-proposal`) là một phiên riêng.** Gõ `/clear` trước khi chạy skill tiếp theo. Chạy cả phase trong một phiên làm context phình gần 1M token, và mỗi lượt đều phải đọc lại toàn bộ context đó.
-- Bàn giao giữa các phiên qua `.claude/handoff/phaseNN-gG-<skill>.md` (không commit), không dựa vào lịch sử chat.
+- **Luồng một phase:** (`phase-kickoff` nếu spec còn chỗ chưa chốt) → `phase-implement` từng group → `phase-review` **một lần cho cả phase** → `phase-close` **một lần**. Group rủi ro (đổi contract, migration DB, hành vi/golden của worker, quyền endpoint) được review riêng ngay sau khi làm.
+- Bàn giao giữa các phiên qua `.claude/handoff/phaseNN-gG-<skill>.md` (review cả phase: `phaseNN-review.md`; không commit), không dựa vào lịch sử chat.
+- **Test theo tầng:** sau mỗi task `make check-fast P='<đường dẫn>'`; cuối group `make check` (+ `make test-db` nếu đụng DB/worker); review chạy lại `make check` trước merge.
 - Không in log dài vào context: `make check > <scratchpad>/check.log 2>&1; echo exit=$?; tail -n 40 <scratchpad>/check.log`, fail thì `grep -nE 'FAILED|ERROR|Error|error:' <scratchpad>/check.log | head -40` (`<scratchpad>` là thư mục scratchpad của phiên, không có thì dùng `/tmp`). pytest chạy riêng: `-q --tb=short` trên đúng file hoặc test liên quan.
 - `git diff`: xem `--stat` trước, rồi diff từng file cần đọc; bỏ file sinh tự động (`contracts/schemas`, `contracts/openapi.json`, `contracts/mocks`, `frontend/src/contracts`) và lockfile.
 - Screenshot chỉ chụp viewport đang kiểm tra. Gom các lệnh đọc độc lập vào cùng một lượt.
@@ -84,6 +86,7 @@ Khi cần người dùng quyết định, dùng công cụ **`AskUserQuestion`**
 
 | Lệnh | Dùng khi |
 |---|---|
+| `make check-fast P='<đường dẫn>'` | Vòng lặp nhanh sau mỗi task: ruff, mypy, pytest không cần DB trên `P`; `frontend/` thì lint, typecheck, test |
 | `make check` | Bắt buộc trước khi báo xong (lint, type check, kiểm tra contract, unit test, test nghiệm thu); ghi output ra file log rồi `tail` (xem "Phiên làm việc") |
 | `make test-db` | Test cần Postgres thật (marker `db`); tự dựng container Postgres tạm |
 | `make test-acceptance` | Chạy riêng test nghiệm thu |
@@ -103,10 +106,10 @@ Khi cần người dùng quyết định, dùng công cụ **`AskUserQuestion`**
 
 | Skill | Dùng khi |
 |---|---|
-| `phase-kickoff` | Bắt đầu một phase: đọc spec, tìm chỗ mơ hồ, kiểm tra độ phủ |
+| `phase-kickoff` | Bắt đầu một phase khi spec còn chỗ chưa chốt: đọc spec, tìm chỗ mơ hồ, kiểm tra độ phủ |
 | `phase-implement` | Làm một group với vai trò một agent |
-| `phase-review` | Review một nhánh so với spec trước khi merge (chạy trong subagent riêng, chỉ báo cáo quay về) |
-| `phase-close` | Cập nhật changelog, đánh dấu tiến độ, replan |
+| `phase-review` | Review nhánh so với spec trước khi merge, một lần cho cả phase hoặc riêng group rủi ro (chạy trong subagent riêng, chỉ báo cáo quay về) |
+| `phase-close` | Đóng cả phase một lần: changelog, đánh dấu tiến độ, replan |
 | `contract-proposal` | Cần đổi contract |
 
 ## Quy ước dữ liệu hay bị quên

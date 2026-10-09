@@ -53,7 +53,7 @@ Chỉ bỏ qua bước hỏi khi người dùng đã nói rõ "kế hoạch đã
 
 1. **Chạy test nghiệm thu liên quan trước** (`-q --tb=no`, đúng thư mục `tests/acceptance/phase_NN/` hoặc file liên quan), ghi lại test nào đang fail. Đây là mốc để chứng minh công việc của bạn làm chúng pass.
 2. Làm **từng task một** theo thứ tự đã duyệt. Sau mỗi task:
-   - chạy test unit và test nghiệm thu **liên quan tới task** (`-q --tb=short`), không chạy `make check` sau mỗi task;
+   - chạy `make check-fast P='<thư mục/file đã sửa> <test liên quan>'` (ruff, mypy, pytest không cần DB; `frontend/` thì lint, typecheck, test), không chạy `make check` sau mỗi task;
    - commit với message `phaseNN(<agent>): <task ngắn gọn>`.
 3. Viết test unit cho code của bạn trong thư mục của bạn khi logic không tầm thường.
 
@@ -82,7 +82,7 @@ Nếu câu trả lời là một quyết định thiết kế, ghi nó vào mụ
 
 ## 4. Báo cáo kết quả
 
-Chạy mọi mục Automated Tests trong `validation.md` thuộc phạm vi group, cộng `make check` (một lần, ghi log ra file theo "Phiên làm việc" trong `CLAUDE.md`). Báo cáo theo mẫu:
+Chạy mọi mục Automated Tests trong `validation.md` thuộc phạm vi group, cộng `make check` (một lần, ghi log ra file theo "Phiên làm việc" trong `CLAUDE.md`); `make test-db` chỉ khi group đụng DB, migration hoặc worker. Báo cáo theo mẫu:
 
 ```markdown
 # Kết quả: Phase NN — Group G — agent <tên>
@@ -109,4 +109,9 @@ Không tuyên bố "xong" nếu còn mục validation fail. Nêu thẳng mục n
 
 ## 5. Bàn giao
 
-Ghi báo cáo ở bước 4 (rút gọn còn tối đa 60 dòng, giữ nguyên bảng Validation, số liệu và "Việc cho người duyệt") vào `.claude/handoff/phaseNN-gG-implement.md`, thêm dòng đầu `Nhánh: <tên> @ <commit>` và `Thư mục được sửa: <danh sách>`. Kết thúc bằng một dòng: "Gõ `/clear` rồi chạy `phase-review` cho nhánh này."
+Ghi báo cáo ở bước 4 (rút gọn còn tối đa 60 dòng, giữ nguyên bảng Validation, số liệu và "Việc cho người duyệt") vào `.claude/handoff/phaseNN-gG-implement.md`, thêm dòng đầu `Nhánh: <tên> @ <commit>` và `Thư mục được sửa: <danh sách>`. Đánh dấu `[x]` các task đã xong của group trong `plan.md` (chỉ ô đánh dấu, không sửa nội dung spec).
+
+Review và close chạy **một lần cho cả phase**, không sau từng group. Kết thúc bằng một trong hai dòng:
+
+- Group **rủi ro** (đổi contract, migration DB, hành vi hoặc golden của worker, quyền endpoint) hoặc group **cuối** của phase: "Gõ `/clear` rồi chạy `phase-review` cho nhánh này (group G / cả phase)."
+- Còn lại: "Gõ `/clear` rồi chạy `phase-implement` cho group tiếp theo."

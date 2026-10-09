@@ -7,6 +7,8 @@ description: Bắt đầu một phase của AdverTest theo quy trình spec-drive
 
 Mục đích: trước khi ai viết code, mọi chỗ mơ hồ trong spec phải được lộ ra và được trả lời **trong spec**, không phải trong chat. Skill này chỉ đọc và hỏi. Nó không viết code và không tự sửa spec.
 
+**Không bắt buộc.** Chỉ chạy khi spec của phase vừa viết hoặc còn mục "chưa chốt"/Open Questions ảnh hưởng tới group đầu. Spec đã chín thì bỏ qua kickoff, chạy thẳng `phase-implement` cho group đầu tiên.
+
 ## 1. Xác định phase
 
 - Nếu người dùng nêu phase (ví dụ "phase 3") hoặc thư mục spec: dùng thư mục `specs/*-phase-NN-*/` tương ứng.
