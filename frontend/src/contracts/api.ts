@@ -1279,7 +1279,8 @@ export interface paths {
         put?: never;
         /**
          * Create Quick Try
-         * @description Thử nhanh một ảnh: không tạo experiment, kết quả giữ 24 giờ.
+         * @description Thử nhanh một ảnh: không tạo experiment, kết quả giữ 24 giờ. Field form là các trường của
+         *     `QuickTryCreate`, khai riêng vì form model `extra="forbid"` coi file là field thừa.
          */
         post: operations["create_quick_try_quick_tries_post"];
         delete?: never;
@@ -2150,12 +2151,27 @@ export interface components {
         };
         /** Body_create_quick_try_quick_tries_post */
         Body_create_quick_try_quick_tries_post: {
-            body: components["schemas"]["QuickTryCreate"];
+            /**
+             * Model Version Id
+             * Format: uuid
+             */
+            model_version_id: string;
+            /**
+             * Attack Spec Id
+             * Format: uuid
+             */
+            attack_spec_id: string;
             /**
              * Image
              * @description JPEG/PNG ≤ 10 MB, cạnh dài ≤ 4096 px
              */
             image: string;
+            /**
+             * Preset
+             * @default standard
+             * @enum {string}
+             */
+            preset: "fast" | "standard" | "deep";
         };
         /** BundleCheckpoint */
         BundleCheckpoint: {
@@ -4311,29 +4327,6 @@ export interface components {
              * @description Tổng ước lượng còn lại của các experiment đứng trước (bỏ phần không ước lượng được)
              */
             ahead_seconds: number;
-        };
-        /**
-         * QuickTryCreate
-         * @description Các field form của `POST /quick-tries` (multipart, cộng file `image` là ảnh JPEG/PNG
-         *     ≤ 10 MB, cạnh dài ≤ 4096 px).
-         */
-        QuickTryCreate: {
-            /**
-             * Model Version Id
-             * Format: uuid
-             */
-            model_version_id: string;
-            /**
-             * Attack Spec Id
-             * Format: uuid
-             */
-            attack_spec_id: string;
-            /**
-             * Preset
-             * @default standard
-             * @enum {string}
-             */
-            preset: "fast" | "standard" | "deep";
         };
         /** QuickTryLevel */
         QuickTryLevel: {
@@ -6620,7 +6613,6 @@ export type ProtocolTemplate = components['schemas']['ProtocolTemplate'];
 export type ProtocolVersionCreate = components['schemas']['ProtocolVersionCreate'];
 export type ProtocolView = components['schemas']['ProtocolView'];
 export type QueueEstimate = components['schemas']['QueueEstimate'];
-export type QuickTryCreate = components['schemas']['QuickTryCreate'];
 export type QuickTryLevel = components['schemas']['QuickTryLevel'];
 export type QuickTryLevelReport = components['schemas']['QuickTryLevelReport'];
 export type QuickTryObject = components['schemas']['QuickTryObject'];

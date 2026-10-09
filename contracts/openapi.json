@@ -6532,7 +6532,7 @@
           "quick-tries"
         ],
         "summary": "Create Quick Try",
-        "description": "Thử nhanh một ảnh: không tạo experiment, kết quả giữ 24 giờ.",
+        "description": "Thử nhanh một ảnh: không tạo experiment, kết quả giữ 24 giờ. Field form là các trường của\n`QuickTryCreate`, khai riêng vì form model `extra=\"forbid\"` coi file là field thừa.",
         "operationId": "create_quick_try_quick_tries_post",
         "requestBody": {
           "content": {
@@ -8939,19 +8939,37 @@
       },
       "Body_create_quick_try_quick_tries_post": {
         "properties": {
-          "body": {
-            "$ref": "#/components/schemas/QuickTryCreate"
+          "model_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Model Version Id"
+          },
+          "attack_spec_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Attack Spec Id"
           },
           "image": {
             "type": "string",
             "contentMediaType": "application/octet-stream",
             "title": "Image",
             "description": "JPEG/PNG ≤ 10 MB, cạnh dài ≤ 4096 px"
+          },
+          "preset": {
+            "type": "string",
+            "enum": [
+              "fast",
+              "standard",
+              "deep"
+            ],
+            "title": "Preset",
+            "default": "standard"
           }
         },
         "type": "object",
         "required": [
-          "body",
+          "model_version_id",
+          "attack_spec_id",
           "image"
         ],
         "title": "Body_create_quick_try_quick_tries_post"
@@ -13566,38 +13584,6 @@
           "ahead_seconds"
         ],
         "title": "QueueEstimate"
-      },
-      "QuickTryCreate": {
-        "properties": {
-          "model_version_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Model Version Id"
-          },
-          "attack_spec_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Attack Spec Id"
-          },
-          "preset": {
-            "type": "string",
-            "enum": [
-              "fast",
-              "standard",
-              "deep"
-            ],
-            "title": "Preset",
-            "default": "standard"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "model_version_id",
-          "attack_spec_id"
-        ],
-        "title": "QuickTryCreate",
-        "description": "Các field form của `POST /quick-tries` (multipart, cộng file `image` là ảnh JPEG/PNG\n≤ 10 MB, cạnh dài ≤ 4096 px)."
       },
       "QuickTryLevel": {
         "properties": {

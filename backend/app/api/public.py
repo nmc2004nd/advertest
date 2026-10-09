@@ -76,13 +76,13 @@ from advertest_contracts.models import (
     PasswordChange,
     PasswordResetConsume,
     PasswordResetLink,
+    PresetKey,
     PromoteRequest,
     ProtocolCreate,
     ProtocolSummary,
     ProtocolTemplate,
     ProtocolVersionCreate,
     ProtocolView,
-    QuickTryCreate,
     QuickTryView,
     RejectRequest,
     ReportDetail,
@@ -1146,10 +1146,13 @@ QUICK_TRY_RESPONSES: dict[int | str, dict[str, Any]] = R2_RESPONSES | {
     **guard(P.QUICK_TRY_USE),
 )
 def create_quick_try(
-    body: Annotated[QuickTryCreate, Form()],
+    model_version_id: Annotated[UUID, Form()],
+    attack_spec_id: Annotated[UUID, Form()],
     image: Annotated[UploadFile, File(description="JPEG/PNG ≤ 10 MB, cạnh dài ≤ 4096 px")],
+    preset: Annotated[PresetKey, Form()] = "standard",
 ) -> QuickTryView:
-    """Thử nhanh một ảnh: không tạo experiment, kết quả giữ 24 giờ."""
+    """Thử nhanh một ảnh: không tạo experiment, kết quả giữ 24 giờ. Field form là các trường của
+    `QuickTryCreate`, khai riêng vì form model `extra="forbid"` coi file là field thừa."""
     not_implemented()
 
 
