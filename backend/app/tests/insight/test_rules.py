@@ -7,14 +7,17 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from advertest_contracts.enums import ConclusionCode
-from advertest_contracts.models import AttackSpecMetadata, RunMetrics, Weakness
+from advertest_contracts.enums import ConclusionCode, RunStatus, SkipReason, StopReason
+from advertest_contracts.models import AttackSpecMetadata, RunMetrics, StatusReason, Weakness
 from backend.app.insight.phrases import conclude, percent
 from backend.app.insight.rules import (
     GridRun,
     InsightAttack,
+    InsightRun,
     band_of,
+    grid_runs,
     grid_weakness,
+    has_data,
     matrix_row,
     rank,
     search_weakness,
@@ -215,3 +218,99 @@ def test_conclusion_table(
 @pytest.mark.parametrize(("value", "text"), [(0.42, "42%"), (0.005, "1%"), (0.994, "99%")])
 def test_percent_rounds_half_up(value: float, text: str) -> None:
     assert percent(value) == text
+
+
+# ---------------------------------------------------------------- run được tính (Chốt ở Group 1)
+
+
+def _run(
+    level: float,
+    status: RunStatus,
+    drop: float | None = None,
+    reason: StatusReason | None = None,
+    scope: str = "full",
+) -> InsightRun:
+    return InsightRun(
+        run_id=uuid4(),
+        attack_spec_id=SPEC,
+        scope=scope,
+        level=level,
+        status=status,
+        status_reason=reason,
+        metrics=_metrics(drop) if drop is not None else None,
+    )
+
+
+def _cached(level: float, drop: float) -> InsightRun:
+    reason = StatusReason(code=SkipReason.CACHED, message="Fingerprint trùng run gốc")
+    return _run(level, RunStatus.SKIPPED, drop, reason)
+
+
+def _early_stop(level: float, trigger: InsightRun) -> InsightRun:
+    reason = StatusReason(
+        code=SkipReason.EARLY_STOP, message="Model đã sụp", trigger_run_id=trigger.run_id
+    )
+    return _run(level, RunStatus.SKIPPED, reason=reason)
+
+
+def _levels(runs: list[InsightRun]) -> list[tuple[float, float | None]]:
+    return sorted((r.level, r.metrics.relative_drop) for r in grid_runs(runs)[SPEC])
+
+
+def test_cached_runs_count_like_completed() -> None:
+    completed = [_run(1.0, RunStatus.COMPLETED, 0.1), _run(4.0, RunStatus.COMPLETED, 0.6)]
+    cached = [_cached(1.0, 0.1), _cached(4.0, 0.6)]
+    assert has_data(cached)
+    assert _levels(cached) == _levels(completed) == [(1.0, 0.1), (4.0, 0.6)]
+    attack = _attack()
+    assert grid_weakness(attack, grid_runs(cached)[SPEC]) == grid_weakness(
+        attack, grid_runs(completed)[SPEC]
+    )
+    assert matrix_row(attack, grid_runs(cached)[SPEC]) == matrix_row(
+        attack, grid_runs(completed)[SPEC]
+    )
+    assert conclude([], has_data=has_data(cached)).code == ConclusionCode.ROBUST
+
+
+def test_other_runs_do_not_count() -> None:
+    error = StatusReason(code="error", message="Lỗi")
+    limit = StatusReason(code=StopReason.TIME, message="Hết giờ")
+    runs = [
+        _run(1.0, RunStatus.FAILED, reason=error),
+        _run(2.0, RunStatus.QUEUED),
+        _run(4.0, RunStatus.COMPLETED),  # chưa có metric
+        _run(8.0, RunStatus.SKIPPED, 0.5, StatusReason(code=SkipReason.INCOMPATIBLE, message="x")),
+        _run(16.0, RunStatus.COMPLETED, 0.9, scope="subset"),  # tìm ngưỡng, không thuộc lưới
+    ]
+    assert grid_runs(runs) == {}
+    assert has_data(runs[:4]) is False
+    partial = _run(2.0, RunStatus.STOPPED_LIMIT, 0.2, limit)
+    assert _levels([*runs, partial]) == [(2.0, 0.2)]
+
+
+def test_early_stopped_levels_take_trigger_drop() -> None:
+    # max 16: 2 và 4 ở (0, .25], 8 ở (.25, .5], 16 ở (.75, 1]; (.5, .75] không có level nào.
+    trigger = _run(4.0, RunStatus.COMPLETED, 0.98)
+    runs = [_run(2.0, RunStatus.COMPLETED, 0.1), trigger]
+    runs += [_early_stop(8.0, trigger), _early_stop(16.0, trigger)]
+    assert _levels(runs) == [(2.0, 0.1), (4.0, 0.98), (8.0, 0.98), (16.0, 0.98)]
+    row = matrix_row(_attack(), grid_runs(runs)[SPEC])
+    assert row is not None
+    assert [c.max_relative_drop for c in row.cells] == [0.98, 0.98, None, 0.98]
+    assert [c.runs for c in row.cells] == [2, 1, 0, 1]
+    weakness = grid_weakness(_attack(), grid_runs(runs)[SPEC])
+    assert weakness is not None and weakness.level == 4.0  # run kích hoạt, không phải level sau
+
+
+def test_early_stop_triggered_by_cached_run() -> None:
+    trigger = _cached(2.0, 0.97)
+    runs = [trigger, _early_stop(4.0, trigger), _early_stop(8.0, trigger)]
+    weakness = grid_weakness(_attack(), grid_runs(runs)[SPEC])
+    assert weakness is not None
+    assert (weakness.level, weakness.relative_drop) == (2.0, 0.97)
+    assert _levels(runs) == [(2.0, 0.97), (4.0, 0.97), (8.0, 0.97)]
+
+
+def test_early_stop_without_measured_trigger_is_ignored() -> None:
+    trigger = _run(2.0, RunStatus.FAILED, reason=StatusReason(code="error", message="Lỗi"))
+    assert grid_runs([trigger, _early_stop(4.0, trigger)]) == {}

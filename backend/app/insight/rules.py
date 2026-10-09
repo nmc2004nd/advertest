@@ -1,23 +1,28 @@
 """Luật điểm yếu và ma trận độ bền (requirements.md Phase R2, Behaviour Insight), hàm thuần.
 
+- Run được tính (`grid_runs`, Chốt ở Group 1): `completed`, `stopped_limit` có metric một phần,
+  `skipped` vì `cached` (metric chép từ run gốc); level `skipped` vì `early_stop` mang metric của
+  run kích hoạt (`status_reason.trigger_run_id`), như ranking Phase 6.
 - Điểm yếu quét lưới: level nhỏ nhất có `relative_drop ≥ WEAKNESS_DROP`; không có thì level có
-  `relative_drop` lớn nhất. Kèm class có mức sụt AP50 tương đối lớn nhất tại level đó.
-- Run `skipped` vì `early_stop` không cần xét riêng: run kích hoạt luôn có mức sụt ≥ 0.95 ở level
-  nhỏ hơn, nên đã là điểm yếu được chọn.
+  `relative_drop` lớn nhất. Kèm class có mức sụt AP50 tương đối lớn nhất tại level đó. Level dừng
+  sớm không đổi kết quả: run kích hoạt ở level nhỏ hơn với cùng mức sụt.
 - Điểm yếu tìm ngưỡng: điểm gãy `found`.
 - Chỉ giữ điểm có `relative_drop ≥ WEAKNESS_VISIBLE_DROP` hoặc có điểm gãy; `level_ratio` nhỏ
   trước, bằng nhau thì `relative_drop` lớn trước; tối đa `MAX_WEAKNESSES`.
 - Ma trận: mỗi attack quét lưới có run đo được một hàng, 4 dải `level_ratio`, ô là
-  `relative_drop` lớn nhất của các run thuộc dải.
+  `relative_drop` lớn nhất của các run thuộc dải (tính cả level dừng sớm, đếm vào `runs`); ô
+  `null` khi dải không có level nào.
 - `level_ratio = level / primary_param.max`, như ranking Phase 6.
 """
 
 from __future__ import annotations
 
+from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass
 from uuid import UUID
 
+from advertest_contracts.enums import RunStatus, SkipReason
 from advertest_contracts.models import (
     MAX_WEAKNESSES,
     ROBUSTNESS_BANDS,
@@ -27,6 +32,7 @@ from advertest_contracts.models import (
     RobustnessCell,
     RobustnessRow,
     RunMetrics,
+    StatusReason,
     Weakness,
 )
 
@@ -35,6 +41,57 @@ from advertest_contracts.models import (
 class GridRun:
     level: float
     metrics: RunMetrics
+
+
+@dataclass(frozen=True)
+class InsightRun:
+    """Run của experiment, đủ để insight chọn run được tính."""
+
+    run_id: UUID
+    attack_spec_id: UUID
+    scope: str  # "full" (quét lưới) hoặc "subset" (tìm ngưỡng)
+    level: float
+    status: RunStatus
+    status_reason: StatusReason | None = None
+    metrics: RunMetrics | None = None
+
+
+def _counts(run: InsightRun) -> bool:
+    """Run có metric của chính nó (hoặc chép từ run gốc khi trúng cache) được tính."""
+    if run.metrics is None:
+        return False
+    if run.status in (RunStatus.COMPLETED, RunStatus.STOPPED_LIMIT):
+        return True
+    reason = run.status_reason
+    return (
+        run.status == RunStatus.SKIPPED and reason is not None and reason.code == SkipReason.CACHED
+    )
+
+
+def has_data(runs: Sequence[InsightRun]) -> bool:
+    return any(_counts(run) for run in runs)
+
+
+def grid_runs(runs: Sequence[InsightRun]) -> dict[UUID, list[GridRun]]:
+    """Run quét lưới được tính, theo attack; level dừng sớm lấy metric của run kích hoạt."""
+    metrics = {run.run_id: run.metrics for run in runs if _counts(run)}
+    out: dict[UUID, list[GridRun]] = defaultdict(list)
+    for run in runs:
+        if run.scope != "full":
+            continue
+        found = metrics.get(run.run_id)
+        reason = run.status_reason
+        if (
+            found is None
+            and run.status == RunStatus.SKIPPED
+            and reason is not None
+            and reason.code == SkipReason.EARLY_STOP
+            and reason.trigger_run_id is not None
+        ):
+            found = metrics.get(reason.trigger_run_id)
+        if found is not None:
+            out[run.attack_spec_id].append(GridRun(level=run.level, metrics=found))
+    return out
 
 
 @dataclass(frozen=True)
