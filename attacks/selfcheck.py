@@ -6,8 +6,9 @@
 2. `value_range`: ảnh ra `float32` trong [0, 1], đúng shape (level giữa).
 3. `pad_unchanged`: điểm ảnh có mask = 0 giữ nguyên tuyệt đối (level giữa).
 4. `identity`: `min = 0` cho ảnh y hệt đầu vào; `min > 0` thì bỏ qua (`passed` kèm lý do).
-5. `batch_invariant`: cùng một perturbation, từng ảnh chạy batch 1 khớp kết quả batch 4 (sai số
-   1e-6 với `kind = attack`, tuyệt đối với kind khác).
+5. `batch_invariant`: cùng một perturbation, từng ảnh chạy batch 1 khớp tuyệt đối kết quả batch 4.
+   Attack tính gradient của model (FGSM, PGD) không bất biến theo batch về số học, nên chỉ kiểm
+   kết quả batch 1 hợp lệ như mục 2, 3, 6 và ghi độ lệch vào `details` (người duyệt chốt ở Group 2).
 6. `norm_bound`: với `kind = attack`, chuẩn nhiễu theo `fixed_params.norm` ≤ eps + 1e-6; kind khác
    hoặc spec không có `norm` (patch) thì bỏ qua.
 7. `deterministic`: perturbation thứ hai dựng độc lập, cùng seed, cho ảnh y hệt.
@@ -55,13 +56,19 @@ from advertest_contracts.models import (
 )
 from advertest_contracts.perturbation import ImageBatch, MaskBatch, Perturbation
 from attacks.art_adapter import level_to_eps
-from attacks.builders import DEFAULT_REGISTRY, BuildContext, InvalidSpec, PerturbationRegistry
+from attacks.builders import (
+    DEFAULT_REGISTRY,
+    GRADIENTS,
+    BuildContext,
+    InvalidSpec,
+    PerturbationRegistry,
+)
 from attacks.patch.training import PatchTrainer
 
 __all__ = ["SelfcheckInputs", "SelfcheckOutcome", "main", "mid_level", "run_selfcheck"]
 
 DEFAULT_TIMEOUT_S = 120.0
-ATTACK_TOLERANCE = 1e-6  # mục 5 với kind = attack; mục 6 cộng thêm vào eps
+NORM_TOLERANCE = 1e-6  # mục 6: chuẩn nhiễu ≤ eps + 1e-6
 
 
 @dataclass(frozen=True)
@@ -216,34 +223,74 @@ def _runs(session: _Session) -> tuple[bool, str | None]:
     return (not failures, "; ".join(failures) or None)
 
 
-def _value_range(session: _Session) -> tuple[bool, str | None]:
-    out = _output_or_fail(session, mid_level(session.spec))
-    images = session.inputs.images
+def _range_problem(out: Any, images: ImageBatch) -> str | None:
+    """Lý do ảnh ra không phải float32 trong [0, 1] đúng shape; None khi hợp lệ."""
     if not isinstance(out, np.ndarray) or out.dtype != np.float32:
         kind = out.dtype if isinstance(out, np.ndarray) else type(out).__name__
-        return (False, f"ảnh ra phải là float32, nhận {kind}")
+        return f"ảnh ra phải là float32, nhận {kind}"
     if out.shape != images.shape:
-        return (False, f"shape ảnh ra {out.shape} khác đầu vào {images.shape}")
+        return f"shape ảnh ra {out.shape} khác đầu vào {images.shape}"
     if not np.all(np.isfinite(out)):
-        return (False, "ảnh ra có NaN hoặc vô cực")
+        return "ảnh ra có NaN hoặc vô cực"
     low, high = float(out.min()), float(out.max())
     if low < 0 or high > 1:
-        return (False, f"giá trị ngoài [0, 1]: min {low:g}, max {high:g}")
-    return (True, None)
+        return f"giá trị ngoài [0, 1]: min {low:g}, max {high:g}"
+    return None
+
+
+def _pad_problem(out: ImageBatch, images: ImageBatch, masks: MaskBatch) -> str | None:
+    """Lý do vùng pad (mask = 0) bị đổi; None khi giữ nguyên tuyệt đối. `out` đúng shape."""
+    pad = np.broadcast_to(masks == 0, images.shape)
+    changed = int(np.count_nonzero(out[pad] != images[pad]))
+    return f"{changed} giá trị trong vùng pad bị thay đổi" if changed else None
+
+
+def _norm_applies(spec: AttackSpec) -> str | None:
+    """Lý do bỏ qua kiểm chuẩn nhiễu; None khi áp dụng."""
+    if spec.kind != AttackKind.ATTACK:
+        return f"bỏ qua: chỉ áp với kind = attack (spec có kind = {spec.kind})"
+    if "norm" not in spec.fixed_params:
+        return "bỏ qua: spec không khai báo fixed_params.norm"
+    return None
+
+
+def _norm_order(value: Any) -> float:
+    if str(value) == "inf":
+        return float(np.inf)
+    return float(value)
+
+
+def _norm_problem(
+    out: ImageBatch, images: ImageBatch, spec: AttackSpec, level: float
+) -> str | None:
+    """Lý do chuẩn nhiễu theo `fixed_params.norm` vượt eps (+1e-6); `out` đúng shape."""
+    try:
+        order = _norm_order(spec.fixed_params["norm"])
+        eps = level_to_eps(spec, level)
+    except (KeyError, TypeError, ValueError) as exc:
+        return f"không tính được eps hay norm: {_describe(exc)}"
+    delta = (out.astype(np.float64) - images.astype(np.float64)).reshape(len(images), -1)
+    worst = float(np.linalg.norm(delta, ord=order, axis=1).max())
+    if worst > eps + NORM_TOLERANCE:
+        return f"chuẩn nhiễu {worst:.6g} > eps {eps:.6g} (norm {spec.fixed_params['norm']})"
+    return None
+
+
+def _value_range(session: _Session) -> tuple[bool, str | None]:
+    out = _output_or_fail(session, mid_level(session.spec))
+    problem = _range_problem(out, session.inputs.images)
+    return (problem is None, problem)
 
 
 def _pad_unchanged(session: _Session) -> tuple[bool, str | None]:
     out = _output_or_fail(session, mid_level(session.spec))
-    images = session.inputs.images
-    pad = np.broadcast_to(session.inputs.masks == 0, images.shape)
-    if not pad.any():
+    images, masks = session.inputs.images, session.inputs.masks
+    if not np.any(masks == 0):
         return (True, "đầu vào không có vùng pad")
     if out.shape != images.shape:
         return (False, f"shape ảnh ra {out.shape} khác đầu vào {images.shape}")
-    changed = int(np.count_nonzero(out[pad] != images[pad]))
-    if changed:
-        return (False, f"{changed} giá trị trong vùng pad bị thay đổi")
-    return (True, None)
+    problem = _pad_problem(out, images, masks)
+    return (problem is None, problem)
 
 
 def _identity(session: _Session) -> tuple[bool, str | None]:
@@ -256,13 +303,27 @@ def _identity(session: _Session) -> tuple[bool, str | None]:
     return (True, None)
 
 
+def _uses_gradients(session: _Session) -> bool:
+    """`apply` tính gradient của model: builder cần gradient và spec không dùng patch đã train."""
+    builder = session.registry.builder_for(session.spec)
+    return GRADIENTS in builder.requires and not session.spec.requires_training
+
+
 def _batch_invariant(session: _Session) -> tuple[bool, str | None]:
+    """So tuyệt đối batch 1 với batch 4. Với attack dùng gradient, sai số float của gradient giữa
+    hai cỡ batch làm lật dấu ở gradient gần 0 (PGD lan ra qua các bước), nên chỉ kiểm kết quả batch
+    1 hợp lệ (giá trị, pad, chuẩn nhiễu) và ghi độ lệch vào `details` (người duyệt chốt ở
+    Group 2)."""
     level = mid_level(session.spec)
     full = _output_or_fail(session, level)
     perturbation = session.perturbation(level)
-    tolerance = ATTACK_TOLERANCE if session.spec.kind == AttackKind.ATTACK else 0.0
+    images, masks = session.inputs.images, session.inputs.masks
+    gradients = _uses_gradients(session)
+    check_norm = _norm_applies(session.spec) is None
     failures: list[str] = []
-    for index in range(len(session.inputs.images)):
+    worst = 0.0
+    for index in range(len(images)):
+        part = slice(index, index + 1)
         try:
             single = session.apply(perturbation, level, index)
         except _Timeout:
@@ -270,46 +331,44 @@ def _batch_invariant(session: _Session) -> tuple[bool, str | None]:
         except Exception as exc:
             failures.append(f"ảnh {index}: batch 1 lỗi {_describe(exc)}")
             continue
-        if single.shape != full[index : index + 1].shape:
-            failures.append(f"ảnh {index}: shape batch 1 {single.shape}")
+        if not isinstance(single, np.ndarray) or single.shape != full[part].shape:
+            shape = single.shape if isinstance(single, np.ndarray) else type(single).__name__
+            failures.append(f"ảnh {index}: batch 1 cho shape {shape}")
             continue
-        diff = float(np.max(np.abs(single.astype(np.float64) - full[index : index + 1])))
-        if diff > tolerance:
-            failures.append(f"ảnh {index}: lệch {diff:.3g} > {tolerance:g}")
-    return (not failures, "; ".join(failures) or None)
-
-
-def _norm_order(value: Any) -> float:
-    if str(value) == "inf":
-        return float(np.inf)
-    return float(value)
+        diff = float(np.max(np.abs(single.astype(np.float64) - full[part])))
+        worst = max(worst, diff)
+        if not gradients:
+            if diff > 0:
+                failures.append(f"ảnh {index}: batch 1 lệch batch 4 {diff:.3g}")
+            continue
+        problem = _range_problem(single, images[part])
+        if problem is None:
+            problem = _pad_problem(single, images[part], masks[part])
+        if problem is None and check_norm:
+            problem = _norm_problem(single, images[part], session.spec, level)
+        if problem is not None:
+            failures.append(f"ảnh {index}: batch 1 {problem}")
+    if failures:
+        return (False, "; ".join(failures))
+    if gradients:
+        return (
+            True,
+            f"attack dùng gradient: chỉ kiểm batch 1 hợp lệ; lệch batch 4 tối đa {worst:.3g}",
+        )
+    return (True, None)
 
 
 def _norm_bound(session: _Session) -> tuple[bool, str | None]:
-    spec = session.spec
-    if spec.kind != AttackKind.ATTACK:
-        return (True, f"bỏ qua: chỉ áp với kind = attack (spec có kind = {spec.kind})")
-    if "norm" not in spec.fixed_params:
-        return (True, "bỏ qua: spec không khai báo fixed_params.norm")
-    level = mid_level(spec)
-    try:
-        order = _norm_order(spec.fixed_params["norm"])
-        eps = level_to_eps(spec, level)
-    except (KeyError, TypeError, ValueError) as exc:
-        return (False, f"không tính được eps hay norm: {_describe(exc)}")
+    skip = _norm_applies(session.spec)
+    if skip is not None:
+        return (True, skip)
+    level = mid_level(session.spec)
     out = _output_or_fail(session, level)
     images = session.inputs.images
     if out.shape != images.shape:
         return (False, f"shape ảnh ra {out.shape} khác đầu vào {images.shape}")
-    delta = (out.astype(np.float64) - images.astype(np.float64)).reshape(len(images), -1)
-    norms = np.linalg.norm(delta, ord=order, axis=1)
-    worst = float(norms.max())
-    if worst > eps + ATTACK_TOLERANCE:
-        return (
-            False,
-            f"chuẩn nhiễu {worst:.6g} > eps {eps:.6g} (norm {spec.fixed_params['norm']})",
-        )
-    return (True, None)
+    problem = _norm_problem(out, images, session.spec, level)
+    return (problem is None, problem)
 
 
 def _deterministic(session: _Session) -> tuple[bool, str | None]:
