@@ -115,10 +115,13 @@ plugins = ["pydantic.mypy"]
 module = ["advertest_contracts.*", "advertest_worker.*", "backend.*"]
 strict = true
 
-# boto3/botocore, ART, PyYAML, SciPy, WeasyPrint (Phase 8) không kèm type stub; gói stub là
-# dependency riêng, chưa được duyệt.
+# boto3/botocore, ART, PyYAML, SciPy, WeasyPrint (Phase 8), onnxruntime và torchvision (Phase R2)
+# không kèm type stub; gói stub là dependency riêng, chưa được duyệt.
 [[tool.mypy.overrides]]
-module = ["boto3", "botocore.*", "art", "art.*", "yaml", "scipy", "scipy.*", "weasyprint"]
+module = [
+    "boto3", "botocore.*", "art", "art.*", "yaml", "scipy", "scipy.*", "weasyprint",
+    "onnxruntime", "onnxruntime.*", "torchvision", "torchvision.*",
+]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
