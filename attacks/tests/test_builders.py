@@ -62,6 +62,15 @@ def test_fake_builder_registers_and_builds() -> None:
     np.testing.assert_array_equal(out, images)
 
 
+def test_builder_without_kind_or_schema_is_not_listed_nor_checked() -> None:
+    """Builder kiểu R1 (không có `kind`, `params_schema`): `validate` chỉ kiểm adapter có trong
+    registry, `adapters()` không liệt kê."""
+    registry = PerturbationRegistry(resolver=lambda _spec: "test.identity")
+    registry.register(_IdentityBuilder())
+    registry.validate(spec("fog"))
+    assert registry.adapters() == []
+
+
 def test_duplicate_adapter_rejected() -> None:
     registry = PerturbationRegistry()
     registry.register(_IdentityBuilder())
