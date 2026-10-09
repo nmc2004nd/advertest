@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from advertest_contracts.enums import (
     ComputeKind,
     ErrorCode,
+    ExperimentStatus,
     LimitKind,
     ProtocolStatus,
     RunMode,
@@ -287,8 +288,10 @@ def check(
 
     if body.cloned_from is not None and session.get(m.Experiment, body.cloned_from) is None:
         error("cloned_from", "Không có experiment gốc này")
-    if body.promoted_from is not None and session.get(m.Experiment, body.promoted_from) is None:
-        error("promoted_from", "Không có experiment Khám phá nguồn này")
+    if body.promoted_from is not None:
+        problem = promoted_from_problem(session, body.promoted_from)
+        if problem is not None:
+            error("promoted_from", problem)
 
     if errors:
         code = ErrorCode.NOT_SUPPORTED_YET if not_supported else ErrorCode.INVALID_REQUEST
@@ -384,3 +387,23 @@ def _clean_ap(metrics: RunMetrics, class_filter: str | None) -> float | None:
     per_class = metrics.per_class or {}
     found = per_class.get(class_filter)
     return found.clean_ap50 if found is not None else None
+
+
+# Experiment đã kết thúc (`stopped_limit` là trạng thái của run, không phải của experiment).
+FINISHED = (ExperimentStatus.COMPLETED, ExperimentStatus.CANCELLED)
+
+
+def promoted_from_problem(session: Session, experiment_id: UUID) -> str | None:
+    """Lý do `promoted_from` không hợp lệ, hoặc None: nguồn phải là experiment Khám phá (protocol
+    `dev`) đã kết thúc (Chốt ở Group 1, review #4)."""
+    source = session.get(m.Experiment, experiment_id)
+    if source is None:
+        return "Không có experiment Khám phá nguồn này"
+    protocol = session.get(m.Protocol, source.protocol_id)
+    if protocol is None or protocol.status != ProtocolStatus.DEV:
+        return "Experiment nguồn không phải experiment Khám phá"
+    if source.status not in FINISHED:
+        return (
+            f"Experiment nguồn đang ở trạng thái {source.status}; chỉ nâng experiment đã kết thúc"
+        )
+    return None

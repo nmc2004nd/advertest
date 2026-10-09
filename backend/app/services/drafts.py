@@ -27,7 +27,6 @@ from sqlalchemy.orm import Session
 from advertest_contracts.enums import (
     CriterionKind,
     ErrorCode,
-    ExperimentStatus,
     ProtocolStatus,
     RunMode,
     ThresholdKind,
@@ -56,13 +55,12 @@ from advertest_contracts.models import (
 from backend.app.db import models as m
 from backend.app.services import experiment_views
 from backend.app.services.errors import Conflict, InvalidConfig, NotFound
-from backend.app.services.experiment_config import spec_of
+from backend.app.services.experiment_config import FINISHED, spec_of
 
 SEEDS = Path(__file__).resolve().parents[3] / "contracts" / "seeds"
 # Như wizard (Phase 7): độ rộng khoảng khi dừng chia đôi mặc định (hi - lo) / 256.
 SEARCH_TOL_DIVISOR = 256
 DEFAULT_SEED = 0
-FINISHED = (ExperimentStatus.COMPLETED, ExperimentStatus.CANCELLED)
 
 
 @cache
