@@ -7,9 +7,9 @@
 > Test R1 được thêm theo group (xem `plan.md` bước 7); ở mỗi thời điểm, mọi test đã có đều phải pass.
 
 ### Chung
-- [ ] `make check` pass, bao gồm test nghiệm thu Phase 0–8.
-- [ ] `make test-db` pass.
-- [ ] `make contracts` không tạo thay đổi (R1 không đổi contract).
+- [x] `make check` pass, bao gồm test nghiệm thu Phase 0–8.
+- [x] `make test-db` pass.
+- [x] `make contracts` không tạo thay đổi (R1 không đổi contract).
 
 ### Golden — `test_golden_cli.py`, `test_golden_worker.py` (`db`)
 - [x] Ghi trên code trước refactor (Group 0, `6861ca8`).

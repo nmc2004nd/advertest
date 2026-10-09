@@ -21,7 +21,18 @@ Các phase đã đóng trước phase gần nhất nằm trong `changelog/archiv
 
 ## Phase R1 — Refactor lớp chạy giữ hành vi
 
-**Trạng thái:** đang làm. Group 0 (golden, `6861ca8`), Group 1, Group 2 (cả bước 7b), Group 3, Group 4, Group 5 và Group 6 xong; còn Group 7 (người duyệt).
+**Trạng thái:** đang làm. Group 0 (golden, `6861ca8`), Group 1 đến Group 6 xong (Group 2 gồm cả bước 7b); Group 7 xong task 19; còn task 20 (đóng phase), chờ Manual Checks.
+
+### Phase R1 — Group 7 task 19 (người duyệt) — 2026-10-09
+Kiểm tra cuối trên `dev` @ `2cf490e` (sau khi merge `phaser1-worker` Group 6). Mỗi nhánh đã được review bằng `phase-review` trước khi đóng group tương ứng (xem các mục Group 1–6).
+### Số liệu đo được
+- `make check` @ `2cf490e`: exit 0; unit 1510 passed (1:54); nghiệm thu 344 passed (3:34), gồm Phase 0–8 và `phase_r1` (`test_architecture_r1` 5, `test_golden_cli` 1, `test_registry` 7).
+- `make test-db` @ `2cf490e` (ghim P-core theo `test-db.sh`): exit 0, 699 passed (23:46).
+- `make contracts` không tạo thay đổi; `git diff 6861ca8..2cf490e -- contracts/` rỗng.
+### Tồn đọng
+- Task 20 (đánh dấu R1 trong roadmap, tổng kết, replan R2) làm khi đóng phase.
+- Manual Checks chưa làm: KITTI toàn catalog sau R1 so baseline bước 7b; thời gian chênh dưới 5%. Mục "ghi `job.py`" đã có số liệu ở mục Group 6, chờ người duyệt xác nhận.
+- DoD "pass trên CI" chưa có bằng chứng (CI Phase 8 run 59/62 chưa xanh theo handoff kickoff).
 
 ### Phase R1 — Group 6 (worker) — 2026-10-09
 Nhánh `phaser1-worker` @ `8cf49cd` (tách từ `phaser1-reviewer` @ `5dec5e1` = `dev` `5c1a5e4` + test G6), 6 commit: `5dec5e1` (test kiến trúc `job.py`, agent viết theo ủy quyền của người duyệt), `d3b9539`, `9bb0516`, `a368f0f`, `cd0e93c`, `8cf49cd`. Diff so với `dev`: 13 file, +1091/−801.

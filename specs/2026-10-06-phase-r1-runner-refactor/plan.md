@@ -53,5 +53,5 @@
 
 ## Group 7 — Kiểm tra cuối `[người duyệt]`
 
-19. Chạy `make check`, `make test-db`; review từng nhánh bằng `phase-review`.
+19. ✅ Chạy `make check`, `make test-db`; review từng nhánh bằng `phase-review`.
 20. Cập nhật `CHANGELOG.md`, `roadmap.md` (đánh dấu R1); replan R2 (trường `adapter` trên registry vừa có).
