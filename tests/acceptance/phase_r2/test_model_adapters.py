@@ -155,7 +155,7 @@ def test_onnx_white_box_incompatible_corruption_runs(
     with pytest.raises(IncompatibleAttack):
         DEFAULT_REGISTRY.build(get_spec(catalog, name="fgsm"), BuildContext(estimator=estimator))
     fog = DEFAULT_REGISTRY.build(get_spec(catalog, name="fog"), BuildContext(estimator=estimator))
-    attacked = fog.apply(image, [{}], 3.0, 0)
+    attacked = fog.apply(image, [{"image_id": "000902"}], 3.0, 0)
     assert not np.array_equal(attacked, image)
     (prediction,) = onnx.predict(attacked)
     assert set(prediction) >= {"boxes", "labels", "scores"}
