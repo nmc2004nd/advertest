@@ -10,10 +10,10 @@
 - [ ] `spec_sha256` của 10 spec trong seed không đổi; `contracts-check` sạch.
 
 ### Group 1 — Insight và luồng (`test_insight.py`, `test_promote.py`, `test_templates.py`; `db`)
-- [ ] Experiment fixture (run dựng sẵn qua API worker): `weaknesses` đúng thứ tự và tối đa 5; ma trận đủ 4 dải, ô trống là `null`; `partial` đúng khi có run `stopped_limit`.
+- [ ] Experiment fixture (run dựng sẵn qua API worker): `weaknesses` đúng thứ tự và tối đa 5; ma trận đủ 4 dải, ô trống là `null`; `partial` đúng khi có run `stopped_limit`. Experiment toàn run trúng cache cho cùng insight với experiment gốc; level dừng sớm lấy mức sụt của run kích hoạt.
 - [ ] Bảng đầu vào → `Conclusion.code` (`no_data`, `robust`, `weak`, `weak_class`); cùng đầu vào cho cùng `text`.
 - [ ] `mode`: experiment gắn protocol `dev` là `exploration`, protocol khác là `official`; lọc `?mode=` đúng.
-- [ ] `promote`: trả bản nháp đủ attack bắt buộc với level bắt buộc ∪ level nguồn; không tạo experiment; nguồn `official` hoặc chưa kết thúc → 409; protocol đích không `active` → 409; tạo từ bản nháp có `promoted_from` và audit log.
+- [ ] `promote`: trả bản nháp đủ attack bắt buộc với level bắt buộc ∪ level nguồn; không tạo experiment; nguồn `official` hoặc chưa kết thúc → 409; protocol đích không `active` → 409; tạo từ bản nháp có `promoted_from` và audit log; `promoted_from` trỏ tới experiment chưa kết thúc hoặc `official` → 422.
 - [ ] Template `draft` là `ProtocolCreate` hợp lệ, dùng spec `active`; tiêu chí gợi ý đúng ngưỡng theo `strictness`; không đổi khi DB có thêm kết quả experiment.
 - [ ] `POST /experiments/draft` với từng preset: level đúng công thức, hợp level bắt buộc; `deep` thêm tìm ngưỡng (trừ patch); kết quả qua được `POST /experiments/estimate`.
 
