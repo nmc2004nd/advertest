@@ -26,6 +26,10 @@ from advertest_contracts.models import (
     RunStartResponse,
     SearchResultReport,
     SearchRunCreate,
+    ToolHeartbeat,
+    ToolJobBundle,
+    ToolJobResult,
+    ToolLease,
     WorkerDirective,
     WorkerJobBundle,
     WorkerLease,
@@ -43,6 +47,7 @@ from backend.app.api.deps import (
 from backend.app.api.errors import (
     NOT_IMPLEMENTED_RESPONSE,
     VALIDATION_ERROR_RESPONSE,
+    not_implemented,
 )
 from backend.app.api.security import worker_token
 from backend.app.services import bundle, leasing, runs, searches
@@ -238,3 +243,34 @@ def submit_search_result(
     with transaction(sessions) as session:
         target = authenticate_worker(session, credentials)
         searches.submit_result(session, target, experiment_id, body, clock)
+
+
+# Phase R2 Group 0: khung (501) cho job công cụ của worker `--tools`; Group 4 cài đặt.
+
+
+@router.post(
+    "/tool-lease",
+    response_model=ToolLease,
+    responses={status.HTTP_204_NO_CONTENT: {"description": "Không có job công cụ nào chờ"}},
+)
+def tool_lease(credentials: Credentials) -> ToolLease | Response:
+    """Job công cụ cũ nhất: quick_try trước, rồi model_check và spec_check theo thứ tự tạo."""
+    not_implemented()
+
+
+@router.get("/tool-jobs/{job_id}")
+def get_tool_job(job_id: UUID, credentials: Credentials) -> ToolJobBundle:
+    """Payload của job, kèm presigned URL (hết hạn sau 15 phút)."""
+    not_implemented()
+
+
+@router.post("/tool-jobs/{job_id}/heartbeat", status_code=status.HTTP_204_NO_CONTENT)
+def tool_heartbeat(job_id: UUID, body: ToolHeartbeat, credentials: Credentials) -> None:
+    """Gia hạn lease 60 giây (409 khi lease đã mất)."""
+    not_implemented()
+
+
+@router.post("/tool-jobs/{job_id}/result", status_code=status.HTTP_204_NO_CONTENT)
+def submit_tool_result(job_id: UUID, body: ToolJobResult, credentials: Credentials) -> None:
+    """Kết quả job; chỉ token worker ghi được (mission.md nguyên tắc 3)."""
+    not_implemented()

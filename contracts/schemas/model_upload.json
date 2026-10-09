@@ -1,0 +1,28 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "upload_id": {
+      "format": "uuid",
+      "title": "Upload Id",
+      "type": "string"
+    },
+    "url": {
+      "description": "Presigned PUT",
+      "pattern": "^https?://\\S+$",
+      "title": "Url",
+      "type": "string"
+    },
+    "expires_at": {
+      "format": "date-time",
+      "title": "Expires At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "upload_id",
+    "url",
+    "expires_at"
+  ],
+  "title": "ModelUpload",
+  "type": "object"
+}

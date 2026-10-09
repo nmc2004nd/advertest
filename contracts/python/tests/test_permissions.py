@@ -16,6 +16,7 @@ model.read                E R A
 model.manage                  A
 attack_catalog.read       E R A
 attack_catalog.manage         A
+attack_catalog.approve      R
 protocol.read             E R A
 protocol.manage             R
 review.decide               R
@@ -27,6 +28,7 @@ compute_target.read       E   A
 compute_target.manage         A
 budget.manage                 A
 audit.read                    A
+quick_try.use             E R
 """
 LETTER = {"E": Role.ENGINEER, "R": Role.REVIEWER, "A": Role.ADMIN}
 EXPECTED = {

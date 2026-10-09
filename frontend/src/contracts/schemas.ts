@@ -70,6 +70,24 @@ export interface components {
          */
         AttackAccess: "white_box" | "black_box" | "not_applicable";
         /**
+         * AttackAdapterInfo
+         * @description `GET /attack-adapters`: adapter có trong registry của worker.
+         */
+        AttackAdapterInfo: {
+            /** Name */
+            name: string;
+            kind: components["schemas"]["AttackKind"];
+            /**
+             * Params Schema
+             * @description JSON Schema của fixed_params (draft 2020-12)
+             */
+            params_schema: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /** Requires Gradients */
+            requires_gradients: boolean;
+        };
+        /**
          * AttackConfig
          * @description Một attack trong experiment.
          */
@@ -196,6 +214,11 @@ export interface components {
             /** @description Có khi và chỉ khi requires_training = true */
             training?: components["schemas"]["TrainingParams"] | null;
             /**
+             * Adapter
+             * @description Phase R2: adapter trong registry của worker (`GET /attack-adapters`); null là suy từ kind và art_class (`attacks.builders.effective_adapter`). `fixed_params` là tham số của adapter
+             */
+            adapter?: string | null;
+            /**
              * Id
              * Format: uuid
              */
@@ -253,6 +276,11 @@ export interface components {
             /** @description Có khi và chỉ khi requires_training = true */
             training?: components["schemas"]["TrainingParams"] | null;
             /**
+             * Adapter
+             * @description Phase R2: adapter trong registry của worker (`GET /attack-adapters`); null là suy từ kind và art_class (`attacks.builders.effective_adapter`). `fixed_params` là tham số của adapter
+             */
+            adapter?: string | null;
+            /**
              * Id
              * Format: uuid
              */
@@ -262,8 +290,172 @@ export interface components {
              * @description Hash của mọi trường trừ id và chính nó
              */
             spec_sha256: string;
-            /** Is Active */
+            /**
+             * Is Active
+             * @description Suy ra: status = active
+             */
             is_active: boolean;
+            status: components["schemas"]["AttackSpecStatus"];
+            /** @description null khi chưa khai (spec seed) */
+            metadata: components["schemas"]["AttackSpecMetadata"] | null;
+            /** @description Kết quả spec_check gần nhất */
+            check: components["schemas"]["SpecCheckResult"] | null;
+            /** @description null với spec seed */
+            created_by: components["schemas"]["UserRef"] | null;
+            /** @description null khi chưa duyệt hoặc spec seed */
+            approved_by: components["schemas"]["UserRef"] | null;
+        };
+        /**
+         * AttackSpecBody
+         * @description Nội dung của attack spec (mọi trường trừ `id` và `spec_sha256`); là đầu vào của hash.
+         *
+         *     Trường thêm ở Phase 6 (`requires_training`, `training`) và Phase R2 (`adapter`) bị bỏ khỏi
+         *     JSON khi mang giá trị mặc định, nên hash của spec cũ không đổi.
+         */
+        AttackSpecBody: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /** Name */
+            name: string;
+            /** Version */
+            version: number;
+            kind: components["schemas"]["AttackKind"];
+            /** @description Corruption và occlusion dùng not_applicable; attack không dùng giá trị này */
+            access: components["schemas"]["AttackAccess"];
+            /**
+             * Art Class
+             * @description Null với corruption và occlusion
+             * @default null
+             */
+            art_class: string | null;
+            primary_param: components["schemas"]["PrimaryParam"];
+            /** Fixed Params */
+            fixed_params: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            cost_model: components["schemas"]["CostModel"];
+            /** Requires Gradients */
+            requires_gradients: boolean;
+            /**
+             * Requires Training
+             * @description Phase 6: phải train (patch) trên slice huấn luyện trước khi đánh giá
+             */
+            requires_training?: boolean;
+            /** @description Có khi và chỉ khi requires_training = true */
+            training?: components["schemas"]["TrainingParams"] | null;
+            /**
+             * Adapter
+             * @description Phase R2: adapter trong registry của worker (`GET /attack-adapters`); null là suy từ kind và art_class (`attacks.builders.effective_adapter`). `fixed_params` là tham số của adapter
+             */
+            adapter?: string | null;
+        };
+        /**
+         * AttackSpecCreate
+         * @description `POST /admin/attack-specs`: name mới (version 1) hoặc name có sẵn (version lớn nhất + 1).
+         *     Server tính `id`, `spec_sha256`; spec mới ở `draft` rồi chuyển `checking`.
+         */
+        AttackSpecCreate: {
+            body: components["schemas"]["AttackSpecBody"];
+            metadata: components["schemas"]["AttackSpecMetadata"];
+        };
+        /**
+         * AttackSpecMetadata
+         * @description Thông tin hiển thị của spec, nằm ngoài `spec_sha256` (tech-stack.md mục 9, luật 9); sửa
+         *     không đổi version (Phase R2).
+         */
+        AttackSpecMetadata: {
+            /** Display Name */
+            display_name: string;
+            /** Description */
+            description: string;
+            /**
+             * Realism
+             * @description Mức sát thực tế
+             * @enum {string}
+             */
+            realism: "low" | "medium" | "high";
+            /**
+             * Level Labels
+             * @description Level (số viết dạng chuỗi, so khớp theo giá trị số) → nhãn dễ đọc
+             */
+            level_labels?: {
+                [key: string]: string;
+            };
+        };
+        /**
+         * AttackSpecReject
+         * @description `POST /attack-specs/{id}/reject`: `pending_approval` → `draft`.
+         */
+        AttackSpecReject: {
+            /** Reason */
+            reason: string;
+        };
+        /**
+         * AttackSpecStatus
+         * @description Vòng đời spec trong catalog (Phase R2, requirements.md mục Catalog attack).
+         * @enum {string}
+         */
+        AttackSpecStatus: "draft" | "checking" | "check_failed" | "pending_approval" | "active" | "retired";
+        /**
+         * AttackSpecView
+         * @description `GET /attack-specs` (Phase R2): spec `active` kèm metadata.
+         */
+        AttackSpecView: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /** Name */
+            name: string;
+            /** Version */
+            version: number;
+            kind: components["schemas"]["AttackKind"];
+            /** @description Corruption và occlusion dùng not_applicable; attack không dùng giá trị này */
+            access: components["schemas"]["AttackAccess"];
+            /**
+             * Art Class
+             * @description Null với corruption và occlusion
+             * @default null
+             */
+            art_class: string | null;
+            primary_param: components["schemas"]["PrimaryParam"];
+            /** Fixed Params */
+            fixed_params: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            cost_model: components["schemas"]["CostModel"];
+            /** Requires Gradients */
+            requires_gradients: boolean;
+            /**
+             * Requires Training
+             * @description Phase 6: phải train (patch) trên slice huấn luyện trước khi đánh giá
+             */
+            requires_training?: boolean;
+            /** @description Có khi và chỉ khi requires_training = true */
+            training?: components["schemas"]["TrainingParams"] | null;
+            /**
+             * Adapter
+             * @description Phase R2: adapter trong registry của worker (`GET /attack-adapters`); null là suy từ kind và art_class (`attacks.builders.effective_adapter`). `fixed_params` là tham số của adapter
+             */
+            adapter?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Spec Sha256
+             * @description Hash của mọi trường trừ id và chính nó
+             */
+            spec_sha256: string;
+            /** @description null khi chưa khai (spec seed trước R2) */
+            metadata: components["schemas"]["AttackSpecMetadata"] | null;
         };
         /** AuditActor */
         AuditActor: {
@@ -827,6 +1019,30 @@ export interface components {
             name: string;
             kind: components["schemas"]["ComputeKind"];
         };
+        /**
+         * Conclusion
+         * @description Câu kết luận sinh theo luật (`backend/app/insight/phrases.py`).
+         */
+        Conclusion: {
+            code: components["schemas"]["ConclusionCode"];
+            /**
+             * Params
+             * @description Số liệu dùng dựng câu
+             */
+            params: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /**
+             * Text
+             * @description Tiếng Việt; cùng đầu vào cho cùng câu
+             */
+            text: string;
+        };
+        /**
+         * ConclusionCode
+         * @enum {string}
+         */
+        ConclusionCode: "no_data" | "robust" | "weak" | "weak_class";
         /** ConverterInfo */
         ConverterInfo: {
             /** Name */
@@ -1037,6 +1253,20 @@ export interface components {
          */
         DisplayMode: "normal" | "hidden_unanonymized" | "dev_unblurred";
         /**
+         * DraftNote
+         * @description Lưu ý của bản nháp không gắn với version spec (Phase R2: promote, draft từ preset).
+         */
+        DraftNote: {
+            /**
+             * Code
+             * @description slice_too_small: slice nhỏ hơn min_slice_size của protocol; compliance sẽ chặn khi gửi duyệt
+             * @constant
+             */
+            code: "slice_too_small";
+            /** Message */
+            message: string;
+        };
+        /**
          * Environment
          * @description Máy đã chạy run. Không thuộc fingerprint.
          */
@@ -1084,7 +1314,7 @@ export interface components {
          * ErrorCode
          * @enum {string}
          */
-        ErrorCode: "not_implemented" | "unauthenticated" | "forbidden" | "not_found" | "conflict" | "invalid_request" | "invalid_credentials" | "account_pending" | "account_rejected" | "account_disabled" | "rate_limited" | "csrf_failed" | "validation_error" | "not_supported_yet" | "queue_limit_reached" | "internal_error" | "not_compliant" | "experiment_locked" | "checklist_incomplete";
+        ErrorCode: "not_implemented" | "unauthenticated" | "forbidden" | "not_found" | "conflict" | "invalid_request" | "invalid_credentials" | "account_pending" | "account_rejected" | "account_disabled" | "rate_limited" | "csrf_failed" | "validation_error" | "not_supported_yet" | "queue_limit_reached" | "internal_error" | "not_compliant" | "experiment_locked" | "checklist_incomplete" | "quick_try_busy" | "gone";
         /**
          * ErrorResponse
          * @description Body lỗi thống nhất của mọi endpoint: {"error": {"code", "message"}}.
@@ -1234,11 +1464,16 @@ export interface components {
         /**
          * ExperimentClone
          * @description `GET /experiments/{id}/clone`: cấu hình điền sẵn; spec cũ đã lên version hiện hành.
+         *
+         *     Phase R2 dùng lại cho `POST /experiments/{id}/promote` và `POST /experiments/draft`: chỉ trả
+         *     bản nháp, không tạo experiment.
          */
         ExperimentClone: {
             config: components["schemas"]["ExperimentCreate"];
             /** Warnings */
             warnings: components["schemas"]["CloneWarning"][];
+            /** Notes */
+            notes?: components["schemas"]["DraftNote"][];
         };
         /** ExperimentConfig */
         ExperimentConfig: {
@@ -1328,6 +1563,11 @@ export interface components {
              * @default null
              */
             cloned_from: string | null;
+            /**
+             * Promoted From
+             * @description Phase R2: experiment Khám phá nguồn khi nâng lên chính thức (chỉ để truy vết)
+             */
+            promoted_from?: string | null;
         };
         /** ExperimentDetail */
         ExperimentDetail: {
@@ -1356,6 +1596,8 @@ export interface components {
              * @description null khi draft, queued hoặc running
              */
             finished_at: string | null;
+            /** @description Phase R2: exploration khi và chỉ khi protocol có status dev */
+            mode: components["schemas"]["ExperimentMode"];
             config: components["schemas"]["ExperimentConfig"];
             /** Config Sha256 */
             config_sha256: string;
@@ -1409,12 +1651,125 @@ export interface components {
              */
             report: components["schemas"]["ReportView"] | null;
         };
+        /**
+         * ExperimentDraftRequest
+         * @description `POST /experiments/draft`: dựng `ExperimentCreate` từ protocol và preset, trả
+         *     `ExperimentClone`; không tạo experiment.
+         */
+        ExperimentDraftRequest: {
+            /**
+             * Protocol Id
+             * Format: uuid
+             */
+            protocol_id: string;
+            /**
+             * Preset
+             * @enum {string}
+             */
+            preset: "fast" | "standard" | "deep";
+            /**
+             * Model Version Id
+             * Format: uuid
+             */
+            model_version_id: string;
+            /**
+             * Slice Id
+             * Format: uuid
+             */
+            slice_id: string;
+            /**
+             * Class Mapping Id
+             * Format: uuid
+             */
+            class_mapping_id: string;
+            /**
+             * Compute Target Id
+             * Format: uuid
+             */
+            compute_target_id: string;
+            limit: components["schemas"]["Limit"];
+            /**
+             * Attack Spec Ids
+             * @description Chỉ với protocol dev; null là toàn bộ catalog active
+             * @default null
+             */
+            attack_spec_ids: string[] | null;
+        };
+        /**
+         * ExperimentInsight
+         * @description `GET /experiments/{id}/insight`.
+         */
+        ExperimentInsight: {
+            /**
+             * Experiment Id
+             * Format: uuid
+             */
+            experiment_id: string;
+            mode: components["schemas"]["ExperimentMode"];
+            /** Weaknesses */
+            weaknesses: components["schemas"]["Weakness"][];
+            /**
+             * Matrix
+             * @description Mỗi attack quét lưới một hàng
+             */
+            matrix: components["schemas"]["RobustnessRow"][];
+            /**
+             * Bands
+             * @description (lo, hi], theo ROBUSTNESS_BANDS
+             */
+            bands: [
+                number,
+                number
+            ][];
+            conclusion: components["schemas"]["Conclusion"];
+            /**
+             * Partial
+             * @description Có run stopped_limit hoặc experiment chưa kết thúc
+             */
+            partial: boolean;
+        };
+        /**
+         * ExperimentMode
+         * @description Suy ra từ protocol: status dev → exploration (mission.md nguyên tắc 11).
+         * @enum {string}
+         */
+        ExperimentMode: "exploration" | "official";
         /** ExperimentPage */
         ExperimentPage: {
             /** Items */
             items: components["schemas"]["ExperimentSummary"][];
             /** Next Cursor */
             next_cursor: string | null;
+        };
+        /**
+         * ExperimentPreset
+         * @description Một preset trong `contracts/seeds/experiment_presets.json`.
+         */
+        ExperimentPreset: {
+            /**
+             * Key
+             * @enum {string}
+             */
+            key: "fast" | "standard" | "deep";
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            /**
+             * Level Ratios
+             * @description Tỷ lệ trên [min, max]
+             */
+            level_ratios: number[];
+            /**
+             * Use Search
+             * @description Thêm tìm ngưỡng với attack hỗ trợ (không áp cho patch)
+             */
+            use_search: boolean;
+            /**
+             * @description Có khi và chỉ khi use_search
+             * @default null
+             */
+            search: components["schemas"]["PresetSearch"] | null;
         };
         /**
          * ExperimentStatus
@@ -1448,6 +1803,8 @@ export interface components {
              * @description null khi draft, queued hoặc running
              */
             finished_at: string | null;
+            /** @description Phase R2: exploration khi và chỉ khi protocol có status dev */
+            mode: components["schemas"]["ExperimentMode"];
         };
         /**
          * FailureCaseRecord
@@ -1903,9 +2260,10 @@ export interface components {
             name: string;
             /**
              * Framework
+             * @description Phase R2 thêm onnx (chỉ inference, supports_gradients luôn false)
              * @enum {string}
              */
-            framework: "ultralytics" | "torchvision";
+            framework: "ultralytics" | "torchvision" | "onnx";
             /** Architecture */
             architecture: string;
             /** Weights Sha256 */
@@ -1925,6 +2283,51 @@ export interface components {
             gradient_check: components["schemas"]["GradientCheck"];
             lib_versions: components["schemas"]["LibVersions"];
         };
+        /** ModelCheckPayload */
+        ModelCheckPayload: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "model_check";
+            model: components["schemas"]["ToolModel"];
+        };
+        /** ModelCheckReport */
+        ModelCheckReport: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "model_check";
+            result: components["schemas"]["ModelCheckResult"];
+        };
+        /**
+         * ModelCheckResult
+         * @description Kết quả job model_check: nạp model, so sha256, inference trên fixture, số class, kiểm
+         *     gradient (chỉ torchvision).
+         */
+        ModelCheckResult: {
+            /** Passed */
+            passed: boolean;
+            /**
+             * Details
+             * @description Lý do khi passed = false
+             * @default null
+             */
+            details: string | null;
+            /** @description null với onnx (không hỗ trợ gradient) hoặc khi dừng trước bước này */
+            gradient_check: components["schemas"]["GradientCheck"] | null;
+            /**
+             * Checked At
+             * Format: date-time
+             */
+            checked_at: string;
+            /**
+             * Worker Target Id
+             * Format: uuid
+             */
+            worker_target_id: string;
+        };
         /** ModelRef */
         ModelRef: {
             /**
@@ -1936,6 +2339,42 @@ export interface components {
             /** Name */
             name: string;
         };
+        /**
+         * ModelRegister
+         * @description `POST /models`: tạo model version `checking`, id = content_id(weights_sha256); trùng sha →
+         *     409; xếp job model_check.
+         */
+        ModelRegister: {
+            /** Name */
+            name: string;
+            /**
+             * Framework
+             * @enum {string}
+             */
+            framework: "torchvision" | "onnx";
+            /**
+             * Architecture
+             * @description torchvision: một trong TORCHVISION_ARCHITECTURES; onnx: mô tả tự do
+             */
+            architecture: string;
+            /**
+             * Upload Id
+             * Format: uuid
+             */
+            upload_id: string;
+            /**
+             * Class Names
+             * @description Theo thứ tự index của model
+             */
+            class_names: string[];
+            /** Input Size */
+            input_size: number;
+        };
+        /**
+         * ModelStatus
+         * @enum {string}
+         */
+        ModelStatus: "checking" | "check_failed" | "ready";
         /** ModelSummary */
         ModelSummary: {
             /**
@@ -1964,6 +2403,45 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /**
+             * @description Phase R2: chỉ model ready được dùng trong experiment và thử nhanh
+             * @default ready
+             */
+            status: components["schemas"]["ModelStatus"];
+            /**
+             * @description Kết quả job model_check gần nhất; null với model đăng ký qua CLI
+             * @default null
+             */
+            check: components["schemas"]["ModelCheckResult"] | null;
+        };
+        /** ModelUpload */
+        ModelUpload: {
+            /**
+             * Upload Id
+             * Format: uuid
+             */
+            upload_id: string;
+            /**
+             * Url
+             * @description Presigned PUT
+             */
+            url: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+        };
+        /**
+         * ModelUploadCreate
+         * @description `POST /models/uploads`: chỉ `.onnx` hoặc `.safetensors`, tối đa 500 MB (mission.md nguyên
+         *     tắc 10). Nội dung được kiểm tra lại khi `POST /models`.
+         */
+        ModelUploadCreate: {
+            /** Filename */
+            filename: string;
+            /** Size Bytes */
+            size_bytes: number;
         };
         /**
          * ModelVerdict
@@ -2103,13 +2581,25 @@ export interface components {
          * Permission
          * @enum {string}
          */
-        Permission: "experiment.read" | "experiment.create" | "experiment.cancel_own" | "experiment.submit_review" | "dataset.read" | "dataset.upload" | "slice.create" | "model.read" | "model.manage" | "attack_catalog.read" | "attack_catalog.manage" | "protocol.read" | "protocol.manage" | "review.decide" | "review.comment" | "report.export" | "report.read" | "user.manage" | "compute_target.read" | "compute_target.manage" | "budget.manage" | "audit.read";
+        Permission: "experiment.read" | "experiment.create" | "experiment.cancel_own" | "experiment.submit_review" | "dataset.read" | "dataset.upload" | "slice.create" | "model.read" | "model.manage" | "attack_catalog.read" | "attack_catalog.manage" | "attack_catalog.approve" | "protocol.read" | "protocol.manage" | "review.decide" | "review.comment" | "report.export" | "report.read" | "user.manage" | "compute_target.read" | "compute_target.manage" | "budget.manage" | "audit.read" | "quick_try.use";
         /**
          * PerturbationImageKind
          * @description Nội dung ảnh thứ ba của failure case (Phase 6).
          * @enum {string}
          */
         PerturbationImageKind: "amplified_noise" | "difference" | "patch_location";
+        /**
+         * PresetSearch
+         * @description Tìm ngưỡng mà preset thêm vào (deep); dải [lo, hi] là [min, max] của spec, tol theo wizard
+         *     (hi - lo) / 256.
+         */
+        PresetSearch: {
+            threshold_kind: components["schemas"]["ThresholdKind"];
+            /** Threshold */
+            threshold: number;
+            /** Subset Size */
+            subset_size: number;
+        };
         /** PrimaryParam */
         PrimaryParam: {
             /** Name */
@@ -2183,6 +2673,17 @@ export interface components {
              * @default null
              */
             iterations_total: number | null;
+        };
+        /**
+         * PromoteRequest
+         * @description `POST /experiments/{id}/promote`: trả `ExperimentClone`, không tạo experiment.
+         */
+        PromoteRequest: {
+            /**
+             * Protocol Id
+             * Format: uuid
+             */
+            protocol_id: string;
         };
         /**
          * ProtocolBody
@@ -2262,6 +2763,31 @@ export interface components {
             body_sha256: string;
         };
         /**
+         * ProtocolTemplate
+         * @description Một template trong `contracts/seeds/protocol_templates.json`; không bao giờ tự tạo
+         *     protocol (`GET /protocol-templates/{key}/draft` trả `ProtocolCreate`).
+         */
+        ProtocolTemplate: {
+            /**
+             * Key
+             * @enum {string}
+             */
+            key: "quick" | "front_camera" | "weather" | "full";
+            /** Title */
+            title: string;
+            /** Description */
+            description: string;
+            /** Attacks */
+            attacks: components["schemas"]["TemplateAttack"][];
+            /**
+             * Strictness
+             * @enum {string}
+             */
+            strictness: "lenient" | "standard" | "strict";
+            /** Min Slice Size */
+            min_slice_size: number;
+        };
+        /**
          * ProtocolVersionCreate
          * @description `POST /protocols/{id}/versions`: version mới cùng `name`, chỉ tạo từ version mới nhất (409
          *     nếu không); version cũ chuyển `retired` trong cùng giao dịch (kickoff Group 0).
@@ -2307,6 +2833,191 @@ export interface components {
              * @description Tổng ước lượng còn lại của các experiment đứng trước (bỏ phần không ước lượng được)
              */
             ahead_seconds: number;
+        };
+        /**
+         * QuickTryCreate
+         * @description Các field form của `POST /quick-tries` (multipart, cộng file `image` là ảnh JPEG/PNG
+         *     ≤ 10 MB, cạnh dài ≤ 4096 px).
+         */
+        QuickTryCreate: {
+            /**
+             * Model Version Id
+             * Format: uuid
+             */
+            model_version_id: string;
+            /**
+             * Attack Spec Id
+             * Format: uuid
+             */
+            attack_spec_id: string;
+            /**
+             * Preset
+             * @default standard
+             * @enum {string}
+             */
+            preset: "fast" | "standard" | "deep";
+        };
+        /** QuickTryLevel */
+        QuickTryLevel: {
+            /** Level */
+            level: number;
+            /**
+             * Label
+             * @description Nhãn từ metadata của spec
+             */
+            label: string | null;
+            /**
+             * Image Url
+             * @description Ảnh bị tấn công, đã làm mờ (như ảnh failure case)
+             */
+            image_url: string;
+            /** Objects */
+            objects: components["schemas"]["QuickTryObject"][];
+        };
+        /** QuickTryLevelReport */
+        QuickTryLevelReport: {
+            /** Level */
+            level: number;
+            /** Objects */
+            objects: components["schemas"]["QuickTryObject"][];
+        };
+        /**
+         * QuickTryObject
+         * @description Một object, ghép theo IoU ≥ 0.5 cùng class giữa ảnh sạch và ảnh bị tấn công.
+         */
+        QuickTryObject: {
+            /**
+             * Bbox
+             * @description xyxy letterbox; object new lấy box trên ảnh bị tấn công
+             */
+            bbox: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /** Class Name */
+            class_name: string;
+            /**
+             * Clean Score
+             * @description null khi status = new
+             */
+            clean_score: number | null;
+            /**
+             * Attacked Score
+             * @description null khi status = lost
+             */
+            attacked_score: number | null;
+            status: components["schemas"]["QuickTryObjectStatus"];
+        };
+        /**
+         * QuickTryObjectStatus
+         * @enum {string}
+         */
+        QuickTryObjectStatus: "kept" | "lost" | "new";
+        /** QuickTryPayload */
+        QuickTryPayload: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "quick_try";
+            /**
+             * Quick Try Id
+             * Format: uuid
+             */
+            quick_try_id: string;
+            model: components["schemas"]["ToolModel"];
+            spec: components["schemas"]["AttackSpec"];
+            /** Levels */
+            levels: number[];
+            /**
+             * Image Url
+             * @description Ảnh gốc (chưa làm mờ)
+             */
+            image_url: string;
+            /**
+             * Clean Upload Url
+             * @description PUT ảnh sạch đã letterbox và làm mờ
+             */
+            clean_upload_url: string;
+            /**
+             * Level Upload Urls
+             * @description PUT ảnh bị tấn công đã làm mờ, cùng thứ tự levels
+             */
+            level_upload_urls: string[];
+        };
+        /**
+         * QuickTryReport
+         * @description Ảnh đã PUT lên các URL trong payload trước khi gửi report.
+         */
+        QuickTryReport: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "quick_try";
+            /** Levels */
+            levels: components["schemas"]["QuickTryLevelReport"][];
+        };
+        /**
+         * QuickTryView
+         * @description `POST /quick-tries` (202) và `GET /quick-tries/{id}`; hết hạn thì `GET` trả 410.
+         */
+        QuickTryView: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            status: components["schemas"]["ToolJobStatus"];
+            /**
+             * Not A Test Result
+             * @description Luôn true: không phải kết quả kiểm thử
+             * @default true
+             * @constant
+             */
+            not_a_test_result: true;
+            /**
+             * Model Version Id
+             * Format: uuid
+             */
+            model_version_id: string;
+            /**
+             * Attack Spec Id
+             * Format: uuid
+             */
+            attack_spec_id: string;
+            /**
+             * Preset
+             * @enum {string}
+             */
+            preset: "fast" | "standard" | "deep";
+            /**
+             * Clean Image Url
+             * @description Ảnh sạch đã letterbox và làm mờ; có khi và chỉ khi completed. Ảnh gốc chưa làm mờ không bao giờ được phục vụ qua API
+             */
+            clean_image_url: string | null;
+            /**
+             * Levels
+             * @description Rỗng khi chưa completed
+             */
+            levels: components["schemas"]["QuickTryLevel"][];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /**
+             * Error
+             * @description Có khi và chỉ khi failed
+             */
+            error: string | null;
         };
         /** RejectRequest */
         RejectRequest: {
@@ -3037,6 +3748,33 @@ export interface components {
             /** Comments Count */
             comments_count: number;
         };
+        /** RobustnessCell */
+        RobustnessCell: {
+            /**
+             * Band
+             * @description Chỉ số trong bands
+             */
+            band: number;
+            /**
+             * Max Relative Drop
+             * @description null khi dải không có run có metric
+             */
+            max_relative_drop: number | null;
+            /** Runs */
+            runs: number;
+        };
+        /** RobustnessRow */
+        RobustnessRow: {
+            /**
+             * Attack Spec Id
+             * Format: uuid
+             */
+            attack_spec_id: string;
+            /** Attack Name */
+            attack_name: string;
+            /** Cells */
+            cells: components["schemas"]["RobustnessCell"][];
+        };
         /**
          * Role
          * @enum {string}
@@ -3686,6 +4424,77 @@ export interface components {
              */
             classes: string[];
         };
+        /** SpecCheckItem */
+        SpecCheckItem: {
+            name: components["schemas"]["SpecCheckName"];
+            /** Passed */
+            passed: boolean;
+            /**
+             * Details
+             * @description Lý do khi fail; lý do bỏ qua khi passed mà không áp dụng
+             * @default null
+             */
+            details: string | null;
+        };
+        /**
+         * SpecCheckName
+         * @description Bảy mục tự kiểm tra spec, theo thứ tự (requirements.md Phase R2).
+         * @enum {string}
+         */
+        SpecCheckName: "runs" | "value_range" | "pad_unchanged" | "identity" | "batch_invariant" | "norm_bound" | "deterministic";
+        /** SpecCheckPayload */
+        SpecCheckPayload: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "spec_check";
+            spec: components["schemas"]["AttackSpec"];
+        };
+        /** SpecCheckReport */
+        SpecCheckReport: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "spec_check";
+            result: components["schemas"]["SpecCheckResult"];
+        };
+        /**
+         * SpecCheckResult
+         * @description Kết quả job spec_check (`attacks/selfcheck.py`, requirements.md Phase R2).
+         *
+         *     `items` theo thứ tự `SpecCheckName`; quá giờ hoặc lỗi giữa chừng thì có thể thiếu mục, khi đó
+         *     `error` ghi lý do và `passed = false`.
+         */
+        SpecCheckResult: {
+            /**
+             * Spec Id
+             * Format: uuid
+             */
+            spec_id: string;
+            /** Items */
+            items: components["schemas"]["SpecCheckItem"][];
+            /** Passed */
+            passed: boolean;
+            /**
+             * Error
+             * @description Quá 120 giây hoặc lỗi ngoài các mục
+             * @default null
+             */
+            error: string | null;
+            /**
+             * Checked At
+             * Format: date-time
+             */
+            checked_at: string;
+            /**
+             * Worker Target Id
+             * Format: uuid
+             * @description Compute target của worker đã chạy kiểm tra
+             */
+            worker_target_id: string;
+        };
         /** StatusReason */
         StatusReason: {
             /** Code */
@@ -3739,6 +4548,39 @@ export interface components {
                 [key: string]: string;
             };
         };
+        /** TemplateAttack */
+        TemplateAttack: {
+            /** Attack Spec Name */
+            attack_spec_name: string;
+            mode: components["schemas"]["RunMode"];
+            /** @default null */
+            grid: components["schemas"]["TemplateGrid"] | null;
+            /** @default null */
+            search: components["schemas"]["TemplateSearch"] | null;
+        };
+        /** TemplateGrid */
+        TemplateGrid: {
+            /**
+             * Level Ratios
+             * @description Tỷ lệ trên [min, max] của primary_param; level bắt buộc
+             */
+            level_ratios: number[];
+        };
+        /** TemplateSearch */
+        TemplateSearch: {
+            threshold_kind: components["schemas"]["ThresholdKind"];
+            /** Threshold */
+            threshold: number;
+            /** Lo Ratio */
+            lo_ratio: number;
+            /** Hi Ratio */
+            hi_ratio: number;
+            /**
+             * Max Tol Ratio
+             * @description max_tol = max_tol_ratio · (hi - lo)
+             */
+            max_tol_ratio: number;
+        };
         /**
          * ThresholdKind
          * @enum {string}
@@ -3750,6 +4592,129 @@ export interface components {
             total_s: number;
             /** Sec Per Image */
             sec_per_image: number;
+        };
+        /** ToolHeartbeat */
+        ToolHeartbeat: {
+            /**
+             * Lease Id
+             * Format: uuid
+             */
+            lease_id: string;
+        };
+        /**
+         * ToolJobBundle
+         * @description `GET /internal/worker/tool-jobs/{id}`; presigned URL hết hạn sau 15 phút.
+         */
+        ToolJobBundle: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /**
+             * Job Id
+             * Format: uuid
+             */
+            job_id: string;
+            /** Payload */
+            payload: components["schemas"]["SpecCheckPayload"] | components["schemas"]["ModelCheckPayload"] | components["schemas"]["QuickTryPayload"];
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+        };
+        /**
+         * ToolJobKind
+         * @description Job công cụ của worker `--tools`; thứ tự lease: quick_try, rồi model_check và spec_check
+         *     theo thứ tự tạo.
+         * @enum {string}
+         */
+        ToolJobKind: "spec_check" | "model_check" | "quick_try";
+        /**
+         * ToolJobResult
+         * @description `POST /internal/worker/tool-jobs/{id}/result`: đúng một trong `report` hoặc `error`.
+         *
+         *     `error` là lỗi hạ tầng (không nạp được tài nguyên, ngoại lệ); kiểm tra fail vẫn gửi `report`
+         *     với `passed = false`.
+         */
+        ToolJobResult: {
+            /**
+             * Lease Id
+             * Format: uuid
+             */
+            lease_id: string;
+            /**
+             * Report
+             * @default null
+             */
+            report: (components["schemas"]["SpecCheckReport"] | components["schemas"]["ModelCheckReport"] | components["schemas"]["QuickTryReport"]) | null;
+            /**
+             * Error
+             * @default null
+             */
+            error: string | null;
+        };
+        /**
+         * ToolJobStatus
+         * @enum {string}
+         */
+        ToolJobStatus: "queued" | "running" | "completed" | "failed";
+        /**
+         * ToolLease
+         * @description Trả về từ `POST /internal/worker/tool-lease` (không có job thì `204`).
+         */
+        ToolLease: {
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            kind: components["schemas"]["ToolJobKind"];
+            /**
+             * Job Id
+             * Format: uuid
+             */
+            job_id: string;
+            /**
+             * Lease Id
+             * Format: uuid
+             * @description Đổi mỗi lần lease; gửi kèm mọi request sau đó
+             */
+            lease_id: string;
+            /**
+             * Lease Expires At
+             * Format: date-time
+             */
+            lease_expires_at: string;
+        };
+        /**
+         * ToolModel
+         * @description Model cần nạp cho job công cụ (presigned GET cho weights).
+         */
+        ToolModel: {
+            /**
+             * Model Version Id
+             * Format: uuid
+             */
+            model_version_id: string;
+            /**
+             * Framework
+             * @enum {string}
+             */
+            framework: "ultralytics" | "torchvision" | "onnx";
+            /** Architecture */
+            architecture: string;
+            /** Weights Sha256 */
+            weights_sha256: string;
+            /** Class Names */
+            class_names: string[];
+            /** Input Size */
+            input_size: number;
+            /** Weights Url */
+            weights_url: string;
         };
         /**
          * TrainingParams
@@ -3899,6 +4864,56 @@ export interface components {
             /** Pdf Sha256 */
             pdf_sha256: string;
         };
+        /**
+         * Weakness
+         * @description Một điểm yếu (requirements.md Phase R2, Behaviour Insight).
+         */
+        Weakness: {
+            /**
+             * Attack Spec Id
+             * Format: uuid
+             */
+            attack_spec_id: string;
+            /** Attack Name */
+            attack_name: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "grid" | "search";
+            /** Level */
+            level: number;
+            /**
+             * Level Ratio
+             * @description level / primary_param.max
+             */
+            level_ratio: number;
+            /**
+             * Level Label
+             * @description Nhãn từ metadata của spec; null khi không có
+             */
+            level_label: string | null;
+            /**
+             * Relative Drop
+             * @description grid: mức sụt mAP@0.5 tương đối tại level
+             */
+            relative_drop: number | null;
+            /**
+             * Breaking Point
+             * @description search: điểm gãy found
+             */
+            breaking_point: number | null;
+            /**
+             * Class Name
+             * @description Class sụt AP50 tương đối nhiều nhất tại level; null khi không xác định
+             */
+            class_name: string | null;
+            /**
+             * Class Relative Drop
+             * @description Mức sụt AP50 tương đối của class_name; null khi class_name null
+             */
+            class_relative_drop: number | null;
+        };
         /** WorkerDirective */
         WorkerDirective: {
             /**
@@ -3998,7 +5013,7 @@ export interface components {
          * Permission
          * @enum {string}
          */
-        _P: "experiment.read" | "experiment.create" | "experiment.cancel_own" | "experiment.submit_review" | "dataset.read" | "dataset.upload" | "slice.create" | "model.read" | "model.manage" | "attack_catalog.read" | "attack_catalog.manage" | "protocol.read" | "protocol.manage" | "review.decide" | "review.comment" | "report.export" | "report.read" | "user.manage" | "compute_target.read" | "compute_target.manage" | "budget.manage" | "audit.read";
+        _P: "experiment.read" | "experiment.create" | "experiment.cancel_own" | "experiment.submit_review" | "dataset.read" | "dataset.upload" | "slice.create" | "model.read" | "model.manage" | "attack_catalog.read" | "attack_catalog.manage" | "attack_catalog.approve" | "protocol.read" | "protocol.manage" | "review.decide" | "review.comment" | "report.export" | "report.read" | "user.manage" | "compute_target.read" | "compute_target.manage" | "budget.manage" | "audit.read" | "quick_try.use";
     };
     responses: never;
     parameters: never;
@@ -4011,12 +5026,19 @@ export type ApproveRequest = components['schemas']['ApproveRequest'];
 export type ArtifactUrlRequest = components['schemas']['ArtifactUrlRequest'];
 export type ArtifactUrlResponse = components['schemas']['ArtifactUrlResponse'];
 export type AttackAccess = components['schemas']['AttackAccess'];
+export type AttackAdapterInfo = components['schemas']['AttackAdapterInfo'];
 export type AttackConfig = components['schemas']['AttackConfig'];
 export type AttackKind = components['schemas']['AttackKind'];
 export type AttackRankingEntry = components['schemas']['AttackRankingEntry'];
 export type AttackSpec = components['schemas']['AttackSpec'];
 export type AttackSpecAdminPage = components['schemas']['AttackSpecAdminPage'];
 export type AttackSpecAdminView = components['schemas']['AttackSpecAdminView'];
+export type AttackSpecBody = components['schemas']['AttackSpecBody'];
+export type AttackSpecCreate = components['schemas']['AttackSpecCreate'];
+export type AttackSpecMetadata = components['schemas']['AttackSpecMetadata'];
+export type AttackSpecReject = components['schemas']['AttackSpecReject'];
+export type AttackSpecStatus = components['schemas']['AttackSpecStatus'];
+export type AttackSpecView = components['schemas']['AttackSpecView'];
 export type AuditActor = components['schemas']['AuditActor'];
 export type AuditLogEntry = components['schemas']['AuditLogEntry'];
 export type AuditLogPage = components['schemas']['AuditLogPage'];
@@ -4050,6 +5072,8 @@ export type ComplianceItem = components['schemas']['ComplianceItem'];
 export type ComputeKind = components['schemas']['ComputeKind'];
 export type ComputeTargetPublic = components['schemas']['ComputeTargetPublic'];
 export type ComputeTargetRef = components['schemas']['ComputeTargetRef'];
+export type Conclusion = components['schemas']['Conclusion'];
+export type ConclusionCode = components['schemas']['ConclusionCode'];
 export type ConverterInfo = components['schemas']['ConverterInfo'];
 export type Cost = components['schemas']['Cost'];
 export type CostModel = components['schemas']['CostModel'];
@@ -4063,6 +5087,7 @@ export type DatasetVersionSummary = components['schemas']['DatasetVersionSummary
 export type DependencyStatus = components['schemas']['DependencyStatus'];
 export type DifficultyFilter = components['schemas']['DifficultyFilter'];
 export type DisplayMode = components['schemas']['DisplayMode'];
+export type DraftNote = components['schemas']['DraftNote'];
 export type Environment = components['schemas']['Environment'];
 export type ErrorBody = components['schemas']['ErrorBody'];
 export type ErrorCode = components['schemas']['ErrorCode'];
@@ -4078,7 +5103,11 @@ export type ExperimentClone = components['schemas']['ExperimentClone'];
 export type ExperimentConfig = components['schemas']['ExperimentConfig'];
 export type ExperimentCreate = components['schemas']['ExperimentCreate'];
 export type ExperimentDetail = components['schemas']['ExperimentDetail'];
+export type ExperimentDraftRequest = components['schemas']['ExperimentDraftRequest'];
+export type ExperimentInsight = components['schemas']['ExperimentInsight'];
+export type ExperimentMode = components['schemas']['ExperimentMode'];
 export type ExperimentPage = components['schemas']['ExperimentPage'];
+export type ExperimentPreset = components['schemas']['ExperimentPreset'];
 export type ExperimentStatus = components['schemas']['ExperimentStatus'];
 export type ExperimentSummary = components['schemas']['ExperimentSummary'];
 export type FailureCaseRecord = components['schemas']['FailureCaseRecord'];
@@ -4105,8 +5134,15 @@ export type ManifestSource = components['schemas']['ManifestSource'];
 export type MapPair = components['schemas']['MapPair'];
 export type Me = components['schemas']['Me'];
 export type ModelCard = components['schemas']['ModelCard'];
+export type ModelCheckPayload = components['schemas']['ModelCheckPayload'];
+export type ModelCheckReport = components['schemas']['ModelCheckReport'];
+export type ModelCheckResult = components['schemas']['ModelCheckResult'];
 export type ModelRef = components['schemas']['ModelRef'];
+export type ModelRegister = components['schemas']['ModelRegister'];
+export type ModelStatus = components['schemas']['ModelStatus'];
 export type ModelSummary = components['schemas']['ModelSummary'];
+export type ModelUpload = components['schemas']['ModelUpload'];
+export type ModelUploadCreate = components['schemas']['ModelUploadCreate'];
 export type ModelVerdict = components['schemas']['ModelVerdict'];
 export type PassCriterion = components['schemas']['PassCriterion'];
 export type PasswordChange = components['schemas']['PasswordChange'];
@@ -4116,17 +5152,28 @@ export type PatchArtifact = components['schemas']['PatchArtifact'];
 export type PatchRegistration = components['schemas']['PatchRegistration'];
 export type Permission = components['schemas']['Permission'];
 export type PerturbationImageKind = components['schemas']['PerturbationImageKind'];
+export type PresetSearch = components['schemas']['PresetSearch'];
 export type PrimaryParam = components['schemas']['PrimaryParam'];
 export type Progress = components['schemas']['Progress'];
 export type ProgressReport = components['schemas']['ProgressReport'];
+export type PromoteRequest = components['schemas']['PromoteRequest'];
 export type ProtocolBody = components['schemas']['ProtocolBody'];
 export type ProtocolCreate = components['schemas']['ProtocolCreate'];
 export type ProtocolRef = components['schemas']['ProtocolRef'];
 export type ProtocolStatus = components['schemas']['ProtocolStatus'];
 export type ProtocolSummary = components['schemas']['ProtocolSummary'];
+export type ProtocolTemplate = components['schemas']['ProtocolTemplate'];
 export type ProtocolVersionCreate = components['schemas']['ProtocolVersionCreate'];
 export type ProtocolView = components['schemas']['ProtocolView'];
 export type QueueEstimate = components['schemas']['QueueEstimate'];
+export type QuickTryCreate = components['schemas']['QuickTryCreate'];
+export type QuickTryLevel = components['schemas']['QuickTryLevel'];
+export type QuickTryLevelReport = components['schemas']['QuickTryLevelReport'];
+export type QuickTryObject = components['schemas']['QuickTryObject'];
+export type QuickTryObjectStatus = components['schemas']['QuickTryObjectStatus'];
+export type QuickTryPayload = components['schemas']['QuickTryPayload'];
+export type QuickTryReport = components['schemas']['QuickTryReport'];
+export type QuickTryView = components['schemas']['QuickTryView'];
 export type RejectRequest = components['schemas']['RejectRequest'];
 export type ReportAttackSpec = components['schemas']['ReportAttackSpec'];
 export type ReportCase = components['schemas']['ReportCase'];
@@ -4164,6 +5211,8 @@ export type ReviewDecisionInput = components['schemas']['ReviewDecisionInput'];
 export type ReviewQueueFilter = components['schemas']['ReviewQueueFilter'];
 export type ReviewQueueItem = components['schemas']['ReviewQueueItem'];
 export type ReviewView = components['schemas']['ReviewView'];
+export type RobustnessCell = components['schemas']['RobustnessCell'];
+export type RobustnessRow = components['schemas']['RobustnessRow'];
 export type Role = components['schemas']['Role'];
 export type RolesUpdate = components['schemas']['RolesUpdate'];
 export type RunAttackSpec = components['schemas']['RunAttackSpec'];
@@ -4191,13 +5240,28 @@ export type SliceFilter = components['schemas']['SliceFilter'];
 export type SliceRef = components['schemas']['SliceRef'];
 export type SliceSpec = components['schemas']['SliceSpec'];
 export type SliceSummary = components['schemas']['SliceSummary'];
+export type SpecCheckItem = components['schemas']['SpecCheckItem'];
+export type SpecCheckName = components['schemas']['SpecCheckName'];
+export type SpecCheckPayload = components['schemas']['SpecCheckPayload'];
+export type SpecCheckReport = components['schemas']['SpecCheckReport'];
+export type SpecCheckResult = components['schemas']['SpecCheckResult'];
 export type StatusReason = components['schemas']['StatusReason'];
 export type StopReason = components['schemas']['StopReason'];
 export type SubmitCheckCode = components['schemas']['SubmitCheckCode'];
 export type SubmitCheckItem = components['schemas']['SubmitCheckItem'];
 export type SubmitForReview = components['schemas']['SubmitForReview'];
+export type TemplateAttack = components['schemas']['TemplateAttack'];
+export type TemplateGrid = components['schemas']['TemplateGrid'];
+export type TemplateSearch = components['schemas']['TemplateSearch'];
 export type ThresholdKind = components['schemas']['ThresholdKind'];
 export type Timing = components['schemas']['Timing'];
+export type ToolHeartbeat = components['schemas']['ToolHeartbeat'];
+export type ToolJobBundle = components['schemas']['ToolJobBundle'];
+export type ToolJobKind = components['schemas']['ToolJobKind'];
+export type ToolJobResult = components['schemas']['ToolJobResult'];
+export type ToolJobStatus = components['schemas']['ToolJobStatus'];
+export type ToolLease = components['schemas']['ToolLease'];
+export type ToolModel = components['schemas']['ToolModel'];
 export type TrainingParams = components['schemas']['TrainingParams'];
 export type TrajectoryPoint = components['schemas']['TrajectoryPoint'];
 export type UserAdminPage = components['schemas']['UserAdminPage'];
@@ -4205,6 +5269,7 @@ export type UserAdminView = components['schemas']['UserAdminView'];
 export type UserRef = components['schemas']['UserRef'];
 export type UserStatus = components['schemas']['UserStatus'];
 export type VerifyInfo = components['schemas']['VerifyInfo'];
+export type Weakness = components['schemas']['Weakness'];
 export type WorkerDirective = components['schemas']['WorkerDirective'];
 export type WorkerJobBundle = components['schemas']['WorkerJobBundle'];
 export type WorkerLease = components['schemas']['WorkerLease'];
@@ -4222,6 +5287,8 @@ export const artifactUrlRequestMethodValues: ReadonlyArray<FlattenedDeepRequired
 export const artifactUrlResponseMethodValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ArtifactUrlResponse"]["method"]> = ["PUT", "GET", "DELETE"];
 export const attackAccessValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["AttackAccess"]> = ["white_box", "black_box", "not_applicable"];
 export const attackKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["AttackKind"]> = ["attack", "corruption", "occlusion"];
+export const attackSpecMetadataRealismValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["AttackSpecMetadata"]["realism"]> = ["low", "medium", "high"];
+export const attackSpecStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["AttackSpecStatus"]> = ["draft", "checking", "check_failed", "pending_approval", "active", "retired"];
 export const billingModeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["BillingMode"]> = ["none", "hourly"];
 export const caseSeverityValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["CaseSeverity"]> = ["critical", "major", "minor", "acceptable"];
 export const caseVerdictKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["CaseVerdictKind"]> = ["safety_relevant", "acceptable", "annotation_issue"];
@@ -4229,21 +5296,36 @@ export const checklistCodeValues: ReadonlyArray<FlattenedDeepRequired<components
 export const commentTargetTypeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["CommentTargetType"]> = ["experiment", "run", "failure_case"];
 export const complianceCodeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ComplianceCode"]> = ["protocol_active", "attack_present", "spec_sha256", "mode", "grid_levels", "search_threshold", "search_range", "search_tol", "search_bootstrap", "min_slice_size", "model_gradients"];
 export const computeKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ComputeKind"]> = ["local", "rented"];
+export const conclusionCodeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ConclusionCode"]> = ["no_data", "robust", "weak", "weak_class"];
 export const criterionKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["CriterionKind"]> = ["max_drop_at_level", "min_breaking_point"];
 export const criterionStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["CriterionStatus"]> = ["pass", "fail", "inconclusive"];
 export const displayModeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["DisplayMode"]> = ["normal", "hidden_unanonymized", "dev_unblurred"];
-export const errorCodeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ErrorCode"]> = ["not_implemented", "unauthenticated", "forbidden", "not_found", "conflict", "invalid_request", "invalid_credentials", "account_pending", "account_rejected", "account_disabled", "rate_limited", "csrf_failed", "validation_error", "not_supported_yet", "queue_limit_reached", "internal_error", "not_compliant", "experiment_locked", "checklist_incomplete"];
+export const errorCodeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ErrorCode"]> = ["not_implemented", "unauthenticated", "forbidden", "not_found", "conflict", "invalid_request", "invalid_credentials", "account_pending", "account_rejected", "account_disabled", "rate_limited", "csrf_failed", "validation_error", "not_supported_yet", "queue_limit_reached", "internal_error", "not_compliant", "experiment_locked", "checklist_incomplete", "quick_try_busy", "gone"];
 export const evalScopeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["EvalScope"]> = ["full", "subset"];
+export const experimentDraftRequestPresetValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ExperimentDraftRequest"]["preset"]> = ["fast", "standard", "deep"];
+export const experimentModeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ExperimentMode"]> = ["exploration", "official"];
+export const experimentPresetKeyValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ExperimentPreset"]["key"]> = ["fast", "standard", "deep"];
 export const experimentStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ExperimentStatus"]> = ["draft", "queued", "running", "completed", "submitted_for_review", "in_review", "approved", "changes_requested", "rejected", "cancelled"];
 export const healthResponseStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["HealthResponse"]["status"]> = ["ok", "degraded"];
 export const limitKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["LimitKind"]> = ["budget", "time"];
 export const manifestSourceFormatValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ManifestSource"]["format"]> = ["kitti", "yolo", "coco"];
-export const modelCardFrameworkValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ModelCard"]["framework"]> = ["ultralytics", "torchvision"];
+export const modelCardFrameworkValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ModelCard"]["framework"]> = ["ultralytics", "torchvision", "onnx"];
+export const modelCheckPayloadKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ModelCheckPayload"]["kind"]> = ["model_check"];
+export const modelCheckReportKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ModelCheckReport"]["kind"]> = ["model_check"];
+export const modelRegisterFrameworkValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ModelRegister"]["framework"]> = ["torchvision", "onnx"];
+export const modelStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ModelStatus"]> = ["checking", "check_failed", "ready"];
 export const modelVerdictValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ModelVerdict"]> = ["meets_criteria", "does_not_meet", "conditional"];
-export const permissionValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["Permission"]> = ["experiment.read", "experiment.create", "experiment.cancel_own", "experiment.submit_review", "dataset.read", "dataset.upload", "slice.create", "model.read", "model.manage", "attack_catalog.read", "attack_catalog.manage", "protocol.read", "protocol.manage", "review.decide", "review.comment", "report.export", "report.read", "user.manage", "compute_target.read", "compute_target.manage", "budget.manage", "audit.read"];
+export const permissionValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["Permission"]> = ["experiment.read", "experiment.create", "experiment.cancel_own", "experiment.submit_review", "dataset.read", "dataset.upload", "slice.create", "model.read", "model.manage", "attack_catalog.read", "attack_catalog.manage", "attack_catalog.approve", "protocol.read", "protocol.manage", "review.decide", "review.comment", "report.export", "report.read", "user.manage", "compute_target.read", "compute_target.manage", "budget.manage", "audit.read", "quick_try.use"];
 export const perturbationImageKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["PerturbationImageKind"]> = ["amplified_noise", "difference", "patch_location"];
 export const primaryParamTypeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["PrimaryParam"]["type"]> = ["continuous", "discrete"];
 export const protocolStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ProtocolStatus"]> = ["active", "retired", "dev"];
+export const protocolTemplateKeyValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ProtocolTemplate"]["key"]> = ["quick", "front_camera", "weather", "full"];
+export const protocolTemplateStrictnessValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ProtocolTemplate"]["strictness"]> = ["lenient", "standard", "strict"];
+export const quickTryCreatePresetValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["QuickTryCreate"]["preset"]> = ["fast", "standard", "deep"];
+export const quickTryObjectStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["QuickTryObjectStatus"]> = ["kept", "lost", "new"];
+export const quickTryPayloadKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["QuickTryPayload"]["kind"]> = ["quick_try"];
+export const quickTryReportKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["QuickTryReport"]["kind"]> = ["quick_try"];
+export const quickTryViewPresetValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["QuickTryView"]["preset"]> = ["fast", "standard", "deep"];
 export const reportDownloadFormatValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ReportDownload"]["format"]> = ["pdf", "json"];
 export const reportNoteCodeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ReportNoteCode"]> = ["test_environment_only", "input_space", "occlusion_stress", "patch_fixed_position", "anonymization", "git_dirty", "excluded_classes"];
 export const reportStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ReportStatus"]> = ["generating", "ready", "failed"];
@@ -4259,11 +5341,18 @@ export const searchResultMetric_kindValues: ReadonlyArray<FlattenedDeepRequired<
 export const searchStageValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["SearchStage"]> = ["coarse", "bisect_subset", "confirm", "bisect_full", "done"];
 export const searchStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["SearchStatus"]> = ["found", "not_reached", "below_min", "stopped_limit", "non_monotonic", "failed"];
 export const skipReasonValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["SkipReason"]> = ["cached", "incompatible", "early_stop"];
+export const specCheckNameValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["SpecCheckName"]> = ["runs", "value_range", "pad_unchanged", "identity", "batch_invariant", "norm_bound", "deterministic"];
+export const specCheckPayloadKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["SpecCheckPayload"]["kind"]> = ["spec_check"];
+export const specCheckReportKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["SpecCheckReport"]["kind"]> = ["spec_check"];
 export const statusReasonCodeAnyOf2Values: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["StatusReason"]["code"]> = ["error", "cancelled"];
 export const stopReasonValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["StopReason"]> = ["budget", "time"];
 export const submitCheckCodeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["SubmitCheckCode"]> = ["experiment_completed", "protocol_not_dev", "runs_final", "no_dirty_runs", "required_cases_visible"];
 export const thresholdKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ThresholdKind"]> = ["relative_drop", "absolute_drop", "attack_success_rate"];
+export const toolJobKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ToolJobKind"]> = ["spec_check", "model_check", "quick_try"];
+export const toolJobStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ToolJobStatus"]> = ["queued", "running", "completed", "failed"];
+export const toolModelFrameworkValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ToolModel"]["framework"]> = ["ultralytics", "torchvision", "onnx"];
 export const userStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["UserStatus"]> = ["pending", "active", "rejected", "disabled"];
+export const weaknessKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["Weakness"]["kind"]> = ["grid", "search"];
 export const workerDirectiveActionValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["WorkerDirective"]["action"]> = ["continue", "cancel", "stop_limit"];
-export const _PValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["_P"]> = ["experiment.read", "experiment.create", "experiment.cancel_own", "experiment.submit_review", "dataset.read", "dataset.upload", "slice.create", "model.read", "model.manage", "attack_catalog.read", "attack_catalog.manage", "protocol.read", "protocol.manage", "review.decide", "review.comment", "report.export", "report.read", "user.manage", "compute_target.read", "compute_target.manage", "budget.manage", "audit.read"];
+export const _PValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["_P"]> = ["experiment.read", "experiment.create", "experiment.cancel_own", "experiment.submit_review", "dataset.read", "dataset.upload", "slice.create", "model.read", "model.manage", "attack_catalog.read", "attack_catalog.manage", "attack_catalog.approve", "protocol.read", "protocol.manage", "review.decide", "review.comment", "report.export", "report.read", "user.manage", "compute_target.read", "compute_target.manage", "budget.manage", "audit.read", "quick_try.use"];
 export type operations = Record<string, never>;

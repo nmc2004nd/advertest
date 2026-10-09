@@ -1,0 +1,102 @@
+{
+  "$defs": {
+    "PresetSearch": {
+      "additionalProperties": false,
+      "description": "Tìm ngưỡng mà preset thêm vào (deep); dải [lo, hi] là [min, max] của spec, tol theo wizard\n(hi - lo) / 256.",
+      "properties": {
+        "threshold_kind": {
+          "$ref": "#/$defs/ThresholdKind"
+        },
+        "threshold": {
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Threshold",
+          "type": "number"
+        },
+        "subset_size": {
+          "minimum": 2,
+          "title": "Subset Size",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "threshold_kind",
+        "threshold",
+        "subset_size"
+      ],
+      "title": "PresetSearch",
+      "type": "object"
+    },
+    "ThresholdKind": {
+      "enum": [
+        "relative_drop",
+        "absolute_drop",
+        "attack_success_rate"
+      ],
+      "title": "ThresholdKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Một preset trong `contracts/seeds/experiment_presets.json`.",
+  "properties": {
+    "key": {
+      "enum": [
+        "fast",
+        "standard",
+        "deep"
+      ],
+      "title": "Key",
+      "type": "string"
+    },
+    "title": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "description": {
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Description",
+      "type": "string"
+    },
+    "level_ratios": {
+      "description": "Tỷ lệ trên [min, max]",
+      "items": {
+        "maximum": 1.0,
+        "minimum": 0.0,
+        "type": "number"
+      },
+      "minItems": 1,
+      "title": "Level Ratios",
+      "type": "array"
+    },
+    "use_search": {
+      "description": "Thêm tìm ngưỡng với attack hỗ trợ (không áp cho patch)",
+      "title": "Use Search",
+      "type": "boolean"
+    },
+    "search": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PresetSearch"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Có khi và chỉ khi use_search"
+    }
+  },
+  "required": [
+    "key",
+    "title",
+    "description",
+    "level_ratios",
+    "use_search"
+  ],
+  "title": "ExperimentPreset",
+  "type": "object"
+}

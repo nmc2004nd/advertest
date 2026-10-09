@@ -177,7 +177,9 @@
         "internal_error",
         "not_compliant",
         "experiment_locked",
-        "checklist_incomplete"
+        "checklist_incomplete",
+        "quick_try_busy",
+        "gone"
       ],
       "title": "ErrorCode",
       "type": "string"

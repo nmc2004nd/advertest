@@ -23,5 +23,10 @@
   "requires_gradients": true,
   "id": "8d15422d-f111-5c7e-96eb-e704767e6218",
   "spec_sha256": "a6d81b6643af13e1d2f7983ce51340f54c26629304f1fdd98b954c236c1e735f",
-  "is_active": false
+  "is_active": false,
+  "status": "retired",
+  "metadata": null,
+  "check": null,
+  "created_by": null,
+  "approved_by": null
 }

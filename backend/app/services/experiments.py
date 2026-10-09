@@ -200,7 +200,10 @@ def create_from_body(
             f"Bạn đã có {MAX_QUEUED_PER_USER} experiment đang chờ; hãy chờ một experiment"
             " chạy rồi tạo tiếp"
         )
-    config = ExperimentConfig.model_validate(body.model_dump(exclude={"name", "cloned_from"}))
+    # promoted_from (Phase R2) chỉ để truy vết, không thuộc config; Group 1 lưu và ghi audit log.
+    config = ExperimentConfig.model_validate(
+        body.model_dump(exclude={"name", "cloned_from", "promoted_from"})
+    )
     return create_experiment(
         session,
         actor=actor,

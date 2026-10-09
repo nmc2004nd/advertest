@@ -14,11 +14,11 @@ from uuid import UUID
 from sqlalchemy import ARRAY, Text, cast, func, select, tuple_
 from sqlalchemy.orm import Session
 
-from advertest_contracts.enums import ExperimentStatus, ProtocolStatus
+from advertest_contracts.enums import AttackSpecStatus, ExperimentStatus, ProtocolStatus
 from advertest_contracts.models import (
-    AttackSpec,
     AttackSpecAdminPage,
     AttackSpecAdminView,
+    AttackSpecView,
     ClassMappingSummary,
     ComputeTargetPublic,
     DatasetSummary,
@@ -150,15 +150,18 @@ def list_class_mappings(
     ]
 
 
-def list_attack_specs(session: Session) -> list[AttackSpec]:
-    """Chỉ spec đang hoạt động (requirements.md Phase 5)."""
+def list_attack_specs(session: Session) -> list[AttackSpecView]:
+    """Chỉ spec đang hoạt động (requirements.md Phase 5), kèm metadata (Phase R2; chưa có cột
+    metadata cho tới migration 0011 nên là null)."""
     rows = session.scalars(
         select(m.AttackSpecRow)
         .where(m.AttackSpecRow.is_active)
         .order_by(m.AttackSpecRow.kind, m.AttackSpecRow.name, m.AttackSpecRow.version)
     )
     return [
-        AttackSpec.model_validate({**row.spec, "id": str(row.id), "spec_sha256": row.spec_sha256})
+        AttackSpecView.model_validate(
+            {**row.spec, "id": str(row.id), "spec_sha256": row.spec_sha256, "metadata": None}
+        )
         for row in rows
     ]
 
@@ -255,6 +258,13 @@ def list_attack_specs_admin(
                 "id": str(row.id),
                 "spec_sha256": row.spec_sha256,
                 "is_active": row.is_active,
+                # Phase R2 Group 0: chưa có cột status (migration 0011, Group 4) nên suy từ
+                # is_active; spec seed không có metadata, kiểm tra hay người tạo.
+                "status": AttackSpecStatus.ACTIVE if row.is_active else AttackSpecStatus.RETIRED,
+                "metadata": None,
+                "check": None,
+                "created_by": None,
+                "approved_by": None,
             }
         )
         for row in page

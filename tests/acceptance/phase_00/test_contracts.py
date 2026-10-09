@@ -59,6 +59,8 @@ ENUMS = {
         "not_supported_yet", "queue_limit_reached", "internal_error",
         # Phase 8 (requirements.md Phase 8, Chốt ở Group 0).
         "not_compliant", "experiment_locked", "checklist_incomplete",
+        # Phase R2 (requirements.md Phase R2, Chốt ở Group 0).
+        "quick_try_busy", "gone",
     },
     "ProtocolStatus": {"active", "retired", "dev"},
     # Phase 5: cách hiển thị ảnh failure case.

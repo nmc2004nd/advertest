@@ -40,6 +40,11 @@ WORKER_ENDPOINTS = {
     ("post", "/internal/worker/runs/{run_id}/patch"),
     # Phase 7: tạo run động của tìm ngưỡng.
     ("post", "/internal/worker/experiments/{experiment_id}/runs"),
+    # Phase R2: job công cụ của worker `--tools`.
+    ("post", "/internal/worker/tool-lease"),
+    ("get", "/internal/worker/tool-jobs/{job_id}"),
+    ("post", "/internal/worker/tool-jobs/{job_id}/heartbeat"),
+    ("post", "/internal/worker/tool-jobs/{job_id}/result"),
 }
 RUN_ID = "00000000-0000-5000-8000-000000000001"
 # Endpoint xác thực công khai (requirements.md Phase 4, mục Bảo vệ endpoint).

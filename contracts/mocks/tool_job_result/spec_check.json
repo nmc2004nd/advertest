@@ -1,0 +1,51 @@
+{
+  "lease_id": "8d3a4f5e-6b7c-4d8e-9fa0-1b2c3d4e5f60",
+  "report": {
+    "kind": "spec_check",
+    "result": {
+      "spec_id": "7b35c3e0-d554-5c0e-a329-8b45d7303258",
+      "items": [
+        {
+          "name": "runs",
+          "passed": true,
+          "details": null
+        },
+        {
+          "name": "value_range",
+          "passed": true,
+          "details": null
+        },
+        {
+          "name": "pad_unchanged",
+          "passed": true,
+          "details": null
+        },
+        {
+          "name": "identity",
+          "passed": true,
+          "details": "Bỏ qua: min = 1 > 0"
+        },
+        {
+          "name": "batch_invariant",
+          "passed": true,
+          "details": null
+        },
+        {
+          "name": "norm_bound",
+          "passed": true,
+          "details": null
+        },
+        {
+          "name": "deterministic",
+          "passed": true,
+          "details": null
+        }
+      ],
+      "passed": true,
+      "error": null,
+      "checked_at": "2026-10-09T08:00:00Z",
+      "worker_target_id": "8679be42-13ce-51fb-876b-ca6d4d3f3c74"
+    }
+  },
+  "error": null
+}

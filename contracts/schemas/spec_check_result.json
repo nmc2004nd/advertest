@@ -1,0 +1,102 @@
+{
+  "$defs": {
+    "SpecCheckItem": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/SpecCheckName"
+        },
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "details": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Lý do khi fail; lý do bỏ qua khi passed mà không áp dụng",
+          "title": "Details"
+        }
+      },
+      "required": [
+        "name",
+        "passed"
+      ],
+      "title": "SpecCheckItem",
+      "type": "object"
+    },
+    "SpecCheckName": {
+      "description": "Bảy mục tự kiểm tra spec, theo thứ tự (requirements.md Phase R2).",
+      "enum": [
+        "runs",
+        "value_range",
+        "pad_unchanged",
+        "identity",
+        "batch_invariant",
+        "norm_bound",
+        "deterministic"
+      ],
+      "title": "SpecCheckName",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Kết quả job spec_check (`attacks/selfcheck.py`, requirements.md Phase R2).\n\n`items` theo thứ tự `SpecCheckName`; quá giờ hoặc lỗi giữa chừng thì có thể thiếu mục, khi đó\n`error` ghi lý do và `passed = false`.",
+  "properties": {
+    "spec_id": {
+      "format": "uuid",
+      "title": "Spec Id",
+      "type": "string"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/$defs/SpecCheckItem"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "passed": {
+      "title": "Passed",
+      "type": "boolean"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Quá 120 giây hoặc lỗi ngoài các mục",
+      "title": "Error"
+    },
+    "checked_at": {
+      "format": "date-time",
+      "title": "Checked At",
+      "type": "string"
+    },
+    "worker_target_id": {
+      "description": "Compute target của worker đã chạy kiểm tra",
+      "format": "uuid",
+      "title": "Worker Target Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "spec_id",
+    "items",
+    "passed",
+    "checked_at",
+    "worker_target_id"
+  ],
+  "title": "SpecCheckResult",
+  "type": "object"
+}

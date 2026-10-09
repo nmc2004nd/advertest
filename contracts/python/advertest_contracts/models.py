@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -26,22 +27,27 @@ from pydantic import (
 from advertest_contracts.enums import (
     AttackAccess,
     AttackKind,
+    AttackSpecStatus,
     CaseSeverity,
     CaseVerdictKind,
     ChecklistCode,
     CommentTargetType,
     ComplianceCode,
     ComputeKind,
+    ConclusionCode,
     CriterionKind,
     CriterionStatus,
     DisplayMode,
     ErrorCode,
     EvalScope,
+    ExperimentMode,
     ExperimentStatus,
     LimitKind,
+    ModelStatus,
     ModelVerdict,
     PerturbationImageKind,
     ProtocolStatus,
+    QuickTryObjectStatus,
     ReportNoteCode,
     ReportStatus,
     ReviewDecision,
@@ -52,9 +58,12 @@ from advertest_contracts.enums import (
     SearchStage,
     SearchStatus,
     SkipReason,
+    SpecCheckName,
     StopReason,
     SubmitCheckCode,
     ThresholdKind,
+    ToolJobKind,
+    ToolJobStatus,
     UserStatus,
 )
 from advertest_contracts.hashing import sha256_of
@@ -158,11 +167,15 @@ class TrainingParams(_Model):
     )
 
 
+# Tên adapter: các đoạn chữ thường ngăn bởi ".", ví dụ corruption.imagecorruptions (Phase R2).
+AdapterName = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$")]
+
+
 class AttackSpecBody(_Model):
     """Nội dung của attack spec (mọi trường trừ `id` và `spec_sha256`); là đầu vào của hash.
 
-    Trường thêm ở Phase 6 (`requires_training`, `training`) bị bỏ khỏi JSON khi mang giá trị mặc
-    định, nên hash của spec cũ không đổi.
+    Trường thêm ở Phase 6 (`requires_training`, `training`) và Phase R2 (`adapter`) bị bỏ khỏi
+    JSON khi mang giá trị mặc định, nên hash của spec cũ không đổi.
     """
 
     schema_version: Literal[1] = 1
@@ -186,6 +199,13 @@ class AttackSpecBody(_Model):
         default=None,
         exclude_if=lambda v: v is None,
         description="Có khi và chỉ khi requires_training = true",
+    )
+    adapter: AdapterName | None = Field(
+        default=None,
+        exclude_if=lambda v: v is None,
+        description="Phase R2: adapter trong registry của worker (`GET /attack-adapters`); null là"
+        " suy từ kind và art_class (`attacks.builders.effective_adapter`). `fixed_params` là tham"
+        " số của adapter",
     )
 
     @model_validator(mode="after")
@@ -778,7 +798,9 @@ class ModelCard(_Model):
     schema_version: Literal[1] = 1
     id: UUID
     name: str = Field(min_length=1)
-    framework: Literal["ultralytics", "torchvision"]
+    framework: Literal["ultralytics", "torchvision", "onnx"] = Field(
+        description="Phase R2 thêm onnx (chỉ inference, supports_gradients luôn false)"
+    )
     architecture: str = Field(min_length=1)
     weights_sha256: Sha256Hex
     class_names: list[str] = Field(min_length=1, description="Theo thứ tự index của model")
@@ -794,6 +816,8 @@ class ModelCard(_Model):
             raise ValueError("class_names không được trùng")
         if self.supports_gradients != self.gradient_check.passed:
             raise ValueError("supports_gradients phải bằng gradient_check.passed")
+        if self.framework == "onnx" and self.supports_gradients:
+            raise ValueError("model onnx không hỗ trợ gradient")
         return self
 
 
@@ -1932,6 +1956,11 @@ class ExperimentCreate(ExperimentConfig):
         default=None, description="Bỏ trống: server đặt `<model> · <slice> · <YYYY-MM-DD UTC>`"
     )
     cloned_from: UUID | None = Field(default=None, description="Experiment gốc khi nhân bản")
+    promoted_from: UUID | None = Field(
+        default=None,
+        exclude_if=lambda v: v is None,
+        description="Phase R2: experiment Khám phá nguồn khi nâng lên chính thức (chỉ để truy vết)",
+    )
 
 
 class CloneWarning(_Model):
@@ -1947,11 +1976,26 @@ class CloneWarning(_Model):
         return self
 
 
+class DraftNote(_Model):
+    """Lưu ý của bản nháp không gắn với version spec (Phase R2: promote, draft từ preset)."""
+
+    code: Literal["slice_too_small"] = Field(
+        description="slice_too_small: slice nhỏ hơn min_slice_size của protocol; compliance sẽ"
+        " chặn khi gửi duyệt"
+    )
+    message: str = Field(min_length=1)
+
+
 class ExperimentClone(_Model):
-    """`GET /experiments/{id}/clone`: cấu hình điền sẵn; spec cũ đã lên version hiện hành."""
+    """`GET /experiments/{id}/clone`: cấu hình điền sẵn; spec cũ đã lên version hiện hành.
+
+    Phase R2 dùng lại cho `POST /experiments/{id}/promote` và `POST /experiments/draft`: chỉ trả
+    bản nháp, không tạo experiment.
+    """
 
     config: ExperimentCreate
     warnings: list[CloneWarning]
+    notes: list[DraftNote] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _check(self) -> ExperimentClone:
@@ -2138,6 +2182,9 @@ class ExperimentSummary(_Model):
     progress: Progress = Field(description="Tổng số ảnh đã xử lý trên mọi run")
     created_at: UtcDatetime
     finished_at: UtcDatetime | None = Field(description="null khi draft, queued hoặc running")
+    mode: ExperimentMode = Field(
+        description="Phase R2: exploration khi và chỉ khi protocol có status dev"
+    )
 
     @model_validator(mode="after")
     def _check_finished(self) -> ExperimentSummary:
@@ -2417,6 +2464,13 @@ class ModelSummary(_Model):
     input_size: PositiveInt
     supports_gradients: bool
     created_at: UtcDatetime
+    status: ModelStatus = Field(
+        default=ModelStatus.READY,
+        description="Phase R2: chỉ model ready được dùng trong experiment và thử nhanh",
+    )
+    check: ModelCheckResult | None = Field(
+        default=None, description="Kết quả job model_check gần nhất; null với model đăng ký qua CLI"
+    )
 
 
 class DatasetVersionSummary(_Model):
@@ -2471,10 +2525,106 @@ class ProtocolSummary(_Model):
 # ---------------------------------------------------------------- Attack catalog cho admin
 
 
+class AttackSpecMetadata(_Model):
+    """Thông tin hiển thị của spec, nằm ngoài `spec_sha256` (tech-stack.md mục 9, luật 9); sửa
+    không đổi version (Phase R2)."""
+
+    display_name: Name
+    description: LongText
+    realism: Literal["low", "medium", "high"] = Field(description="Mức sát thực tế")
+    level_labels: dict[str, Name] = Field(
+        default_factory=dict,
+        description="Level (số viết dạng chuỗi, so khớp theo giá trị số) → nhãn dễ đọc",
+    )
+
+    @model_validator(mode="after")
+    def _check_levels(self) -> AttackSpecMetadata:
+        values: set[float] = set()
+        for key in self.level_labels:
+            try:
+                value = float(key)
+            except ValueError:
+                raise ValueError(f"level_labels: khóa {key!r} không phải số") from None
+            if not math.isfinite(value):
+                raise ValueError(f"level_labels: khóa {key!r} không hữu hạn")
+            if value in values:
+                raise ValueError(f"level_labels: level {key!r} bị trùng")
+            values.add(value)
+        return self
+
+    def label_for(self, level: float) -> str | None:
+        """Nhãn của level (so theo giá trị số), None khi không khai báo."""
+        for key, label in self.level_labels.items():
+            if float(key) == level:
+                return label
+        return None
+
+
+class SpecCheckItem(_Model):
+    name: SpecCheckName
+    passed: bool
+    details: str | None = Field(
+        default=None, description="Lý do khi fail; lý do bỏ qua khi passed mà không áp dụng"
+    )
+
+    @model_validator(mode="after")
+    def _check(self) -> SpecCheckItem:
+        if not self.passed and not self.details:
+            raise ValueError("details bắt buộc khi passed = false")
+        return self
+
+
+class SpecCheckResult(_Model):
+    """Kết quả job spec_check (`attacks/selfcheck.py`, requirements.md Phase R2).
+
+    `items` theo thứ tự `SpecCheckName`; quá giờ hoặc lỗi giữa chừng thì có thể thiếu mục, khi đó
+    `error` ghi lý do và `passed = false`.
+    """
+
+    spec_id: UUID
+    items: list[SpecCheckItem]
+    passed: bool
+    error: str | None = Field(default=None, description="Quá 120 giây hoặc lỗi ngoài các mục")
+    checked_at: UtcDatetime
+    worker_target_id: UUID = Field(description="Compute target của worker đã chạy kiểm tra")
+
+    @model_validator(mode="after")
+    def _check(self) -> SpecCheckResult:
+        names = [item.name for item in self.items]
+        expected = list(SpecCheckName)[: len(names)]
+        if names != expected:
+            raise ValueError("items phải theo thứ tự SpecCheckName, không trùng")
+        complete = len(names) == len(SpecCheckName) and self.error is None
+        if self.passed != (complete and all(item.passed for item in self.items)):
+            raise ValueError(
+                "passed = true khi và chỉ khi đủ 7 mục, mọi mục pass và không có error"
+            )
+        return self
+
+
+class AttackSpecView(AttackSpec):
+    """`GET /attack-specs` (Phase R2): spec `active` kèm metadata."""
+
+    metadata: AttackSpecMetadata | None = Field(
+        description="null khi chưa khai (spec seed trước R2)"
+    )
+
+
 class AttackSpecAdminView(AttackSpec):
     """Spec trong trang `/admin/attacks`: mọi version, kể cả spec đã tắt."""
 
-    is_active: bool
+    is_active: bool = Field(description="Suy ra: status = active")
+    status: AttackSpecStatus
+    metadata: AttackSpecMetadata | None = Field(description="null khi chưa khai (spec seed)")
+    check: SpecCheckResult | None = Field(description="Kết quả spec_check gần nhất")
+    created_by: UserRef | None = Field(description="null với spec seed")
+    approved_by: UserRef | None = Field(description="null khi chưa duyệt hoặc spec seed")
+
+    @model_validator(mode="after")
+    def _check_status(self) -> AttackSpecAdminView:
+        if self.is_active != (self.status == AttackSpecStatus.ACTIVE):
+            raise ValueError("is_active phải bằng (status == active)")
+        return self
 
 
 class AttackSpecAdminPage(Page[AttackSpecAdminView]):
@@ -3058,4 +3208,511 @@ class ReportDetail(_Model):
         return self
 
 
+# ---------------------------------------------------------------- Phase R2: catalog, model qua web
+
+# Danh sách kiến trúc torchvision cho phép (requirements.md Phase R2, Decisions).
+TORCHVISION_ARCHITECTURES: tuple[str, ...] = (
+    "fasterrcnn_resnet50_fpn_v2",
+    "retinanet_resnet50_fpn_v2",
+    "fcos_resnet50_fpn",
+)
+# Giới hạn upload model qua web (Decisions): 500 MB.
+MODEL_UPLOAD_MAX_BYTES = 500 * 1024 * 1024
+
+
+class AttackSpecCreate(_Model):
+    """`POST /admin/attack-specs`: name mới (version 1) hoặc name có sẵn (version lớn nhất + 1).
+    Server tính `id`, `spec_sha256`; spec mới ở `draft` rồi chuyển `checking`."""
+
+    body: AttackSpecBody
+    metadata: AttackSpecMetadata
+
+
+class AttackSpecReject(_Model):
+    """`POST /attack-specs/{id}/reject`: `pending_approval` → `draft`."""
+
+    reason: Reason
+
+
+class AttackAdapterInfo(_Model):
+    """`GET /attack-adapters`: adapter có trong registry của worker."""
+
+    name: AdapterName
+    kind: AttackKind
+    params_schema: dict[str, JsonValue] = Field(
+        description="JSON Schema của fixed_params (draft 2020-12)"
+    )
+    requires_gradients: bool
+
+
+class ModelCheckResult(_Model):
+    """Kết quả job model_check: nạp model, so sha256, inference trên fixture, số class, kiểm
+    gradient (chỉ torchvision)."""
+
+    passed: bool
+    details: str | None = Field(default=None, description="Lý do khi passed = false")
+    gradient_check: GradientCheck | None = Field(
+        description="null với onnx (không hỗ trợ gradient) hoặc khi dừng trước bước này"
+    )
+    checked_at: UtcDatetime
+    worker_target_id: UUID
+
+    @model_validator(mode="after")
+    def _check(self) -> ModelCheckResult:
+        if not self.passed and not self.details:
+            raise ValueError("details bắt buộc khi passed = false")
+        return self
+
+
+class ModelUploadCreate(_Model):
+    """`POST /models/uploads`: chỉ `.onnx` hoặc `.safetensors`, tối đa 500 MB (mission.md nguyên
+    tắc 10). Nội dung được kiểm tra lại khi `POST /models`."""
+
+    filename: str = Field(min_length=1, max_length=255, pattern=r"^[^/\\]+\.(onnx|safetensors)$")
+    size_bytes: PositiveInt = Field(le=MODEL_UPLOAD_MAX_BYTES)
+
+
+class ModelUpload(_Model):
+    upload_id: UUID
+    url: PresignedUrl = Field(description="Presigned PUT")
+    expires_at: UtcDatetime
+
+
+class ModelRegister(_Model):
+    """`POST /models`: tạo model version `checking`, id = content_id(weights_sha256); trùng sha →
+    409; xếp job model_check."""
+
+    name: Name
+    framework: Literal["torchvision", "onnx"]
+    architecture: str = Field(
+        min_length=1,
+        max_length=200,
+        description="torchvision: một trong TORCHVISION_ARCHITECTURES; onnx: mô tả tự do",
+    )
+    upload_id: UUID
+    class_names: list[str] = Field(min_length=1, description="Theo thứ tự index của model")
+    input_size: PositiveInt
+
+    @model_validator(mode="after")
+    def _check(self) -> ModelRegister:
+        if self.framework == "torchvision" and self.architecture not in TORCHVISION_ARCHITECTURES:
+            raise ValueError(
+                "architecture torchvision phải là một trong " + ", ".join(TORCHVISION_ARCHITECTURES)
+            )
+        if len(set(self.class_names)) != len(self.class_names):
+            raise ValueError("class_names không được trùng")
+        if any(not name for name in self.class_names):
+            raise ValueError("class_names không được rỗng")
+        return self
+
+
+# ---------------------------------------------------------------- Phase R2: insight
+
+# Ngưỡng cố định (requirements.md Phase R2, Decisions), không phải tham số của người dùng.
+WEAKNESS_DROP = 0.3
+WEAKNESS_VISIBLE_DROP = 0.1
+MAX_WEAKNESSES = 5
+# Dải level_ratio của ma trận độ bền: (0, .25], (.25, .5], (.5, .75], (.75, 1].
+ROBUSTNESS_BANDS: tuple[tuple[float, float], ...] = (
+    (0.0, 0.25),
+    (0.25, 0.5),
+    (0.5, 0.75),
+    (0.75, 1.0),
+)
+
+
+class Weakness(_Model):
+    """Một điểm yếu (requirements.md Phase R2, Behaviour Insight)."""
+
+    attack_spec_id: UUID
+    attack_name: str = Field(min_length=1)
+    kind: Literal["grid", "search"]
+    level: float
+    level_ratio: UnitFloat = Field(description="level / primary_param.max")
+    level_label: str | None = Field(description="Nhãn từ metadata của spec; null khi không có")
+    relative_drop: float | None = Field(description="grid: mức sụt mAP@0.5 tương đối tại level")
+    breaking_point: float | None = Field(description="search: điểm gãy found")
+    class_name: str | None = Field(
+        description="Class sụt AP50 tương đối nhiều nhất tại level; null khi không xác định"
+    )
+    class_relative_drop: float | None = Field(
+        description="Mức sụt AP50 tương đối của class_name; null khi class_name null"
+    )
+
+    @model_validator(mode="after")
+    def _check(self) -> Weakness:
+        if self.kind == "grid" and (self.relative_drop is None or self.breaking_point is not None):
+            raise ValueError("grid cần relative_drop và không có breaking_point")
+        if self.kind == "search" and self.breaking_point is None:
+            raise ValueError("search cần breaking_point")
+        if (self.class_name is None) != (self.class_relative_drop is None):
+            raise ValueError("class_relative_drop có khi và chỉ khi có class_name")
+        return self
+
+
+class RobustnessCell(_Model):
+    band: int = Field(ge=0, lt=len(ROBUSTNESS_BANDS), description="Chỉ số trong bands")
+    max_relative_drop: float | None = Field(description="null khi dải không có run có metric")
+    runs: NonNegativeInt
+
+    @model_validator(mode="after")
+    def _check(self) -> RobustnessCell:
+        if (self.max_relative_drop is None) != (self.runs == 0):
+            raise ValueError("max_relative_drop là null khi và chỉ khi runs = 0")
+        return self
+
+
+class RobustnessRow(_Model):
+    attack_spec_id: UUID
+    attack_name: str = Field(min_length=1)
+    cells: list[RobustnessCell]
+
+    @model_validator(mode="after")
+    def _check(self) -> RobustnessRow:
+        if [c.band for c in self.cells] != list(range(len(ROBUSTNESS_BANDS))):
+            raise ValueError("cells phải đủ 4 dải theo thứ tự")
+        return self
+
+
+class Conclusion(_Model):
+    """Câu kết luận sinh theo luật (`backend/app/insight/phrases.py`)."""
+
+    code: ConclusionCode
+    params: dict[str, JsonValue] = Field(description="Số liệu dùng dựng câu")
+    text: str = Field(min_length=1, description="Tiếng Việt; cùng đầu vào cho cùng câu")
+
+
+class ExperimentInsight(_Model):
+    """`GET /experiments/{id}/insight`."""
+
+    experiment_id: UUID
+    mode: ExperimentMode
+    weaknesses: list[Weakness] = Field(max_length=MAX_WEAKNESSES)
+    matrix: list[RobustnessRow] = Field(description="Mỗi attack quét lưới một hàng")
+    bands: list[tuple[float, float]] = Field(description="(lo, hi], theo ROBUSTNESS_BANDS")
+    conclusion: Conclusion
+    partial: bool = Field(description="Có run stopped_limit hoặc experiment chưa kết thúc")
+
+    @model_validator(mode="after")
+    def _check(self) -> ExperimentInsight:
+        if tuple(self.bands) != ROBUSTNESS_BANDS:
+            raise ValueError("bands phải bằng ROBUSTNESS_BANDS")
+        if (self.conclusion.code == ConclusionCode.ROBUST) != (
+            not self.weaknesses and self.conclusion.code != ConclusionCode.NO_DATA
+        ):
+            raise ValueError("code robust khi và chỉ khi có dữ liệu mà không có điểm yếu")
+        if self.conclusion.code in (ConclusionCode.WEAK, ConclusionCode.WEAK_CLASS) and (
+            not self.weaknesses
+        ):
+            raise ValueError("code weak, weak_class cần ít nhất một điểm yếu")
+        return self
+
+
+# ---------------------------------------------------------------- Phase R2: template và preset
+
+
+class TemplateGrid(_Model):
+    level_ratios: list[UnitFloat] = Field(
+        min_length=1, description="Tỷ lệ trên [min, max] của primary_param; level bắt buộc"
+    )
+
+
+class TemplateSearch(_Model):
+    threshold_kind: ThresholdKind
+    threshold: float = Field(gt=0, le=1)
+    lo_ratio: UnitFloat
+    hi_ratio: UnitFloat
+    max_tol_ratio: float = Field(gt=0, le=1, description="max_tol = max_tol_ratio · (hi - lo)")
+
+    @model_validator(mode="after")
+    def _check(self) -> TemplateSearch:
+        if self.lo_ratio >= self.hi_ratio:
+            raise ValueError("lo_ratio phải nhỏ hơn hi_ratio")
+        return self
+
+
+class TemplateAttack(_Model):
+    attack_spec_name: AttackSpecName
+    mode: RunMode
+    grid: TemplateGrid | None = None
+    search: TemplateSearch | None = None
+
+    @model_validator(mode="after")
+    def _check(self) -> TemplateAttack:
+        if self.mode == RunMode.GRID and (self.grid is None or self.search is not None):
+            raise ValueError("mode = grid cần grid và không có search")
+        if self.mode == RunMode.SEARCH and (self.search is None or self.grid is not None):
+            raise ValueError("mode = search cần search và không có grid")
+        return self
+
+
+# Ngưỡng max_drop_at_level gợi ý theo strictness (requirements.md Phase R2).
+STRICTNESS_MAX_DROP: dict[str, float] = {"lenient": 0.5, "standard": 0.3, "strict": 0.15}
+
+
+class ProtocolTemplate(_Model):
+    """Một template trong `contracts/seeds/protocol_templates.json`; không bao giờ tự tạo
+    protocol (`GET /protocol-templates/{key}/draft` trả `ProtocolCreate`)."""
+
+    key: Literal["quick", "front_camera", "weather", "full"]
+    title: Name
+    description: LongText
+    attacks: list[TemplateAttack] = Field(min_length=1)
+    strictness: Literal["lenient", "standard", "strict"]
+    min_slice_size: PositiveInt
+
+    @model_validator(mode="after")
+    def _check(self) -> ProtocolTemplate:
+        names = [a.attack_spec_name for a in self.attacks]
+        if len(set(names)) != len(names):
+            raise ValueError("attacks không được trùng attack_spec_name")
+        return self
+
+
+class PresetSearch(_Model):
+    """Tìm ngưỡng mà preset thêm vào (deep); dải [lo, hi] là [min, max] của spec, tol theo wizard
+    (hi - lo) / 256."""
+
+    threshold_kind: ThresholdKind
+    threshold: float = Field(gt=0, le=1)
+    subset_size: int = Field(ge=2)
+
+
+class ExperimentPreset(_Model):
+    """Một preset trong `contracts/seeds/experiment_presets.json`."""
+
+    key: Literal["fast", "standard", "deep"]
+    title: Name
+    description: LongText
+    level_ratios: list[UnitFloat] = Field(min_length=1, description="Tỷ lệ trên [min, max]")
+    use_search: bool = Field(description="Thêm tìm ngưỡng với attack hỗ trợ (không áp cho patch)")
+    search: PresetSearch | None = Field(default=None, description="Có khi và chỉ khi use_search")
+
+    @model_validator(mode="after")
+    def _check(self) -> ExperimentPreset:
+        if self.use_search != (self.search is not None):
+            raise ValueError("search có khi và chỉ khi use_search = true")
+        if len(set(self.level_ratios)) != len(self.level_ratios):
+            raise ValueError("level_ratios không được trùng")
+        return self
+
+
+PresetKey = Literal["fast", "standard", "deep"]
+
+
+class ExperimentDraftRequest(_Model):
+    """`POST /experiments/draft`: dựng `ExperimentCreate` từ protocol và preset, trả
+    `ExperimentClone`; không tạo experiment."""
+
+    protocol_id: UUID
+    preset: PresetKey
+    model_version_id: UUID
+    slice_id: UUID
+    class_mapping_id: UUID
+    compute_target_id: UUID
+    limit: Limit
+    attack_spec_ids: list[UUID] | None = Field(
+        default=None,
+        description="Chỉ với protocol dev; null là toàn bộ catalog active",
+    )
+
+
+class PromoteRequest(_Model):
+    """`POST /experiments/{id}/promote`: trả `ExperimentClone`, không tạo experiment."""
+
+    protocol_id: UUID
+
+
+# ---------------------------------------------------------------- Phase R2: thử nhanh
+
+QUICK_TRY_MAX_IMAGE_BYTES = 10 * 1024 * 1024
+QUICK_TRY_MAX_SIDE = 4096
+
+
+class QuickTryCreate(_Model):
+    """Các field form của `POST /quick-tries` (multipart, cộng file `image` là ảnh JPEG/PNG
+    ≤ 10 MB, cạnh dài ≤ 4096 px)."""
+
+    model_version_id: UUID
+    attack_spec_id: UUID
+    preset: PresetKey = "standard"
+
+
+class QuickTryObject(_Model):
+    """Một object, ghép theo IoU ≥ 0.5 cùng class giữa ảnh sạch và ảnh bị tấn công."""
+
+    bbox: PixelBBox = Field(description="xyxy letterbox; object new lấy box trên ảnh bị tấn công")
+    class_name: str = Field(min_length=1)
+    clean_score: UnitFloat | None = Field(description="null khi status = new")
+    attacked_score: UnitFloat | None = Field(description="null khi status = lost")
+    status: QuickTryObjectStatus
+
+    @model_validator(mode="after")
+    def _check(self) -> QuickTryObject:
+        if (self.clean_score is None) != (self.status == QuickTryObjectStatus.NEW):
+            raise ValueError("clean_score là null khi và chỉ khi status = new")
+        if (self.attacked_score is None) != (self.status == QuickTryObjectStatus.LOST):
+            raise ValueError("attacked_score là null khi và chỉ khi status = lost")
+        return self
+
+
+class QuickTryLevel(_Model):
+    level: float
+    label: str | None = Field(description="Nhãn từ metadata của spec")
+    image_url: ArtifactUrl = Field(description="Ảnh bị tấn công, đã làm mờ (như ảnh failure case)")
+    objects: list[QuickTryObject]
+
+
+class QuickTryView(_Model):
+    """`POST /quick-tries` (202) và `GET /quick-tries/{id}`; hết hạn thì `GET` trả 410."""
+
+    id: UUID
+    status: ToolJobStatus
+    not_a_test_result: Literal[True] = Field(
+        default=True, description="Luôn true: không phải kết quả kiểm thử"
+    )
+    model_version_id: UUID
+    attack_spec_id: UUID
+    preset: PresetKey
+    clean_image_url: ArtifactUrl | None = Field(
+        description="Ảnh sạch đã letterbox và làm mờ; có khi và chỉ khi completed. Ảnh gốc chưa"
+        " làm mờ không bao giờ được phục vụ qua API"
+    )
+    levels: list[QuickTryLevel] = Field(description="Rỗng khi chưa completed")
+    created_at: UtcDatetime
+    expires_at: UtcDatetime
+    error: str | None = Field(description="Có khi và chỉ khi failed")
+
+    @model_validator(mode="after")
+    def _check(self) -> QuickTryView:
+        done = self.status == ToolJobStatus.COMPLETED
+        if (self.clean_image_url is not None) != done:
+            raise ValueError("clean_image_url có khi và chỉ khi completed")
+        if done != bool(self.levels):
+            raise ValueError("levels không rỗng khi và chỉ khi completed")
+        if (self.error is not None) != (self.status == ToolJobStatus.FAILED):
+            raise ValueError("error có khi và chỉ khi failed")
+        if self.expires_at <= self.created_at:
+            raise ValueError("expires_at phải sau created_at")
+        return self
+
+
+# ---------------------------------------------------------------- Phase R2: job công cụ (worker)
+
+
+class ToolLease(_Model):
+    """Trả về từ `POST /internal/worker/tool-lease` (không có job thì `204`)."""
+
+    schema_version: Literal[1] = 1
+    kind: ToolJobKind
+    job_id: UUID
+    lease_id: UUID = Field(description="Đổi mỗi lần lease; gửi kèm mọi request sau đó")
+    lease_expires_at: UtcDatetime
+
+
+class ToolModel(_Model):
+    """Model cần nạp cho job công cụ (presigned GET cho weights)."""
+
+    model_version_id: UUID
+    framework: Literal["ultralytics", "torchvision", "onnx"]
+    architecture: str = Field(min_length=1)
+    weights_sha256: Sha256Hex
+    class_names: list[str] = Field(min_length=1)
+    input_size: PositiveInt
+    weights_url: PresignedUrl
+
+
+class SpecCheckPayload(_Model):
+    kind: Literal[ToolJobKind.SPEC_CHECK] = ToolJobKind.SPEC_CHECK
+    spec: AttackSpec
+
+
+class ModelCheckPayload(_Model):
+    kind: Literal[ToolJobKind.MODEL_CHECK] = ToolJobKind.MODEL_CHECK
+    model: ToolModel
+
+
+class QuickTryPayload(_Model):
+    kind: Literal[ToolJobKind.QUICK_TRY] = ToolJobKind.QUICK_TRY
+    quick_try_id: UUID
+    model: ToolModel
+    spec: AttackSpec
+    levels: list[float] = Field(min_length=1)
+    image_url: PresignedUrl = Field(description="Ảnh gốc (chưa làm mờ)")
+    clean_upload_url: PresignedUrl = Field(description="PUT ảnh sạch đã letterbox và làm mờ")
+    level_upload_urls: list[PresignedUrl] = Field(
+        description="PUT ảnh bị tấn công đã làm mờ, cùng thứ tự levels"
+    )
+
+    @model_validator(mode="after")
+    def _check(self) -> QuickTryPayload:
+        if len(self.level_upload_urls) != len(self.levels):
+            raise ValueError("level_upload_urls phải cùng độ dài levels")
+        return self
+
+
+ToolPayload = Annotated[
+    SpecCheckPayload | ModelCheckPayload | QuickTryPayload, Field(discriminator="kind")
+]
+
+
+class ToolJobBundle(_Model):
+    """`GET /internal/worker/tool-jobs/{id}`; presigned URL hết hạn sau 15 phút."""
+
+    schema_version: Literal[1] = 1
+    job_id: UUID
+    payload: ToolPayload
+    expires_at: UtcDatetime
+
+
+class ToolHeartbeat(_Model):
+    lease_id: UUID
+
+
+class QuickTryLevelReport(_Model):
+    level: float
+    objects: list[QuickTryObject]
+
+
+class SpecCheckReport(_Model):
+    kind: Literal[ToolJobKind.SPEC_CHECK] = ToolJobKind.SPEC_CHECK
+    result: SpecCheckResult
+
+
+class ModelCheckReport(_Model):
+    kind: Literal[ToolJobKind.MODEL_CHECK] = ToolJobKind.MODEL_CHECK
+    result: ModelCheckResult
+
+
+class QuickTryReport(_Model):
+    """Ảnh đã PUT lên các URL trong payload trước khi gửi report."""
+
+    kind: Literal[ToolJobKind.QUICK_TRY] = ToolJobKind.QUICK_TRY
+    levels: list[QuickTryLevelReport] = Field(min_length=1)
+
+
+ToolReport = Annotated[
+    SpecCheckReport | ModelCheckReport | QuickTryReport, Field(discriminator="kind")
+]
+
+
+class ToolJobResult(_Model):
+    """`POST /internal/worker/tool-jobs/{id}/result`: đúng một trong `report` hoặc `error`.
+
+    `error` là lỗi hạ tầng (không nạp được tài nguyên, ngoại lệ); kiểm tra fail vẫn gửi `report`
+    với `passed = false`.
+    """
+
+    lease_id: UUID
+    report: ToolReport | None = None
+    error: str | None = Field(default=None, min_length=1, max_length=4000)
+
+    @model_validator(mode="after")
+    def _check(self) -> ToolJobResult:
+        if (self.report is None) == (self.error is None):
+            raise ValueError("cần đúng một trong report hoặc error")
+        return self
+
+
 ExperimentDetail.model_rebuild()
+ModelSummary.model_rebuild()

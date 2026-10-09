@@ -1,0 +1,413 @@
+{
+  "$defs": {
+    "GradientCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "checked_at": {
+          "format": "date-time",
+          "title": "Checked At",
+          "type": "string"
+        },
+        "details": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Lý do khi passed = false",
+          "title": "Details"
+        }
+      },
+      "required": [
+        "passed",
+        "checked_at"
+      ],
+      "title": "GradientCheck",
+      "type": "object"
+    },
+    "ModelCheckReport": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "model_check",
+          "default": "model_check",
+          "title": "Kind",
+          "type": "string"
+        },
+        "result": {
+          "$ref": "#/$defs/ModelCheckResult"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "ModelCheckReport",
+      "type": "object"
+    },
+    "ModelCheckResult": {
+      "additionalProperties": false,
+      "description": "Kết quả job model_check: nạp model, so sha256, inference trên fixture, số class, kiểm\ngradient (chỉ torchvision).",
+      "properties": {
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "details": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Lý do khi passed = false",
+          "title": "Details"
+        },
+        "gradient_check": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GradientCheck"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null với onnx (không hỗ trợ gradient) hoặc khi dừng trước bước này"
+        },
+        "checked_at": {
+          "format": "date-time",
+          "title": "Checked At",
+          "type": "string"
+        },
+        "worker_target_id": {
+          "format": "uuid",
+          "title": "Worker Target Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "passed",
+        "gradient_check",
+        "checked_at",
+        "worker_target_id"
+      ],
+      "title": "ModelCheckResult",
+      "type": "object"
+    },
+    "QuickTryLevelReport": {
+      "additionalProperties": false,
+      "properties": {
+        "level": {
+          "title": "Level",
+          "type": "number"
+        },
+        "objects": {
+          "items": {
+            "$ref": "#/$defs/QuickTryObject"
+          },
+          "title": "Objects",
+          "type": "array"
+        }
+      },
+      "required": [
+        "level",
+        "objects"
+      ],
+      "title": "QuickTryLevelReport",
+      "type": "object"
+    },
+    "QuickTryObject": {
+      "additionalProperties": false,
+      "description": "Một object, ghép theo IoU ≥ 0.5 cùng class giữa ảnh sạch và ảnh bị tấn công.",
+      "properties": {
+        "bbox": {
+          "description": "xyxy letterbox; object new lấy box trên ảnh bị tấn công",
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Bbox",
+          "type": "array"
+        },
+        "class_name": {
+          "minLength": 1,
+          "title": "Class Name",
+          "type": "string"
+        },
+        "clean_score": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null khi status = new",
+          "title": "Clean Score"
+        },
+        "attacked_score": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null khi status = lost",
+          "title": "Attacked Score"
+        },
+        "status": {
+          "$ref": "#/$defs/QuickTryObjectStatus"
+        }
+      },
+      "required": [
+        "bbox",
+        "class_name",
+        "clean_score",
+        "attacked_score",
+        "status"
+      ],
+      "title": "QuickTryObject",
+      "type": "object"
+    },
+    "QuickTryObjectStatus": {
+      "enum": [
+        "kept",
+        "lost",
+        "new"
+      ],
+      "title": "QuickTryObjectStatus",
+      "type": "string"
+    },
+    "QuickTryReport": {
+      "additionalProperties": false,
+      "description": "Ảnh đã PUT lên các URL trong payload trước khi gửi report.",
+      "properties": {
+        "kind": {
+          "const": "quick_try",
+          "default": "quick_try",
+          "title": "Kind",
+          "type": "string"
+        },
+        "levels": {
+          "items": {
+            "$ref": "#/$defs/QuickTryLevelReport"
+          },
+          "minItems": 1,
+          "title": "Levels",
+          "type": "array"
+        }
+      },
+      "required": [
+        "levels"
+      ],
+      "title": "QuickTryReport",
+      "type": "object"
+    },
+    "SpecCheckItem": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/SpecCheckName"
+        },
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "details": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Lý do khi fail; lý do bỏ qua khi passed mà không áp dụng",
+          "title": "Details"
+        }
+      },
+      "required": [
+        "name",
+        "passed"
+      ],
+      "title": "SpecCheckItem",
+      "type": "object"
+    },
+    "SpecCheckName": {
+      "description": "Bảy mục tự kiểm tra spec, theo thứ tự (requirements.md Phase R2).",
+      "enum": [
+        "runs",
+        "value_range",
+        "pad_unchanged",
+        "identity",
+        "batch_invariant",
+        "norm_bound",
+        "deterministic"
+      ],
+      "title": "SpecCheckName",
+      "type": "string"
+    },
+    "SpecCheckReport": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "spec_check",
+          "default": "spec_check",
+          "title": "Kind",
+          "type": "string"
+        },
+        "result": {
+          "$ref": "#/$defs/SpecCheckResult"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "SpecCheckReport",
+      "type": "object"
+    },
+    "SpecCheckResult": {
+      "additionalProperties": false,
+      "description": "Kết quả job spec_check (`attacks/selfcheck.py`, requirements.md Phase R2).\n\n`items` theo thứ tự `SpecCheckName`; quá giờ hoặc lỗi giữa chừng thì có thể thiếu mục, khi đó\n`error` ghi lý do và `passed = false`.",
+      "properties": {
+        "spec_id": {
+          "format": "uuid",
+          "title": "Spec Id",
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/SpecCheckItem"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Quá 120 giây hoặc lỗi ngoài các mục",
+          "title": "Error"
+        },
+        "checked_at": {
+          "format": "date-time",
+          "title": "Checked At",
+          "type": "string"
+        },
+        "worker_target_id": {
+          "description": "Compute target của worker đã chạy kiểm tra",
+          "format": "uuid",
+          "title": "Worker Target Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "spec_id",
+        "items",
+        "passed",
+        "checked_at",
+        "worker_target_id"
+      ],
+      "title": "SpecCheckResult",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "`POST /internal/worker/tool-jobs/{id}/result`: đúng một trong `report` hoặc `error`.\n\n`error` là lỗi hạ tầng (không nạp được tài nguyên, ngoại lệ); kiểm tra fail vẫn gửi `report`\nvới `passed = false`.",
+  "properties": {
+    "lease_id": {
+      "format": "uuid",
+      "title": "Lease Id",
+      "type": "string"
+    },
+    "report": {
+      "anyOf": [
+        {
+          "discriminator": {
+            "mapping": {
+              "model_check": "#/$defs/ModelCheckReport",
+              "quick_try": "#/$defs/QuickTryReport",
+              "spec_check": "#/$defs/SpecCheckReport"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/SpecCheckReport"
+            },
+            {
+              "$ref": "#/$defs/ModelCheckReport"
+            },
+            {
+              "$ref": "#/$defs/QuickTryReport"
+            }
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Report"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "maxLength": 4000,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Error"
+    }
+  },
+  "required": [
+    "lease_id"
+  ],
+  "title": "ToolJobResult",
+  "type": "object"
+}

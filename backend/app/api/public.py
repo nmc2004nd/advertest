@@ -20,16 +20,20 @@ from fastapi import (
     APIRouter,
     BackgroundTasks,
     Depends,
+    File,
+    Form,
     Query,
     Request,
     Response,
     Security,
+    UploadFile,
     status,
 )
 from sqlalchemy.orm import Session
 
 from advertest_contracts.enums import (
     ErrorCode,
+    ExperimentMode,
     ExperimentStatus,
     ReviewDecision,
     ReviewQueueFilter,
@@ -38,8 +42,13 @@ from advertest_contracts.enums import (
 from advertest_contracts.models import (
     AccessRequest,
     ApproveRequest,
-    AttackSpec,
+    AttackAdapterInfo,
     AttackSpecAdminPage,
+    AttackSpecAdminView,
+    AttackSpecCreate,
+    AttackSpecMetadata,
+    AttackSpecReject,
+    AttackSpecView,
     AuditLogPage,
     CaseVerdictInput,
     CaseVerdictView,
@@ -52,19 +61,29 @@ from advertest_contracts.models import (
     ExperimentClone,
     ExperimentCreate,
     ExperimentDetail,
+    ExperimentDraftRequest,
+    ExperimentInsight,
     ExperimentPage,
+    ExperimentPreset,
     FailureCaseView,
     LoginRequest,
     Manifest,
     Me,
+    ModelRegister,
     ModelSummary,
+    ModelUpload,
+    ModelUploadCreate,
     PasswordChange,
     PasswordResetConsume,
     PasswordResetLink,
+    PromoteRequest,
     ProtocolCreate,
     ProtocolSummary,
+    ProtocolTemplate,
     ProtocolVersionCreate,
     ProtocolView,
+    QuickTryCreate,
+    QuickTryView,
     RejectRequest,
     ReportDetail,
     ReportDownload,
@@ -373,8 +392,8 @@ def list_class_mappings(
 
 
 @router.get("/attack-specs", tags=["attack-specs"], **guard(P.ATTACK_CATALOG_READ))
-def list_attack_specs(factory: Sessions) -> list[AttackSpec]:
-    """Chỉ spec đang hoạt động."""
+def list_attack_specs(factory: Sessions) -> list[AttackSpecView]:
+    """Chỉ spec đang hoạt động, kèm metadata (Phase R2)."""
     with transaction(factory) as session:
         return catalog.list_attack_specs(session)
 
@@ -506,8 +525,12 @@ def list_experiments(
     model: UUID | None = None,
     cursor: Cursor = None,
     limit: Limit = 50,
+    mode: ExperimentMode | None = None,
 ) -> ExperimentPage:
-    """Mới nhất trước; `owner=me` chỉ experiment của mình."""
+    """Mới nhất trước; `owner=me` chỉ experiment của mình; `mode` lọc Khám phá/Chính thức
+    (Phase R2)."""
+    if mode is not None:
+        not_implemented()  # Phase R2 Group 1
     with transaction(factory) as session:
         return experiment_views.list_experiments(
             session,
@@ -953,6 +976,192 @@ def list_audit_log(
     filters = AuditFilter(actor_id, action, entity_type, entity_id, since, until)
     with transaction(factory) as session:
         return list_entries(session, filters, cursor=cursor, limit=limit)
+
+
+# Phase R2 Group 0: khung (501) cho insight, template, preset, catalog và model qua cấu hình, thử
+# nhanh; Group 1 và Group 4 cài đặt (requirements.md Phase R2, Behaviour).
+R2_RESPONSES: dict[int | str, dict[str, Any]] = NOT_IMPLEMENTED_RESPONSE | {
+    status.HTTP_404_NOT_FOUND: {"model": ErrorResponse, "description": "Không tìm thấy"},
+    status.HTTP_409_CONFLICT: {"model": ErrorResponse, "description": "Sai trạng thái hoặc trùng"},
+}
+
+
+@router.get(
+    "/experiments/{experiment_id}/insight",
+    tags=["experiments"],
+    responses=R2_RESPONSES,
+    **guard(P.EXPERIMENT_READ),
+)
+def get_insight(experiment_id: UUID) -> ExperimentInsight:
+    """Điểm yếu chính, ma trận độ bền và câu kết luận từ các run đã có metric."""
+    not_implemented()
+
+
+@router.post(
+    "/experiments/{experiment_id}/promote",
+    tags=["experiments"],
+    responses=R2_RESPONSES,
+    **guard(P.EXPERIMENT_CREATE),
+)
+def promote_experiment(experiment_id: UUID, body: PromoteRequest) -> ExperimentClone:
+    """Bản nháp Chính thức từ experiment Khám phá đã kết thúc; không tạo experiment (409 khi
+    nguồn không phải exploration, chưa kết thúc, hoặc protocol đích không active)."""
+    not_implemented()
+
+
+@router.post(
+    "/experiments/draft", tags=["experiments"], responses=R2_RESPONSES, **guard(P.EXPERIMENT_CREATE)
+)
+def draft_experiment(body: ExperimentDraftRequest) -> ExperimentClone:
+    """Dựng `ExperimentCreate` từ protocol và preset; không tạo experiment."""
+    not_implemented()
+
+
+@router.get("/experiment-presets", tags=["experiments"], **guard(P.EXPERIMENT_READ))
+def list_experiment_presets() -> list[ExperimentPreset]:
+    """Preset trong `contracts/seeds/experiment_presets.json`."""
+    not_implemented()
+
+
+@router.get("/protocol-templates", tags=["protocols"], **guard(P.PROTOCOL_READ))
+def list_protocol_templates() -> list[ProtocolTemplate]:
+    """Template trong `contracts/seeds/protocol_templates.json`."""
+    not_implemented()
+
+
+@router.get(
+    "/protocol-templates/{key}/draft",
+    tags=["protocols"],
+    responses=R2_RESPONSES,
+    **guard(P.PROTOCOL_MANAGE),
+)
+def draft_protocol(key: str) -> ProtocolCreate:
+    """`ProtocolCreate` điền sẵn spec active, level và tiêu chí gợi ý; không tạo protocol."""
+    not_implemented()
+
+
+@router.get("/attack-adapters", tags=["admin-attacks"], **guard(P.ATTACK_CATALOG_MANAGE))
+def list_attack_adapters() -> list[AttackAdapterInfo]:
+    """Adapter có trong registry của worker."""
+    not_implemented()
+
+
+@router.post(
+    "/admin/attack-specs",
+    tags=["admin-attacks"],
+    status_code=status.HTTP_201_CREATED,
+    responses=R2_RESPONSES,
+    **guard(P.ATTACK_CATALOG_MANAGE),
+)
+def create_attack_spec(body: AttackSpecCreate) -> AttackSpecAdminView:
+    """Spec mới (`draft` rồi `checking`); 422 khi adapter lạ, `fixed_params` sai hoặc version nhảy
+    cóc; 409 khi trùng `spec_sha256`."""
+    not_implemented()
+
+
+@router.post(
+    "/admin/attack-specs/{spec_id}/check",
+    tags=["admin-attacks"],
+    responses=R2_RESPONSES,
+    **guard(P.ATTACK_CATALOG_MANAGE),
+)
+def recheck_attack_spec(spec_id: UUID) -> AttackSpecAdminView:
+    """Chạy lại tự kiểm tra từ `check_failed` (409 với trạng thái khác)."""
+    not_implemented()
+
+
+@router.patch(
+    "/admin/attack-specs/{spec_id}/metadata",
+    tags=["admin-attacks"],
+    responses=R2_RESPONSES,
+    **guard(P.ATTACK_CATALOG_MANAGE),
+)
+def update_attack_spec_metadata(spec_id: UUID, body: AttackSpecMetadata) -> AttackSpecAdminView:
+    """Sửa metadata, không đổi `spec_sha256` hay version; ghi audit log."""
+    not_implemented()
+
+
+@router.get("/attack-specs/pending", tags=["attack-specs"], **guard(P.ATTACK_CATALOG_APPROVE))
+def list_pending_attack_specs() -> list[AttackSpecAdminView]:
+    """Spec `pending_approval` chờ reviewer duyệt."""
+    not_implemented()
+
+
+@router.post(
+    "/attack-specs/{spec_id}/approve",
+    tags=["attack-specs"],
+    responses=R2_RESPONSES,
+    **guard(P.ATTACK_CATALOG_APPROVE),
+)
+def approve_attack_spec(spec_id: UUID) -> AttackSpecAdminView:
+    """`pending_approval` → `active`; version cũ cùng name chuyển `retired`; người duyệt khác
+    người tạo (403)."""
+    not_implemented()
+
+
+@router.post(
+    "/attack-specs/{spec_id}/reject",
+    tags=["attack-specs"],
+    responses=R2_RESPONSES,
+    **guard(P.ATTACK_CATALOG_APPROVE),
+)
+def reject_attack_spec(spec_id: UUID, body: AttackSpecReject) -> AttackSpecAdminView:
+    """`pending_approval` → `draft`."""
+    not_implemented()
+
+
+@router.post("/models/uploads", tags=["models"], responses=R2_RESPONSES, **guard(P.MODEL_MANAGE))
+def create_model_upload(body: ModelUploadCreate) -> ModelUpload:
+    """Presigned PUT cho `.onnx` hoặc `.safetensors` tối đa 500 MB."""
+    not_implemented()
+
+
+@router.post(
+    "/models",
+    tags=["models"],
+    status_code=status.HTTP_201_CREATED,
+    responses=R2_RESPONSES,
+    **guard(P.MODEL_MANAGE),
+)
+def register_model(body: ModelRegister) -> ModelSummary:
+    """Model version `checking` (409 khi trùng sha256; 422 khi nội dung không phải safetensors
+    hoặc onnx); xếp job model_check."""
+    not_implemented()
+
+
+QUICK_TRY_RESPONSES: dict[int | str, dict[str, Any]] = R2_RESPONSES | {
+    status.HTTP_410_GONE: {"model": ErrorResponse, "description": "gone: đã hết hạn"},
+    status.HTTP_429_TOO_MANY_REQUESTS: {
+        "model": ErrorResponse,
+        "description": "quick_try_busy: đã có một lượt queued/running",
+    },
+}
+
+
+@router.post(
+    "/quick-tries",
+    tags=["quick-tries"],
+    status_code=status.HTTP_202_ACCEPTED,
+    responses=QUICK_TRY_RESPONSES,
+    **guard(P.QUICK_TRY_USE),
+)
+def create_quick_try(
+    body: Annotated[QuickTryCreate, Form()],
+    image: Annotated[UploadFile, File(description="JPEG/PNG ≤ 10 MB, cạnh dài ≤ 4096 px")],
+) -> QuickTryView:
+    """Thử nhanh một ảnh: không tạo experiment, kết quả giữ 24 giờ."""
+    not_implemented()
+
+
+@router.get(
+    "/quick-tries/{quick_try_id}",
+    tags=["quick-tries"],
+    responses=QUICK_TRY_RESPONSES,
+    **guard(P.QUICK_TRY_USE),
+)
+def get_quick_try(quick_try_id: UUID) -> QuickTryView:
+    """Chỉ người tạo; hết hạn trả 410."""
+    not_implemented()
 
 
 # Trang xác minh report công khai, không cần đăng nhập.

@@ -7,6 +7,7 @@
     "reviewer"
   ],
   "permissions": [
+    "attack_catalog.approve",
     "attack_catalog.read",
     "compute_target.read",
     "dataset.read",
@@ -18,6 +19,7 @@
     "model.read",
     "protocol.manage",
     "protocol.read",
+    "quick_try.use",
     "report.export",
     "report.read",
     "review.comment",

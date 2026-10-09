@@ -128,6 +128,9 @@ class ErrorCode(StrEnum):
     EXPERIMENT_LOCKED = "experiment_locked"  # 409: experiment đã gửi duyệt (bị khóa)
     # 409: approve khi checklist chưa đủ; kèm `checklist`.
     CHECKLIST_INCOMPLETE = "checklist_incomplete"
+    # Phase R2: thử nhanh.
+    QUICK_TRY_BUSY = "quick_try_busy"  # 429: người gọi đã có một lượt queued/running
+    GONE = "gone"  # 410: kết quả thử nhanh đã hết hạn và bị xóa
 
 
 class ProtocolStatus(StrEnum):
@@ -279,3 +282,71 @@ class ReportNoteCode(StrEnum):
     ANONYMIZATION = "anonymization"  # phương pháp làm mờ ảnh
     GIT_DIRTY = "git_dirty"  # có run chạy từ code chưa commit (protocol cho phép)
     EXCLUDED_CLASSES = "excluded_classes"  # class bị loại khỏi metric (class mapping)
+
+
+# ---------------------------------------------------------------- Phase R2
+
+
+class AttackSpecStatus(StrEnum):
+    """Vòng đời spec trong catalog (Phase R2, requirements.md mục Catalog attack)."""
+
+    DRAFT = "draft"
+    CHECKING = "checking"  # đang chờ hoặc đang chạy job spec_check
+    CHECK_FAILED = "check_failed"
+    PENDING_APPROVAL = "pending_approval"
+    ACTIVE = "active"
+    RETIRED = "retired"
+
+
+class ModelStatus(StrEnum):
+    CHECKING = "checking"
+    CHECK_FAILED = "check_failed"
+    READY = "ready"  # chỉ model ready được dùng trong experiment và thử nhanh
+
+
+class ExperimentMode(StrEnum):
+    """Suy ra từ protocol: status dev → exploration (mission.md nguyên tắc 11)."""
+
+    EXPLORATION = "exploration"
+    OFFICIAL = "official"
+
+
+class ConclusionCode(StrEnum):
+    NO_DATA = "no_data"  # chưa run nào có metric
+    ROBUST = "robust"  # không có điểm yếu nào
+    WEAK = "weak"
+    WEAK_CLASS = "weak_class"  # mức sụt của một class ≥ 2 lần toàn bộ
+
+
+class ToolJobKind(StrEnum):
+    """Job công cụ của worker `--tools`; thứ tự lease: quick_try, rồi model_check và spec_check
+    theo thứ tự tạo."""
+
+    SPEC_CHECK = "spec_check"
+    MODEL_CHECK = "model_check"
+    QUICK_TRY = "quick_try"
+
+
+class ToolJobStatus(StrEnum):
+    QUEUED = "queued"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class SpecCheckName(StrEnum):
+    """Bảy mục tự kiểm tra spec, theo thứ tự (requirements.md Phase R2)."""
+
+    RUNS = "runs"  # build và apply không lỗi tại min, giữa, max
+    VALUE_RANGE = "value_range"  # float32 trong [0, 1], đúng shape
+    PAD_UNCHANGED = "pad_unchanged"  # mask = 0 giữ nguyên tuyệt đối
+    IDENTITY = "identity"  # level "không biến đổi" cho ảnh y hệt (bỏ qua khi min > 0)
+    BATCH_INVARIANT = "batch_invariant"  # batch 1 và batch 4 khớp nhau
+    NORM_BOUND = "norm_bound"  # kind = attack: chuẩn nhiễu ≤ eps
+    DETERMINISTIC = "deterministic"  # hai lần cùng seed cho ảnh giống hệt
+
+
+class QuickTryObjectStatus(StrEnum):
+    KEPT = "kept"
+    LOST = "lost"  # object sạch không còn ghép được (IoU ≥ 0.5 cùng class)
+    NEW = "new"  # object chỉ có trên ảnh bị tấn công

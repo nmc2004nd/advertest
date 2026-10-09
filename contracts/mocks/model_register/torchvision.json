@@ -1,0 +1,12 @@
+{
+  "name": "fcos-coco",
+  "framework": "torchvision",
+  "architecture": "fcos_resnet50_fpn",
+  "upload_id": "5a0f6f3e-6c55-4c1a-9d8e-3f2b1a0c9d02",
+  "class_names": [
+    "person",
+    "car",
+    "truck"
+  ],
+  "input_size": 640
+}

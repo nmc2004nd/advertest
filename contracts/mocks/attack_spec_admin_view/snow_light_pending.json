@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "name": "snow_light",
+  "version": 1,
+  "kind": "corruption",
+  "access": "not_applicable",
+  "art_class": null,
+  "primary_param": {
+    "name": "severity",
+    "type": "discrete",
+    "min": 1,
+    "max": 3,
+    "values": [
+      1,
+      2,
+      3
+    ],
+    "unit": "severity"
+  },
+  "fixed_params": {
+    "corruption": "snow",
+    "applied_to": "image_region"
+  },
+  "cost_model": {
+    "passes_per_image": null,
+    "cpu_only": true
+  },
+  "requires_gradients": false,
+  "adapter": "corruption.imagecorruptions",
+  "id": "7b35c3e0-d554-5c0e-a329-8b45d7303258",
+  "spec_sha256": "8f996fe033b05ebe978af7c5d1e1918a5297138b2cf22a9a4c5fa649d61a6f7e",
+  "is_active": false,
+  "status": "pending_approval",
+  "metadata": {
+    "display_name": "Tuyết nhẹ",
+    "description": "Tuyết rơi mức nhẹ, severity 1–3 của imagecorruptions.",
+    "realism": "high",
+    "level_labels": {
+      "1": "lất phất",
+      "2": "vừa",
+      "3": "dày"
+    }
+  },
+  "check": {
+    "spec_id": "7b35c3e0-d554-5c0e-a329-8b45d7303258",
+    "items": [
+      {
+        "name": "runs",
+        "passed": true,
+        "details": null
+      },
+      {
+        "name": "value_range",
+        "passed": true,
+        "details": null
+      },
+      {
+        "name": "pad_unchanged",
+        "passed": true,
+        "details": null
+      },
+      {
+        "name": "identity",
+        "passed": true,
+        "details": "Bỏ qua: min = 1 > 0"
+      },
+      {
+        "name": "batch_invariant",
+        "passed": true,
+        "details": null
+      },
+      {
+        "name": "norm_bound",
+        "passed": true,
+        "details": null
+      },
+      {
+        "name": "deterministic",
+        "passed": true,
+        "details": null
+      }
+    ],
+    "passed": true,
+    "error": null,
+    "checked_at": "2026-10-09T08:00:00Z",
+    "worker_target_id": "8679be42-13ce-51fb-876b-ca6d4d3f3c74"
+  },
+  "created_by": {
+    "id": "0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e03",
+    "full_name": "Trần Quản Trị"
+  },
+  "approved_by": null
+}

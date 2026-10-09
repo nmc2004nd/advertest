@@ -88,9 +88,11 @@
       "type": "string"
     },
     "framework": {
+      "description": "Phase R2 thêm onnx (chỉ inference, supports_gradients luôn false)",
       "enum": [
         "ultralytics",
-        "torchvision"
+        "torchvision",
+        "onnx"
       ],
       "title": "Framework",
       "type": "string"

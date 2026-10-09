@@ -1,0 +1,46 @@
+{
+  "$defs": {
+    "AttackKind": {
+      "enum": [
+        "attack",
+        "corruption",
+        "occlusion"
+      ],
+      "title": "AttackKind",
+      "type": "string"
+    },
+    "JsonValue": {}
+  },
+  "additionalProperties": false,
+  "description": "`GET /attack-adapters`: adapter có trong registry của worker.",
+  "properties": {
+    "name": {
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "title": "Name",
+      "type": "string"
+    },
+    "kind": {
+      "$ref": "#/$defs/AttackKind"
+    },
+    "params_schema": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "description": "JSON Schema của fixed_params (draft 2020-12)",
+      "title": "Params Schema",
+      "type": "object"
+    },
+    "requires_gradients": {
+      "title": "Requires Gradients",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "name",
+    "kind",
+    "params_schema",
+    "requires_gradients"
+  ],
+  "title": "AttackAdapterInfo",
+  "type": "object"
+}

@@ -24,6 +24,8 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
   not_compliant: 'Cấu hình chưa tuân thủ protocol đã chọn.',
   experiment_locked: 'Experiment đã gửi duyệt nên bị khóa, không sửa được.',
   checklist_incomplete: 'Chưa đủ điều kiện để chấp nhận.',
+  quick_try_busy: 'Bạn đang có một lượt thử nhanh chưa xong. Vui lòng chờ lượt đó kết thúc.',
+  gone: 'Kết quả thử nhanh đã hết hạn và bị xóa.',
 }
 
 export const UNKNOWN_ERROR_MESSAGE = 'Đã có lỗi xảy ra. Vui lòng thử lại.'

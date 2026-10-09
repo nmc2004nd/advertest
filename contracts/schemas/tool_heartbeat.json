@@ -1,0 +1,15 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "lease_id": {
+      "format": "uuid",
+      "title": "Lease Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "lease_id"
+  ],
+  "title": "ToolHeartbeat",
+  "type": "object"
+}

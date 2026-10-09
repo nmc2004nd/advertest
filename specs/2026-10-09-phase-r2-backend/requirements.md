@@ -111,7 +111,7 @@ class ExperimentDraftRequest:                # POST /experiments/draft
 ### Thử nhanh
 
 ```python
-class QuickTryCreate:                        # POST /quick-tries (multipart: ảnh + JSON)
+class QuickTryCreate:                        # POST /quick-tries (multipart: field theo QuickTryCreate + file image)
     model_version_id; attack_spec_id; preset: str = "standard"
 class QuickTryObject:  box: CaseBox; class_name; clean_score; attacked_score | None; status: Literal["kept", "lost", "new"]
 class QuickTryLevel:   level; label: str | None; image_url; objects: list[QuickTryObject]
@@ -134,6 +134,50 @@ class ToolLease: kind: ToolJobKind; job_id; lease_id; lease_expires_at
 - `attack_catalog.approve` dành cho reviewer: duyệt kích hoạt spec.
 - `quick_try.use` dành cho engineer và reviewer.
 - Đăng ký model dùng `model.manage` (admin), như hiện tại.
+
+### Chốt ở Group 0 (2026-10-09)
+
+Chi tiết contract (nguồn sự thật: `contracts/python/advertest_contracts/models.py`, mock trong `contracts/mocks/`, seed trong `contracts/seeds/`):
+
+- **Attack spec.** `adapter` có dạng `a.b[.c]` (`AdapterName`). `SpecCheckItem.name` là enum `SpecCheckName`, gồm 7 mục theo thứ tự ở mục Tự kiểm tra spec. `SpecCheckResult` thêm `error` cho trường hợp quá 120 giây hoặc lỗi ngoài các mục; khi đó `items` có thể thiếu. `passed = true` khi và chỉ khi đủ 7 mục, mọi mục pass và không có `error`. Mục bỏ qua thì ghi `passed = true` kèm `details`.
+- **Metadata.** Khóa của `level_labels` so khớp theo giá trị số, nên `"1"` và `"1.0"` là cùng một level, không được trùng. Spec seed chưa có metadata nên `metadata = null`. `GET /attack-specs` trả `AttackSpecView` (là `AttackSpec` cộng `metadata`).
+- **Endpoint catalog bổ sung.**
+  - `GET /attack-specs/pending` (`attack_catalog.approve`) cho reviewer xem spec chờ duyệt, vì `GET /admin/attack-specs` chỉ dành cho admin.
+  - `POST /admin/attack-specs/{id}/check` chạy lại kiểm tra từ `check_failed`.
+  - `POST /attack-specs/{id}/reject` nhận `AttackSpecReject {reason}`.
+- **Model.**
+  - `ModelSummary` thêm `status` (mặc định `ready`) và `check: ModelCheckResult | None`.
+  - `POST /models/uploads` trả `ModelUpload {upload_id, url, expires_at}`.
+  - `ModelUploadCreate` chặn ngay ở schema phần mở rộng khác `.onnx`/`.safetensors` và file quá 500 MB.
+  - `ModelCard` với `framework = onnx` không được có `supports_gradients = true`.
+- **Insight.**
+  - `Weakness` thêm `level_label` (lấy từ metadata) và `class_relative_drop`, mức sụt của `class_name` dùng để xét `weak_class`.
+  - Ô của ma trận có `max_relative_drop = null` khi và chỉ khi `runs = 0`.
+  - `conclusion.code = robust` khi và chỉ khi có dữ liệu mà không có điểm yếu.
+  - Hằng số nằm ở `models.py`: `WEAKNESS_DROP`, `WEAKNESS_VISIBLE_DROP`, `MAX_WEAKNESSES`, `ROBUSTNESS_BANDS`.
+- **Bản nháp.** `ExperimentClone` thêm `notes: list[DraftNote]`, hiện có một code là `slice_too_small`. `CloneWarning` vẫn chỉ dùng khi đổi version spec. `promote` và `draft` đều trả `ExperimentClone`.
+- **Template.** `TemplateAttack` dùng `grid.level_ratios` hoặc `search {threshold_kind, threshold, lo_ratio, hi_ratio, max_tol_ratio}`. `ProtocolTemplate` thêm `min_slice_size`, và `title` được dùng làm tên protocol của bản nháp. Cách tính khi dựng bản nháp:
+  - Level là `round(min + r·(max − min), 6)`. Tham số rời rạc thì lấy giá trị gần nhất trong `values` (hòa thì lấy giá trị nhỏ hơn), rồi bỏ level trùng.
+  - `max_tol = max_tol_ratio · (hi − lo)`.
+  - "Level bắt buộc giữa" của tiêu chí là phần tử thứ `(n − 1) // 2` của danh sách level bắt buộc đã sắp xếp.
+  - Tiêu chí dùng `threshold_kind = relative_drop` và `class_filter = null`. Tiêu chí của attack tìm ngưỡng dùng cùng ngưỡng với cấu hình tìm ngưỡng.
+- **Preset.**
+  - `ExperimentPreset` thêm `title`, `description` và `search: PresetSearch {threshold_kind, threshold, subset_size}`; `search` có khi và chỉ khi `use_search`.
+  - Dải tìm ngưỡng là `[min, max]` của spec, `tol = (hi − lo) / 256` như wizard.
+  - `deep` chạy tìm ngưỡng thay cho quét lưới, như mục Template, preset, gợi ý tiêu chí. Người dùng chốt 2026-10-09.
+  - `ExperimentDraftRequest` thêm `limit`, vì `ExperimentCreate` bắt buộc trường này. `preset` là `Literal["fast", "standard", "deep"]`.
+- **Thử nhanh.**
+  - `POST /quick-tries` nhận multipart: các field của `QuickTryCreate` cộng file `image`. Cần dependency `python-multipart`; người dùng chốt 2026-10-09.
+  - Ảnh trả về là `ArtifactUrl` (`/artifacts/<token>`), như ảnh failure case.
+  - `QuickTryObject.bbox` là `PixelBBox`, không dùng `CaseBox` để khỏi lặp class và score. `clean_score = null` khi và chỉ khi `new`; `attacked_score = null` khi và chỉ khi `lost`.
+  - `QuickTryView` thêm `model_version_id`, `attack_spec_id`, `preset`, `created_at`; `status` dùng `ToolJobStatus`.
+  - Mã lỗi mới: `quick_try_busy` (429) và `gone` (410).
+- **Job công cụ.**
+  - `GET /internal/worker/tool-jobs/{id}` trả `ToolJobBundle`, trong đó `payload` là một trong `SpecCheckPayload`, `ModelCheckPayload`, `QuickTryPayload`, phân biệt theo `kind`. Payload thử nhanh gồm URL tải ảnh gốc và các presigned PUT cho ảnh đã làm mờ.
+  - `POST /internal/worker/tool-jobs/{id}/heartbeat {lease_id}` trả 204, hoặc 409 khi đã mất lease.
+  - `POST .../result` nhận `ToolJobResult`: đúng một trong `report` hoặc `error`. Kiểm tra fail vẫn gửi `report` với `passed = false`; `error` dành cho lỗi hạ tầng.
+- **Danh sách experiment.** `GET /experiments` có tham số `?mode=`. Từ Group 0, `ExperimentSummary.mode` đã được suy từ status của protocol.
+- **Fixture.** `scripts/make_r2_fixtures.py` sinh fixture một lần qua `uv run --with onnx`; gói `onnx` không vào lock. Fixture gồm `yolov8n.onnx` (từ `yolov8n.pt`) và `fcos_resnet50_fpn_coco.safetensors` (weights COCO của torchvision). Người duyệt upload lên release `fixtures-v2`; sha256 ghi trong `tests/fixtures/checksums.json`.
 
 ### DB (migration `0011_phase_r2`)
 
@@ -176,7 +220,7 @@ class ToolLease: kind: ToolJobKind; job_id; lease_id; lease_expires_at
 - **Gợi ý tiêu chí:** mỗi attack quét lưới nhận một `max_drop_at_level` (`relative_drop`) tại level bắt buộc giữa. Ngưỡng theo `strictness`: lenient 0.5, standard 0.3, strict 0.15. Mỗi attack tìm ngưỡng nhận một `min_breaking_point` tại `lo + 0.5·(hi − lo)`. Gợi ý chỉ phụ thuộc template và catalog, **không** phụ thuộc kết quả của experiment nào (nguyên tắc 2).
 - `POST /experiments/draft` dựng `ExperimentCreate` từ protocol và preset:
   - Level là `min + r·(max − min)` với từng `r` trong `level_ratios`, làm tròn về `values` gần nhất khi tham số rời rạc, hợp với level bắt buộc của protocol.
-  - Preset `deep` thêm tìm ngưỡng cho attack hỗ trợ tìm ngưỡng (không áp cho patch).
+  - Preset `deep` thêm tìm ngưỡng cho attack hỗ trợ tìm ngưỡng (không áp cho patch). Một experiment không có hai attack cùng spec, nên attack đó chạy tìm ngưỡng **thay cho** quét lưới; attack mà protocol bắt buộc quét lưới vẫn quét lưới với lưới của `deep` (Chốt ở Group 0).
   - Seed cố định là 0.
 - Template và preset nằm trong `contracts/seeds/`, do người duyệt sửa.
 

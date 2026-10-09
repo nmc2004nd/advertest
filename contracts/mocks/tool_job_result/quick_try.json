@@ -1,0 +1,67 @@
+{
+  "lease_id": "8d3a4f5e-6b7c-4d8e-9fa0-1b2c3d4e5f60",
+  "report": {
+    "kind": "quick_try",
+    "levels": [
+      {
+        "level": 2,
+        "objects": [
+          {
+            "bbox": [
+              100,
+              200,
+              180,
+              360
+            ],
+            "class_name": "person",
+            "clean_score": 0.91,
+            "attacked_score": 0.55,
+            "status": "kept"
+          }
+        ]
+      },
+      {
+        "level": 8,
+        "objects": [
+          {
+            "bbox": [
+              100,
+              200,
+              180,
+              360
+            ],
+            "class_name": "person",
+            "clean_score": 0.91,
+            "attacked_score": 0.55,
+            "status": "kept"
+          },
+          {
+            "bbox": [
+              300,
+              220,
+              420,
+              300
+            ],
+            "class_name": "car",
+            "clean_score": 0.83,
+            "attacked_score": null,
+            "status": "lost"
+          },
+          {
+            "bbox": [
+              500,
+              100,
+              560,
+              150
+            ],
+            "class_name": "truck",
+            "clean_score": null,
+            "attacked_score": 0.31,
+            "status": "new"
+          }
+        ]
+      }
+    ]
+  },
+  "error": null
+}

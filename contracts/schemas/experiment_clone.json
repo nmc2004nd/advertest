@@ -108,6 +108,29 @@
       "title": "CloneWarning",
       "type": "object"
     },
+    "DraftNote": {
+      "additionalProperties": false,
+      "description": "Lưu ý của bản nháp không gắn với version spec (Phase R2: promote, draft từ preset).",
+      "properties": {
+        "code": {
+          "const": "slice_too_small",
+          "description": "slice_too_small: slice nhỏ hơn min_slice_size của protocol; compliance sẽ chặn khi gửi duyệt",
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "DraftNote",
+      "type": "object"
+    },
     "ExperimentCreate": {
       "additionalProperties": false,
       "description": "Body của `POST /experiments` và `POST /experiments/estimate`.",
@@ -182,6 +205,19 @@
           "default": null,
           "description": "Experiment gốc khi nhân bản",
           "title": "Cloned From"
+        },
+        "promoted_from": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Phase R2: experiment Khám phá nguồn khi nâng lên chính thức (chỉ để truy vết)",
+          "title": "Promoted From"
         }
       },
       "required": [
@@ -350,7 +386,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "`GET /experiments/{id}/clone`: cấu hình điền sẵn; spec cũ đã lên version hiện hành.",
+  "description": "`GET /experiments/{id}/clone`: cấu hình điền sẵn; spec cũ đã lên version hiện hành.\n\nPhase R2 dùng lại cho `POST /experiments/{id}/promote` và `POST /experiments/draft`: chỉ trả\nbản nháp, không tạo experiment.",
   "properties": {
     "config": {
       "$ref": "#/$defs/ExperimentCreate"
@@ -360,6 +396,13 @@
         "$ref": "#/$defs/CloneWarning"
       },
       "title": "Warnings",
+      "type": "array"
+    },
+    "notes": {
+      "items": {
+        "$ref": "#/$defs/DraftNote"
+      },
+      "title": "Notes",
       "type": "array"
     }
   },

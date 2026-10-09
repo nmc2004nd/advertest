@@ -45,6 +45,11 @@ WORKER_ENDPOINTS = {
     "/internal/worker/runs/{run_id}/patch",
     # Phase 7: tạo run động của tìm ngưỡng.
     "/internal/worker/experiments/{experiment_id}/runs",
+    # Phase R2: job công cụ của worker `--tools` (requirements.md Phase R2, Job công cụ).
+    "/internal/worker/tool-lease",
+    "/internal/worker/tool-jobs/{job_id}",
+    "/internal/worker/tool-jobs/{job_id}/heartbeat",
+    "/internal/worker/tool-jobs/{job_id}/result",
 }
 # Nhóm Phase 4 cài đặt thật: không còn là khung trả 501.
 # Phase 5 Group 1: API đọc tài nguyên (plan.md task 5b). /protocols: GET đã cài đặt, POST vẫn là

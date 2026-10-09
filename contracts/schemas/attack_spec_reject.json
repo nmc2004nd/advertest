@@ -1,0 +1,17 @@
+{
+  "additionalProperties": false,
+  "description": "`POST /attack-specs/{id}/reject`: `pending_approval` → `draft`.",
+  "properties": {
+    "reason": {
+      "maxLength": 2000,
+      "minLength": 1,
+      "title": "Reason",
+      "type": "string"
+    }
+  },
+  "required": [
+    "reason"
+  ],
+  "title": "AttackSpecReject",
+  "type": "object"
+}

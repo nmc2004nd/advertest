@@ -492,6 +492,15 @@
       "title": "ExperimentConfig",
       "type": "object"
     },
+    "ExperimentMode": {
+      "description": "Suy ra từ protocol: status dev → exploration (mission.md nguyên tắc 11).",
+      "enum": [
+        "exploration",
+        "official"
+      ],
+      "title": "ExperimentMode",
+      "type": "string"
+    },
     "ExperimentStatus": {
       "enum": [
         "draft",
@@ -1594,6 +1603,10 @@
       "description": "null khi draft, queued hoặc running",
       "title": "Finished At"
     },
+    "mode": {
+      "$ref": "#/$defs/ExperimentMode",
+      "description": "Phase R2: exploration khi và chỉ khi protocol có status dev"
+    },
     "config": {
       "$ref": "#/$defs/ExperimentConfig"
     },
@@ -1735,6 +1748,7 @@
     "progress",
     "created_at",
     "finished_at",
+    "mode",
     "config",
     "config_sha256",
     "protocol",

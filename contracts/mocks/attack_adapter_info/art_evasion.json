@@ -1,0 +1,8 @@
+{
+  "name": "art.evasion",
+  "kind": "attack",
+  "params_schema": {
+    "type": "object"
+  },
+  "requires_gradients": true
+}

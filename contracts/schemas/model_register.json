@@ -1,0 +1,56 @@
+{
+  "additionalProperties": false,
+  "description": "`POST /models`: tạo model version `checking`, id = content_id(weights_sha256); trùng sha →\n409; xếp job model_check.",
+  "properties": {
+    "name": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "framework": {
+      "enum": [
+        "torchvision",
+        "onnx"
+      ],
+      "title": "Framework",
+      "type": "string"
+    },
+    "architecture": {
+      "description": "torchvision: một trong TORCHVISION_ARCHITECTURES; onnx: mô tả tự do",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Architecture",
+      "type": "string"
+    },
+    "upload_id": {
+      "format": "uuid",
+      "title": "Upload Id",
+      "type": "string"
+    },
+    "class_names": {
+      "description": "Theo thứ tự index của model",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Class Names",
+      "type": "array"
+    },
+    "input_size": {
+      "exclusiveMinimum": 0,
+      "title": "Input Size",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "name",
+    "framework",
+    "architecture",
+    "upload_id",
+    "class_names",
+    "input_size"
+  ],
+  "title": "ModelRegister",
+  "type": "object"
+}
