@@ -113,10 +113,10 @@ class ExperimentDraftRequest:                # POST /experiments/draft
 ```python
 class QuickTryCreate:                        # POST /quick-tries (multipart: field theo QuickTryCreate + file image)
     model_version_id; attack_spec_id; preset: str = "standard"
-class QuickTryObject:  box: CaseBox; class_name; clean_score; attacked_score | None; status: Literal["kept", "lost", "new"]
+class QuickTryObject:  bbox: PixelBBox; class_name; clean_score | None; attacked_score | None; status: QuickTryObjectStatus  # kept | lost | new
 class QuickTryLevel:   level; label: str | None; image_url; objects: list[QuickTryObject]
 class QuickTryView:
-    id; status: Literal["queued", "running", "completed", "failed"]
+    id; status: ToolJobStatus
     not_a_test_result: Literal[True]
     clean_image_url; levels: list[QuickTryLevel]; expires_at; error: str | None
 ```
@@ -187,6 +187,26 @@ Chi tiết contract (nguồn sự thật: `contracts/python/advertest_contracts/
 - **Lưu trữ thử nhanh.** Mọi object của một lượt nằm dưới `quick-tries/<id>/` trong bucket `artifacts`.
 - **Job công cụ.** Job mất lease được xếp lại; sau lần mất lease thứ 3 thì `failed`. Khi đó spec chuyển `check_failed`, model chuyển `check_failed`, thử nhanh chuyển `failed` kèm `error`. Heartbeat bằng lease cũ trả 409.
 
+#### Bổ sung sau review Group 0 (2026-10-09)
+
+- **Quyền của endpoint mới** (`x-permission` trong `contracts/openapi.json`, test `test_permissions_r2.py`):
+
+  | Endpoint | Permission |
+  |---|---|
+  | `GET /experiments/{id}/insight`, `GET /experiment-presets` | `experiment.read` |
+  | `POST /experiments/{id}/promote`, `POST /experiments/draft` | `experiment.create` |
+  | `GET /protocol-templates` | `protocol.read` |
+  | `GET /protocol-templates/{key}/draft` | `protocol.manage` |
+  | `GET /attack-adapters`, `POST /admin/attack-specs`, `POST /admin/attack-specs/{id}/check`, `PATCH /admin/attack-specs/{id}/metadata` | `attack_catalog.manage` |
+  | `GET /attack-specs/pending`, `POST /attack-specs/{id}/approve`, `POST /attack-specs/{id}/reject` | `attack_catalog.approve` |
+  | `POST /models/uploads`, `POST /models` | `model.manage` |
+  | `POST /quick-tries`, `GET /quick-tries/{id}` | `quick_try.use` |
+
+  Endpoint `/internal/worker/tool-*` dùng token worker, không có `x-permission` (nguyên tắc 3).
+- **Thử nhanh chỉ người tạo xem được.** Người khác, kể cả có `quick_try.use`, gọi `GET /quick-tries/{id}` nhận 404.
+- **Thời hạn của job công cụ.** Lease 60 giây, mỗi heartbeat gia hạn thêm 60 giây. Presigned URL trong `ToolJobBundle` hết hạn sau 15 phút.
+- **Câu kết luận khi điểm yếu đầu tiên là `search`.** Điểm yếu tìm ngưỡng có `relative_drop = null`, nên `text` nêu attack và điểm gãy (`breaking_point`, kèm `level_label` nếu có) thay cho mức sụt. Code là `weak`; `weak_class` chỉ xét điểm yếu quét lưới.
+
 #### Interface cho test nghiệm thu (`tests/acceptance/phase_r2/`)
 
 Test gọi trực tiếp các tên dưới đây. Đổi tên hoặc chữ ký thì phải qua người duyệt.
@@ -238,7 +258,7 @@ Test của group chưa làm chỉ có trên nhánh `phaser2-reviewer`. Test gọ
 - **Câu kết luận:** sinh theo luật, cùng đầu vào cho cùng câu. Các code:
   - `no_data`: chưa run nào có metric.
   - `robust`: không có điểm yếu nào.
-  - `weak`: có điểm yếu; câu nêu attack, nhãn level (lấy từ metadata nếu có) và mức sụt của điểm yếu đầu tiên.
+  - `weak`: có điểm yếu; câu nêu attack, nhãn level (lấy từ metadata nếu có) và mức sụt của điểm yếu đầu tiên (điểm yếu `search` thì nêu điểm gãy thay cho mức sụt).
   - `weak_class`: như `weak`, nhưng mức sụt của một class lớn gấp đôi toàn bộ trở lên.
 
   Câu viết sẵn trong backend (`backend/app/insight/phrases.py`) để report sau này dùng chung.

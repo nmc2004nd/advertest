@@ -12,7 +12,7 @@
 1. Đổi contract theo `requirements.md` mục Data / Fields; `make contracts`; seed `protocol_templates.json` và `experiment_presets.json`.
 2. Duyệt và pin `onnxruntime`, `safetensors` trong `tech-stack.md` mục 11.
 3. Viết test nghiệm thu theo group (test của group chưa làm chỉ commit trên `phaser2-reviewer`, như R1).
-4. Thêm model fixture ONNX nhỏ và một safetensors torchvision vào fixture (sha256 trong `scripts/fetch_fixtures.py`).
+4. Thêm model fixture ONNX nhỏ và một safetensors torchvision vào fixture (sha256 trong `tests/fixtures/checksums.json`).
 
 ## Group 1 — Insight, template, preset, Khám phá/Chính thức `[agent: backend]`
 

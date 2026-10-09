@@ -1980,8 +1980,8 @@ class DraftNote(_Model):
     """Lưu ý của bản nháp không gắn với version spec (Phase R2: promote, draft từ preset)."""
 
     code: Literal["slice_too_small"] = Field(
-        description="slice_too_small: slice nhỏ hơn min_slice_size của protocol; compliance sẽ"
-        " chặn khi gửi duyệt"
+        description="slice_too_small: slice nhỏ hơn min_slice_size của protocol; bản nháp vẫn"
+        " dựng được nhưng POST /experiments bị chặn (422 not_compliant)"
     )
     message: str = Field(min_length=1)
 

@@ -2834,7 +2834,7 @@ export interface components {
         DraftNote: {
             /**
              * Code
-             * @description slice_too_small: slice nhỏ hơn min_slice_size của protocol; compliance sẽ chặn khi gửi duyệt
+             * @description slice_too_small: slice nhỏ hơn min_slice_size của protocol; bản nháp vẫn dựng được nhưng POST /experiments bị chặn (422 not_compliant)
              * @constant
              */
             code: "slice_too_small";
