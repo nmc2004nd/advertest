@@ -287,6 +287,8 @@ def check(
 
     if body.cloned_from is not None and session.get(m.Experiment, body.cloned_from) is None:
         error("cloned_from", "Không có experiment gốc này")
+    if body.promoted_from is not None and session.get(m.Experiment, body.promoted_from) is None:
+        error("promoted_from", "Không có experiment Khám phá nguồn này")
 
     if errors:
         code = ErrorCode.NOT_SUPPORTED_YET if not_supported else ErrorCode.INVALID_REQUEST

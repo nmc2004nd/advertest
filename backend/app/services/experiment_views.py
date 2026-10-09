@@ -411,7 +411,7 @@ def manifest(session: Session, read: Callable[[str], bytes], run_id: UUID) -> Ma
 # ---------------------------------------------------------------- nhân bản
 
 
-def _current_version(session: Session, name: str) -> m.AttackSpecRow | None:
+def current_version(session: Session, name: str) -> m.AttackSpecRow | None:
     return session.scalar(
         select(m.AttackSpecRow)
         .where(m.AttackSpecRow.name == name, m.AttackSpecRow.is_active)
@@ -432,7 +432,7 @@ def clone(session: Session, experiment_id: UUID) -> ExperimentClone:
     warnings: list[CloneWarning] = []
     for attack in config.attacks:
         row = session.get(m.AttackSpecRow, attack.attack_spec_id)
-        current = None if row is None or row.is_active else _current_version(session, row.name)
+        current = None if row is None or row.is_active else current_version(session, row.name)
         if row is not None and current is not None and current.version > row.version:
             attacks.append(
                 attack.model_copy(

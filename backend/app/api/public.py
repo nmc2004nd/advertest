@@ -133,6 +133,7 @@ from backend.app.reviews import service as review_service
 from backend.app.services import (
     artifacts,
     catalog,
+    drafts,
     estimate,
     experiment_config,
     experiment_views,
@@ -1004,30 +1005,34 @@ def get_insight(experiment_id: UUID, factory: Sessions) -> ExperimentInsight:
     responses=R2_RESPONSES,
     **guard(P.EXPERIMENT_CREATE),
 )
-def promote_experiment(experiment_id: UUID, body: PromoteRequest) -> ExperimentClone:
+def promote_experiment(
+    experiment_id: UUID, body: PromoteRequest, factory: Sessions
+) -> ExperimentClone:
     """Bản nháp Chính thức từ experiment Khám phá đã kết thúc; không tạo experiment (409 khi
     nguồn không phải exploration, chưa kết thúc, hoặc protocol đích không active)."""
-    not_implemented()
+    with transaction(factory) as session:
+        return drafts.promote(session, experiment_id, body.protocol_id)
 
 
 @router.post(
     "/experiments/draft", tags=["experiments"], responses=R2_RESPONSES, **guard(P.EXPERIMENT_CREATE)
 )
-def draft_experiment(body: ExperimentDraftRequest) -> ExperimentClone:
+def draft_experiment(body: ExperimentDraftRequest, factory: Sessions) -> ExperimentClone:
     """Dựng `ExperimentCreate` từ protocol và preset; không tạo experiment."""
-    not_implemented()
+    with transaction(factory) as session:
+        return drafts.experiment_draft(session, body)
 
 
 @router.get("/experiment-presets", tags=["experiments"], **guard(P.EXPERIMENT_READ))
 def list_experiment_presets() -> list[ExperimentPreset]:
     """Preset trong `contracts/seeds/experiment_presets.json`."""
-    not_implemented()
+    return list(drafts.experiment_presets())
 
 
 @router.get("/protocol-templates", tags=["protocols"], **guard(P.PROTOCOL_READ))
 def list_protocol_templates() -> list[ProtocolTemplate]:
     """Template trong `contracts/seeds/protocol_templates.json`."""
-    not_implemented()
+    return list(drafts.protocol_templates())
 
 
 @router.get(
@@ -1036,9 +1041,10 @@ def list_protocol_templates() -> list[ProtocolTemplate]:
     responses=R2_RESPONSES,
     **guard(P.PROTOCOL_MANAGE),
 )
-def draft_protocol(key: str) -> ProtocolCreate:
+def draft_protocol(key: str, factory: Sessions) -> ProtocolCreate:
     """`ProtocolCreate` điền sẵn spec active, level và tiêu chí gợi ý; không tạo protocol."""
-    not_implemented()
+    with transaction(factory) as session:
+        return drafts.template_draft(session, key)
 
 
 @router.get("/attack-adapters", tags=["admin-attacks"], **guard(P.ATTACK_CATALOG_MANAGE))

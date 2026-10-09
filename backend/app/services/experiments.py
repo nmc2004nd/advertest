@@ -200,11 +200,11 @@ def create_from_body(
             f"Bạn đã có {MAX_QUEUED_PER_USER} experiment đang chờ; hãy chờ một experiment"
             " chạy rồi tạo tiếp"
         )
-    # promoted_from (Phase R2) chỉ để truy vết, không thuộc config; Group 1 lưu và ghi audit log.
+    # promoted_from (Phase R2) chỉ để truy vết, không thuộc config: lưu ở cột riêng và audit log.
     config = ExperimentConfig.model_validate(
         body.model_dump(exclude={"name", "cloned_from", "promoted_from"})
     )
-    return create_experiment(
+    experiment = create_experiment(
         session,
         actor=actor,
         config=config,
@@ -214,6 +214,18 @@ def create_from_body(
         cloned_from=body.cloned_from,
         clock=clock,
     )
+    if body.promoted_from is not None:
+        experiment.promoted_from = body.promoted_from
+        session.flush()
+        audit.record(
+            session,
+            actor=actor,
+            action="experiment.promoted",
+            entity_type="experiment",
+            entity_id=experiment.id,
+            after={"promoted_from": str(body.promoted_from)},
+        )
+    return experiment
 
 
 def runs_of(session: Session, experiment_id: UUID) -> list[m.Run]:
