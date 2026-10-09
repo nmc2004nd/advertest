@@ -9,7 +9,8 @@ danh sách cho phép (requirements.md Phase R2, mục Model qua web).
 - `InferenceParams` thay ngưỡng hậu xử lý của torchvision: `conf` → ngưỡng score, `iou` → NMS,
   `max_det` → số box tối đa mỗi ảnh. Normalize ImageNet nằm trong transform, nên ảnh vào là [0, 1].
 - Estimator là `PyTorchObjectDetector` của ART; `attack_losses` là toàn bộ loss của kiến trúc. ART
-  giữ BatchNorm ở eval khi tính loss.
+  giữ BatchNorm ở eval khi tính loss. `TorchvisionDetector` bỏ box suy biến (rộng hoặc cao bằng 0,
+  FCOS có thể dự đoán) khỏi target trước khi tính loss, vì torchvision từ chối các box này.
 """
 
 from __future__ import annotations
@@ -125,13 +126,34 @@ def build_model(card: ModelCard, state: StateDict, params: InferenceParams) -> t
     return model
 
 
+class TorchvisionDetector(torch.nn.Module):
+    """Bọc model torchvision cho ART: chế độ loss bỏ box suy biến khỏi target; predict như cũ."""
+
+    def __init__(self, model: torch.nn.Module) -> None:
+        super().__init__()
+        self.model = model
+
+    def forward(
+        self, images: torch.Tensor, targets: list[dict[str, torch.Tensor]] | None = None
+    ) -> Any:
+        if self.training and targets is not None:
+            targets = [_valid_boxes(t) for t in targets]
+        return self.model(images, targets)
+
+
+def _valid_boxes(target: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+    boxes = target["boxes"]
+    keep = (boxes[:, 2] > boxes[:, 0]) & (boxes[:, 3] > boxes[:, 1])
+    return {k: v[keep] if k in ("boxes", "labels") else v for k, v in target.items()}
+
+
 def build_estimator(
     card: ModelCard, model: torch.nn.Module, device: str = "cpu"
 ) -> PyTorchObjectDetector:
     """`PyTorchObjectDetector` với input (3, S, S) float32 [0, 1], channels_first."""
     size = card.input_size
     return PyTorchObjectDetector(
-        model=model.to(torch.device(device)),
+        model=TorchvisionDetector(model).to(torch.device(device)),
         input_shape=(3, size, size),
         clip_values=(0.0, 1.0),
         channels_first=True,

@@ -97,7 +97,35 @@ def test_no_gradients_raises_but_predicts(
     assert len(adapter.predict(images)) == len(images)
 
 
-def test_unsupported_framework(store: LocalStore, registered: ModelCard) -> None:
-    card = registered.model_copy(update={"framework": "torchvision"})
-    with pytest.raises(ValueError, match="torchvision"):
+def test_torchvision_card_needs_allowed_architecture(
+    store: LocalStore, registered: ModelCard
+) -> None:
+    card = registered.model_copy(update={"framework": "torchvision"})  # architecture yolov8n
+    with pytest.raises(ValueError, match="không được hỗ trợ"):
         ModelProvider(store).get(card, LOW_PARAMS, "cpu")
+
+
+def _card_with_sha(card: ModelCard, name: str) -> ModelCard:
+    return card.model_copy(update={"weights_sha256": name * 64, "name": name})
+
+
+def test_lru_evicts_least_recently_used(store: LocalStore, registered: ModelCard) -> None:
+    provider = ModelProvider(store, max_models=2)
+    a, b, c = (_card_with_sha(registered, n) for n in "abc")
+
+    adapter_a = provider.get(a, LOW_PARAMS, "cpu")
+    adapter_b = provider.get(b, LOW_PARAMS, "cpu")
+    assert provider.get(a, LOW_PARAMS, "cpu") is adapter_a  # b ít dùng nhất
+    provider.get(c, LOW_PARAMS, "cpu")
+    assert provider.get(a, LOW_PARAMS, "cpu") is adapter_a
+    assert provider.get(b, LOW_PARAMS, "cpu") is not adapter_b
+
+
+def test_lru_size_is_configurable(store: LocalStore, registered: ModelCard) -> None:
+    provider = ModelProvider(store, max_models=1)
+    a, b = (_card_with_sha(registered, n) for n in "ab")
+    adapter_a = provider.get(a, LOW_PARAMS, "cpu")
+    provider.get(b, LOW_PARAMS, "cpu")
+    assert provider.get(a, LOW_PARAMS, "cpu") is not adapter_a
+    with pytest.raises(ValueError, match="max_models"):
+        ModelProvider(store, max_models=0)
