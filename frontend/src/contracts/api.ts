@@ -3242,9 +3242,14 @@ export interface components {
             limit: components["schemas"]["Limit-Input"];
             /**
              * Attack Spec Ids
-             * @description Chỉ với protocol dev; null là toàn bộ catalog active
+             * @description Chỉ với protocol dev; null là toàn bộ catalog active trừ spec cần train
              */
             attack_spec_ids?: string[] | null;
+            /**
+             * Training Slice Id
+             * @description Slice huấn luyện cho spec cần train (patch); thiếu khi cần thì 422
+             */
+            training_slice_id?: string | null;
         };
         /**
          * ExperimentInsight

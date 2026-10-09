@@ -91,8 +91,22 @@
         }
       ],
       "default": null,
-      "description": "Chỉ với protocol dev; null là toàn bộ catalog active",
+      "description": "Chỉ với protocol dev; null là toàn bộ catalog active trừ spec cần train",
       "title": "Attack Spec Ids"
+    },
+    "training_slice_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Slice huấn luyện cho spec cần train (patch); thiếu khi cần thì 422",
+      "title": "Training Slice Id"
     }
   },
   "required": [

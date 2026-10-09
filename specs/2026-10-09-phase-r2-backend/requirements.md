@@ -178,6 +178,45 @@ Chi tiết contract (nguồn sự thật: `contracts/python/advertest_contracts/
   - `POST .../result` nhận `ToolJobResult`: đúng một trong `report` hoặc `error`. Kiểm tra fail vẫn gửi `report` với `passed = false`; `error` dành cho lỗi hạ tầng.
 - **Danh sách experiment.** `GET /experiments` có tham số `?mode=`. Từ Group 0, `ExperimentSummary.mode` đã được suy từ status của protocol.
 - **Fixture.** `scripts/make_r2_fixtures.py` sinh fixture một lần qua `uv run --with onnx`; gói `onnx` không vào lock. Fixture gồm `yolov8n.onnx` (từ `yolov8n.pt`) và `fcos_resnet50_fpn_coco.safetensors` (weights COCO của torchvision). Người duyệt upload lên release `fixtures-v2`; sha256 ghi trong `tests/fixtures/checksums.json`.
+- **Bản nháp experiment (bổ sung khi viết test).**
+  - `POST /experiments` đã kiểm compliance ngay lúc tạo (Phase 8). Vì vậy bản nháp có slice nhỏ hơn `min_slice_size` vẫn dựng được và ghi `notes`, nhưng tạo experiment từ nó bị chặn với 422 `not_compliant`. Mục Mode và nâng lên chính thức ghi "chặn khi gửi duyệt"; câu đó được hiểu theo hành vi hiện có này.
+  - `ExperimentDraftRequest` thêm `training_slice_id`. Khi `attack_spec_ids = null`, bản nháp gồm toàn bộ catalog `active` trừ spec cần train. Chọn rõ spec cần train, hoặc protocol bắt buộc spec đó, thì phải có `training_slice_id`; thiếu thì 422.
+  - Tìm ngưỡng của preset dùng `subset_size = min(preset.search.subset_size, số ảnh của slice)`.
+- **Câu kết luận.** Mức sụt trong `text` viết dạng phần trăm, làm tròn số nguyên (0.42 → "42%"). `weak_class` áp dụng khi `class_relative_drop ≥ 2 · relative_drop`, tính cả trường hợp bằng đúng 2 lần.
+- **Audit log.** Các action mới: `attack_spec.created`, `attack_spec.approved`, `attack_spec.rejected`, `attack_spec.metadata_updated`, `model.registered`, `experiment.promoted` (với `after.promoted_from`) và `quick_try.create`.
+- **Lưu trữ thử nhanh.** Mọi object của một lượt nằm dưới `quick-tries/<id>/` trong bucket `artifacts`.
+- **Job công cụ.** Job mất lease được xếp lại; sau lần mất lease thứ 3 thì `failed`. Khi đó spec chuyển `check_failed`, model chuyển `check_failed`, thử nhanh chuyển `failed` kèm `error`. Heartbeat bằng lease cũ trả 409.
+
+#### Interface cho test nghiệm thu (`tests/acceptance/phase_r2/`)
+
+Test gọi trực tiếp các tên dưới đây. Đổi tên hoặc chữ ký thì phải qua người duyệt.
+
+- **Group 1.** `backend.app.insight.phrases.conclude(weaknesses, *, has_data) -> Conclusion` là hàm thuần.
+- **Group 2.** Trong `attacks.builders`:
+  - `adapter_of(spec) -> str` trả `spec.adapter`, hoặc `effective_adapter(spec)` khi `adapter` là null. Đây là resolver mặc định của `PerturbationRegistry`.
+  - `InvalidSpec(ValueError)`.
+  - `PerturbationRegistry.validate(spec)` báo `InvalidSpec` khi adapter không có trong registry, khi `kind` khác `kind` của builder, hoặc khi `fixed_params` sai `params_schema`.
+  - `PerturbationRegistry.adapters() -> list[AttackAdapterInfo]`, sắp theo tên.
+  - Builder có thêm `kind: ClassVar[AttackKind]` và `params_schema: ClassVar[dict]`. Builder thiếu hai thuộc tính này, như builder giả của test R1, vẫn đăng ký và dựng được.
+  - Schema của `corruption.imagecorruptions` có `properties.corruption.enum` là đúng 5 hàm hiện có.
+- **Group 2.** Trong `attacks.selfcheck`:
+  - `SelfcheckInputs(images, masks, targets, estimator)` với 4 ảnh letterbox; `estimator` là null khi không cần gradient.
+  - `run_selfcheck(spec, inputs, *, registry=DEFAULT_REGISTRY, seed=0, timeout_s=120.0)` trả object có `items: list[SpecCheckItem]` và `error: str | None`.
+  - Level dùng cho từng mục:
+    - Mục 1 chạy tại `min`, level giữa và `max`.
+    - Mục 4 chạy tại `min`.
+    - Các mục còn lại chạy tại level giữa: `min + 0.5·(max − min)`; tham số rời rạc thì lấy `values[(n − 1) // 2]`.
+  - Mục 5 so batch 1 với batch 4 trên cùng một perturbation. Mục 7 so hai perturbation dựng độc lập.
+  - Chuẩn nhiễu tính bằng `level_to_eps` và `fixed_params.norm`.
+  - Spec cần train thì dùng patch ngẫu nhiên có seed cố định.
+- **Group 3.** Trong `ml_core.models.adapter`:
+  - `open_adapter(card, weights: Path, params, device) -> ModelAdapter`, chọn adapter theo `framework`.
+  - `ModelProvider(store, *, load_model=None, max_models=2)` cache LRU theo khóa hiện có.
+  - Fixture torchvision có tên class trùng (`N/A`); test đánh số các tên trùng để thỏa ràng buộc không trùng.
+- **Group 4.** `backend.app.services.quick_tries.purge_expired(session, buckets, now) -> int` trả số lượt đã dọn. Cách gọi định kỳ (CLI hoặc tiến trình nền) do Group 4 chọn.
+- **Group 5.** `advertest_worker.tools.ToolRunner(client, cache, device, *, url_http, clock)` có `run_next() -> bool`, trả false khi không còn job. `advertest-worker --tools` lặp `run_next`.
+
+Test của group chưa làm chỉ có trên nhánh `phaser2-reviewer`. Test gọi interface mới qua import trong thân hàm, nên khi interface chưa có thì từng test fail riêng, không chặn cả lượt chạy.
 
 ### DB (migration `0011_phase_r2`)
 

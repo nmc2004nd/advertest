@@ -3513,7 +3513,11 @@ class ExperimentDraftRequest(_Model):
     limit: Limit
     attack_spec_ids: list[UUID] | None = Field(
         default=None,
-        description="Chỉ với protocol dev; null là toàn bộ catalog active",
+        description="Chỉ với protocol dev; null là toàn bộ catalog active trừ spec cần train",
+    )
+    training_slice_id: UUID | None = Field(
+        default=None,
+        description="Slice huấn luyện cho spec cần train (patch); thiếu khi cần thì 422",
     )
 
 
