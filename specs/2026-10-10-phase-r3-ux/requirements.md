@@ -73,6 +73,54 @@ Không thêm enum mới. Giao diện dùng các enum đã có từ R2: `AttackSp
 
 Xem mục 3 của `design.md`. `status-config.ts` khai `Record<Enum, …>` cho các enum này, như quy ước `tech-stack.md` mục 5.1.
 
+### Chốt ở Group 0 (2026-10-10)
+
+Nguồn sự thật: `contracts/python/advertest_contracts/models.py`, mock trong `contracts/mocks/`.
+
+- **Contract.**
+  - `ReportInsight` gồm `weaknesses`, `matrix`, `bands`, `conclusion`; bỏ `experiment_id`, `mode`, `partial` vì report chỉ xuất từ experiment Chính thức đã duyệt.
+  - `ReportSnapshot.insight` và `ExperimentDetail.promoted_from` dùng `exclude_if None`.
+  - `POST /models/{model_id}/check` trả 202 `ModelSummary`; endpoint khung trả 501 cho tới Group 1.
+  - Audit action mới `model.rechecked` (chuỗi tự do, không phải enum).
+- **Mock mới:**
+  - `model_summary/check_failed`;
+  - `attack_spec_admin_view/snow_light_{checking,check_failed,rejected_draft}`;
+  - `report_insight/weak`, `report_snapshot/approved_grid_insight`;
+  - `experiment_detail/promoted_official`.
+
+  Experiment Khám phá có insight dùng mock sẵn có `experiment_detail/completed` + `experiment_insight/weak`.
+- **E2E cần worker công cụ.** `scripts/e2e.sh` chạy thêm `advertest-worker --tools` cho máy `local-dev`.
+- **E2E cũ đi qua wizard 6 bước.** Có 6 file: `phase_05/{experiment-flow,queue-home,wizard-rules}`, `phase_06/wizard-catalog`, `phase_07/search`, `phase_08/review-flow`.
+  - Khi Group 5 xong, người duyệt chuyển các file này sang wizard 3 bước và giữ nguyên mọi assertion. `phase_05/experiment-flow` còn mở tab "Chi phí": chuyển sang section Chi phí trong Tổng quan.
+  - Trong lúc chờ, các file này fail trên nhánh `phaser3-frontend` sau Group 5. Đây không phải lỗi của agent.
+
+#### Interface cho test nghiệm thu (`tests/acceptance/phase_r3/`, `frontend/e2e/phase_r3/`)
+
+Test gọi trực tiếp các tên dưới đây. Đổi tên hoặc chữ ký phải qua người duyệt.
+
+- **Group 1:**
+  - `backend.app.services.quick_tries.purge_orphans(session, buckets, now) -> int`. Tuổi object tính theo `LastModified` của MinIO so với `now`.
+  - `backend.app.reports.render.html(snapshot, read_artifact)` có section tiêu đề "Điểm yếu chính", đặt giữa "Tóm tắt" và "Cấu hình", kèm câu "Điểm yếu là gợi ý để review, không thay cho tiêu chí đạt của protocol".
+- **Group 2:** `attacks.selfcheck.fixture_inputs(*, with_estimator: bool, fixtures_dir: Path | None = None) -> SelfcheckInputs`.
+- **Group 3:**
+  - `advertest_worker.quick_try.QUICK_TRY_BLUR_MIN_SCORE = 0.05`.
+  - `run_quick_try` giữ chữ ký R2.
+  - `advertest_worker.spec_check` không tự dựng fixture (không dùng `SliceLoader`).
+- **Giao diện (E2E):** nhãn, role và `data-testid` dưới đây là interface. Phần còn lại agent frontend tự quyết theo `design.md`.
+
+  | Màn hình | Interface |
+  |---|---|
+  | Trang experiment | `role=tab` đúng 5 tên; `data-testid="experiment-mode"` ("Khám phá"/"Chính thức"); `data-testid="lifecycle"` chứa `lifecycle-step` có `data-step` ∈ `create, run, analyze, submit, review, report` và `data-state` ∈ `done, current, todo, failed`; heading "Chi phí", "Tái lập" trong Tổng quan; `data-testid="empty-state"`; link "Nâng từ <tên nguồn>" |
+  | Ý nghĩa quyết định | `data-testid="decision-meaning"` trong hộp gửi duyệt, cột quyết định review, trang report |
+  | Trang chủ | `data-testid="todo-list"` chứa `todo-item` có `data-kind` (engineer: `submit_ready`, `changes_requested`, `promote_ready`; reviewer: `review_pending`, `spec_pending`, `protocol_draft`; admin: `user_pending`, `spec_check_failed`, `model_check_failed`) và số lượng; trống: chữ "Không có việc cần làm", link "Tạo experiment Khám phá" (engineer) |
+  | Wizard | `data-testid="wizard-step"` đúng 3 phần tử ("Mục đích", "Model và dữ liệu", "Attack và xác nhận"), bước hiện tại `aria-current="step"`; `radiogroup` "Mode", "Preset" (radio theo `title` của preset); ô chọn nhãn "Protocol", "Model", "Dataset và slice", "Máy chạy" (`<select>` hoặc combobox có `role=option`); nút "Tiếp…", "Tạo experiment"; `data-testid="attack-row"` có `data-attack` = tên spec, chip level có `data-level`, chip bắt buộc có `aria-disabled="true"` và chữ "Protocol yêu cầu"; nút "Bỏ attack…" không có ở attack bắt buộc; ô số chỉ nằm trong `<details>` "Tùy chỉnh nâng cao" |
+  | Kết quả | `data-testid="insight-conclusion"`, `weakness` (bấm được, `data-level`; mở tab Failure case với query `attack=<tên>&level=<level>`), `robustness-matrix` chứa `matrix-cell` (4 ô mỗi hàng), `matrix-legend`; nút "Cách đọc"; nút "Nâng lên chính thức" → hộp thoại có ô chọn "Protocol" và nút "Tiếp tục" |
+  | Thuật ngữ | phần tử có thuộc tính `data-term`, focus được; tooltip `role="tooltip"` có `id` trùng `aria-describedby`; Esc đóng |
+  | Admin catalog | `/admin/attacks`: nút "Tạo attack spec"; ô chọn "Sao chép từ" (điền sẵn từ spec có sẵn); ô "Tên spec", "Tên hiển thị", "Mô tả"; nút "Tạo spec" → trang chi tiết có `data-testid="spec-status"` và `check-item` (7 mục) |
+  | Duyệt spec | `/attack-specs/pending`: `data-testid="pending-spec"` mỗi spec; nút "Kích hoạt" (vô hiệu với spec của chính mình, kèm chữ "Bạn đã tạo spec này"), "Từ chối" → hộp thoại có ô "Lý do" và nút "Từ chối" vô hiệu khi trống; hộp thoại kích hoạt có nút "Kích hoạt" |
+  | Model | `/admin/models` nút "Đăng ký model"; ô chọn "Framework"; `data-testid="onnx-layouts"` ghi "(1, 4+C, N)" và "boxes/scores/labels"; ô file "File weights"; lỗi đuôi file hiện `role="alert"` có ".onnx" và nút "Đăng ký" vô hiệu; `/admin/models/:id` có `data-testid="model-status"`, `model-check`, nút "Kiểm tra lại" |
+  | Thử nhanh | `/quick-try`: ô chọn "Model", "Attack"; ô file "Ảnh"; nút "Chạy thử nhanh"; `data-testid="quick-try-result"`, `not-a-test-result` (có giờ xóa dạng `HH:MM`), `attacked-image` (`src` đổi theo level), `object-table`; `role="slider"` tên "Level" |
+
 ## Behaviour
 
 ### Trang experiment (M1)

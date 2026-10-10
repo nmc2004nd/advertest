@@ -10,7 +10,7 @@
 - [ ] `contracts-check` sạch; `spec_sha256` của 10 spec seed không đổi.
 - [ ] `pnpm --dir frontend verify:build` pass.
 
-### Group 1 — Backend (`test_model_recheck.py`, `test_report_insight.py`, `test_purge_orphans.py`; `db`)
+### Group 1 — Backend (`test_model_recheck.py`, `test_report_insight.py`, `test_purge_orphans.py`, `test_experiment_detail_r3.py`, `test_permissions_r3.py`; `db` trừ phần render và quyền)
 - [ ] `POST /models/{id}/check`:
   - từ `check_failed` → 202, status `checking`, có job `model_check` mới và audit `model.rechecked`;
   - từ `ready` hoặc `checking` → 409;
@@ -28,7 +28,7 @@
 - [ ] `fixture_inputs(with_estimator=False)` trả 4 ảnh letterbox, `estimator = None`; `with_estimator=True` có estimator.
 - [ ] `validate` với `art_class` không hỗ trợ → `InvalidSpec`; `POST /admin/attack-specs` → 422 (`db`). Spec seed validate được.
 
-### Group 3 — Worker (`test_tool_worker_r3.py`; `db`)
+### Group 3 — Worker (`test_spec_check_inputs.py`, `test_quick_try_blur.py`; không cần DB)
 - [ ] `spec_check` qua worker và CLI selfcheck cho cùng `items` trên spec seed `fog` và `fgsm`.
 - [ ] Làm mờ thử nhanh, với fixture có người chỉ được phát hiện ở score trong [0.05, `operating_conf`):
   - vùng đó khác ảnh gốc trên ảnh sạch và mọi level;

@@ -124,11 +124,17 @@ done
 API_URL="http://127.0.0.1:$API_PORT" WORKER_TOKEN="$TOKEN" CACHE_DIR="$WORK/worker-cache" DEVICE=cpu \
   uv run --no-sync advertest-worker run >"$WORK/worker.log" 2>&1 &
 PIDS+=("$!")
+# Phase R3: worker công cụ (kiểm spec, kiểm model, thử nhanh) cho cùng máy local-dev.
+API_URL="http://127.0.0.1:$API_PORT" WORKER_TOKEN="$TOKEN" CACHE_DIR="$WORK/tools-cache" DEVICE=cpu \
+  uv run --no-sync advertest-worker --tools >"$WORK/tools.log" 2>&1 &
+PIDS+=("$!")
 
 status=0
 API_PROXY_TARGET="http://127.0.0.1:$API_PORT" pnpm --dir frontend e2e "$@" || status=$?
 if [ "$status" -ne 0 ]; then
   echo "---- 50 dòng cuối log worker ----" >&2
   tail -n 50 "$WORK/worker.log" >&2 || true
+  echo "---- 50 dòng cuối log worker công cụ ----" >&2
+  tail -n 50 "$WORK/tools.log" >&2 || true
 fi
 exit "$status"

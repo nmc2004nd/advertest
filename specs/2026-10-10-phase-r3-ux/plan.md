@@ -11,9 +11,9 @@
 > Group 4–7 chạy được trên mock (`VITE_USE_MOCKS=true`) trước khi Group 1 merge.
 > Group rủi ro, cần review riêng ngay sau khi làm: Group 0 (contract), Group 1 (snapshot report, quyền endpoint), Group 3 (hành vi worker, làm mờ).
 
-## Group 0 — Contract, design và test nghiệm thu `[người duyệt]`
+## Group 0 — Contract, design và test nghiệm thu `[người duyệt]` ✅
 
-1. Đổi contract theo `requirements.md` mục Data / Fields:
+1. ✅ Đổi contract theo `requirements.md` mục Data / Fields:
    - `POST /models/{model_id}/check`;
    - `ExperimentDetail.promoted_from`;
    - `ReportInsight` và `ReportSnapshot.insight`;
@@ -22,7 +22,7 @@
    Sau đó chạy `make contracts`. Thêm mock: experiment Khám phá có insight, model `check_failed`, spec ở từng `AttackSpecStatus`, report có `insight`.
 2. ✅ Viết lại `design.md` theo app hiện có (gồm tông trạng thái spec/model, mode, thang màu ma trận, overlay thử nhanh), sửa dòng font trong `tech-stack.md` (2026-10-10).
 3. ✅ Cập nhật `roadmap.md`: R3 bỏ phụ thuộc 11a; thêm Phase R3b (11a + 11b); sửa mục 3 của thứ tự cắt giảm (áp khi soạn spec, 2026-10-10).
-4. Viết test nghiệm thu backend (`tests/acceptance/phase_r3/`) và E2E (`frontend/e2e/phase_r3/`) theo `validation.md`. Test của group chưa làm chỉ commit trên `phaser3-reviewer`, như R2.
+4. ✅ Viết test nghiệm thu backend (`tests/acceptance/phase_r3/`) và E2E (`frontend/e2e/phase_r3/`) theo `validation.md`. Test của group chưa làm chỉ commit trên `phaser3-reviewer`, như R2.
 
 ## Group 1 — Tồn đọng backend và insight trong report `[agent: backend]`
 
@@ -75,6 +75,7 @@
 21. Tab Kết quả: câu kết luận, điểm yếu (link sang Failure case đã lọc), ma trận và chú thích thang màu, trạng thái `no_data`.
 22. Câu kết luận và "Cách đọc" cho từng biểu đồ (hàm sinh câu thuần, có test).
 23. Nút "Nâng lên chính thức": chọn protocol, gọi `promote`, mở wizard bước 3 với `promoted_from`.
+23a. `[người duyệt]` Sau khi Group 5 xong: chuyển 6 file E2E cũ đi qua wizard (Phase 5–8) sang wizard 3 bước, giữ nguyên assertion (Chốt ở Group 0).
 
 ## Group 6 — Admin catalog, duyệt spec, đăng ký model `[agent: frontend]`
 
