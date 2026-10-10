@@ -31,11 +31,14 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.sql.elements import ColumnElement
 
 from advertest_contracts.enums import (
     AttackAccess,
     AttackKind,
+    AttackSpecStatus,
     BillingMode,
     CaseSeverity,
     CaseVerdictKind,
@@ -43,12 +46,15 @@ from advertest_contracts.enums import (
     ComputeKind,
     ExperimentStatus,
     LimitKind,
+    ModelStatus,
     ModelVerdict,
     ProtocolStatus,
     ReportStatus,
     ReviewDecision,
     Role,
     RunStatus,
+    ToolJobKind,
+    ToolJobStatus,
     UserStatus,
 )
 
@@ -215,6 +221,11 @@ class ModelVersion(Base):
     input_size: Mapped[int]
     supports_gradients: Mapped[bool] = mapped_column(server_default=text("false"))
     created_at: Mapped[datetime] = _created_at()
+    # Phase R2: model đăng ký qua web ở `checking` cho tới khi job model_check xong.
+    status: Mapped[ModelStatus] = mapped_column(
+        pg_enum(ModelStatus, "model_status"), server_default=ModelStatus.READY.value
+    )
+    check: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
 
 class CostProfile(Base):
@@ -288,7 +299,36 @@ class AttackSpecRow(Base):
     access: Mapped[AttackAccess] = mapped_column(pg_enum(AttackAccess, "attack_access"))
     spec: Mapped[dict[str, Any]] = mapped_column(JSONB)
     spec_sha256: Mapped[str] = mapped_column(Sha256, unique=True)
-    is_active: Mapped[bool] = mapped_column(server_default=text("true"))
+    # Phase R2: vòng đời thay cột is_active; mặc định active cho bản ghi của seed và CLI.
+    status: Mapped[AttackSpecStatus] = mapped_column(
+        pg_enum(AttackSpecStatus, "attack_spec_status"),
+        server_default=AttackSpecStatus.ACTIVE.value,
+    )
+    # Cột `metadata` (thuộc tính `metadata` đã dành cho Declarative).
+    spec_metadata: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSONB)
+    check: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    created_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"))
+    approved_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"))
+    approved_at: Mapped[datetime | None]
+
+    @hybrid_property
+    def is_active(self) -> bool:
+        """Suy từ `status` (Phase R2); gán True/False là active/retired như trước R2."""
+        return self.status == AttackSpecStatus.ACTIVE
+
+    @is_active.inplace.setter
+    def _is_active_setter(self, value: bool) -> None:
+        self.status = AttackSpecStatus.ACTIVE if value else AttackSpecStatus.RETIRED
+
+    @is_active.inplace.expression
+    @classmethod
+    def _is_active_expression(cls) -> ColumnElement[bool]:
+        return cls.status == AttackSpecStatus.ACTIVE
+
+    @is_active.inplace.update_expression
+    @classmethod
+    def _is_active_update(cls, value: Any) -> list[tuple[Any, Any]]:
+        return [(cls.status, AttackSpecStatus.ACTIVE if value else AttackSpecStatus.RETIRED)]
 
 
 class Protocol(Base):
@@ -605,6 +645,47 @@ class LedgerEntry(Base):
     amount: Mapped[Decimal] = mapped_column(Money)
     currency: Mapped[str] = mapped_column(Currency)
     created_at: Mapped[datetime] = _created_at()
+
+
+class ToolJob(Base):
+    """Job công cụ của worker `--tools` (Phase R2): lease 60 giây như experiment; mất lease lần
+    thứ 3 thì `failed`."""
+
+    __tablename__ = "tool_jobs"
+    __table_args__ = (Index("ix_tool_jobs_status", "status", "created_at"),)
+
+    id: Mapped[UUID] = _uuid_pk()
+    kind: Mapped[ToolJobKind] = mapped_column(pg_enum(ToolJobKind, "tool_job_kind"))
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    status: Mapped[ToolJobStatus] = mapped_column(
+        pg_enum(ToolJobStatus, "tool_job_status"), server_default=ToolJobStatus.QUEUED.value
+    )
+    lease_id: Mapped[UUID | None]
+    lease_expires_at: Mapped[datetime | None]
+    leased_by: Mapped[UUID | None] = mapped_column(ForeignKey("compute_targets.id"))
+    attempts: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    result: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    error: Mapped[str | None] = mapped_column(Text)
+    created_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = _created_at()
+    finished_at: Mapped[datetime | None]
+
+
+class QuickTry(Base):
+    """Một lượt thử nhanh (Phase R2); object MinIO dưới `quick-tries/<id>/`."""
+
+    __tablename__ = "quick_tries"
+
+    id: Mapped[UUID] = _uuid_pk()
+    owner_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    tool_job_id: Mapped[UUID] = mapped_column(ForeignKey("tool_jobs.id"), unique=True)
+    model_version_id: Mapped[UUID] = mapped_column(ForeignKey("model_versions.id"))
+    attack_spec_id: Mapped[UUID] = mapped_column(ForeignKey("attack_specs.id"))
+    preset: Mapped[str] = mapped_column(Text)
+    input_uri: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime]
+    expires_at: Mapped[datetime]
+    deleted_at: Mapped[datetime | None]
 
 
 class AuditLog(Base):
