@@ -185,11 +185,13 @@ class RunPipeline:
             images_total=images_total,
         )
 
-        if spec.requires_gradients and not self.adapter(bundle).capabilities.gradients:
-            finish.skipped(f"{spec.name} cần gradient nhưng model không hỗ trợ gradient")
-            return
         executor: RunExecutor | None = None
         try:
+            # Nạp model nằm trong `try` (tồn đọng R1 Group 5): lỗi của `ModelProvider.get` chỉ làm
+            # run này `failed`, các run sau vẫn chạy.
+            if spec.requires_gradients and not self.adapter(bundle).capabilities.gradients:
+                finish.skipped(f"{spec.name} cần gradient nhưng model không hỗ trợ gradient")
+                return
             if spec.requires_training:
                 perturbation: Perturbation
                 perturbation, finish.extra_seconds = patch_perturbation(
