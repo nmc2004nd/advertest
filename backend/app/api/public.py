@@ -1177,10 +1177,19 @@ def register_model(
     responses=R2_RESPONSES,
     **guard(P.MODEL_MANAGE),
 )
-def recheck_model(model_id: UUID) -> ModelSummary:
+def recheck_model(
+    model_id: UUID, user: CurrentUser, factory: Sessions, stores: Stores, clock: Now
+) -> ModelSummary:
     """Phase R3: kiểm lại model `check_failed` → `checking`, xếp job model_check mới (409 khi
     status khác hoặc weights không còn trong storage)."""
-    not_implemented()
+    with transaction(factory) as session:
+        return model_uploads.recheck(
+            session,
+            actor=_actor(session, user),
+            model_id=model_id,
+            buckets=stores.buckets,
+            now=clock(),
+        )
 
 
 QUICK_TRY_RESPONSES: dict[int | str, dict[str, Any]] = R2_RESPONSES | {

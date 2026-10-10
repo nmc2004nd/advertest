@@ -21,7 +21,7 @@ from advertest_contracts.models import ModelCheckResult
 from backend.app import storage
 from backend.app.db import models as m
 from backend.app.services.errors import Conflict
-from backend.app.services.model_uploads import apply_check, is_safetensors
+from backend.app.services.model_uploads import apply_check, is_safetensors, recheck
 
 
 def _raw(header: object, body: bytes = b"") -> bytes:
@@ -120,3 +120,33 @@ def test_check_worker_target_taken_from_lease() -> None:
     assert version.status == ModelStatus.CHECK_FAILED
     assert version.check is not None
     assert version.check["worker_target_id"] == str(target)
+
+
+# ---------------------------------------------------------------- kiểm lại (Phase R3)
+
+
+class _RecheckSession(_Session):
+    """Không có job `model_check` nào trước đó (model đăng ký qua CLI)."""
+
+    def scalar(self, _statement: Any) -> None:
+        return None
+
+
+class _Store:
+    def exists(self, _key: str) -> bool:
+        return True
+
+
+def test_recheck_without_previous_job_conflicts_without_change() -> None:
+    version = m.ModelVersion(id=uuid4(), status=ModelStatus.CHECK_FAILED, weights_sha256="a" * 64)
+    session = cast(Session, _RecheckSession(version))
+    buckets = cast(storage.Buckets, type("B", (), {"models": _Store()})())
+    with pytest.raises(Conflict):
+        recheck(
+            session,
+            actor=cast(m.User, None),
+            model_id=version.id,
+            buckets=buckets,
+            now=datetime(2026, 10, 10, tzinfo=UTC),
+        )
+    assert version.status == ModelStatus.CHECK_FAILED

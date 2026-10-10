@@ -157,6 +157,55 @@ def register(
     return catalog.get_model(session, version.id)
 
 
+def recheck(
+    session: Session,
+    *,
+    actor: m.User,
+    model_id: UUID,
+    buckets: storage.Buckets,
+    now: datetime,
+) -> ModelSummary:
+    """Kiểm lại model `check_failed` (Phase R3): `checking`, xếp job `model_check` mới với
+    `architecture` của lần kiểm trước. 409 khi status khác hoặc weights không còn trong storage."""
+    version = session.get(m.ModelVersion, model_id, with_for_update=True)
+    if version is None:
+        raise NotFound("Không có model này")
+    if version.status != ModelStatus.CHECK_FAILED:
+        raise Conflict(f"Chỉ kiểm lại model check_failed (model đang ở {version.status})")
+    if not buckets.models.exists(storage.weights_key(version.weights_sha256)):
+        raise Conflict("Weights của model không còn trong storage; đăng ký lại model")
+    previous = session.scalar(
+        select(m.ToolJob)
+        .where(
+            m.ToolJob.kind == ToolJobKind.MODEL_CHECK,
+            m.ToolJob.payload["model_version_id"].astext == str(version.id),
+        )
+        .order_by(m.ToolJob.created_at.desc())
+        .limit(1)
+    )
+    if previous is None:
+        raise Conflict("Model không đăng ký qua web, không có thông tin để kiểm lại")
+    version.status = ModelStatus.CHECKING
+    tool_jobs.enqueue(
+        session,
+        ToolJobKind.MODEL_CHECK,
+        {"model_version_id": str(version.id), "architecture": previous.payload["architecture"]},
+        created_by=actor.id,
+        now=now,
+    )
+    audit.record(
+        session,
+        actor=actor,
+        action="model.rechecked",
+        entity_type="model_version",
+        entity_id=version.id,
+        before={"status": ModelStatus.CHECK_FAILED.value},
+        after={"status": ModelStatus.CHECKING.value},
+    )
+    session.flush()
+    return catalog.get_model(session, version.id)
+
+
 def _version(session: Session, job: m.ToolJob) -> m.ModelVersion:
     version = session.get(
         m.ModelVersion, UUID(job.payload["model_version_id"]), with_for_update=True
