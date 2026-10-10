@@ -210,7 +210,8 @@ def apply_check(session: Session, job: m.ToolJob, result: SpecCheckResult) -> No
         raise Invalid("result.spec_id khác spec của job")
     if row.status != AttackSpecStatus.CHECKING:
         raise Conflict(f"Spec đang ở trạng thái {row.status}, không chờ kết quả kiểm tra")
-    assert job.leased_by is not None  # job đang được lease (tool_jobs.leased)
+    if job.leased_by is None:
+        raise Conflict("Job chưa được lease, không nhận kết quả kiểm tra")
     result = result.model_copy(update={"worker_target_id": job.leased_by})
     row.check = result.model_dump(mode="json")
     row.status = (

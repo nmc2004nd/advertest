@@ -223,7 +223,8 @@ def apply_check(
     if version.status != ModelStatus.CHECKING:
         raise Conflict(f"Model đang ở trạng thái {version.status}, không chờ kết quả kiểm tra")
     # `worker_target_id` lấy theo target đã lease job, không theo giá trị worker gửi (Group 5).
-    assert job.leased_by is not None  # job đang được lease (tool_jobs.leased)
+    if job.leased_by is None:
+        raise Conflict("Job chưa được lease, không nhận kết quả kiểm tra")
     result = result.model_copy(update={"worker_target_id": job.leased_by})
     version.check = result.model_dump(mode="json")
     if not result.passed:

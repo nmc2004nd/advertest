@@ -7,12 +7,21 @@ import json
 import pickle
 import struct
 import zipfile
+from datetime import UTC, datetime
+from typing import Any, cast
+from uuid import UUID, uuid4
 
 import numpy as np
 import pytest
 from safetensors.numpy import save
+from sqlalchemy.orm import Session
 
-from backend.app.services.model_uploads import is_safetensors
+from advertest_contracts.enums import ModelStatus, ToolJobKind
+from advertest_contracts.models import ModelCheckResult
+from backend.app import storage
+from backend.app.db import models as m
+from backend.app.services.errors import Conflict
+from backend.app.services.model_uploads import apply_check, is_safetensors
 
 
 def _raw(header: object, body: bytes = b"") -> bytes:
@@ -60,3 +69,54 @@ def test_metadata_alongside_tensor_accepted() -> None:
         "w": {"dtype": "F32", "shape": [1], "data_offsets": [0, 4]},
     }
     assert is_safetensors(_raw(header, b"\x00\x00\x80\x3f"))
+
+
+# ---------------------------------------------------------------- nhận kết quả model_check
+
+
+class _Session:
+    def __init__(self, version: m.ModelVersion) -> None:
+        self.version = version
+
+    def get(self, entity: Any, ident: UUID, **_: Any) -> m.ModelVersion | None:
+        return self.version if ident == self.version.id else None
+
+    def flush(self) -> None:
+        pass
+
+
+def _check_setup(
+    leased_by: UUID | None,
+) -> tuple[Session, m.ModelVersion, m.ToolJob, ModelCheckResult]:
+    version = m.ModelVersion(id=uuid4(), status=ModelStatus.CHECKING, check=None)
+    job = m.ToolJob(
+        kind=ToolJobKind.MODEL_CHECK,
+        payload={"model_version_id": str(version.id)},
+        leased_by=leased_by,
+    )
+    result = ModelCheckResult(
+        passed=False,
+        details="sha256 lệch",
+        gradient_check=None,
+        checked_at=datetime(2026, 10, 10, tzinfo=UTC),
+        worker_target_id=UUID(int=0),
+    )
+    return cast(Session, _Session(version)), version, job, result
+
+
+def test_check_from_unleased_job_rejected_without_change() -> None:
+    """Review Phase R2, phát hiện #6: kiểm tường minh thay cho `assert`."""
+    session, version, job, result = _check_setup(leased_by=None)
+    with pytest.raises(Conflict):
+        apply_check(session, job, result, cast(storage.Buckets, None))
+    assert version.status == ModelStatus.CHECKING
+    assert version.check is None
+
+
+def test_check_worker_target_taken_from_lease() -> None:
+    target = uuid4()
+    session, version, job, result = _check_setup(leased_by=target)
+    apply_check(session, job, result, cast(storage.Buckets, None))
+    assert version.status == ModelStatus.CHECK_FAILED
+    assert version.check is not None
+    assert version.check["worker_target_id"] == str(target)
