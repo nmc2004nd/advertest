@@ -80,6 +80,7 @@
 - [ ] Demo M1–M8: một người chưa dùng ứng dụng tạo experiment Khám phá trong 3 bước, rồi đọc được điểm yếu chính mà không cần giải thích. Ghi lại người thử và chỗ họ vướng.
 - [ ] Thử nhanh trên ảnh KITTI: kéo thanh trượt và thấy object biến mất. Đo lại thời gian (mục tiêu < 10 giây khi model đã cache), ghi vào `CHANGELOG.md`.
 - [ ] Ảnh thử nhanh có người nhỏ hoặc mờ: không thấy rõ mặt hay biển số ở bất kỳ level nào (nguyên tắc 9).
+- [ ] Màn hình mới (thử nhanh, admin model, duyệt spec) đặt cạnh trang cũ cùng loại không lệch phong cách: cùng khung, header, panel, màu nút. Không có màu hex hay token mới trong diff `frontend/src/` (`git diff dev -- frontend/src | grep -E '#[0-9a-fA-F]{6}'` rỗng, ngoài test).
 - [ ] Màn hình mới xem được ở 390×844 và 1440×900, ở chế độ sáng và tối hiện có, không vỡ bố cục.
 - [ ] Đăng ký thử một model ONNX ngoài fixture; ghi kết quả vào Open Question về layout.
 

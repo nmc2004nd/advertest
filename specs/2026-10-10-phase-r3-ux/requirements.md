@@ -34,7 +34,7 @@ Cuối phase, mọi test nghiệm thu Phase 0–8, R1 và R2 vẫn pass, và gol
 
 ## Out of Scope
 
-- **Áp `design.md` cho toàn ứng dụng** (các mục 11b), gồm: token toàn cục mới, đổi font sang Be Vietnam Pro, nút chuyển sáng/tối, vùng A/B/C cho mọi trang, gom toàn bộ câu chữ vào `copy/vi.ts`, đổi font và màu của report PDF. Phần này chuyển sang **Phase R3b**, làm cùng landing (11a). R3 dùng token và component sẵn có; màn hình mới vẫn tuân theo ngữ nghĩa màu, màu trạng thái, lớp overlay và mục 7, 8 của `design.md`.
+- **Áp `design.md` cho toàn ứng dụng** (các mục 11b), gồm: token toàn cục mới, đổi font sang Be Vietnam Pro, nút chuyển sáng/tối, vùng A/B/C cho mọi trang, gom toàn bộ câu chữ vào `copy/vi.ts`, đổi font và màu của report PDF. Phần này chuyển sang **Phase R3b**, làm cùng landing (11a). R3 theo phong cách của app hiện có (mục Behaviour "Phong cách giao diện").
 - Landing page (Phase 11a, chuyển sang R3b).
 - Thuật toán attack mới, adapter mới, và upload `.pt` hay pickle qua web (`mission.md` nguyên tắc 10).
 - Tạo protocol tự động từ template. Template chỉ điền sẵn form cho reviewer (R2).
@@ -191,6 +191,24 @@ Quy tắc chung:
 - Nhãn **"Không phải kết quả kiểm thử"** luôn hiện ở đầu kết quả (`not_a_test_result`), màu `--threshold`, kèm câu giải thích: không tạo experiment, không vào report, ảnh tự xóa sau 24 giờ (ghi giờ xóa từ `expires_at`).
 - Gặp 410: "Lượt thử đã hết hạn và bị xóa", kèm nút "Thử lại".
 
+### Phong cách giao diện
+
+- Màn hình mới và trang được sửa dùng **khung, component và token của app hiện có**:
+  - khung và component: `AppShell`, `PageHeader`/`PageHero`, lớp `panel`, `components/ui`, badge trạng thái;
+  - giá trị màu và font hiện tại trong `frontend/src/index.css`, kể cả `--cta`, `--navy`, `--pink`, `--violet` và nền gradient, dùng như trang cũ cùng loại.
+
+  Mục tiêu: người dùng không phân biệt được trang nào làm ở R3.
+- Không thêm token, màu hex, font hay kiểu trang trí mới ngoài những gì app đã có. Cần thêm thì đề xuất cập nhật `design.md` trước.
+- Từ `design.md` vẫn áp dụng:
+  - ngữ nghĩa màu qua tên token: `--detect` = nhận đúng, `--fail` = thất bại, `--threshold` = ngưỡng/cảnh báo, `--approved` = chỉ cho đã chấp nhận;
+  - trạng thái luôn có màu + icon + chữ;
+  - lớp overlay trên ảnh (mục 3);
+  - câu chữ (mục 7);
+  - quy ước số liệu `tabular-nums`, căn phải.
+
+  Mục 8 chỉ áp cho phần tử mới, không bắt gỡ trang trí đang có.
+- Màu dùng giá trị hiện tại của token. Ví dụ `--fail` đang là đỏ `#dc2626`, chưa phải magenta; R3b đổi giá trị token cho cả app một lượt.
+
 ### Màu và trạng thái mới (bổ sung `design.md`)
 
 | Trạng thái | Màu | Icon (lucide) | Nhãn |
@@ -270,6 +288,7 @@ Quy tắc chung:
 - **R3 xử lý cả 4 tồn đọng R2:** recheck model, insight trong report PDF, dọn object mồ côi, `validate` kiểm `art_class`. Người dùng chốt 2026-10-10.
 - **Câu kết luận của từng biểu đồ sinh ở frontend; câu kết luận chung lấy từ backend** (`conclusion.text`). *Lý do:* câu chung đã có ở R2 và report dùng lại; câu của từng biểu đồ chỉ để hiển thị.
 - **Tab Chi phí và Tái lập gộp vào Tổng quan**, để trang chỉ còn 5 tab như roadmap.
+- **R3 theo phong cách app hiện có; `design.md` chỉ áp phần ngữ nghĩa** (màu theo tên token, trạng thái, overlay, câu chữ). *Lý do:* tránh app lẫn hai phong cách cho tới R3b; R3b chuyển cả app một lượt. Người dùng chốt 2026-10-10.
 - **Chuỗi giao diện mới** (thuật ngữ, ý nghĩa quyết định, thử nhanh) nằm ở `frontend/src/copy/`. Chuỗi cũ để R3b gom.
 - **Tên nhánh `phaser3-<agent>`; test ở `tests/acceptance/phase_r3/` và `frontend/e2e/phase_r3/`; merge vào `dev`.** *Lý do:* như R1, R2.
 
