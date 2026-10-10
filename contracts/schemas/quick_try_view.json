@@ -1,0 +1,232 @@
+{
+  "$defs": {
+    "QuickTryLevel": {
+      "additionalProperties": false,
+      "properties": {
+        "level": {
+          "title": "Level",
+          "type": "number"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Nhãn từ metadata của spec",
+          "title": "Label"
+        },
+        "image_url": {
+          "description": "Ảnh bị tấn công, đã làm mờ (như ảnh failure case)",
+          "pattern": "^/artifacts/[A-Za-z0-9._~-]+$",
+          "title": "Image Url",
+          "type": "string"
+        },
+        "objects": {
+          "items": {
+            "$ref": "#/$defs/QuickTryObject"
+          },
+          "title": "Objects",
+          "type": "array"
+        }
+      },
+      "required": [
+        "level",
+        "label",
+        "image_url",
+        "objects"
+      ],
+      "title": "QuickTryLevel",
+      "type": "object"
+    },
+    "QuickTryObject": {
+      "additionalProperties": false,
+      "description": "Một object, ghép theo IoU ≥ 0.5 cùng class giữa ảnh sạch và ảnh bị tấn công.",
+      "properties": {
+        "bbox": {
+          "description": "xyxy letterbox; object new lấy box trên ảnh bị tấn công",
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Bbox",
+          "type": "array"
+        },
+        "class_name": {
+          "minLength": 1,
+          "title": "Class Name",
+          "type": "string"
+        },
+        "clean_score": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null khi status = new",
+          "title": "Clean Score"
+        },
+        "attacked_score": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null khi status = lost",
+          "title": "Attacked Score"
+        },
+        "status": {
+          "$ref": "#/$defs/QuickTryObjectStatus"
+        }
+      },
+      "required": [
+        "bbox",
+        "class_name",
+        "clean_score",
+        "attacked_score",
+        "status"
+      ],
+      "title": "QuickTryObject",
+      "type": "object"
+    },
+    "QuickTryObjectStatus": {
+      "enum": [
+        "kept",
+        "lost",
+        "new"
+      ],
+      "title": "QuickTryObjectStatus",
+      "type": "string"
+    },
+    "ToolJobStatus": {
+      "enum": [
+        "queued",
+        "running",
+        "completed",
+        "failed"
+      ],
+      "title": "ToolJobStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "`POST /quick-tries` (202) và `GET /quick-tries/{id}`; hết hạn thì `GET` trả 410.",
+  "properties": {
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/$defs/ToolJobStatus"
+    },
+    "not_a_test_result": {
+      "const": true,
+      "default": true,
+      "description": "Luôn true: không phải kết quả kiểm thử",
+      "title": "Not A Test Result",
+      "type": "boolean"
+    },
+    "model_version_id": {
+      "format": "uuid",
+      "title": "Model Version Id",
+      "type": "string"
+    },
+    "attack_spec_id": {
+      "format": "uuid",
+      "title": "Attack Spec Id",
+      "type": "string"
+    },
+    "preset": {
+      "enum": [
+        "fast",
+        "standard",
+        "deep"
+      ],
+      "title": "Preset",
+      "type": "string"
+    },
+    "clean_image_url": {
+      "anyOf": [
+        {
+          "pattern": "^/artifacts/[A-Za-z0-9._~-]+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Ảnh sạch đã letterbox và làm mờ; có khi và chỉ khi completed. Ảnh gốc chưa làm mờ không bao giờ được phục vụ qua API",
+      "title": "Clean Image Url"
+    },
+    "levels": {
+      "description": "Rỗng khi chưa completed",
+      "items": {
+        "$ref": "#/$defs/QuickTryLevel"
+      },
+      "title": "Levels",
+      "type": "array"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "expires_at": {
+      "format": "date-time",
+      "title": "Expires At",
+      "type": "string"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Có khi và chỉ khi failed",
+      "title": "Error"
+    }
+  },
+  "required": [
+    "id",
+    "status",
+    "model_version_id",
+    "attack_spec_id",
+    "preset",
+    "clean_image_url",
+    "levels",
+    "created_at",
+    "expires_at",
+    "error"
+  ],
+  "title": "QuickTryView",
+  "type": "object"
+}

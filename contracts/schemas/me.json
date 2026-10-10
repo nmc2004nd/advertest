@@ -13,6 +13,7 @@
         "model.manage",
         "attack_catalog.read",
         "attack_catalog.manage",
+        "attack_catalog.approve",
         "protocol.read",
         "protocol.manage",
         "review.decide",
@@ -23,7 +24,8 @@
         "compute_target.read",
         "compute_target.manage",
         "budget.manage",
-        "audit.read"
+        "audit.read",
+        "quick_try.use"
       ],
       "title": "Permission",
       "type": "string"

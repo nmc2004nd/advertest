@@ -101,19 +101,29 @@ class UltralyticsDetector(nn.Module):
         }
 
     def predict(self, x: torch.Tensor) -> list[dict[str, torch.Tensor]]:
-        raw = self.model(x)[0]
-        detections = non_max_suppression(
-            raw,
-            conf_thres=self.params.conf,
-            iou_thres=self.params.iou,
-            max_det=self.params.max_det,
-        )
         height, width = x.shape[-2:]
-        out = []
-        for det in detections:
-            boxes = det[:, :4].clone()
-            # Cắt về khung ảnh như postprocess của Ultralytics.
-            boxes[:, [0, 2]] = boxes[:, [0, 2]].clamp(0, width)
-            boxes[:, [1, 3]] = boxes[:, [1, 3]].clamp(0, height)
-            out.append({"boxes": boxes, "labels": det[:, 5].long(), "scores": det[:, 4]})
-        return out
+        return yolo_postprocess(self.model(x)[0], self.params, height, width)
+
+
+def yolo_postprocess(
+    raw: torch.Tensor, params: InferenceParams, height: int, width: int
+) -> list[dict[str, torch.Tensor]]:
+    """NMS trên đầu ra đã giải mã (B, 4 + C, N) của Ultralytics, box xyxy cắt về khung ảnh.
+
+    Dùng chung cho `UltralyticsDetector` và adapter ONNX layout YOLO (requirements.md Phase R2,
+    mục Model qua web).
+    """
+    detections = non_max_suppression(
+        raw,
+        conf_thres=params.conf,
+        iou_thres=params.iou,
+        max_det=params.max_det,
+    )
+    out = []
+    for det in detections:
+        boxes = det[:, :4].clone()
+        # Cắt về khung ảnh như postprocess của Ultralytics.
+        boxes[:, [0, 2]] = boxes[:, [0, 2]].clamp(0, width)
+        boxes[:, [1, 3]] = boxes[:, [1, 3]].clamp(0, height)
+        out.append({"boxes": boxes, "labels": det[:, 5].long(), "scores": det[:, 4]})
+    return out

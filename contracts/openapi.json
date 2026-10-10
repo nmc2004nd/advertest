@@ -1085,6 +1085,102 @@
           }
         ],
         "x-permission": "model.read"
+      },
+      "post": {
+        "tags": [
+          "models"
+        ],
+        "summary": "Register Model",
+        "description": "Model version `checking` (409 khi trùng sha256; 422 khi nội dung không phải safetensors\nhoặc onnx); xếp job model_check.",
+        "operationId": "register_model_models_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModelRegister"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelSummary"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sai trạng thái hoặc trùng",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "x-permission": "model.manage"
       }
     },
     "/models/{model_id}": {
@@ -1558,7 +1654,7 @@
           "attack-specs"
         ],
         "summary": "List Attack Specs",
-        "description": "Chỉ spec đang hoạt động.",
+        "description": "Chỉ spec đang hoạt động, kèm metadata (Phase R2).",
         "operationId": "list_attack_specs_attack_specs_get",
         "responses": {
           "200": {
@@ -1567,7 +1663,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/AttackSpec"
+                    "$ref": "#/components/schemas/AttackSpecView"
                   },
                   "type": "array",
                   "title": "Response List Attack Specs Attack Specs Get"
@@ -1712,6 +1808,102 @@
           },
           "422": {
             "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-permission": "attack_catalog.manage"
+      },
+      "post": {
+        "tags": [
+          "admin-attacks"
+        ],
+        "summary": "Create Attack Spec",
+        "description": "Spec mới (`draft` rồi `checking`); 422 khi adapter lạ, `fixed_params` sai hoặc version nhảy\ncóc; 409 khi trùng `spec_sha256`.",
+        "operationId": "create_attack_spec_admin_attack_specs_post",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttackSpecCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttackSpecAdminView"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sai trạng thái hoặc trùng",
             "content": {
               "application/json": {
                 "schema": {
@@ -2291,7 +2483,7 @@
           "experiments"
         ],
         "summary": "List Experiments",
-        "description": "Mới nhất trước; `owner=me` chỉ experiment của mình.",
+        "description": "Mới nhất trước; `owner=me` chỉ experiment của mình; `mode` lọc Khám phá/Chính thức\n(Phase R2).",
         "operationId": "list_experiments_experiments_get",
         "security": [
           {
@@ -2374,6 +2566,22 @@
               "minimum": 1,
               "default": 50,
               "title": "Limit"
+            }
+          },
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ExperimentMode"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Mode"
             }
           }
         ],
@@ -5105,6 +5313,1457 @@
         "x-permission": "audit.read"
       }
     },
+    "/experiments/{experiment_id}/insight": {
+      "get": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Get Insight",
+        "description": "Điểm yếu chính, ma trận độ bền và câu kết luận từ các run đã có metric.",
+        "operationId": "get_insight_experiments__experiment_id__insight_get",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExperimentInsight"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sai trạng thái hoặc trùng",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-permission": "experiment.read"
+      }
+    },
+    "/experiments/{experiment_id}/promote": {
+      "post": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Promote Experiment",
+        "description": "Bản nháp Chính thức từ experiment Khám phá đã kết thúc; không tạo experiment (409 khi\nnguồn không phải exploration, chưa kết thúc, hoặc protocol đích không active).",
+        "operationId": "promote_experiment_experiments__experiment_id__promote_post",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PromoteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExperimentClone"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sai trạng thái hoặc trùng",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-permission": "experiment.create"
+      }
+    },
+    "/experiments/draft": {
+      "post": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Draft Experiment",
+        "description": "Dựng `ExperimentCreate` từ protocol và preset; không tạo experiment.",
+        "operationId": "draft_experiment_experiments_draft_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExperimentDraftRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExperimentClone"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sai trạng thái hoặc trùng",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "x-permission": "experiment.create"
+      }
+    },
+    "/experiment-presets": {
+      "get": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "List Experiment Presets",
+        "description": "Preset trong `contracts/seeds/experiment_presets.json`.",
+        "operationId": "list_experiment_presets_experiment_presets_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ExperimentPreset"
+                  },
+                  "type": "array",
+                  "title": "Response List Experiment Presets Experiment Presets Get"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "x-permission": "experiment.read"
+      }
+    },
+    "/protocol-templates": {
+      "get": {
+        "tags": [
+          "protocols"
+        ],
+        "summary": "List Protocol Templates",
+        "description": "Template trong `contracts/seeds/protocol_templates.json`.",
+        "operationId": "list_protocol_templates_protocol_templates_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProtocolTemplate"
+                  },
+                  "type": "array",
+                  "title": "Response List Protocol Templates Protocol Templates Get"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "x-permission": "protocol.read"
+      }
+    },
+    "/protocol-templates/{key}/draft": {
+      "get": {
+        "tags": [
+          "protocols"
+        ],
+        "summary": "Draft Protocol",
+        "description": "`ProtocolCreate` điền sẵn spec active, level và tiêu chí gợi ý; không tạo protocol.",
+        "operationId": "draft_protocol_protocol_templates__key__draft_get",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolCreate"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sai trạng thái hoặc trùng",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-permission": "protocol.manage"
+      }
+    },
+    "/attack-adapters": {
+      "get": {
+        "tags": [
+          "admin-attacks"
+        ],
+        "summary": "List Attack Adapters",
+        "description": "Adapter có trong registry của worker.",
+        "operationId": "list_attack_adapters_attack_adapters_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AttackAdapterInfo"
+                  },
+                  "type": "array",
+                  "title": "Response List Attack Adapters Attack Adapters Get"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "x-permission": "attack_catalog.manage"
+      }
+    },
+    "/admin/attack-specs/{spec_id}/check": {
+      "post": {
+        "tags": [
+          "admin-attacks"
+        ],
+        "summary": "Recheck Attack Spec",
+        "description": "Chạy lại tự kiểm tra từ `check_failed` (409 với trạng thái khác).",
+        "operationId": "recheck_attack_spec_admin_attack_specs__spec_id__check_post",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "spec_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Spec Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttackSpecAdminView"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sai trạng thái hoặc trùng",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-permission": "attack_catalog.manage"
+      }
+    },
+    "/admin/attack-specs/{spec_id}/metadata": {
+      "patch": {
+        "tags": [
+          "admin-attacks"
+        ],
+        "summary": "Update Attack Spec Metadata",
+        "description": "Sửa metadata, không đổi `spec_sha256` hay version; ghi audit log.",
+        "operationId": "update_attack_spec_metadata_admin_attack_specs__spec_id__metadata_patch",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "spec_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Spec Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttackSpecMetadata"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttackSpecAdminView"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sai trạng thái hoặc trùng",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-permission": "attack_catalog.manage"
+      }
+    },
+    "/attack-specs/pending": {
+      "get": {
+        "tags": [
+          "attack-specs"
+        ],
+        "summary": "List Pending Attack Specs",
+        "description": "Spec `pending_approval` chờ reviewer duyệt.",
+        "operationId": "list_pending_attack_specs_attack_specs_pending_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AttackSpecAdminView"
+                  },
+                  "type": "array",
+                  "title": "Response List Pending Attack Specs Attack Specs Pending Get"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "x-permission": "attack_catalog.approve"
+      }
+    },
+    "/attack-specs/{spec_id}/approve": {
+      "post": {
+        "tags": [
+          "attack-specs"
+        ],
+        "summary": "Approve Attack Spec",
+        "description": "`pending_approval` → `active`; version cũ cùng name chuyển `retired`; người duyệt khác\nngười tạo (403).",
+        "operationId": "approve_attack_spec_attack_specs__spec_id__approve_post",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "spec_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Spec Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttackSpecAdminView"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sai trạng thái hoặc trùng",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-permission": "attack_catalog.approve"
+      }
+    },
+    "/attack-specs/{spec_id}/reject": {
+      "post": {
+        "tags": [
+          "attack-specs"
+        ],
+        "summary": "Reject Attack Spec",
+        "description": "`pending_approval` → `draft`.",
+        "operationId": "reject_attack_spec_attack_specs__spec_id__reject_post",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "spec_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Spec Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttackSpecReject"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttackSpecAdminView"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sai trạng thái hoặc trùng",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-permission": "attack_catalog.approve"
+      }
+    },
+    "/models/uploads": {
+      "post": {
+        "tags": [
+          "models"
+        ],
+        "summary": "Create Model Upload",
+        "description": "Presigned PUT cho `.onnx` hoặc `.safetensors` tối đa 500 MB.",
+        "operationId": "create_model_upload_models_uploads_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModelUploadCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelUpload"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sai trạng thái hoặc trùng",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "x-permission": "model.manage"
+      }
+    },
+    "/quick-tries": {
+      "post": {
+        "tags": [
+          "quick-tries"
+        ],
+        "summary": "Create Quick Try",
+        "description": "Thử nhanh một ảnh: không tạo experiment, kết quả giữ 24 giờ. Field form là các trường của\n`QuickTryCreate`, khai riêng vì form model `extra=\"forbid\"` coi file là field thừa.",
+        "operationId": "create_quick_try_quick_tries_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_create_quick_try_quick_tries_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuickTryView"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sai trạng thái hoặc trùng",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "gone: đã hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "quick_try_busy: đã có một lượt queued/running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "x-permission": "quick_try.use"
+      }
+    },
+    "/quick-tries/{quick_try_id}": {
+      "get": {
+        "tags": [
+          "quick-tries"
+        ],
+        "summary": "Get Quick Try",
+        "description": "Chỉ người tạo; hết hạn trả 410.",
+        "operationId": "get_quick_try_quick_tries__quick_try_id__get",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quick_try_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Quick Try Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuickTryView"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sai trạng thái hoặc trùng",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "gone: đã hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "quick_try_busy: đã có một lượt queued/running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-permission": "quick_try.use"
+      }
+    },
     "/verify/{report_id}": {
       "get": {
         "tags": [
@@ -5915,6 +7574,239 @@
           }
         }
       }
+    },
+    "/internal/worker/tool-lease": {
+      "post": {
+        "tags": [
+          "internal-worker"
+        ],
+        "summary": "Tool Lease",
+        "description": "Job công cụ cũ nhất: quick_try trước, rồi model_check và spec_check theo thứ tự tạo.",
+        "operationId": "tool_lease_internal_worker_tool_lease_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolLease"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "Không có job công cụ nào chờ"
+          }
+        },
+        "security": [
+          {
+            "workerToken": []
+          }
+        ]
+      }
+    },
+    "/internal/worker/tool-jobs/{job_id}": {
+      "get": {
+        "tags": [
+          "internal-worker"
+        ],
+        "summary": "Get Tool Job",
+        "description": "Payload của job, kèm presigned URL (hết hạn sau 15 phút).",
+        "operationId": "get_tool_job_internal_worker_tool_jobs__job_id__get",
+        "security": [
+          {
+            "workerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolJobBundle"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/worker/tool-jobs/{job_id}/heartbeat": {
+      "post": {
+        "tags": [
+          "internal-worker"
+        ],
+        "summary": "Tool Heartbeat",
+        "description": "Gia hạn lease 60 giây (409 khi lease đã mất).",
+        "operationId": "tool_heartbeat_internal_worker_tool_jobs__job_id__heartbeat_post",
+        "security": [
+          {
+            "workerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToolHeartbeat"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/worker/tool-jobs/{job_id}/result": {
+      "post": {
+        "tags": [
+          "internal-worker"
+        ],
+        "summary": "Submit Tool Result",
+        "description": "Kết quả job; chỉ token worker ghi được (mission.md nguyên tắc 3).",
+        "operationId": "submit_tool_result_internal_worker_tool_jobs__job_id__result_post",
+        "security": [
+          {
+            "workerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToolJobResult"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -6068,6 +7960,40 @@
           "not_applicable"
         ],
         "title": "AttackAccess"
+      },
+      "AttackAdapterInfo": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+            "title": "Name"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/AttackKind"
+          },
+          "params_schema": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Params Schema",
+            "description": "JSON Schema của fixed_params (draft 2020-12)"
+          },
+          "requires_gradients": {
+            "type": "boolean",
+            "title": "Requires Gradients"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "kind",
+          "params_schema",
+          "requires_gradients"
+        ],
+        "title": "AttackAdapterInfo",
+        "description": "`GET /attack-adapters`: adapter có trong registry của worker."
       },
       "AttackConfig": {
         "properties": {
@@ -6306,6 +8232,19 @@
             ],
             "description": "Có khi và chỉ khi requires_training = true"
           },
+          "adapter": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adapter",
+            "description": "Phase R2: adapter trong registry của worker (`GET /attack-adapters`); null là suy từ kind và art_class (`attacks.builders.effective_adapter`). `fixed_params` là tham số của adapter"
+          },
           "id": {
             "type": "string",
             "format": "uuid",
@@ -6434,6 +8373,19 @@
             ],
             "description": "Có khi và chỉ khi requires_training = true"
           },
+          "adapter": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adapter",
+            "description": "Phase R2: adapter trong registry của worker (`GET /attack-adapters`); null là suy từ kind và art_class (`attacks.builders.effective_adapter`). `fixed_params` là tham số của adapter"
+          },
           "id": {
             "type": "string",
             "format": "uuid",
@@ -6447,7 +8399,55 @@
           },
           "is_active": {
             "type": "boolean",
-            "title": "Is Active"
+            "title": "Is Active",
+            "description": "Suy ra: status = active"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AttackSpecStatus"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AttackSpecMetadata"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null khi chưa khai (spec seed)"
+          },
+          "check": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SpecCheckResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Kết quả spec_check gần nhất"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null với spec seed"
+          },
+          "approved_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null khi chưa duyệt hoặc spec seed"
           }
         },
         "additionalProperties": false,
@@ -6463,10 +8463,331 @@
           "requires_gradients",
           "id",
           "spec_sha256",
-          "is_active"
+          "is_active",
+          "status",
+          "metadata",
+          "check",
+          "created_by",
+          "approved_by"
         ],
         "title": "AttackSpecAdminView",
         "description": "Spec trong trang `/admin/attacks`: mọi version, kể cả spec đã tắt."
+      },
+      "AttackSpecBody": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Schema Version",
+            "default": 1
+          },
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "title": "Name"
+          },
+          "version": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Version"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/AttackKind"
+          },
+          "access": {
+            "$ref": "#/components/schemas/AttackAccess",
+            "description": "Corruption và occlusion dùng not_applicable; attack không dùng giá trị này"
+          },
+          "art_class": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Art Class",
+            "description": "Null với corruption và occlusion"
+          },
+          "primary_param": {
+            "$ref": "#/components/schemas/PrimaryParam"
+          },
+          "fixed_params": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Fixed Params"
+          },
+          "cost_model": {
+            "$ref": "#/components/schemas/CostModel"
+          },
+          "requires_gradients": {
+            "type": "boolean",
+            "title": "Requires Gradients"
+          },
+          "requires_training": {
+            "type": "boolean",
+            "title": "Requires Training",
+            "description": "Phase 6: phải train (patch) trên slice huấn luyện trước khi đánh giá"
+          },
+          "training": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TrainingParams"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Có khi và chỉ khi requires_training = true"
+          },
+          "adapter": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adapter",
+            "description": "Phase R2: adapter trong registry của worker (`GET /attack-adapters`); null là suy từ kind và art_class (`attacks.builders.effective_adapter`). `fixed_params` là tham số của adapter"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "version",
+          "kind",
+          "access",
+          "primary_param",
+          "fixed_params",
+          "cost_model",
+          "requires_gradients"
+        ],
+        "title": "AttackSpecBody",
+        "description": "Nội dung của attack spec (mọi trường trừ `id` và `spec_sha256`); là đầu vào của hash.\n\nTrường thêm ở Phase 6 (`requires_training`, `training`) và Phase R2 (`adapter`) bị bỏ khỏi\nJSON khi mang giá trị mặc định, nên hash của spec cũ không đổi."
+      },
+      "AttackSpecCreate": {
+        "properties": {
+          "body": {
+            "$ref": "#/components/schemas/AttackSpecBody"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/AttackSpecMetadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "body",
+          "metadata"
+        ],
+        "title": "AttackSpecCreate",
+        "description": "`POST /admin/attack-specs`: name mới (version 1) hoặc name có sẵn (version lớn nhất + 1).\nServer tính `id`, `spec_sha256`; spec mới ở `draft` rồi chuyển `checking`."
+      },
+      "AttackSpecMetadata": {
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Display Name"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Description"
+          },
+          "realism": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Realism",
+            "description": "Mức sát thực tế"
+          },
+          "level_labels": {
+            "additionalProperties": {
+              "type": "string",
+              "maxLength": 200,
+              "minLength": 1
+            },
+            "type": "object",
+            "title": "Level Labels",
+            "description": "Level (số viết dạng chuỗi, so khớp theo giá trị số) → nhãn dễ đọc"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "display_name",
+          "description",
+          "realism"
+        ],
+        "title": "AttackSpecMetadata",
+        "description": "Thông tin hiển thị của spec, nằm ngoài `spec_sha256` (tech-stack.md mục 9, luật 9); sửa\nkhông đổi version (Phase R2)."
+      },
+      "AttackSpecReject": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "title": "AttackSpecReject",
+        "description": "`POST /attack-specs/{id}/reject`: `pending_approval` → `draft`."
+      },
+      "AttackSpecStatus": {
+        "type": "string",
+        "enum": [
+          "draft",
+          "checking",
+          "check_failed",
+          "pending_approval",
+          "active",
+          "retired"
+        ],
+        "title": "AttackSpecStatus",
+        "description": "Vòng đời spec trong catalog (Phase R2, requirements.md mục Catalog attack)."
+      },
+      "AttackSpecView": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Schema Version",
+            "default": 1
+          },
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "title": "Name"
+          },
+          "version": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Version"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/AttackKind"
+          },
+          "access": {
+            "$ref": "#/components/schemas/AttackAccess",
+            "description": "Corruption và occlusion dùng not_applicable; attack không dùng giá trị này"
+          },
+          "art_class": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Art Class",
+            "description": "Null với corruption và occlusion"
+          },
+          "primary_param": {
+            "$ref": "#/components/schemas/PrimaryParam"
+          },
+          "fixed_params": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Fixed Params"
+          },
+          "cost_model": {
+            "$ref": "#/components/schemas/CostModel"
+          },
+          "requires_gradients": {
+            "type": "boolean",
+            "title": "Requires Gradients"
+          },
+          "requires_training": {
+            "type": "boolean",
+            "title": "Requires Training",
+            "description": "Phase 6: phải train (patch) trên slice huấn luyện trước khi đánh giá"
+          },
+          "training": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TrainingParams"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Có khi và chỉ khi requires_training = true"
+          },
+          "adapter": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adapter",
+            "description": "Phase R2: adapter trong registry của worker (`GET /attack-adapters`); null là suy từ kind và art_class (`attacks.builders.effective_adapter`). `fixed_params` là tham số của adapter"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "spec_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Spec Sha256",
+            "description": "Hash của mọi trường trừ id và chính nó"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AttackSpecMetadata"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null khi chưa khai (spec seed trước R2)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "version",
+          "kind",
+          "access",
+          "primary_param",
+          "fixed_params",
+          "cost_model",
+          "requires_gradients",
+          "id",
+          "spec_sha256",
+          "metadata"
+        ],
+        "title": "AttackSpecView",
+        "description": "`GET /attack-specs` (Phase R2): spec `active` kèm metadata."
       },
       "AuditActor": {
         "properties": {
@@ -6615,6 +8936,43 @@
           "next_cursor"
         ],
         "title": "AuditLogPage"
+      },
+      "Body_create_quick_try_quick_tries_post": {
+        "properties": {
+          "model_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Model Version Id"
+          },
+          "attack_spec_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Attack Spec Id"
+          },
+          "image": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "Image",
+            "description": "JPEG/PNG ≤ 10 MB, cạnh dài ≤ 4096 px"
+          },
+          "preset": {
+            "type": "string",
+            "enum": [
+              "fast",
+              "standard",
+              "deep"
+            ],
+            "title": "Preset",
+            "default": "standard"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_version_id",
+          "attack_spec_id",
+          "image"
+        ],
+        "title": "Body_create_quick_try_quick_tries_post"
       },
       "BundleCheckpoint": {
         "properties": {
@@ -7619,6 +9977,46 @@
         ],
         "title": "ComputeTargetRef"
       },
+      "Conclusion": {
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ConclusionCode"
+          },
+          "params": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Params",
+            "description": "Số liệu dùng dựng câu"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Text",
+            "description": "Tiếng Việt; cùng đầu vào cho cùng câu"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "params",
+          "text"
+        ],
+        "title": "Conclusion",
+        "description": "Câu kết luận sinh theo luật (`backend/app/insight/phrases.py`)."
+      },
+      "ConclusionCode": {
+        "type": "string",
+        "enum": [
+          "no_data",
+          "robust",
+          "weak",
+          "weak_class"
+        ],
+        "title": "ConclusionCode"
+      },
       "Cost-Input": {
         "properties": {
           "amount": {
@@ -7977,6 +10375,29 @@
         "title": "DisplayMode",
         "description": "Cách hiển thị ảnh failure case (Phase 5; Phase 6 thêm làm mờ theo từng case)."
       },
+      "DraftNote": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "const": "slice_too_small",
+            "title": "Code",
+            "description": "slice_too_small: slice nhỏ hơn min_slice_size của protocol; bản nháp vẫn dựng được nhưng POST /experiments bị chặn (422 not_compliant)"
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Message"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "DraftNote",
+        "description": "Lưu ý của bản nháp không gắn với version spec (Phase R2: promote, draft từ preset)."
+      },
       "Environment": {
         "properties": {
           "compute_target_id": {
@@ -8123,7 +10544,9 @@
           "internal_error",
           "not_compliant",
           "experiment_locked",
-          "checklist_incomplete"
+          "checklist_incomplete",
+          "quick_try_busy",
+          "gone"
         ],
         "title": "ErrorCode"
       },
@@ -8335,6 +10758,13 @@
             },
             "type": "array",
             "title": "Warnings"
+          },
+          "notes": {
+            "items": {
+              "$ref": "#/components/schemas/DraftNote"
+            },
+            "type": "array",
+            "title": "Notes"
           }
         },
         "additionalProperties": false,
@@ -8344,7 +10774,7 @@
           "warnings"
         ],
         "title": "ExperimentClone",
-        "description": "`GET /experiments/{id}/clone`: cấu hình điền sẵn; spec cũ đã lên version hiện hành."
+        "description": "`GET /experiments/{id}/clone`: cấu hình điền sẵn; spec cũ đã lên version hiện hành.\n\nPhase R2 dùng lại cho `POST /experiments/{id}/promote` và `POST /experiments/draft`: chỉ trả\nbản nháp, không tạo experiment."
       },
       "ExperimentConfig": {
         "properties": {
@@ -8474,6 +10904,19 @@
             ],
             "title": "Cloned From",
             "description": "Experiment gốc khi nhân bản"
+          },
+          "promoted_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promoted From",
+            "description": "Phase R2: experiment Khám phá nguồn khi nâng lên chính thức (chỉ để truy vết)"
           }
         },
         "additionalProperties": false,
@@ -8560,6 +11003,19 @@
             ],
             "title": "Cloned From",
             "description": "Experiment gốc khi nhân bản"
+          },
+          "promoted_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promoted From",
+            "description": "Phase R2: experiment Khám phá nguồn khi nâng lên chính thức (chỉ để truy vết)"
           }
         },
         "additionalProperties": false,
@@ -8628,6 +11084,10 @@
             ],
             "title": "Finished At",
             "description": "null khi draft, queued hoặc running"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/ExperimentMode",
+            "description": "Phase R2: exploration khi và chỉ khi protocol có status dev"
           },
           "config": {
             "$ref": "#/components/schemas/ExperimentConfig"
@@ -8769,6 +11229,7 @@
           "progress",
           "created_at",
           "finished_at",
+          "mode",
           "config",
           "config_sha256",
           "protocol",
@@ -8779,6 +11240,165 @@
           "clean_metrics"
         ],
         "title": "ExperimentDetail"
+      },
+      "ExperimentDraftRequest": {
+        "properties": {
+          "protocol_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Protocol Id"
+          },
+          "preset": {
+            "type": "string",
+            "enum": [
+              "fast",
+              "standard",
+              "deep"
+            ],
+            "title": "Preset"
+          },
+          "model_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Model Version Id"
+          },
+          "slice_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Slice Id"
+          },
+          "class_mapping_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Class Mapping Id"
+          },
+          "compute_target_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Compute Target Id"
+          },
+          "limit": {
+            "$ref": "#/components/schemas/Limit-Input"
+          },
+          "attack_spec_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attack Spec Ids",
+            "description": "Chỉ với protocol dev; null là toàn bộ catalog active trừ spec cần train"
+          },
+          "training_slice_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Training Slice Id",
+            "description": "Slice huấn luyện cho spec cần train (patch); thiếu khi cần thì 422"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "protocol_id",
+          "preset",
+          "model_version_id",
+          "slice_id",
+          "class_mapping_id",
+          "compute_target_id",
+          "limit"
+        ],
+        "title": "ExperimentDraftRequest",
+        "description": "`POST /experiments/draft`: dựng `ExperimentCreate` từ protocol và preset, trả\n`ExperimentClone`; không tạo experiment."
+      },
+      "ExperimentInsight": {
+        "properties": {
+          "experiment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Experiment Id"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/ExperimentMode"
+          },
+          "weaknesses": {
+            "items": {
+              "$ref": "#/components/schemas/Weakness"
+            },
+            "type": "array",
+            "maxItems": 5,
+            "title": "Weaknesses"
+          },
+          "matrix": {
+            "items": {
+              "$ref": "#/components/schemas/RobustnessRow"
+            },
+            "type": "array",
+            "title": "Matrix",
+            "description": "Mỗi attack quét lưới một hàng"
+          },
+          "bands": {
+            "items": {
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array",
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "type": "array",
+            "title": "Bands",
+            "description": "(lo, hi], theo ROBUSTNESS_BANDS"
+          },
+          "conclusion": {
+            "$ref": "#/components/schemas/Conclusion"
+          },
+          "partial": {
+            "type": "boolean",
+            "title": "Partial",
+            "description": "Có run stopped_limit hoặc experiment chưa kết thúc"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "experiment_id",
+          "mode",
+          "weaknesses",
+          "matrix",
+          "bands",
+          "conclusion",
+          "partial"
+        ],
+        "title": "ExperimentInsight",
+        "description": "`GET /experiments/{id}/insight`."
+      },
+      "ExperimentMode": {
+        "type": "string",
+        "enum": [
+          "exploration",
+          "official"
+        ],
+        "title": "ExperimentMode",
+        "description": "Suy ra từ protocol: status dev → exploration (mission.md nguyên tắc 11)."
       },
       "ExperimentPage": {
         "properties": {
@@ -8808,6 +11428,69 @@
           "next_cursor"
         ],
         "title": "ExperimentPage"
+      },
+      "ExperimentPreset": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "enum": [
+              "fast",
+              "standard",
+              "deep"
+            ],
+            "title": "Key"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Description"
+          },
+          "level_ratios": {
+            "items": {
+              "type": "number",
+              "maximum": 1.0,
+              "minimum": 0.0
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Level Ratios",
+            "description": "Tỷ lệ trên [min, max]"
+          },
+          "use_search": {
+            "type": "boolean",
+            "title": "Use Search",
+            "description": "Thêm tìm ngưỡng với attack hỗ trợ (không áp cho patch)"
+          },
+          "search": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PresetSearch"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Có khi và chỉ khi use_search"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "key",
+          "title",
+          "description",
+          "level_ratios",
+          "use_search"
+        ],
+        "title": "ExperimentPreset",
+        "description": "Một preset trong `contracts/seeds/experiment_presets.json`."
       },
       "ExperimentStatus": {
         "type": "string",
@@ -8877,6 +11560,10 @@
             ],
             "title": "Finished At",
             "description": "null khi draft, queued hoặc running"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/ExperimentMode",
+            "description": "Phase R2: exploration khi và chỉ khi protocol có status dev"
           }
         },
         "additionalProperties": false,
@@ -8892,7 +11579,8 @@
           "run_counts",
           "progress",
           "created_at",
-          "finished_at"
+          "finished_at",
+          "mode"
         ],
         "title": "ExperimentSummary"
       },
@@ -9741,9 +12429,11 @@
             "type": "string",
             "enum": [
               "ultralytics",
-              "torchvision"
+              "torchvision",
+              "onnx"
             ],
-            "title": "Framework"
+            "title": "Framework",
+            "description": "Phase R2 thêm onnx (chỉ inference, supports_gradients luôn false)"
           },
           "architecture": {
             "type": "string",
@@ -9798,6 +12488,95 @@
         "title": "ModelCard",
         "description": "Model đã đăng ký. id = content_id(weights_sha256)."
       },
+      "ModelCheckPayload": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "model_check",
+            "title": "Kind",
+            "default": "model_check"
+          },
+          "model": {
+            "$ref": "#/components/schemas/ToolModel"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "model"
+        ],
+        "title": "ModelCheckPayload"
+      },
+      "ModelCheckReport": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "model_check",
+            "title": "Kind",
+            "default": "model_check"
+          },
+          "result": {
+            "$ref": "#/components/schemas/ModelCheckResult"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "result"
+        ],
+        "title": "ModelCheckReport"
+      },
+      "ModelCheckResult": {
+        "properties": {
+          "passed": {
+            "type": "boolean",
+            "title": "Passed"
+          },
+          "details": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Details",
+            "description": "Lý do khi passed = false"
+          },
+          "gradient_check": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GradientCheck"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null với onnx (không hỗ trợ gradient) hoặc khi dừng trước bước này"
+          },
+          "checked_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Checked At"
+          },
+          "worker_target_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Worker Target Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "passed",
+          "gradient_check",
+          "checked_at",
+          "worker_target_id"
+        ],
+        "title": "ModelCheckResult",
+        "description": "Kết quả job model_check: nạp model, so sha256, inference trên fixture, số class, kiểm\ngradient (chỉ torchvision)."
+      },
       "ModelRef": {
         "properties": {
           "id": {
@@ -9818,6 +12597,71 @@
           "name"
         ],
         "title": "ModelRef"
+      },
+      "ModelRegister": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "framework": {
+            "type": "string",
+            "enum": [
+              "torchvision",
+              "onnx"
+            ],
+            "title": "Framework"
+          },
+          "architecture": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Architecture",
+            "description": "torchvision: một trong TORCHVISION_ARCHITECTURES; onnx: mô tả tự do"
+          },
+          "upload_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Upload Id"
+          },
+          "class_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Class Names",
+            "description": "Theo thứ tự index của model"
+          },
+          "input_size": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Input Size"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "framework",
+          "architecture",
+          "upload_id",
+          "class_names",
+          "input_size"
+        ],
+        "title": "ModelRegister",
+        "description": "`POST /models`: tạo model version `checking`, id = content_id(weights_sha256); trùng sha →\n409; xếp job model_check."
+      },
+      "ModelStatus": {
+        "type": "string",
+        "enum": [
+          "checking",
+          "check_failed",
+          "ready"
+        ],
+        "title": "ModelStatus"
       },
       "ModelSummary": {
         "properties": {
@@ -9862,6 +12706,22 @@
             "type": "string",
             "format": "date-time",
             "title": "Created At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ModelStatus",
+            "description": "Phase R2: chỉ model ready được dùng trong experiment và thử nhanh",
+            "default": "ready"
+          },
+          "check": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelCheckResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Kết quả job model_check gần nhất; null với model đăng ký qua CLI"
           }
         },
         "additionalProperties": false,
@@ -9877,6 +12737,59 @@
           "created_at"
         ],
         "title": "ModelSummary"
+      },
+      "ModelUpload": {
+        "properties": {
+          "upload_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Upload Id"
+          },
+          "url": {
+            "type": "string",
+            "pattern": "^https?://\\S+$",
+            "title": "Url",
+            "description": "Presigned PUT"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "upload_id",
+          "url",
+          "expires_at"
+        ],
+        "title": "ModelUpload"
+      },
+      "ModelUploadCreate": {
+        "properties": {
+          "filename": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "pattern": "^[^/\\\\]+\\.(onnx|safetensors)$",
+            "title": "Filename"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "maximum": 524288000.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Size Bytes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "filename",
+          "size_bytes"
+        ],
+        "title": "ModelUploadCreate",
+        "description": "`POST /models/uploads`: chỉ `.onnx` hoặc `.safetensors`, tối đa 500 MB (mission.md nguyên\ntắc 10). Nội dung được kiểm tra lại khi `POST /models`."
       },
       "ModelVerdict": {
         "type": "string",
@@ -10148,6 +13061,7 @@
           "model.manage",
           "attack_catalog.read",
           "attack_catalog.manage",
+          "attack_catalog.approve",
           "protocol.read",
           "protocol.manage",
           "review.decide",
@@ -10158,7 +13072,8 @@
           "compute_target.read",
           "compute_target.manage",
           "budget.manage",
-          "audit.read"
+          "audit.read",
+          "quick_try.use"
         ],
         "title": "Permission"
       },
@@ -10171,6 +13086,33 @@
         ],
         "title": "PerturbationImageKind",
         "description": "Nội dung ảnh thứ ba của failure case (Phase 6)."
+      },
+      "PresetSearch": {
+        "properties": {
+          "threshold_kind": {
+            "$ref": "#/components/schemas/ThresholdKind"
+          },
+          "threshold": {
+            "type": "number",
+            "maximum": 1.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Threshold"
+          },
+          "subset_size": {
+            "type": "integer",
+            "minimum": 2.0,
+            "title": "Subset Size"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "threshold_kind",
+          "threshold",
+          "subset_size"
+        ],
+        "title": "PresetSearch",
+        "description": "Tìm ngưỡng mà preset thêm vào (deep); dải [lo, hi] là [min, max] của spec, tol theo wizard\n(hi - lo) / 256."
       },
       "PrimaryParam": {
         "properties": {
@@ -10322,6 +13264,22 @@
         "title": "ProgressReport",
         "description": "Tiến độ sau mỗi batch (đánh giá) hoặc sau mỗi vòng lặp train patch (Phase 6)."
       },
+      "PromoteRequest": {
+        "properties": {
+          "protocol_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Protocol Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "protocol_id"
+        ],
+        "title": "PromoteRequest",
+        "description": "`POST /experiments/{id}/promote`: trả `ExperimentClone`, không tạo experiment."
+      },
       "ProtocolBody": {
         "properties": {
           "schema_version": {
@@ -10471,6 +13429,66 @@
         ],
         "title": "ProtocolSummary"
       },
+      "ProtocolTemplate": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "enum": [
+              "quick",
+              "front_camera",
+              "weather",
+              "full"
+            ],
+            "title": "Key"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Description"
+          },
+          "attacks": {
+            "items": {
+              "$ref": "#/components/schemas/TemplateAttack"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Attacks"
+          },
+          "strictness": {
+            "type": "string",
+            "enum": [
+              "lenient",
+              "standard",
+              "strict"
+            ],
+            "title": "Strictness"
+          },
+          "min_slice_size": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Min Slice Size"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "key",
+          "title",
+          "description",
+          "attacks",
+          "strictness",
+          "min_slice_size"
+        ],
+        "title": "ProtocolTemplate",
+        "description": "Một template trong `contracts/seeds/protocol_templates.json`; không bao giờ tự tạo\nprotocol (`GET /protocol-templates/{key}/draft` trả `ProtocolCreate`)."
+      },
       "ProtocolVersionCreate": {
         "properties": {
           "body": {
@@ -10566,6 +13584,335 @@
           "ahead_seconds"
         ],
         "title": "QueueEstimate"
+      },
+      "QuickTryLevel": {
+        "properties": {
+          "level": {
+            "type": "number",
+            "title": "Level"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "Nhãn từ metadata của spec"
+          },
+          "image_url": {
+            "type": "string",
+            "pattern": "^/artifacts/[A-Za-z0-9._~-]+$",
+            "title": "Image Url",
+            "description": "Ảnh bị tấn công, đã làm mờ (như ảnh failure case)"
+          },
+          "objects": {
+            "items": {
+              "$ref": "#/components/schemas/QuickTryObject"
+            },
+            "type": "array",
+            "title": "Objects"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "level",
+          "label",
+          "image_url",
+          "objects"
+        ],
+        "title": "QuickTryLevel"
+      },
+      "QuickTryLevelReport": {
+        "properties": {
+          "level": {
+            "type": "number",
+            "title": "Level"
+          },
+          "objects": {
+            "items": {
+              "$ref": "#/components/schemas/QuickTryObject"
+            },
+            "type": "array",
+            "title": "Objects"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "level",
+          "objects"
+        ],
+        "title": "QuickTryLevelReport"
+      },
+      "QuickTryObject": {
+        "properties": {
+          "bbox": {
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array",
+            "maxItems": 4,
+            "minItems": 4,
+            "title": "Bbox",
+            "description": "xyxy letterbox; object new lấy box trên ảnh bị tấn công"
+          },
+          "class_name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Class Name"
+          },
+          "clean_score": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clean Score",
+            "description": "null khi status = new"
+          },
+          "attacked_score": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attacked Score",
+            "description": "null khi status = lost"
+          },
+          "status": {
+            "$ref": "#/components/schemas/QuickTryObjectStatus"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "bbox",
+          "class_name",
+          "clean_score",
+          "attacked_score",
+          "status"
+        ],
+        "title": "QuickTryObject",
+        "description": "Một object, ghép theo IoU ≥ 0.5 cùng class giữa ảnh sạch và ảnh bị tấn công."
+      },
+      "QuickTryObjectStatus": {
+        "type": "string",
+        "enum": [
+          "kept",
+          "lost",
+          "new"
+        ],
+        "title": "QuickTryObjectStatus"
+      },
+      "QuickTryPayload": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "quick_try",
+            "title": "Kind",
+            "default": "quick_try"
+          },
+          "quick_try_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Quick Try Id"
+          },
+          "model": {
+            "$ref": "#/components/schemas/ToolModel"
+          },
+          "spec": {
+            "$ref": "#/components/schemas/AttackSpec"
+          },
+          "levels": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Levels"
+          },
+          "image_url": {
+            "type": "string",
+            "pattern": "^https?://\\S+$",
+            "title": "Image Url",
+            "description": "Ảnh gốc (chưa làm mờ)"
+          },
+          "clean_upload_url": {
+            "type": "string",
+            "pattern": "^https?://\\S+$",
+            "title": "Clean Upload Url",
+            "description": "PUT ảnh sạch đã letterbox và làm mờ"
+          },
+          "level_upload_urls": {
+            "items": {
+              "type": "string",
+              "pattern": "^https?://\\S+$"
+            },
+            "type": "array",
+            "title": "Level Upload Urls",
+            "description": "PUT ảnh bị tấn công đã làm mờ, cùng thứ tự levels"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "quick_try_id",
+          "model",
+          "spec",
+          "levels",
+          "image_url",
+          "clean_upload_url",
+          "level_upload_urls"
+        ],
+        "title": "QuickTryPayload"
+      },
+      "QuickTryReport": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "quick_try",
+            "title": "Kind",
+            "default": "quick_try"
+          },
+          "levels": {
+            "items": {
+              "$ref": "#/components/schemas/QuickTryLevelReport"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Levels"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "levels"
+        ],
+        "title": "QuickTryReport",
+        "description": "Ảnh đã PUT lên các URL trong payload trước khi gửi report."
+      },
+      "QuickTryView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ToolJobStatus"
+          },
+          "not_a_test_result": {
+            "type": "boolean",
+            "const": true,
+            "title": "Not A Test Result",
+            "description": "Luôn true: không phải kết quả kiểm thử",
+            "default": true
+          },
+          "model_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Model Version Id"
+          },
+          "attack_spec_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Attack Spec Id"
+          },
+          "preset": {
+            "type": "string",
+            "enum": [
+              "fast",
+              "standard",
+              "deep"
+            ],
+            "title": "Preset"
+          },
+          "clean_image_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^/artifacts/[A-Za-z0-9._~-]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clean Image Url",
+            "description": "Ảnh sạch đã letterbox và làm mờ; có khi và chỉ khi completed. Ảnh gốc chưa làm mờ không bao giờ được phục vụ qua API"
+          },
+          "levels": {
+            "items": {
+              "$ref": "#/components/schemas/QuickTryLevel"
+            },
+            "type": "array",
+            "title": "Levels",
+            "description": "Rỗng khi chưa completed"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "Có khi và chỉ khi failed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "model_version_id",
+          "attack_spec_id",
+          "preset",
+          "clean_image_url",
+          "levels",
+          "created_at",
+          "expires_at",
+          "error"
+        ],
+        "title": "QuickTryView",
+        "description": "`POST /quick-tries` (202) và `GET /quick-tries/{id}`; hết hạn thì `GET` trả 410."
       },
       "RejectRequest": {
         "properties": {
@@ -12359,6 +15706,71 @@
         "title": "ReviewView",
         "description": "Trạng thái review của experiment (`ExperimentDetail.review`)."
       },
+      "RobustnessCell": {
+        "properties": {
+          "band": {
+            "type": "integer",
+            "exclusiveMaximum": 4.0,
+            "minimum": 0.0,
+            "title": "Band",
+            "description": "Chỉ số trong bands"
+          },
+          "max_relative_drop": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Relative Drop",
+            "description": "null khi dải không có run có metric"
+          },
+          "runs": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Runs"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "band",
+          "max_relative_drop",
+          "runs"
+        ],
+        "title": "RobustnessCell"
+      },
+      "RobustnessRow": {
+        "properties": {
+          "attack_spec_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Attack Spec Id"
+          },
+          "attack_name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Attack Name"
+          },
+          "cells": {
+            "items": {
+              "$ref": "#/components/schemas/RobustnessCell"
+            },
+            "type": "array",
+            "title": "Cells"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "attack_spec_id",
+          "attack_name",
+          "cells"
+        ],
+        "title": "RobustnessRow"
+      },
       "Role": {
         "type": "string",
         "enum": [
@@ -13817,6 +17229,142 @@
         ],
         "title": "SliceSummary"
       },
+      "SpecCheckItem": {
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/SpecCheckName"
+          },
+          "passed": {
+            "type": "boolean",
+            "title": "Passed"
+          },
+          "details": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Details",
+            "description": "Lý do khi fail; lý do bỏ qua khi passed mà không áp dụng"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "passed"
+        ],
+        "title": "SpecCheckItem"
+      },
+      "SpecCheckName": {
+        "type": "string",
+        "enum": [
+          "runs",
+          "value_range",
+          "pad_unchanged",
+          "identity",
+          "batch_invariant",
+          "norm_bound",
+          "deterministic"
+        ],
+        "title": "SpecCheckName",
+        "description": "Bảy mục tự kiểm tra spec, theo thứ tự (requirements.md Phase R2)."
+      },
+      "SpecCheckPayload": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "spec_check",
+            "title": "Kind",
+            "default": "spec_check"
+          },
+          "spec": {
+            "$ref": "#/components/schemas/AttackSpec"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "spec"
+        ],
+        "title": "SpecCheckPayload"
+      },
+      "SpecCheckReport": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "spec_check",
+            "title": "Kind",
+            "default": "spec_check"
+          },
+          "result": {
+            "$ref": "#/components/schemas/SpecCheckResult"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "result"
+        ],
+        "title": "SpecCheckReport"
+      },
+      "SpecCheckResult": {
+        "properties": {
+          "spec_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Spec Id"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SpecCheckItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "passed": {
+            "type": "boolean",
+            "title": "Passed"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "Quá 120 giây hoặc lỗi ngoài các mục"
+          },
+          "checked_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Checked At"
+          },
+          "worker_target_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Worker Target Id",
+            "description": "Compute target của worker đã chạy kiểm tra"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "spec_id",
+          "items",
+          "passed",
+          "checked_at",
+          "worker_target_id"
+        ],
+        "title": "SpecCheckResult",
+        "description": "Kết quả job spec_check (`attacks/selfcheck.py`, requirements.md Phase R2).\n\n`items` theo thứ tự `SpecCheckName`; quá giờ hoặc lỗi giữa chừng thì có thể thiếu mục, khi đó\n`error` ghi lý do và `passed = false`."
+      },
       "StatusReason": {
         "properties": {
           "code": {
@@ -13943,6 +17491,108 @@
         "title": "SubmitForReview",
         "description": "`POST /experiments/{id}/submit`. Lời giải trình chỉ gửi kèm ở đây (kickoff Phase 8)."
       },
+      "TemplateAttack": {
+        "properties": {
+          "attack_spec_name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "title": "Attack Spec Name"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/RunMode"
+          },
+          "grid": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TemplateGrid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "search": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TemplateSearch"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "attack_spec_name",
+          "mode"
+        ],
+        "title": "TemplateAttack"
+      },
+      "TemplateGrid": {
+        "properties": {
+          "level_ratios": {
+            "items": {
+              "type": "number",
+              "maximum": 1.0,
+              "minimum": 0.0
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Level Ratios",
+            "description": "Tỷ lệ trên [min, max] của primary_param; level bắt buộc"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "level_ratios"
+        ],
+        "title": "TemplateGrid"
+      },
+      "TemplateSearch": {
+        "properties": {
+          "threshold_kind": {
+            "$ref": "#/components/schemas/ThresholdKind"
+          },
+          "threshold": {
+            "type": "number",
+            "maximum": 1.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Threshold"
+          },
+          "lo_ratio": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Lo Ratio"
+          },
+          "hi_ratio": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Hi Ratio"
+          },
+          "max_tol_ratio": {
+            "type": "number",
+            "maximum": 1.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Max Tol Ratio",
+            "description": "max_tol = max_tol_ratio · (hi - lo)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "threshold_kind",
+          "threshold",
+          "lo_ratio",
+          "hi_ratio",
+          "max_tol_ratio"
+        ],
+        "title": "TemplateSearch"
+      },
       "ThresholdKind": {
         "type": "string",
         "enum": [
@@ -13951,6 +17601,248 @@
           "attack_success_rate"
         ],
         "title": "ThresholdKind"
+      },
+      "ToolHeartbeat": {
+        "properties": {
+          "lease_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Lease Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "lease_id"
+        ],
+        "title": "ToolHeartbeat"
+      },
+      "ToolJobBundle": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Schema Version",
+            "default": 1
+          },
+          "job_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Job Id"
+          },
+          "payload": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SpecCheckPayload"
+              },
+              {
+                "$ref": "#/components/schemas/ModelCheckPayload"
+              },
+              {
+                "$ref": "#/components/schemas/QuickTryPayload"
+              }
+            ],
+            "title": "Payload",
+            "discriminator": {
+              "propertyName": "kind",
+              "mapping": {
+                "model_check": "#/components/schemas/ModelCheckPayload",
+                "quick_try": "#/components/schemas/QuickTryPayload",
+                "spec_check": "#/components/schemas/SpecCheckPayload"
+              }
+            }
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "job_id",
+          "payload",
+          "expires_at"
+        ],
+        "title": "ToolJobBundle",
+        "description": "`GET /internal/worker/tool-jobs/{id}`; presigned URL hết hạn sau 15 phút."
+      },
+      "ToolJobKind": {
+        "type": "string",
+        "enum": [
+          "spec_check",
+          "model_check",
+          "quick_try"
+        ],
+        "title": "ToolJobKind",
+        "description": "Job công cụ của worker `--tools`; thứ tự lease: quick_try, rồi model_check và spec_check\ntheo thứ tự tạo."
+      },
+      "ToolJobResult": {
+        "properties": {
+          "lease_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Lease Id"
+          },
+          "report": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/SpecCheckReport"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ModelCheckReport"
+                  },
+                  {
+                    "$ref": "#/components/schemas/QuickTryReport"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "kind",
+                  "mapping": {
+                    "model_check": "#/components/schemas/ModelCheckReport",
+                    "quick_try": "#/components/schemas/QuickTryReport",
+                    "spec_check": "#/components/schemas/SpecCheckReport"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "lease_id"
+        ],
+        "title": "ToolJobResult",
+        "description": "`POST /internal/worker/tool-jobs/{id}/result`: đúng một trong `report` hoặc `error`.\n\n`error` là lỗi hạ tầng (không nạp được tài nguyên, ngoại lệ); kiểm tra fail vẫn gửi `report`\nvới `passed = false`."
+      },
+      "ToolJobStatus": {
+        "type": "string",
+        "enum": [
+          "queued",
+          "running",
+          "completed",
+          "failed"
+        ],
+        "title": "ToolJobStatus"
+      },
+      "ToolLease": {
+        "properties": {
+          "schema_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Schema Version",
+            "default": 1
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ToolJobKind"
+          },
+          "job_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Job Id"
+          },
+          "lease_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Lease Id",
+            "description": "Đổi mỗi lần lease; gửi kèm mọi request sau đó"
+          },
+          "lease_expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Lease Expires At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "job_id",
+          "lease_id",
+          "lease_expires_at"
+        ],
+        "title": "ToolLease",
+        "description": "Trả về từ `POST /internal/worker/tool-lease` (không có job thì `204`)."
+      },
+      "ToolModel": {
+        "properties": {
+          "model_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Model Version Id"
+          },
+          "framework": {
+            "type": "string",
+            "enum": [
+              "ultralytics",
+              "torchvision",
+              "onnx"
+            ],
+            "title": "Framework"
+          },
+          "architecture": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Architecture"
+          },
+          "weights_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Weights Sha256"
+          },
+          "class_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Class Names"
+          },
+          "input_size": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Input Size"
+          },
+          "weights_url": {
+            "type": "string",
+            "pattern": "^https?://\\S+$",
+            "title": "Weights Url"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "model_version_id",
+          "framework",
+          "architecture",
+          "weights_sha256",
+          "class_names",
+          "input_size",
+          "weights_url"
+        ],
+        "title": "ToolModel",
+        "description": "Model cần nạp cho job công cụ (presigned GET cho weights)."
       },
       "TrainingParams": {
         "properties": {
@@ -14295,6 +18187,115 @@
         ],
         "title": "VerifyInfo",
         "description": "`GET /verify/{report_id}` (công khai): không có tên người hay nội dung report."
+      },
+      "Weakness": {
+        "properties": {
+          "attack_spec_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Attack Spec Id"
+          },
+          "attack_name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Attack Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "grid",
+              "search"
+            ],
+            "title": "Kind"
+          },
+          "level": {
+            "type": "number",
+            "title": "Level"
+          },
+          "level_ratio": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Level Ratio",
+            "description": "level / primary_param.max"
+          },
+          "level_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level Label",
+            "description": "Nhãn từ metadata của spec; null khi không có"
+          },
+          "relative_drop": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relative Drop",
+            "description": "grid: mức sụt mAP@0.5 tương đối tại level"
+          },
+          "breaking_point": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Breaking Point",
+            "description": "search: điểm gãy found"
+          },
+          "class_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Class Name",
+            "description": "Class sụt AP50 tương đối nhiều nhất tại level; null khi không xác định"
+          },
+          "class_relative_drop": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Class Relative Drop",
+            "description": "Mức sụt AP50 tương đối của class_name; null khi class_name null"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "attack_spec_id",
+          "attack_name",
+          "kind",
+          "level",
+          "level_ratio",
+          "level_label",
+          "relative_drop",
+          "breaking_point",
+          "class_name",
+          "class_relative_drop"
+        ],
+        "title": "Weakness",
+        "description": "Một điểm yếu (requirements.md Phase R2, Behaviour Insight)."
       },
       "WorkerDirective": {
         "properties": {

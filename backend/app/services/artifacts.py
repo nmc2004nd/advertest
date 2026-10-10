@@ -35,8 +35,11 @@ logger = logging.getLogger(__name__)
 TOKEN_TTL = timedelta(minutes=10)
 SECRET_ENV = "ARTIFACT_TOKEN_SECRET"
 DEV_FLAG_ENV = "DEV_ALLOW_UNBLURRED"
-# Chỉ ký cho ảnh của run (runs/<run_id>/...): token không mở được đối tượng khác trong bucket.
-ALLOWED_PREFIX = "runs/"
+# Chỉ ký cho ảnh của run (runs/<run_id>/...) và ảnh kết quả thử nhanh (Phase R2,
+# quick-tries/<id>/...): token không mở được đối tượng khác trong bucket.
+ALLOWED_PREFIXES = ("runs/", "quick-tries/")
+# Ảnh gốc của thử nhanh (chưa làm mờ) không bao giờ được phục vụ qua API.
+QUICK_TRY_ORIGINAL = "original"
 MEDIA_TYPES = {".png": "image/png", ".webp": "image/webp"}
 THUMBS = ("clean_thumb", "adversarial_thumb")
 
@@ -68,10 +71,16 @@ def _sign(payload: bytes) -> bytes:
     return hmac.new(_secret(), payload, hashlib.sha256).digest()
 
 
+def servable(key: str) -> bool:
+    if key.startswith("quick-tries/"):
+        return not key.rsplit("/", 1)[-1].startswith(QUICK_TRY_ORIGINAL)
+    return key.startswith(ALLOWED_PREFIXES)
+
+
 def issue(key: str, now: datetime) -> tuple[str, datetime]:
     """Token cho khóa `key`, hết hạn sau 10 phút (làm tròn xuống giây)."""
-    if not key.startswith(ALLOWED_PREFIX):
-        raise ValueError(f"Không cấp URL cho khóa ngoài {ALLOWED_PREFIX}: {key}")
+    if not servable(key):
+        raise ValueError(f"Không cấp URL cho khóa ngoài {ALLOWED_PREFIXES}: {key}")
     expires_at = (now + TOKEN_TTL).replace(microsecond=0)
     payload = f"{int(expires_at.timestamp())}:{key}".encode()
     return f"{_b64(payload)}.{_b64(_sign(payload))}", expires_at
@@ -88,7 +97,7 @@ def verify(token: str, now: datetime) -> str | None:
         expires_at = datetime.fromtimestamp(int(expires), UTC)
     except (ValueError, binascii.Error, UnicodeDecodeError):
         return None
-    if now >= expires_at or not key.startswith(ALLOWED_PREFIX):
+    if now >= expires_at or not servable(key):
         return None
     return key
 

@@ -29,13 +29,18 @@ EXPECTED_TABLES = {
     "patches",
     # Phase 8
     "run_explanations", "review_comments",
+    # Phase R2
+    "tool_jobs", "quick_tries",
 }  # fmt: skip
 APPEND_ONLY = [
     "audit_log", "case_verdicts", "reviews", "reports", "ledger_entries", "auth_events",
 ]  # fmt: skip
 # Phase 4: thu hồi phiên, đánh dấu token đã dùng bằng UPDATE; không bao giờ xóa.
 # Phase 5: email trong outbox chỉ được đánh dấu đã gửi hoặc lỗi.
-NO_DELETE_AUTH = ["sessions", "password_reset_tokens", "email_outbox", "patches"]
+# Phase R2: job công cụ và lượt thử nhanh chỉ đổi trạng thái (dọn thử nhanh đặt deleted_at).
+NO_DELETE_AUTH = [
+    "sessions", "password_reset_tokens", "email_outbox", "patches", "tool_jobs", "quick_tries",
+]  # fmt: skip
 
 # Enum Postgres ↔ enum contract (giá trị trong migration được ghi cứng, phải khớp contract).
 PG_ENUMS = {
@@ -58,6 +63,11 @@ PG_ENUMS = {
     "model_verdict": enums.ModelVerdict,
     "report_status": enums.ReportStatus,
     "comment_target_type": enums.CommentTargetType,
+    # Phase R2.
+    "attack_spec_status": enums.AttackSpecStatus,
+    "model_status": enums.ModelStatus,
+    "tool_job_kind": enums.ToolJobKind,
+    "tool_job_status": enums.ToolJobStatus,
 }
 
 SHA = "a" * 64

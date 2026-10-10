@@ -1,0 +1,76 @@
+{
+  "id": "6b1e2d3c-4f5a-4b6c-8d7e-9f0a1b2c3d4e",
+  "status": "completed",
+  "not_a_test_result": true,
+  "model_version_id": "81686f0e-32b6-5806-819c-3b0e37072342",
+  "attack_spec_id": "8d15422d-f111-5c7e-96eb-e704767e6218",
+  "preset": "standard",
+  "clean_image_url": "/artifacts/qt-clean.tok",
+  "levels": [
+    {
+      "level": 2,
+      "label": null,
+      "image_url": "/artifacts/qt-l0.tok",
+      "objects": [
+        {
+          "bbox": [
+            100,
+            200,
+            180,
+            360
+          ],
+          "class_name": "person",
+          "clean_score": 0.91,
+          "attacked_score": 0.55,
+          "status": "kept"
+        }
+      ]
+    },
+    {
+      "level": 8,
+      "label": null,
+      "image_url": "/artifacts/qt-l1.tok",
+      "objects": [
+        {
+          "bbox": [
+            100,
+            200,
+            180,
+            360
+          ],
+          "class_name": "person",
+          "clean_score": 0.91,
+          "attacked_score": 0.55,
+          "status": "kept"
+        },
+        {
+          "bbox": [
+            300,
+            220,
+            420,
+            300
+          ],
+          "class_name": "car",
+          "clean_score": 0.83,
+          "attacked_score": null,
+          "status": "lost"
+        },
+        {
+          "bbox": [
+            500,
+            100,
+            560,
+            150
+          ],
+          "class_name": "truck",
+          "clean_score": null,
+          "attacked_score": 0.31,
+          "status": "new"
+        }
+      ]
+    }
+  ],
+  "created_at": "2026-10-09T08:00:00Z",
+  "expires_at": "2026-10-10T08:00:00Z",
+  "error": null
+}

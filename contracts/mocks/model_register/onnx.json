@@ -1,0 +1,12 @@
+{
+  "name": "yolov8n-onnx",
+  "framework": "onnx",
+  "architecture": "YOLOv8n xuất ONNX, đầu ra (1, 84, 8400)",
+  "upload_id": "5a0f6f3e-6c55-4c1a-9d8e-3f2b1a0c9d01",
+  "class_names": [
+    "person",
+    "car",
+    "truck"
+  ],
+  "input_size": 640
+}

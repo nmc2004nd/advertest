@@ -1,0 +1,23 @@
+{
+  "name": "corruption.imagecorruptions",
+  "kind": "corruption",
+  "params_schema": {
+    "type": "object",
+    "required": [
+      "corruption"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "corruption": {
+        "enum": [
+          "fog",
+          "snow",
+          "frost",
+          "motion_blur",
+          "contrast"
+        ]
+      }
+    }
+  },
+  "requires_gradients": false
+}

@@ -1,0 +1,293 @@
+{
+  "$defs": {
+    "Conclusion": {
+      "additionalProperties": false,
+      "description": "Câu kết luận sinh theo luật (`backend/app/insight/phrases.py`).",
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/ConclusionCode"
+        },
+        "params": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "description": "Số liệu dùng dựng câu",
+          "title": "Params",
+          "type": "object"
+        },
+        "text": {
+          "description": "Tiếng Việt; cùng đầu vào cho cùng câu",
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "params",
+        "text"
+      ],
+      "title": "Conclusion",
+      "type": "object"
+    },
+    "ConclusionCode": {
+      "enum": [
+        "no_data",
+        "robust",
+        "weak",
+        "weak_class"
+      ],
+      "title": "ConclusionCode",
+      "type": "string"
+    },
+    "ExperimentMode": {
+      "description": "Suy ra từ protocol: status dev → exploration (mission.md nguyên tắc 11).",
+      "enum": [
+        "exploration",
+        "official"
+      ],
+      "title": "ExperimentMode",
+      "type": "string"
+    },
+    "JsonValue": {},
+    "RobustnessCell": {
+      "additionalProperties": false,
+      "properties": {
+        "band": {
+          "description": "Chỉ số trong bands",
+          "exclusiveMaximum": 4,
+          "minimum": 0,
+          "title": "Band",
+          "type": "integer"
+        },
+        "max_relative_drop": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null khi dải không có run có metric",
+          "title": "Max Relative Drop"
+        },
+        "runs": {
+          "minimum": 0,
+          "title": "Runs",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "band",
+        "max_relative_drop",
+        "runs"
+      ],
+      "title": "RobustnessCell",
+      "type": "object"
+    },
+    "RobustnessRow": {
+      "additionalProperties": false,
+      "properties": {
+        "attack_spec_id": {
+          "format": "uuid",
+          "title": "Attack Spec Id",
+          "type": "string"
+        },
+        "attack_name": {
+          "minLength": 1,
+          "title": "Attack Name",
+          "type": "string"
+        },
+        "cells": {
+          "items": {
+            "$ref": "#/$defs/RobustnessCell"
+          },
+          "title": "Cells",
+          "type": "array"
+        }
+      },
+      "required": [
+        "attack_spec_id",
+        "attack_name",
+        "cells"
+      ],
+      "title": "RobustnessRow",
+      "type": "object"
+    },
+    "Weakness": {
+      "additionalProperties": false,
+      "description": "Một điểm yếu (requirements.md Phase R2, Behaviour Insight).",
+      "properties": {
+        "attack_spec_id": {
+          "format": "uuid",
+          "title": "Attack Spec Id",
+          "type": "string"
+        },
+        "attack_name": {
+          "minLength": 1,
+          "title": "Attack Name",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "grid",
+            "search"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "level": {
+          "title": "Level",
+          "type": "number"
+        },
+        "level_ratio": {
+          "description": "level / primary_param.max",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Level Ratio",
+          "type": "number"
+        },
+        "level_label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Nhãn từ metadata của spec; null khi không có",
+          "title": "Level Label"
+        },
+        "relative_drop": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "grid: mức sụt mAP@0.5 tương đối tại level",
+          "title": "Relative Drop"
+        },
+        "breaking_point": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "search: điểm gãy found",
+          "title": "Breaking Point"
+        },
+        "class_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Class sụt AP50 tương đối nhiều nhất tại level; null khi không xác định",
+          "title": "Class Name"
+        },
+        "class_relative_drop": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Mức sụt AP50 tương đối của class_name; null khi class_name null",
+          "title": "Class Relative Drop"
+        }
+      },
+      "required": [
+        "attack_spec_id",
+        "attack_name",
+        "kind",
+        "level",
+        "level_ratio",
+        "level_label",
+        "relative_drop",
+        "breaking_point",
+        "class_name",
+        "class_relative_drop"
+      ],
+      "title": "Weakness",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "`GET /experiments/{id}/insight`.",
+  "properties": {
+    "experiment_id": {
+      "format": "uuid",
+      "title": "Experiment Id",
+      "type": "string"
+    },
+    "mode": {
+      "$ref": "#/$defs/ExperimentMode"
+    },
+    "weaknesses": {
+      "items": {
+        "$ref": "#/$defs/Weakness"
+      },
+      "maxItems": 5,
+      "title": "Weaknesses",
+      "type": "array"
+    },
+    "matrix": {
+      "description": "Mỗi attack quét lưới một hàng",
+      "items": {
+        "$ref": "#/$defs/RobustnessRow"
+      },
+      "title": "Matrix",
+      "type": "array"
+    },
+    "bands": {
+      "description": "(lo, hi], theo ROBUSTNESS_BANDS",
+      "items": {
+        "maxItems": 2,
+        "minItems": 2,
+        "prefixItems": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "number"
+          }
+        ],
+        "type": "array"
+      },
+      "title": "Bands",
+      "type": "array"
+    },
+    "conclusion": {
+      "$ref": "#/$defs/Conclusion"
+    },
+    "partial": {
+      "description": "Có run stopped_limit hoặc experiment chưa kết thúc",
+      "title": "Partial",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "experiment_id",
+    "mode",
+    "weaknesses",
+    "matrix",
+    "bands",
+    "conclusion",
+    "partial"
+  ],
+  "title": "ExperimentInsight",
+  "type": "object"
+}

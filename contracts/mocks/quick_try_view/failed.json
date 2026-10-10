@@ -1,0 +1,13 @@
+{
+  "id": "6b1e2d3c-4f5a-4b6c-8d7e-9f0a1b2c3d4e",
+  "status": "failed",
+  "not_a_test_result": true,
+  "model_version_id": "81686f0e-32b6-5806-819c-3b0e37072342",
+  "attack_spec_id": "8d15422d-f111-5c7e-96eb-e704767e6218",
+  "preset": "standard",
+  "clean_image_url": null,
+  "levels": [],
+  "created_at": "2026-10-09T08:00:00Z",
+  "expires_at": "2026-10-10T08:00:00Z",
+  "error": "Không nạp được model"
+}

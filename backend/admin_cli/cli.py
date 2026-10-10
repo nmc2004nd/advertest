@@ -24,7 +24,15 @@ from sqlalchemy.orm import Session
 from advertest_contracts.enums import ExperimentStatus
 from backend.app.db import models as m
 from backend.app.db.engine import make_engine
-from backend.app.services import audit, compute_targets, estimate, experiments, registry
+from backend.app.services import (
+    audit,
+    compute_targets,
+    estimate,
+    experiments,
+    quick_tries,
+    registry,
+)
+from backend.app.services.clock import utcnow
 from backend.app.services.errors import ServiceError
 from backend.app.storage import Buckets, make_s3_client
 from ml_core.runner.config import load_config
@@ -158,6 +166,15 @@ def import_local(
         f" mapping: {len(report.mappings)}, slice: {len(report.slices)};"
         f" ảnh mới upload: {report.images_uploaded}, đã có: {report.images_present}."
     )
+
+
+@app.command("purge-quick-tries")
+def purge_quick_tries() -> None:
+    """Dọn lượt thử nhanh đã hết hạn (24 giờ): xóa ảnh trong MinIO, đặt deleted_at. API tự chạy
+    việc này mỗi 10 phút; lệnh này để chạy tay."""
+    with _transaction() as session:
+        count = quick_tries.purge_expired(session, Buckets.from_client(make_s3_client()), utcnow())
+    typer.echo(f"Đã dọn {count} lượt thử nhanh hết hạn.")
 
 
 # ---------------------------------------------------------------- experiment

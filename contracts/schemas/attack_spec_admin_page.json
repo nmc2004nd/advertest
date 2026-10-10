@@ -91,6 +91,19 @@
           ],
           "description": "Có khi và chỉ khi requires_training = true"
         },
+        "adapter": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Phase R2: adapter trong registry của worker (`GET /attack-adapters`); null là suy từ kind và art_class (`attacks.builders.effective_adapter`). `fixed_params` là tham số của adapter",
+          "title": "Adapter"
+        },
         "id": {
           "format": "uuid",
           "title": "Id",
@@ -103,8 +116,56 @@
           "type": "string"
         },
         "is_active": {
+          "description": "Suy ra: status = active",
           "title": "Is Active",
           "type": "boolean"
+        },
+        "status": {
+          "$ref": "#/$defs/AttackSpecStatus"
+        },
+        "metadata": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AttackSpecMetadata"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null khi chưa khai (spec seed)"
+        },
+        "check": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SpecCheckResult"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Kết quả spec_check gần nhất"
+        },
+        "created_by": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UserRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null với spec seed"
+        },
+        "approved_by": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UserRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null khi chưa duyệt hoặc spec seed"
         }
       },
       "required": [
@@ -118,10 +179,73 @@
         "requires_gradients",
         "id",
         "spec_sha256",
-        "is_active"
+        "is_active",
+        "status",
+        "metadata",
+        "check",
+        "created_by",
+        "approved_by"
       ],
       "title": "AttackSpecAdminView",
       "type": "object"
+    },
+    "AttackSpecMetadata": {
+      "additionalProperties": false,
+      "description": "Thông tin hiển thị của spec, nằm ngoài `spec_sha256` (tech-stack.md mục 9, luật 9); sửa\nkhông đổi version (Phase R2).",
+      "properties": {
+        "display_name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Display Name",
+          "type": "string"
+        },
+        "description": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "realism": {
+          "description": "Mức sát thực tế",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "title": "Realism",
+          "type": "string"
+        },
+        "level_labels": {
+          "additionalProperties": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "description": "Level (số viết dạng chuỗi, so khớp theo giá trị số) → nhãn dễ đọc",
+          "title": "Level Labels",
+          "type": "object"
+        }
+      },
+      "required": [
+        "display_name",
+        "description",
+        "realism"
+      ],
+      "title": "AttackSpecMetadata",
+      "type": "object"
+    },
+    "AttackSpecStatus": {
+      "description": "Vòng đời spec trong catalog (Phase R2, requirements.md mục Catalog attack).",
+      "enum": [
+        "draft",
+        "checking",
+        "check_failed",
+        "pending_approval",
+        "active",
+        "retired"
+      ],
+      "title": "AttackSpecStatus",
+      "type": "string"
     },
     "CostModel": {
       "additionalProperties": false,
@@ -206,6 +330,106 @@
       "title": "PrimaryParam",
       "type": "object"
     },
+    "SpecCheckItem": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/SpecCheckName"
+        },
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "details": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Lý do khi fail; lý do bỏ qua khi passed mà không áp dụng",
+          "title": "Details"
+        }
+      },
+      "required": [
+        "name",
+        "passed"
+      ],
+      "title": "SpecCheckItem",
+      "type": "object"
+    },
+    "SpecCheckName": {
+      "description": "Bảy mục tự kiểm tra spec, theo thứ tự (requirements.md Phase R2).",
+      "enum": [
+        "runs",
+        "value_range",
+        "pad_unchanged",
+        "identity",
+        "batch_invariant",
+        "norm_bound",
+        "deterministic"
+      ],
+      "title": "SpecCheckName",
+      "type": "string"
+    },
+    "SpecCheckResult": {
+      "additionalProperties": false,
+      "description": "Kết quả job spec_check (`attacks/selfcheck.py`, requirements.md Phase R2).\n\n`items` theo thứ tự `SpecCheckName`; quá giờ hoặc lỗi giữa chừng thì có thể thiếu mục, khi đó\n`error` ghi lý do và `passed = false`.",
+      "properties": {
+        "spec_id": {
+          "format": "uuid",
+          "title": "Spec Id",
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/SpecCheckItem"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Quá 120 giây hoặc lỗi ngoài các mục",
+          "title": "Error"
+        },
+        "checked_at": {
+          "format": "date-time",
+          "title": "Checked At",
+          "type": "string"
+        },
+        "worker_target_id": {
+          "description": "Compute target của worker đã chạy kiểm tra",
+          "format": "uuid",
+          "title": "Worker Target Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "spec_id",
+        "items",
+        "passed",
+        "checked_at",
+        "worker_target_id"
+      ],
+      "title": "SpecCheckResult",
+      "type": "object"
+    },
     "TrainingParams": {
       "additionalProperties": false,
       "description": "Tham số huấn luyện của spec cần train trước khi đánh giá (patch, Phase 6).",
@@ -256,6 +480,26 @@
         "batch_size"
       ],
       "title": "TrainingParams",
+      "type": "object"
+    },
+    "UserRef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "full_name": {
+          "title": "Full Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "full_name"
+      ],
+      "title": "UserRef",
       "type": "object"
     }
   },

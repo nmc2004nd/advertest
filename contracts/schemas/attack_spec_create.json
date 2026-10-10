@@ -1,0 +1,318 @@
+{
+  "$defs": {
+    "AttackAccess": {
+      "enum": [
+        "white_box",
+        "black_box",
+        "not_applicable"
+      ],
+      "title": "AttackAccess",
+      "type": "string"
+    },
+    "AttackKind": {
+      "enum": [
+        "attack",
+        "corruption",
+        "occlusion"
+      ],
+      "title": "AttackKind",
+      "type": "string"
+    },
+    "AttackSpecBody": {
+      "additionalProperties": false,
+      "description": "Nội dung của attack spec (mọi trường trừ `id` và `spec_sha256`); là đầu vào của hash.\n\nTrường thêm ở Phase 6 (`requires_training`, `training`) và Phase R2 (`adapter`) bị bỏ khỏi\nJSON khi mang giá trị mặc định, nên hash của spec cũ không đổi.",
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "name": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "exclusiveMinimum": 0,
+          "title": "Version",
+          "type": "integer"
+        },
+        "kind": {
+          "$ref": "#/$defs/AttackKind"
+        },
+        "access": {
+          "$ref": "#/$defs/AttackAccess",
+          "description": "Corruption và occlusion dùng not_applicable; attack không dùng giá trị này"
+        },
+        "art_class": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Null với corruption và occlusion",
+          "title": "Art Class"
+        },
+        "primary_param": {
+          "$ref": "#/$defs/PrimaryParam"
+        },
+        "fixed_params": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Fixed Params",
+          "type": "object"
+        },
+        "cost_model": {
+          "$ref": "#/$defs/CostModel"
+        },
+        "requires_gradients": {
+          "title": "Requires Gradients",
+          "type": "boolean"
+        },
+        "requires_training": {
+          "description": "Phase 6: phải train (patch) trên slice huấn luyện trước khi đánh giá",
+          "title": "Requires Training",
+          "type": "boolean"
+        },
+        "training": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TrainingParams"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Có khi và chỉ khi requires_training = true"
+        },
+        "adapter": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Phase R2: adapter trong registry của worker (`GET /attack-adapters`); null là suy từ kind và art_class (`attacks.builders.effective_adapter`). `fixed_params` là tham số của adapter",
+          "title": "Adapter"
+        }
+      },
+      "required": [
+        "name",
+        "version",
+        "kind",
+        "access",
+        "primary_param",
+        "fixed_params",
+        "cost_model",
+        "requires_gradients"
+      ],
+      "title": "AttackSpecBody",
+      "type": "object"
+    },
+    "AttackSpecMetadata": {
+      "additionalProperties": false,
+      "description": "Thông tin hiển thị của spec, nằm ngoài `spec_sha256` (tech-stack.md mục 9, luật 9); sửa\nkhông đổi version (Phase R2).",
+      "properties": {
+        "display_name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Display Name",
+          "type": "string"
+        },
+        "description": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "realism": {
+          "description": "Mức sát thực tế",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "title": "Realism",
+          "type": "string"
+        },
+        "level_labels": {
+          "additionalProperties": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "description": "Level (số viết dạng chuỗi, so khớp theo giá trị số) → nhãn dễ đọc",
+          "title": "Level Labels",
+          "type": "object"
+        }
+      },
+      "required": [
+        "display_name",
+        "description",
+        "realism"
+      ],
+      "title": "AttackSpecMetadata",
+      "type": "object"
+    },
+    "CostModel": {
+      "additionalProperties": false,
+      "properties": {
+        "passes_per_image": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Số lần forward + backward cho mỗi ảnh",
+          "title": "Passes Per Image"
+        },
+        "cpu_only": {
+          "default": false,
+          "title": "Cpu Only",
+          "type": "boolean"
+        }
+      },
+      "title": "CostModel",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "PrimaryParam": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "continuous",
+            "discrete"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "min": {
+          "title": "Min",
+          "type": "number"
+        },
+        "max": {
+          "title": "Max",
+          "type": "number"
+        },
+        "values": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Chỉ dùng khi type = discrete",
+          "title": "Values"
+        },
+        "unit": {
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "type",
+        "min",
+        "max",
+        "unit"
+      ],
+      "title": "PrimaryParam",
+      "type": "object"
+    },
+    "TrainingParams": {
+      "additionalProperties": false,
+      "description": "Tham số huấn luyện của spec cần train trước khi đánh giá (patch, Phase 6).",
+      "properties": {
+        "max_iter": {
+          "description": "Số vòng lặp; mỗi vòng đi qua toàn bộ slice huấn luyện",
+          "exclusiveMinimum": 0,
+          "title": "Max Iter",
+          "type": "integer"
+        },
+        "learning_rate": {
+          "description": "Trong thang ảnh [0, 1]",
+          "exclusiveMinimum": 0,
+          "title": "Learning Rate",
+          "type": "number"
+        },
+        "sample_size": {
+          "description": "Số biến đổi ngẫu nhiên mỗi ảnh mỗi vòng (EOT)",
+          "exclusiveMinimum": 0,
+          "title": "Sample Size",
+          "type": "integer"
+        },
+        "checkpoint_every": {
+          "description": "Lưu checkpoint sau mỗi số vòng lặp này",
+          "exclusiveMinimum": 0,
+          "title": "Checkpoint Every",
+          "type": "integer"
+        },
+        "max_training_images": {
+          "description": "Kích thước tối đa của slice huấn luyện",
+          "exclusiveMinimum": 0,
+          "title": "Max Training Images",
+          "type": "integer"
+        },
+        "batch_size": {
+          "description": "Batch size khi train và khi tính giá trị mục tiêu; cố định trong spec (không lấy từ cost profile) vì patch phụ thuộc cách chia batch (đề xuất contract 001, Phase 6)",
+          "exclusiveMinimum": 0,
+          "title": "Batch Size",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "max_iter",
+        "learning_rate",
+        "sample_size",
+        "checkpoint_every",
+        "max_training_images",
+        "batch_size"
+      ],
+      "title": "TrainingParams",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "`POST /admin/attack-specs`: name mới (version 1) hoặc name có sẵn (version lớn nhất + 1).\nServer tính `id`, `spec_sha256`; spec mới ở `draft` rồi chuyển `checking`.",
+  "properties": {
+    "body": {
+      "$ref": "#/$defs/AttackSpecBody"
+    },
+    "metadata": {
+      "$ref": "#/$defs/AttackSpecMetadata"
+    }
+  },
+  "required": [
+    "body",
+    "metadata"
+  ],
+  "title": "AttackSpecCreate",
+  "type": "object"
+}

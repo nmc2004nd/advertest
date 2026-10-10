@@ -25,6 +25,7 @@ class Permission(StrEnum):
     MODEL_MANAGE = "model.manage"
     ATTACK_CATALOG_READ = "attack_catalog.read"
     ATTACK_CATALOG_MANAGE = "attack_catalog.manage"
+    ATTACK_CATALOG_APPROVE = "attack_catalog.approve"  # Phase R2: duyệt kích hoạt spec mới
     PROTOCOL_READ = "protocol.read"
     PROTOCOL_MANAGE = "protocol.manage"
     REVIEW_DECIDE = "review.decide"
@@ -36,6 +37,7 @@ class Permission(StrEnum):
     COMPUTE_TARGET_MANAGE = "compute_target.manage"
     BUDGET_MANAGE = "budget.manage"
     AUDIT_READ = "audit.read"
+    QUICK_TRY_USE = "quick_try.use"  # Phase R2: thử nhanh một ảnh
 
 
 # Giá trị `x-permission` trong OpenAPI cho endpoint chỉ cần đăng nhập (mọi user `active`).
@@ -60,6 +62,7 @@ ROLE_PERMISSIONS: Final[dict[Role, frozenset[Permission]]] = {
             _P.PROTOCOL_READ,
             _P.REPORT_READ,
             _P.COMPUTE_TARGET_READ,
+            _P.QUICK_TRY_USE,
         }
     ),
     Role.REVIEWER: frozenset(
@@ -68,6 +71,8 @@ ROLE_PERMISSIONS: Final[dict[Role, frozenset[Permission]]] = {
             _P.DATASET_READ,
             _P.MODEL_READ,
             _P.ATTACK_CATALOG_READ,
+            _P.ATTACK_CATALOG_APPROVE,
+            _P.QUICK_TRY_USE,
             _P.PROTOCOL_READ,
             _P.PROTOCOL_MANAGE,
             _P.REVIEW_DECIDE,

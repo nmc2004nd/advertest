@@ -1,0 +1,44 @@
+{
+  "spec_id": "7b35c3e0-d554-5c0e-a329-8b45d7303258",
+  "items": [
+    {
+      "name": "runs",
+      "passed": true,
+      "details": null
+    },
+    {
+      "name": "value_range",
+      "passed": true,
+      "details": null
+    },
+    {
+      "name": "pad_unchanged",
+      "passed": true,
+      "details": null
+    },
+    {
+      "name": "identity",
+      "passed": true,
+      "details": "Bỏ qua: min = 1 > 0"
+    },
+    {
+      "name": "batch_invariant",
+      "passed": false,
+      "details": "batch 1 và batch 4 lệch 3.1e-2"
+    },
+    {
+      "name": "norm_bound",
+      "passed": true,
+      "details": null
+    },
+    {
+      "name": "deterministic",
+      "passed": true,
+      "details": null
+    }
+  ],
+  "passed": false,
+  "error": null,
+  "checked_at": "2026-10-09T08:00:00Z",
+  "worker_target_id": "8679be42-13ce-51fb-876b-ca6d4d3f3c74"
+}

@@ -1,0 +1,25 @@
+{
+  "additionalProperties": false,
+  "description": "`POST /models/uploads`: chỉ `.onnx` hoặc `.safetensors`, tối đa 500 MB (mission.md nguyên\ntắc 10). Nội dung được kiểm tra lại khi `POST /models`.",
+  "properties": {
+    "filename": {
+      "maxLength": 255,
+      "minLength": 1,
+      "pattern": "^[^/\\\\]+\\.(onnx|safetensors)$",
+      "title": "Filename",
+      "type": "string"
+    },
+    "size_bytes": {
+      "exclusiveMinimum": 0,
+      "maximum": 524288000,
+      "title": "Size Bytes",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "filename",
+    "size_bytes"
+  ],
+  "title": "ModelUploadCreate",
+  "type": "object"
+}

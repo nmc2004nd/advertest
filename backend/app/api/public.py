@@ -20,16 +20,20 @@ from fastapi import (
     APIRouter,
     BackgroundTasks,
     Depends,
+    File,
+    Form,
     Query,
     Request,
     Response,
     Security,
+    UploadFile,
     status,
 )
 from sqlalchemy.orm import Session
 
 from advertest_contracts.enums import (
     ErrorCode,
+    ExperimentMode,
     ExperimentStatus,
     ReviewDecision,
     ReviewQueueFilter,
@@ -38,8 +42,13 @@ from advertest_contracts.enums import (
 from advertest_contracts.models import (
     AccessRequest,
     ApproveRequest,
-    AttackSpec,
+    AttackAdapterInfo,
     AttackSpecAdminPage,
+    AttackSpecAdminView,
+    AttackSpecCreate,
+    AttackSpecMetadata,
+    AttackSpecReject,
+    AttackSpecView,
     AuditLogPage,
     CaseVerdictInput,
     CaseVerdictView,
@@ -52,19 +61,29 @@ from advertest_contracts.models import (
     ExperimentClone,
     ExperimentCreate,
     ExperimentDetail,
+    ExperimentDraftRequest,
+    ExperimentInsight,
     ExperimentPage,
+    ExperimentPreset,
     FailureCaseView,
     LoginRequest,
     Manifest,
     Me,
+    ModelRegister,
     ModelSummary,
+    ModelUpload,
+    ModelUploadCreate,
     PasswordChange,
     PasswordResetConsume,
     PasswordResetLink,
+    PresetKey,
+    PromoteRequest,
     ProtocolCreate,
     ProtocolSummary,
+    ProtocolTemplate,
     ProtocolVersionCreate,
     ProtocolView,
+    QuickTryView,
     RejectRequest,
     ReportDetail,
     ReportDownload,
@@ -87,6 +106,7 @@ from backend.app.admin import users as admin_users
 from backend.app.api.deps import (
     ArtifactReader,
     SessionFactory,
+    Storage,
     get_artifact_reader,
     get_clock,
     get_sessionmaker,
@@ -107,22 +127,28 @@ from backend.app.auth import sessions
 from backend.app.auth.deps import CurrentUser, Principal
 from backend.app.auth.permissions import guard
 from backend.app.db import models as m
+from backend.app.insight import service as insight_service
 from backend.app.protocols import service as protocol_service
 from backend.app.reports import service as report_service
 from backend.app.reviews import service as review_service
 from backend.app.services import (
     artifacts,
+    attack_catalog,
     catalog,
+    drafts,
     estimate,
     experiment_config,
     experiment_views,
     experiments,
+    model_uploads,
+    quick_tries,
 )
 from backend.app.services.clock import Clock
 from ml_core.store import KeyNotFoundError
 
 Sessions = Annotated[SessionFactory, Depends(get_sessionmaker)]
 Now = Annotated[Clock, Depends(get_clock)]
+Stores = Annotated[Storage, Depends(get_storage)]
 
 AUTH_FAILURE_STATUS = {
     ErrorCode.INVALID_CREDENTIALS: status.HTTP_401_UNAUTHORIZED,
@@ -373,8 +399,8 @@ def list_class_mappings(
 
 
 @router.get("/attack-specs", tags=["attack-specs"], **guard(P.ATTACK_CATALOG_READ))
-def list_attack_specs(factory: Sessions) -> list[AttackSpec]:
-    """Chỉ spec đang hoạt động."""
+def list_attack_specs(factory: Sessions) -> list[AttackSpecView]:
+    """Chỉ spec đang hoạt động, kèm metadata (Phase R2)."""
     with transaction(factory) as session:
         return catalog.list_attack_specs(session)
 
@@ -506,8 +532,10 @@ def list_experiments(
     model: UUID | None = None,
     cursor: Cursor = None,
     limit: Limit = 50,
+    mode: ExperimentMode | None = None,
 ) -> ExperimentPage:
-    """Mới nhất trước; `owner=me` chỉ experiment của mình."""
+    """Mới nhất trước; `owner=me` chỉ experiment của mình; `mode` lọc Khám phá/Chính thức
+    (Phase R2)."""
     with transaction(factory) as session:
         return experiment_views.list_experiments(
             session,
@@ -515,6 +543,7 @@ def list_experiments(
             owner=owner,
             status=status,
             model_version_id=model,
+            mode=mode,
             cursor=cursor,
             limit=limit,
         )
@@ -953,6 +982,251 @@ def list_audit_log(
     filters = AuditFilter(actor_id, action, entity_type, entity_id, since, until)
     with transaction(factory) as session:
         return list_entries(session, filters, cursor=cursor, limit=limit)
+
+
+# Phase R2 Group 0: khung (501) cho insight, template, preset, catalog và model qua cấu hình, thử
+# nhanh; Group 1 và Group 4 cài đặt (requirements.md Phase R2, Behaviour).
+R2_RESPONSES: dict[int | str, dict[str, Any]] = NOT_IMPLEMENTED_RESPONSE | {
+    status.HTTP_404_NOT_FOUND: {"model": ErrorResponse, "description": "Không tìm thấy"},
+    status.HTTP_409_CONFLICT: {"model": ErrorResponse, "description": "Sai trạng thái hoặc trùng"},
+}
+
+
+@router.get(
+    "/experiments/{experiment_id}/insight",
+    tags=["experiments"],
+    responses=R2_RESPONSES,
+    **guard(P.EXPERIMENT_READ),
+)
+def get_insight(experiment_id: UUID, factory: Sessions) -> ExperimentInsight:
+    """Điểm yếu chính, ma trận độ bền và câu kết luận từ các run đã có metric."""
+    with transaction(factory) as session:
+        return insight_service.insight(session, experiment_id)
+
+
+@router.post(
+    "/experiments/{experiment_id}/promote",
+    tags=["experiments"],
+    responses=R2_RESPONSES,
+    **guard(P.EXPERIMENT_CREATE),
+)
+def promote_experiment(
+    experiment_id: UUID, body: PromoteRequest, factory: Sessions
+) -> ExperimentClone:
+    """Bản nháp Chính thức từ experiment Khám phá đã kết thúc; không tạo experiment (409 khi
+    nguồn không phải exploration, chưa kết thúc, hoặc protocol đích không active)."""
+    with transaction(factory) as session:
+        return drafts.promote(session, experiment_id, body.protocol_id)
+
+
+@router.post(
+    "/experiments/draft", tags=["experiments"], responses=R2_RESPONSES, **guard(P.EXPERIMENT_CREATE)
+)
+def draft_experiment(body: ExperimentDraftRequest, factory: Sessions) -> ExperimentClone:
+    """Dựng `ExperimentCreate` từ protocol và preset; không tạo experiment."""
+    with transaction(factory) as session:
+        return drafts.experiment_draft(session, body)
+
+
+@router.get("/experiment-presets", tags=["experiments"], **guard(P.EXPERIMENT_READ))
+def list_experiment_presets() -> list[ExperimentPreset]:
+    """Preset trong `contracts/seeds/experiment_presets.json`."""
+    return list(drafts.experiment_presets())
+
+
+@router.get("/protocol-templates", tags=["protocols"], **guard(P.PROTOCOL_READ))
+def list_protocol_templates() -> list[ProtocolTemplate]:
+    """Template trong `contracts/seeds/protocol_templates.json`."""
+    return list(drafts.protocol_templates())
+
+
+@router.get(
+    "/protocol-templates/{key}/draft",
+    tags=["protocols"],
+    responses=R2_RESPONSES,
+    **guard(P.PROTOCOL_MANAGE),
+)
+def draft_protocol(key: str, factory: Sessions) -> ProtocolCreate:
+    """`ProtocolCreate` điền sẵn spec active, level và tiêu chí gợi ý; không tạo protocol."""
+    with transaction(factory) as session:
+        return drafts.template_draft(session, key)
+
+
+@router.get("/attack-adapters", tags=["admin-attacks"], **guard(P.ATTACK_CATALOG_MANAGE))
+def list_attack_adapters() -> list[AttackAdapterInfo]:
+    """Adapter có trong registry của worker."""
+    return attack_catalog.adapters()
+
+
+@router.post(
+    "/admin/attack-specs",
+    tags=["admin-attacks"],
+    status_code=status.HTTP_201_CREATED,
+    responses=R2_RESPONSES,
+    **guard(P.ATTACK_CATALOG_MANAGE),
+)
+def create_attack_spec(
+    body: AttackSpecCreate, user: CurrentUser, factory: Sessions, clock: Now
+) -> AttackSpecAdminView:
+    """Spec mới (`draft` rồi `checking`); 422 khi adapter lạ, `fixed_params` sai hoặc version nhảy
+    cóc; 409 khi trùng `spec_sha256`."""
+    with transaction(factory) as session:
+        return attack_catalog.create(session, actor=_actor(session, user), body=body, now=clock())
+
+
+@router.post(
+    "/admin/attack-specs/{spec_id}/check",
+    tags=["admin-attacks"],
+    responses=R2_RESPONSES,
+    **guard(P.ATTACK_CATALOG_MANAGE),
+)
+def recheck_attack_spec(
+    spec_id: UUID, user: CurrentUser, factory: Sessions, clock: Now
+) -> AttackSpecAdminView:
+    """Chạy lại tự kiểm tra từ `check_failed` (409 với trạng thái khác)."""
+    with transaction(factory) as session:
+        return attack_catalog.recheck(
+            session, actor=_actor(session, user), spec_id=spec_id, now=clock()
+        )
+
+
+@router.patch(
+    "/admin/attack-specs/{spec_id}/metadata",
+    tags=["admin-attacks"],
+    responses=R2_RESPONSES,
+    **guard(P.ATTACK_CATALOG_MANAGE),
+)
+def update_attack_spec_metadata(
+    spec_id: UUID, body: AttackSpecMetadata, user: CurrentUser, factory: Sessions
+) -> AttackSpecAdminView:
+    """Sửa metadata, không đổi `spec_sha256` hay version; ghi audit log."""
+    with transaction(factory) as session:
+        return attack_catalog.update_metadata(
+            session, actor=_actor(session, user), spec_id=spec_id, metadata=body
+        )
+
+
+@router.get("/attack-specs/pending", tags=["attack-specs"], **guard(P.ATTACK_CATALOG_APPROVE))
+def list_pending_attack_specs(factory: Sessions) -> list[AttackSpecAdminView]:
+    """Spec `pending_approval` chờ reviewer duyệt."""
+    with transaction(factory) as session:
+        return attack_catalog.list_pending(session)
+
+
+@router.post(
+    "/attack-specs/{spec_id}/approve",
+    tags=["attack-specs"],
+    responses=R2_RESPONSES,
+    **guard(P.ATTACK_CATALOG_APPROVE),
+)
+def approve_attack_spec(
+    spec_id: UUID, user: CurrentUser, factory: Sessions, clock: Now
+) -> AttackSpecAdminView:
+    """`pending_approval` → `active`; version cũ cùng name chuyển `retired`; người duyệt khác
+    người tạo (403)."""
+    with transaction(factory) as session:
+        return attack_catalog.approve(
+            session, actor=_actor(session, user), spec_id=spec_id, now=clock()
+        )
+
+
+@router.post(
+    "/attack-specs/{spec_id}/reject",
+    tags=["attack-specs"],
+    responses=R2_RESPONSES,
+    **guard(P.ATTACK_CATALOG_APPROVE),
+)
+def reject_attack_spec(
+    spec_id: UUID, body: AttackSpecReject, user: CurrentUser, factory: Sessions
+) -> AttackSpecAdminView:
+    """`pending_approval` → `draft`."""
+    with transaction(factory) as session:
+        return attack_catalog.reject(
+            session, actor=_actor(session, user), spec_id=spec_id, reason=body.reason
+        )
+
+
+@router.post("/models/uploads", tags=["models"], responses=R2_RESPONSES, **guard(P.MODEL_MANAGE))
+def create_model_upload(body: ModelUploadCreate, stores: Stores, clock: Now) -> ModelUpload:
+    """Presigned PUT cho `.onnx` hoặc `.safetensors` tối đa 500 MB."""
+    return model_uploads.create_upload(body, stores.presigner, clock())
+
+
+@router.post(
+    "/models",
+    tags=["models"],
+    status_code=status.HTTP_201_CREATED,
+    responses=R2_RESPONSES,
+    **guard(P.MODEL_MANAGE),
+)
+def register_model(
+    body: ModelRegister, user: CurrentUser, factory: Sessions, stores: Stores, clock: Now
+) -> ModelSummary:
+    """Model version `checking` (409 khi trùng sha256; 422 khi nội dung không phải safetensors
+    hoặc onnx); xếp job model_check."""
+    with transaction(factory) as session:
+        return model_uploads.register(
+            session, actor=_actor(session, user), body=body, buckets=stores.buckets, now=clock()
+        )
+
+
+QUICK_TRY_RESPONSES: dict[int | str, dict[str, Any]] = R2_RESPONSES | {
+    status.HTTP_410_GONE: {"model": ErrorResponse, "description": "gone: đã hết hạn"},
+    status.HTTP_429_TOO_MANY_REQUESTS: {
+        "model": ErrorResponse,
+        "description": "quick_try_busy: đã có một lượt queued/running",
+    },
+}
+
+
+@router.post(
+    "/quick-tries",
+    tags=["quick-tries"],
+    status_code=status.HTTP_202_ACCEPTED,
+    responses=QUICK_TRY_RESPONSES,
+    **guard(P.QUICK_TRY_USE),
+)
+def create_quick_try(
+    model_version_id: Annotated[UUID, Form()],
+    attack_spec_id: Annotated[UUID, Form()],
+    image: Annotated[UploadFile, File(description="JPEG/PNG ≤ 10 MB, cạnh dài ≤ 4096 px")],
+    user: CurrentUser,
+    factory: Sessions,
+    stores: Stores,
+    clock: Now,
+    preset: Annotated[PresetKey, Form()] = "standard",
+) -> QuickTryView:
+    """Thử nhanh một ảnh: không tạo experiment, kết quả giữ 24 giờ. Field form là các trường của
+    `QuickTryCreate`, khai riêng vì form model `extra="forbid"` coi file là field thừa."""
+    # Đọc tối đa 10 MB + 1 byte: đủ để biết ảnh quá lớn mà không nạp cả file vào bộ nhớ.
+    data = image.file.read(quick_tries.MAX_IMAGE_BYTES + 1)
+    with transaction(factory) as session:
+        return quick_tries.create(
+            session,
+            actor=_actor(session, user),
+            model_version_id=model_version_id,
+            attack_spec_id=attack_spec_id,
+            preset=preset,
+            image=data,
+            buckets=stores.buckets,
+            now=clock(),
+        )
+
+
+@router.get(
+    "/quick-tries/{quick_try_id}",
+    tags=["quick-tries"],
+    responses=QUICK_TRY_RESPONSES,
+    **guard(P.QUICK_TRY_USE),
+)
+def get_quick_try(
+    quick_try_id: UUID, user: CurrentUser, factory: Sessions, clock: Now
+) -> QuickTryView:
+    """Chỉ người tạo; hết hạn trả 410."""
+    with transaction(factory) as session:
+        return quick_tries.get(
+            session, actor_id=user.user_id, quick_try_id=quick_try_id, now=clock()
+        )
 
 
 # Trang xác minh report công khai, không cần đăng nhập.

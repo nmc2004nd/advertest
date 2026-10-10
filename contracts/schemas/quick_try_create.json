@@ -1,0 +1,32 @@
+{
+  "additionalProperties": false,
+  "description": "Các field form của `POST /quick-tries` (multipart, cộng file `image` là ảnh JPEG/PNG\n≤ 10 MB, cạnh dài ≤ 4096 px).",
+  "properties": {
+    "model_version_id": {
+      "format": "uuid",
+      "title": "Model Version Id",
+      "type": "string"
+    },
+    "attack_spec_id": {
+      "format": "uuid",
+      "title": "Attack Spec Id",
+      "type": "string"
+    },
+    "preset": {
+      "default": "standard",
+      "enum": [
+        "fast",
+        "standard",
+        "deep"
+      ],
+      "title": "Preset",
+      "type": "string"
+    }
+  },
+  "required": [
+    "model_version_id",
+    "attack_spec_id"
+  ],
+  "title": "QuickTryCreate",
+  "type": "object"
+}

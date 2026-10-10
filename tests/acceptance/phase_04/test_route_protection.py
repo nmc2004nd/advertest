@@ -32,7 +32,8 @@ MOCKS = Path(REPO / "contracts" / "mocks")
 
 
 def _body(op: dict[str, Any]) -> Any:
-    if "requestBody" not in op:
+    # Phase R2: POST /quick-tries nhận multipart, không có body JSON mẫu (quyền kiểm tra trước).
+    if "application/json" not in op.get("requestBody", {}).get("content", {}):
         return None
     ref = op["requestBody"]["content"]["application/json"]["schema"]["$ref"]
     name = re.sub(r"-(Input|Output)$", "", ref.rsplit("/", 1)[-1])

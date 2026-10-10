@@ -55,6 +55,16 @@
       "path": "kitti/label_2/005866.txt",
       "url": "https://github.com/nmc2004nd/advertest/releases/download/fixtures-v1/kitti_label_2_005866.txt",
       "sha256": "bbaa0fa3e3f9c0cef259a73d66c9ab9bc774c9743046ce507b79e18a92168832"
+    },
+    {
+      "path": "yolov8n.onnx",
+      "url": "https://github.com/nmc2004nd/advertest/releases/download/fixtures-v2/yolov8n.onnx",
+      "sha256": "9c31373897371cc17566edb916b53f4aa99da5894e4868bf1ccb84badd50c83d"
+    },
+    {
+      "path": "fcos_resnet50_fpn_coco.safetensors",
+      "url": "https://github.com/nmc2004nd/advertest/releases/download/fixtures-v2/fcos_resnet50_fpn_coco.safetensors",
+      "sha256": "3782e2c96b81c0857f18dd597ca3de682d3043eb130dcc4a3f4dec0b0a1ea4fc"
     }
   ]
 }

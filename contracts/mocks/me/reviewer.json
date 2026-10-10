@@ -6,12 +6,14 @@
     "reviewer"
   ],
   "permissions": [
+    "attack_catalog.approve",
     "attack_catalog.read",
     "dataset.read",
     "experiment.read",
     "model.read",
     "protocol.manage",
     "protocol.read",
+    "quick_try.use",
     "report.export",
     "report.read",
     "review.comment",

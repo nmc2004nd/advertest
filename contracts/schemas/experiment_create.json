@@ -300,6 +300,19 @@
       "default": null,
       "description": "Experiment gốc khi nhân bản",
       "title": "Cloned From"
+    },
+    "promoted_from": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Phase R2: experiment Khám phá nguồn khi nâng lên chính thức (chỉ để truy vết)",
+      "title": "Promoted From"
     }
   },
   "required": [

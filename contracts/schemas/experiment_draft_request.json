@@ -1,0 +1,123 @@
+{
+  "$defs": {
+    "Limit": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/LimitKind"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "description": "Tiền (budget) hoặc giây (time)",
+          "title": "Value"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "title": "Limit",
+      "type": "object"
+    },
+    "LimitKind": {
+      "enum": [
+        "budget",
+        "time"
+      ],
+      "title": "LimitKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "`POST /experiments/draft`: dựng `ExperimentCreate` từ protocol và preset, trả\n`ExperimentClone`; không tạo experiment.",
+  "properties": {
+    "protocol_id": {
+      "format": "uuid",
+      "title": "Protocol Id",
+      "type": "string"
+    },
+    "preset": {
+      "enum": [
+        "fast",
+        "standard",
+        "deep"
+      ],
+      "title": "Preset",
+      "type": "string"
+    },
+    "model_version_id": {
+      "format": "uuid",
+      "title": "Model Version Id",
+      "type": "string"
+    },
+    "slice_id": {
+      "format": "uuid",
+      "title": "Slice Id",
+      "type": "string"
+    },
+    "class_mapping_id": {
+      "format": "uuid",
+      "title": "Class Mapping Id",
+      "type": "string"
+    },
+    "compute_target_id": {
+      "format": "uuid",
+      "title": "Compute Target Id",
+      "type": "string"
+    },
+    "limit": {
+      "$ref": "#/$defs/Limit"
+    },
+    "attack_spec_ids": {
+      "anyOf": [
+        {
+          "items": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Chỉ với protocol dev; null là toàn bộ catalog active trừ spec cần train",
+      "title": "Attack Spec Ids"
+    },
+    "training_slice_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Slice huấn luyện cho spec cần train (patch); thiếu khi cần thì 422",
+      "title": "Training Slice Id"
+    }
+  },
+  "required": [
+    "protocol_id",
+    "preset",
+    "model_version_id",
+    "slice_id",
+    "class_mapping_id",
+    "compute_target_id",
+    "limit"
+  ],
+  "title": "ExperimentDraftRequest",
+  "type": "object"
+}

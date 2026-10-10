@@ -44,6 +44,7 @@ from ml_core.models.register import lib_versions
 from ml_core.runner import executor as executor_module
 from ml_core.runner.config import LocalRunConfig
 from ml_core.runner.env import GitState
+from ml_core.runner.perturbations import ModelSource
 from ml_core.store import PresignedStore
 
 pytestmark = pytest.mark.db
@@ -465,3 +466,47 @@ def test_lease_lost_while_deleting_checkpoint_stops_immediately(
     assert len(batches) == 1
     assert runs[0].images_done == 2
     assert [r.status for r in runs] == [RunStatus.RUNNING, RunStatus.QUEUED]
+
+
+class _FailOnceAfterStart:
+    """`ModelProvider` báo lỗi đúng một lần: ở lần `get` đầu tiên sau `start` của run đầu."""
+
+    def __init__(self, inner: ModelSource) -> None:
+        self.inner = inner
+        self.armed = False
+        self.raised = 0
+
+    def get(self, card: Any, params: Any, device: str) -> Any:
+        if self.armed:
+            self.armed = False
+            self.raised += 1
+            raise RuntimeError("Giả lập lỗi nạp model")
+        return self.inner.get(card, params, device)
+
+
+def test_model_load_error_in_gradient_check_fails_only_that_run(
+    app_engine: Engine, world: World, api: TestClient, clock: FakeClock, tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:  # fmt: skip
+    """Tồn đọng R1 Group 5: lỗi `ModelProvider.get` khi kiểm gradient không dừng experiment."""
+    setup = _submit(app_engine, world, api, clock, seed=606)
+    _profile(setup, world, sec_per_image=0.01, batch_size=8)
+    runner = _runner(setup, tmp_path, clock)
+    provider = _FailOnceAfterStart(runner.pipeline.models)
+    runner.pipeline.models = provider
+    original, started = WorkerClient.start, list[UUID]()
+
+    def start(self: WorkerClient, run_id: UUID, body: Any) -> Any:
+        response = original(self, run_id, body)
+        if not started:
+            provider.armed = True
+        started.append(run_id)
+        return response
+
+    monkeypatch.setattr(WorkerClient, "start", start)
+    _lease_and_run(runner, setup)
+    experiment, runs = _state(app_engine, setup.experiment_id)
+    assert provider.raised == 1
+    assert [r.status for r in runs] == [RunStatus.FAILED, RunStatus.COMPLETED]
+    assert runs[0].status_reason is not None and runs[0].status_reason["code"] == "error"
+    assert experiment.status == ExperimentStatus.COMPLETED

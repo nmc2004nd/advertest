@@ -1,0 +1,16 @@
+{
+  "additionalProperties": false,
+  "description": "`POST /experiments/{id}/promote`: trả `ExperimentClone`, không tạo experiment.",
+  "properties": {
+    "protocol_id": {
+      "format": "uuid",
+      "title": "Protocol Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "protocol_id"
+  ],
+  "title": "PromoteRequest",
+  "type": "object"
+}

@@ -14,20 +14,21 @@ from uuid import UUID
 from sqlalchemy import ARRAY, Text, cast, func, select, tuple_
 from sqlalchemy.orm import Session
 
-from advertest_contracts.enums import ExperimentStatus, ProtocolStatus
+from advertest_contracts.enums import AttackSpecStatus, ExperimentStatus, ProtocolStatus
 from advertest_contracts.models import (
-    AttackSpec,
     AttackSpecAdminPage,
-    AttackSpecAdminView,
+    AttackSpecView,
     ClassMappingSummary,
     ComputeTargetPublic,
     DatasetSummary,
     DatasetVersionSummary,
+    ModelCheckResult,
     ModelSummary,
     ProtocolSummary,
     SliceSummary,
 )
 from backend.app.db import models as m
+from backend.app.services import attack_catalog
 from backend.app.services.errors import Invalid, NotFound
 
 # Worker được coi là online nếu có heartbeat trong 60 giây gần nhất.
@@ -45,6 +46,8 @@ def _model_summary(version: m.ModelVersion, model: m.Model) -> ModelSummary:
         input_size=version.input_size,
         supports_gradients=version.supports_gradients,
         created_at=version.created_at,
+        status=version.status,
+        check=ModelCheckResult.model_validate(version.check) if version.check else None,
     )
 
 
@@ -150,17 +153,14 @@ def list_class_mappings(
     ]
 
 
-def list_attack_specs(session: Session) -> list[AttackSpec]:
-    """Chỉ spec đang hoạt động (requirements.md Phase 5)."""
+def list_attack_specs(session: Session) -> list[AttackSpecView]:
+    """Chỉ spec `active` (requirements.md Phase 5, Phase R2), kèm metadata."""
     rows = session.scalars(
         select(m.AttackSpecRow)
-        .where(m.AttackSpecRow.is_active)
+        .where(m.AttackSpecRow.status == AttackSpecStatus.ACTIVE)
         .order_by(m.AttackSpecRow.kind, m.AttackSpecRow.name, m.AttackSpecRow.version)
     )
-    return [
-        AttackSpec.model_validate({**row.spec, "id": str(row.id), "spec_sha256": row.spec_sha256})
-        for row in rows
-    ]
+    return [attack_catalog.public_view(row) for row in rows]
 
 
 def list_protocols(session: Session, *, include_retired: bool = False) -> list[ProtocolSummary]:
@@ -235,7 +235,8 @@ def _decode_spec_cursor(value: str) -> tuple[str, int]:
 def list_attack_specs_admin(
     session: Session, cursor: str | None = None, limit: int = 50
 ) -> AttackSpecAdminPage:
-    """Mọi spec, mọi version, kể cả spec đã tắt (plan task 29); keyset theo `(name, version)`."""
+    """Mọi spec, mọi version, mọi trạng thái (plan task 29, Phase R2); keyset theo
+    `(name, version)`."""
     query = select(m.AttackSpecRow)
     if cursor is not None:
         name, version = _decode_spec_cursor(cursor)
@@ -248,17 +249,7 @@ def list_attack_specs_admin(
         )
     )
     page, more = rows[:limit], len(rows) > limit
-    items = [
-        AttackSpecAdminView.model_validate(
-            {
-                **row.spec,
-                "id": str(row.id),
-                "spec_sha256": row.spec_sha256,
-                "is_active": row.is_active,
-            }
-        )
-        for row in page
-    ]
+    items = attack_catalog.admin_views(session, page)
     last = page[-1] if page and more else None
     return AttackSpecAdminPage(
         items=items,

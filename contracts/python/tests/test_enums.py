@@ -69,6 +69,8 @@ EXPECTED = {
         "not_compliant",
         "experiment_locked",
         "checklist_incomplete",
+        "quick_try_busy",
+        "gone",
     },
     # Phase 3: protocol phát triển dev-open.
     "ProtocolStatus": {"active", "retired", "dev"},
@@ -118,6 +120,34 @@ EXPECTED = {
         "git_dirty",
         "excluded_classes",
     },
+}
+
+
+# Phase R2 (requirements.md Phase R2, Data / Fields).
+EXPECTED |= {
+    "AttackSpecStatus": {
+        "draft",
+        "checking",
+        "check_failed",
+        "pending_approval",
+        "active",
+        "retired",
+    },
+    "ModelStatus": {"checking", "check_failed", "ready"},
+    "ExperimentMode": {"exploration", "official"},
+    "ConclusionCode": {"no_data", "robust", "weak", "weak_class"},
+    "ToolJobKind": {"spec_check", "model_check", "quick_try"},
+    "ToolJobStatus": {"queued", "running", "completed", "failed"},
+    "SpecCheckName": {
+        "runs",
+        "value_range",
+        "pad_unchanged",
+        "identity",
+        "batch_invariant",
+        "norm_bound",
+        "deterministic",
+    },
+    "QuickTryObjectStatus": {"kept", "lost", "new"},
 }
 
 

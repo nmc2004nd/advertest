@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from advertest_contracts.enums import (
     EvalScope,
+    ExperimentMode,
     ExperimentStatus,
     ProtocolStatus,
     RunPhase,
@@ -73,18 +74,20 @@ class _Refs:
     model: m.Model
     slice: m.Slice
     target: m.ComputeTarget
+    protocol_status: ProtocolStatus
 
 
 def _with_refs(
     query: Select[m.Experiment],
-) -> Select[m.Experiment, m.User, m.Model, m.Slice, m.ComputeTarget]:
+) -> Select[m.Experiment, m.User, m.Model, m.Slice, m.ComputeTarget, ProtocolStatus]:
     return (
-        query.add_columns(m.User, m.Model, m.Slice, m.ComputeTarget)
+        query.add_columns(m.User, m.Model, m.Slice, m.ComputeTarget, m.Protocol.status)
         .join(m.User, m.User.id == m.Experiment.created_by)
         .join(m.ModelVersion, m.ModelVersion.id == m.Experiment.model_version_id)
         .join(m.Model, m.Model.id == m.ModelVersion.model_id)
         .join(m.Slice, m.Slice.id == m.Experiment.slice_id)
         .join(m.ComputeTarget, m.ComputeTarget.id == m.Experiment.compute_target_id)
+        .join(m.Protocol, m.Protocol.id == m.Experiment.protocol_id)
     )
 
 
@@ -117,6 +120,13 @@ def _run_stats(
     }
 
 
+def mode_of(protocol_status: ProtocolStatus) -> ExperimentMode:
+    """Phase R2: Khám phá khi và chỉ khi protocol có status dev (mission.md nguyên tắc 11)."""
+    if protocol_status == ProtocolStatus.DEV:
+        return ExperimentMode.EXPLORATION
+    return ExperimentMode.OFFICIAL
+
+
 def _summary(
     experiment: m.Experiment, refs: _Refs, stats: tuple[dict[str, int], int, int]
 ) -> ExperimentSummary:
@@ -135,6 +145,7 @@ def _summary(
         progress=Progress(images_done=images_done, images_total=images_total),
         created_at=experiment.created_at,
         finished_at=experiment.finished_at,
+        mode=mode_of(refs.protocol_status),
     )
 
 
@@ -148,9 +159,9 @@ def summaries(session: Session, experiment_ids: list[UUID]) -> dict[UUID, Experi
     stats = _run_stats(session, experiment_ids)
     return {
         experiment.id: _summary(
-            experiment, _Refs(user, model, slice_row, target), stats[experiment.id]
+            experiment, _Refs(user, model, slice_row, target, protocol), stats[experiment.id]
         )
-        for experiment, user, model, slice_row, target in rows
+        for experiment, user, model, slice_row, target, protocol in rows
     }
 
 
@@ -161,6 +172,7 @@ def list_experiments(
     owner: Owner = "all",
     status: ExperimentStatus | None = None,
     model_version_id: UUID | None = None,
+    mode: ExperimentMode | None = None,
     cursor: str | None = None,
     limit: int = 50,
 ) -> ExperimentPage:
@@ -172,6 +184,9 @@ def list_experiments(
         query = query.where(m.Experiment.status == status)
     if model_version_id is not None:
         query = query.where(m.Experiment.model_version_id == model_version_id)
+    if mode is not None:
+        dev = m.Protocol.status == ProtocolStatus.DEV  # `_with_refs` đã join protocols
+        query = query.where(dev if mode == ExperimentMode.EXPLORATION else ~dev)
     query = pagination.apply(
         query, m.Experiment.created_at, m.Experiment.id, pagination.decode(cursor), limit
     )
@@ -179,8 +194,8 @@ def list_experiments(
     page, more = rows[:limit], len(rows) > limit
     stats = _run_stats(session, [row[0].id for row in page])
     items = [
-        _summary(experiment, _Refs(user, model, slice_row, target), stats[experiment.id])
-        for experiment, user, model, slice_row, target in page
+        _summary(experiment, _Refs(user, model, slice_row, target, protocol), stats[experiment.id])
+        for experiment, user, model, slice_row, target, protocol in page
     ]
     last = page[-1][0] if page and more else None
     return ExperimentPage(
@@ -195,8 +210,8 @@ def _load(session: Session, experiment_id: UUID) -> tuple[m.Experiment, _Refs]:
     ).one_or_none()
     if row is None:
         raise NotFound("Không có experiment này")
-    experiment, user, model, slice_row, target = row
-    return experiment, _Refs(user, model, slice_row, target)
+    experiment, user, model, slice_row, target, protocol = row
+    return experiment, _Refs(user, model, slice_row, target, protocol)
 
 
 def summary(session: Session, experiment_id: UUID) -> ExperimentSummary:
@@ -396,7 +411,7 @@ def manifest(session: Session, read: Callable[[str], bytes], run_id: UUID) -> Ma
 # ---------------------------------------------------------------- nhân bản
 
 
-def _current_version(session: Session, name: str) -> m.AttackSpecRow | None:
+def current_version(session: Session, name: str) -> m.AttackSpecRow | None:
     return session.scalar(
         select(m.AttackSpecRow)
         .where(m.AttackSpecRow.name == name, m.AttackSpecRow.is_active)
@@ -417,7 +432,7 @@ def clone(session: Session, experiment_id: UUID) -> ExperimentClone:
     warnings: list[CloneWarning] = []
     for attack in config.attacks:
         row = session.get(m.AttackSpecRow, attack.attack_spec_id)
-        current = None if row is None or row.is_active else _current_version(session, row.name)
+        current = None if row is None or row.is_active else current_version(session, row.name)
         if row is not None and current is not None and current.version > row.version:
             attacks.append(
                 attack.model_copy(

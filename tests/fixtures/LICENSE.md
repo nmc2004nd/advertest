@@ -17,3 +17,11 @@ giấy phép trên.
 ## Weights YOLOv8n (`yolov8n.pt`)
 
 Tải từ release `v8.3.0` của `ultralytics/assets`, giấy phép AGPL-3.0 của Ultralytics.
+
+## Model Phase R2 (`yolov8n.onnx`, `fcos_resnet50_fpn_coco.safetensors`)
+
+Sinh bằng `scripts/make_r2_fixtures.py`, tải từ release `fixtures-v2` của repo này.
+
+- `yolov8n.onnx`: xuất từ `yolov8n.pt` ở trên, cùng giấy phép AGPL-3.0 của Ultralytics.
+- `fcos_resnet50_fpn_coco.safetensors`: weights `FCOS_ResNet50_FPN_Weights.COCO_V1` của torchvision
+  (BSD-3-Clause), đổi sang định dạng safetensors.

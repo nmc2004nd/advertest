@@ -36,7 +36,8 @@
         "images_total": 600
       },
       "created_at": "2026-09-29T11:05:00Z",
-      "finished_at": null
+      "finished_at": null,
+      "mode": "exploration"
     },
     {
       "id": "b871c7f4-3bba-5db5-a1ab-76fdcf7a684d",
@@ -74,7 +75,8 @@
         "images_total": 600
       },
       "created_at": "2026-09-29T11:00:00Z",
-      "finished_at": null
+      "finished_at": null,
+      "mode": "exploration"
     },
     {
       "id": "c22f67c0-e184-5d74-a3df-43aff5b9e82e",
@@ -112,7 +114,8 @@
         "images_total": 2400
       },
       "created_at": "2026-09-29T08:00:00Z",
-      "finished_at": "2026-09-29T10:02:11Z"
+      "finished_at": "2026-09-29T10:02:11Z",
+      "mode": "exploration"
     },
     {
       "id": "476465e8-081b-5c02-aa08-96411a898918",
@@ -150,7 +153,8 @@
         "images_total": 600
       },
       "created_at": "2026-09-29T08:00:00Z",
-      "finished_at": "2026-09-29T09:10:00Z"
+      "finished_at": "2026-09-29T09:10:00Z",
+      "mode": "exploration"
     }
   ],
   "next_cursor": "eyJjIjoiMjAyNi0wOS0yOVQwOToxMDowMFoiLCJpIjoiMSJ9"

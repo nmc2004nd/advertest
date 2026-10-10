@@ -165,6 +165,19 @@
           ],
           "description": "Có khi và chỉ khi requires_training = true"
         },
+        "adapter": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Phase R2: adapter trong registry của worker (`GET /attack-adapters`); null là suy từ kind và art_class (`attacks.builders.effective_adapter`). `fixed_params` là tham số của adapter",
+          "title": "Adapter"
+        },
         "id": {
           "format": "uuid",
           "title": "Id",
@@ -1076,9 +1089,11 @@
           "type": "string"
         },
         "framework": {
+          "description": "Phase R2 thêm onnx (chỉ inference, supports_gradients luôn false)",
           "enum": [
             "ultralytics",
-            "torchvision"
+            "torchvision",
+            "onnx"
           ],
           "title": "Framework",
           "type": "string"

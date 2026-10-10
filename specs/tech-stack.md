@@ -270,7 +270,7 @@ advertest/
 - [ ] Nhà cung cấp GPU thuê.
 - [ ] Dịch vụ SMTP.
 - [ ] Nơi triển khai API, Postgres, MinIO.
-- [ ] Dependency mới cho Phase R2 (cần duyệt và pin trước khi dùng): `onnxruntime` (adapter ONNX, chỉ inference), `safetensors` (weights upload qua web).
+- [x] Dependency mới cho Phase R2: `onnxruntime` (adapter ONNX, chỉ inference), `safetensors` (weights upload qua web), `python-multipart` (upload ảnh thử nhanh). Đã pin ở Group 0 (mục 11).
 
 ## 11. Phiên bản đã pin (Phase 0)
 
@@ -296,6 +296,7 @@ Nguồn sự thật là `pyproject.toml` + `uv.lock` (Python) và `frontend/pack
 | uvicorn | 0.54.0 |
 | weasyprint / jinja2 / matplotlib | 70.0 / 3.1.6 / 3.11.2 (Phase 8, report; image cài thêm `libpango-1.0-0`, `libpangoft2-1.0-0`, `libharfbuzz-subset0`, `fonts-dejavu-core`) |
 | pypdf | 6.19.0 (Phase 8, chỉ nhóm dev: đọc chữ trong PDF ở test) |
+| onnxruntime / safetensors / python-multipart | 1.30.0 / 0.8.0 / 0.0.32 (Phase R2: adapter model onnx chỉ inference; weights torchvision dạng safetensors; multipart cho `POST /quick-tries`). `onnx` chỉ dùng một lần để sinh fixture (`uv run --with onnx`), không vào lock |
 | Image | `python:3.11-slim`, `postgres:17-alpine`, `node:22-alpine`, `cgr.dev/chainguard/minio@sha256:6a1d0b45c8669726bba580ced0bfa4cb9fdeed1ed636dfabd81d1577beb6937b`, `cgr.dev/chainguard/minio-client@sha256:b2bd7824d23d3e3b15bedd7e87fbc3be29d2e213307b4f901e4a1d92356dc20f` |
 | Postgres (image) | `postgres:17-alpine` |
 | ruff / mypy / pytest | 0.16.9 / 2.3.1 / 9.1.1 |

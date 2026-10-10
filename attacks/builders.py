@@ -2,7 +2,13 @@
 
 Mỗi loại phép biến đổi là một builder đăng ký theo tên adapter. R1 chưa có trường `adapter` trong
 contract nên tên adapter được suy ra từ `kind` và `art_class` (`effective_adapter`); registry nhận
-`resolver` tiêm vào được để test chọn builder giả, R2 chỉ cần thay resolver.
+`resolver` tiêm vào được để test chọn builder giả.
+
+Phase R2 (plan.md bước 10): resolver mặc định là `adapter_of`, đọc `spec.adapter` trước rồi mới tới
+`effective_adapter`. Builder khai báo `kind` và `params_schema` (JSON Schema của `fixed_params`) để
+`validate` kiểm spec mới và `adapters()` liệt kê cho `GET /attack-adapters`. Builder thiếu hai thuộc
+tính này (builder giả của test R1) vẫn đăng ký và dựng được, nhưng không được liệt kê và không bị
+kiểm `fixed_params`.
 
 `UnsupportedAttack` và `IncompatibleAttack` được export lại ở đây để worker chỉ import
 `attacks.builders` và `attacks.registry`.
@@ -12,16 +18,18 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import ClassVar, Protocol
+from typing import Any, ClassVar, Protocol
 
 from art.estimators.estimator import BaseEstimator
 
 from advertest_contracts.enums import AttackKind, PerturbationImageKind
-from advertest_contracts.models import AttackSpec
+from advertest_contracts.models import AttackAdapterInfo, AttackSpec
 from advertest_contracts.perturbation import Perturbation
 from attacks.art_adapter import IncompatibleAttack, UnsupportedAttack, level_to_eps
 from attacks.art_adapter import build_perturbation as build_art_perturbation
+from attacks.common.params_schema import SchemaError, schema_errors
 from attacks.corruptions.adapter import CorruptionPerturbation
+from attacks.corruptions.functions import NAMES as CORRUPTION_NAMES
 from attacks.occlusion.adapter import OcclusionPerturbation
 from attacks.patch.adapter import PatchPerturbation
 from attacks.patch.training import PatchArray
@@ -33,16 +41,22 @@ __all__ = [
     "BuildContext",
     "CorruptionBuilder",
     "IncompatibleAttack",
+    "InvalidSpec",
     "OcclusionBuilder",
     "PatchBuilder",
     "PerturbationBuilder",
     "PerturbationRegistry",
     "UnsupportedAttack",
+    "adapter_of",
     "effective_adapter",
 ]
 
 GRADIENTS = "gradients"
 _PATCH_ART_CLASS = "RobustDPatch"
+
+
+class InvalidSpec(ValueError):
+    """Spec không dùng được với registry: adapter lạ, sai `kind` hay `fixed_params` sai schema."""
 
 
 @dataclass(frozen=True)
@@ -53,6 +67,8 @@ class BuildContext:
 
 
 class PerturbationBuilder(Protocol):
+    """`kind: ClassVar[AttackKind]`, `params_schema: ClassVar[dict]` là tùy chọn (xem đầu file)."""
+
     adapter: ClassVar[str]
     requires: ClassVar[frozenset[str]]  # {"gradients"} với attack white-box
     image_kind: ClassVar[PerturbationImageKind]  # nội dung ảnh thứ ba của failure case
@@ -73,6 +89,19 @@ class ArtEvasionBuilder:
     """FGSM, PGD của ART (`attacks.art_adapter`)."""
 
     adapter: ClassVar[str] = "art.evasion"
+    kind: ClassVar[AttackKind] = AttackKind.ATTACK
+    # Khóa ngoài `eps_step_ratio` được truyền thẳng cho lớp ART (`art_adapter._build_attack`).
+    params_schema: ClassVar[dict[str, Any]] = {
+        "type": "object",
+        "properties": {
+            "norm": {"enum": ["inf", 2]},
+            "max_iter": {"type": "integer", "minimum": 1},
+            "eps_step_ratio": {"type": "number", "exclusiveMinimum": 0},
+            "num_random_init": {"type": "integer", "minimum": 0},
+        },
+        "required": ["norm"],
+        "additionalProperties": False,
+    }
     requires: ClassVar[frozenset[str]] = frozenset({GRADIENTS})
     image_kind: ClassVar[PerturbationImageKind] = PerturbationImageKind.AMPLIFIED_NOISE
 
@@ -87,6 +116,16 @@ class ArtEvasionBuilder:
 
 class CorruptionBuilder:
     adapter: ClassVar[str] = "corruption.imagecorruptions"
+    kind: ClassVar[AttackKind] = AttackKind.CORRUPTION
+    params_schema: ClassVar[dict[str, Any]] = {
+        "type": "object",
+        "properties": {
+            "corruption": {"enum": sorted(CORRUPTION_NAMES)},
+            "applied_to": {"enum": ["image_region"]},
+        },
+        "required": ["corruption"],
+        "additionalProperties": False,
+    }
     requires: ClassVar[frozenset[str]] = frozenset()
     image_kind: ClassVar[PerturbationImageKind] = PerturbationImageKind.DIFFERENCE
 
@@ -99,6 +138,16 @@ class CorruptionBuilder:
 
 class OcclusionBuilder:
     adapter: ClassVar[str] = "occlusion.bbox"
+    kind: ClassVar[AttackKind] = AttackKind.OCCLUSION
+    params_schema: ClassVar[dict[str, Any]] = {
+        "type": "object",
+        "properties": {
+            "shape": {"enum": ["box_aspect_rectangle"]},
+            "placement": {"enum": ["random_inside_box"]},
+            "fill_255": {"type": "integer", "minimum": 0, "maximum": 255},
+        },
+        "additionalProperties": False,
+    }
     requires: ClassVar[frozenset[str]] = frozenset()
     image_kind: ClassVar[PerturbationImageKind] = PerturbationImageKind.DIFFERENCE
 
@@ -113,6 +162,21 @@ class PatchBuilder:
     """Đánh giá patch đã train (`ctx.patch`); việc train patch vẫn ở worker."""
 
     adapter: ClassVar[str] = "patch.robust_dpatch"
+    kind: ClassVar[AttackKind] = AttackKind.ATTACK
+    params_schema: ClassVar[dict[str, Any]] = {
+        "type": "object",
+        "properties": {
+            "shape": {"enum": ["square"]},
+            "placement": {"enum": ["image_region_center"]},
+            "brightness_range": {
+                "type": "array",
+                "items": {"type": "number", "minimum": 0},
+                "minItems": 2,
+                "maxItems": 2,
+            },
+        },
+        "additionalProperties": False,
+    }
     requires: ClassVar[frozenset[str]] = frozenset({GRADIENTS})
     image_kind: ClassVar[PerturbationImageKind] = PerturbationImageKind.PATCH_LOCATION
 
@@ -140,8 +204,13 @@ def effective_adapter(spec: AttackSpec) -> str:
     return ArtEvasionBuilder.adapter
 
 
+def adapter_of(spec: AttackSpec) -> str:
+    """Tên adapter của spec: `spec.adapter`, hoặc `effective_adapter` khi spec không ghi."""
+    return spec.adapter if spec.adapter is not None else effective_adapter(spec)
+
+
 class PerturbationRegistry:
-    def __init__(self, resolver: Callable[[AttackSpec], str] = effective_adapter) -> None:
+    def __init__(self, resolver: Callable[[AttackSpec], str] = adapter_of) -> None:
         self.resolver = resolver
         self._builders: dict[str, PerturbationBuilder] = {}
 
@@ -160,6 +229,52 @@ class PerturbationRegistry:
                 f"(có: {', '.join(sorted(self._builders))})"
             )
         return builder
+
+    def validate(self, spec: AttackSpec) -> None:
+        """Báo `InvalidSpec` khi adapter không có trong registry, khi `kind` của spec khác `kind`
+        của builder, hoặc khi `fixed_params` sai `params_schema` (requirements.md Phase R2,
+        Catalog attack)."""
+        adapter = self.resolver(spec)
+        builder = self._builders.get(adapter)
+        if builder is None:
+            raise InvalidSpec(
+                f"{spec.name}: adapter {adapter!r} không có trong registry "
+                f"(có: {', '.join(sorted(self._builders))})"
+            )
+        kind = getattr(builder, "kind", None)
+        if kind is not None and spec.kind != kind:
+            raise InvalidSpec(
+                f"{spec.name}: adapter {adapter!r} dành cho kind = {kind}, "
+                f"spec có kind = {spec.kind}"
+            )
+        schema = getattr(builder, "params_schema", None)
+        if schema is not None:
+            try:
+                errors = schema_errors(spec.fixed_params, schema)
+            except SchemaError as exc:
+                raise InvalidSpec(f"{spec.name}: params_schema của {adapter!r} lỗi: {exc}") from exc
+            if errors:
+                raise InvalidSpec(f"{spec.name}: " + "; ".join(errors))
+
+    def adapters(self) -> list[AttackAdapterInfo]:
+        """Adapter cho `GET /attack-adapters`, sắp theo tên; bỏ builder thiếu `kind` hay
+        `params_schema`."""
+        infos: list[AttackAdapterInfo] = []
+        for name in sorted(self._builders):
+            builder = self._builders[name]
+            kind = getattr(builder, "kind", None)
+            schema = getattr(builder, "params_schema", None)
+            if kind is None or schema is None:
+                continue
+            infos.append(
+                AttackAdapterInfo(
+                    name=name,
+                    kind=kind,
+                    params_schema=schema,
+                    requires_gradients=GRADIENTS in builder.requires,
+                )
+            )
+        return infos
 
     def build(self, spec: AttackSpec, ctx: BuildContext) -> Perturbation:
         """`Perturbation` cho spec; builder cần gradient mà không có estimator thì báo

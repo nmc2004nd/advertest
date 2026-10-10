@@ -25,7 +25,12 @@
       "requires_gradients": true,
       "id": "8d15422d-f111-5c7e-96eb-e704767e6218",
       "spec_sha256": "a6d81b6643af13e1d2f7983ce51340f54c26629304f1fdd98b954c236c1e735f",
-      "is_active": true
+      "is_active": true,
+      "status": "active",
+      "metadata": null,
+      "check": null,
+      "created_by": null,
+      "approved_by": null
     },
     {
       "schema_version": 1,
@@ -55,7 +60,12 @@
       "requires_gradients": true,
       "id": "449774ff-ded0-5909-b549-90a1e410bd62",
       "spec_sha256": "68fe8f72f176fe27981eadfe8b5e98bb36b8e85fc41c97b5702e2e149f52d72c",
-      "is_active": true
+      "is_active": true,
+      "status": "active",
+      "metadata": null,
+      "check": null,
+      "created_by": null,
+      "approved_by": null
     },
     {
       "schema_version": 1,
@@ -85,7 +95,12 @@
       "requires_gradients": true,
       "id": "9b1a8ccf-9447-5e5c-b4d3-1fa5cf5de7b8",
       "spec_sha256": "fb54ce834934be1340423f2fb4283b37766e2c1ca74a8fceea9b762e64f7351e",
-      "is_active": true
+      "is_active": true,
+      "status": "active",
+      "metadata": null,
+      "check": null,
+      "created_by": null,
+      "approved_by": null
     },
     {
       "schema_version": 1,
@@ -119,7 +134,12 @@
       "requires_gradients": false,
       "id": "9603bf27-ab9b-5086-be38-f60a4e6ebe74",
       "spec_sha256": "1c0a2e649d9b01f4a900bbe7592adcf02134a8c8525ee76b9c60e4cb466a44e7",
-      "is_active": true
+      "is_active": true,
+      "status": "active",
+      "metadata": null,
+      "check": null,
+      "created_by": null,
+      "approved_by": null
     },
     {
       "schema_version": 1,
@@ -153,7 +173,12 @@
       "requires_gradients": false,
       "id": "9da1d4ea-78da-5d61-8b5c-981884d5b010",
       "spec_sha256": "76c4d0938fcde338ff496a4c9e29ef4b3949a16ae410f1e2d409eab3b6ae7d9d",
-      "is_active": true
+      "is_active": true,
+      "status": "active",
+      "metadata": null,
+      "check": null,
+      "created_by": null,
+      "approved_by": null
     },
     {
       "schema_version": 1,
@@ -187,7 +212,12 @@
       "requires_gradients": false,
       "id": "033c8c5b-1f02-538d-9477-974ef9416cde",
       "spec_sha256": "74736d1cc4065bf991282efb6f677f54f33fcabba9858b9532a1dac1b0b378fd",
-      "is_active": true
+      "is_active": true,
+      "status": "active",
+      "metadata": null,
+      "check": null,
+      "created_by": null,
+      "approved_by": null
     },
     {
       "schema_version": 1,
@@ -221,7 +251,12 @@
       "requires_gradients": false,
       "id": "3ba0f2f1-9f16-5631-a8d7-149df6f9d043",
       "spec_sha256": "e935e0e29f06a4769d71805ba639ea9ecee51651e4a017c8fe95d54d8f9e1b7a",
-      "is_active": true
+      "is_active": true,
+      "status": "active",
+      "metadata": null,
+      "check": null,
+      "created_by": null,
+      "approved_by": null
     },
     {
       "schema_version": 1,
@@ -255,7 +290,12 @@
       "requires_gradients": false,
       "id": "ad2a3de0-f7ae-539f-9273-38b4f005c191",
       "spec_sha256": "6c55690eaa596356ebd446ee9eb2ab45dac81dc2cd7e459e9871266b64876952",
-      "is_active": true
+      "is_active": true,
+      "status": "active",
+      "metadata": null,
+      "check": null,
+      "created_by": null,
+      "approved_by": null
     },
     {
       "schema_version": 1,
@@ -284,7 +324,12 @@
       "requires_gradients": false,
       "id": "e3edcb22-e3bc-505a-92f4-9e30186fe26f",
       "spec_sha256": "2aca8c91a3318d2a8084f592019b6c44d3cb983e395ed6cd12f48c9337b753ad",
-      "is_active": true
+      "is_active": true,
+      "status": "active",
+      "metadata": null,
+      "check": null,
+      "created_by": null,
+      "approved_by": null
     },
     {
       "schema_version": 1,
@@ -325,7 +370,12 @@
       },
       "id": "94f2e240-e595-5b21-a5c7-219a2d478f9e",
       "spec_sha256": "c96cbc20a4c2320986b30d8f8178c1a642e36549008fca6cf491752bfec4955d",
-      "is_active": true
+      "is_active": true,
+      "status": "active",
+      "metadata": null,
+      "check": null,
+      "created_by": null,
+      "approved_by": null
     }
   ],
   "next_cursor": null

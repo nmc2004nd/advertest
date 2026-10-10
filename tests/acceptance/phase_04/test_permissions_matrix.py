@@ -8,7 +8,8 @@ from advertest_contracts.enums import Role
 from advertest_contracts.permissions import ROLE_PERMISSIONS, Permission
 
 # Bảng "Ma trận quyền" của specs/2026-09-27-phase-04-auth-rbac/requirements.md (E, R, A); Phase 8
-# thêm review.comment (requirements.md Phase 8, Ma trận quyền).
+# thêm review.comment (requirements.md Phase 8, Ma trận quyền); Phase R2 thêm attack_catalog.approve
+# và quick_try.use (requirements.md Phase R2, Quyền).
 TABLE = """
 experiment.read           E R A
 experiment.create         E . .
@@ -21,6 +22,7 @@ model.read                E R A
 model.manage              . . A
 attack_catalog.read       E R A
 attack_catalog.manage     . . A
+attack_catalog.approve    . R .
 protocol.read             E R A
 protocol.manage           . R .
 review.decide             . R .
@@ -32,6 +34,7 @@ compute_target.read       E . A
 compute_target.manage     . . A
 budget.manage             . . A
 audit.read                . . A
+quick_try.use             E R .
 """
 COLUMNS = (Role.ENGINEER, Role.REVIEWER, Role.ADMIN)
 CELLS = [

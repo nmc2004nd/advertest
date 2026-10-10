@@ -1,0 +1,51 @@
+{
+  "$defs": {
+    "ToolJobKind": {
+      "description": "Job công cụ của worker `--tools`; thứ tự lease: quick_try, rồi model_check và spec_check\ntheo thứ tự tạo.",
+      "enum": [
+        "spec_check",
+        "model_check",
+        "quick_try"
+      ],
+      "title": "ToolJobKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Trả về từ `POST /internal/worker/tool-lease` (không có job thì `204`).",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "kind": {
+      "$ref": "#/$defs/ToolJobKind"
+    },
+    "job_id": {
+      "format": "uuid",
+      "title": "Job Id",
+      "type": "string"
+    },
+    "lease_id": {
+      "description": "Đổi mỗi lần lease; gửi kèm mọi request sau đó",
+      "format": "uuid",
+      "title": "Lease Id",
+      "type": "string"
+    },
+    "lease_expires_at": {
+      "format": "date-time",
+      "title": "Lease Expires At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "job_id",
+    "lease_id",
+    "lease_expires_at"
+  ],
+  "title": "ToolLease",
+  "type": "object"
+}

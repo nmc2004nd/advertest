@@ -1,4 +1,100 @@
 {
+  "$defs": {
+    "GradientCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "checked_at": {
+          "format": "date-time",
+          "title": "Checked At",
+          "type": "string"
+        },
+        "details": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Lý do khi passed = false",
+          "title": "Details"
+        }
+      },
+      "required": [
+        "passed",
+        "checked_at"
+      ],
+      "title": "GradientCheck",
+      "type": "object"
+    },
+    "ModelCheckResult": {
+      "additionalProperties": false,
+      "description": "Kết quả job model_check: nạp model, so sha256, inference trên fixture, số class, kiểm\ngradient (chỉ torchvision).",
+      "properties": {
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "details": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Lý do khi passed = false",
+          "title": "Details"
+        },
+        "gradient_check": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GradientCheck"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null với onnx (không hỗ trợ gradient) hoặc khi dừng trước bước này"
+        },
+        "checked_at": {
+          "format": "date-time",
+          "title": "Checked At",
+          "type": "string"
+        },
+        "worker_target_id": {
+          "format": "uuid",
+          "title": "Worker Target Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "passed",
+        "gradient_check",
+        "checked_at",
+        "worker_target_id"
+      ],
+      "title": "ModelCheckResult",
+      "type": "object"
+    },
+    "ModelStatus": {
+      "enum": [
+        "checking",
+        "check_failed",
+        "ready"
+      ],
+      "title": "ModelStatus",
+      "type": "string"
+    }
+  },
   "additionalProperties": false,
   "properties": {
     "id": {
@@ -42,6 +138,23 @@
       "format": "date-time",
       "title": "Created At",
       "type": "string"
+    },
+    "status": {
+      "$ref": "#/$defs/ModelStatus",
+      "default": "ready",
+      "description": "Phase R2: chỉ model ready được dùng trong experiment và thử nhanh"
+    },
+    "check": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ModelCheckResult"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Kết quả job model_check gần nhất; null với model đăng ký qua CLI"
     }
   },
   "required": [

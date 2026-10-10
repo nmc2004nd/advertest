@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "job_id": "7c2f3e4d-5a6b-4c7d-8e9f-0a1b2c3d4e5f",
+  "payload": {
+    "kind": "model_check",
+    "model": {
+      "model_version_id": "81686f0e-32b6-5806-819c-3b0e37072342",
+      "framework": "ultralytics",
+      "architecture": "yolov8n",
+      "weights_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36",
+      "class_names": [
+        "person",
+        "car",
+        "truck"
+      ],
+      "input_size": 640,
+      "weights_url": "http://minio:9000/advertest-artifacts/x?X-Amz-Signature=abc"
+    }
+  },
+  "expires_at": "2026-10-09T08:00:00Z"
+}

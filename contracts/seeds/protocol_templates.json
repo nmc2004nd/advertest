@@ -1,0 +1,294 @@
+[
+  {
+    "key": "quick",
+    "title": "Kiểm tra nhanh",
+    "description": "Một attack white-box và một điều kiện thời tiết ở vài mức, đủ để thấy model có gãy sớm không. Dùng khi mới đổi model.",
+    "attacks": [
+      {
+        "attack_spec_name": "fgsm",
+        "mode": "grid",
+        "grid": {
+          "level_ratios": [
+            0.125,
+            0.25
+          ]
+        },
+        "search": null
+      },
+      {
+        "attack_spec_name": "fog",
+        "mode": "grid",
+        "grid": {
+          "level_ratios": [
+            0.5
+          ]
+        },
+        "search": null
+      }
+    ],
+    "strictness": "lenient",
+    "min_slice_size": 50
+  },
+  {
+    "key": "front_camera",
+    "title": "Tiêu chuẩn camera trước",
+    "description": "Bộ kiểm tra cho camera trước: nhiễu white-box, sương mù, mờ chuyển động, độ tương phản thấp và vật che khuất.",
+    "attacks": [
+      {
+        "attack_spec_name": "fgsm",
+        "mode": "grid",
+        "grid": {
+          "level_ratios": [
+            0.0625,
+            0.125,
+            0.25
+          ]
+        },
+        "search": null
+      },
+      {
+        "attack_spec_name": "pgd_linf",
+        "mode": "grid",
+        "grid": {
+          "level_ratios": [
+            0.125,
+            0.25
+          ]
+        },
+        "search": null
+      },
+      {
+        "attack_spec_name": "fog",
+        "mode": "grid",
+        "grid": {
+          "level_ratios": [
+            0.25,
+            0.5,
+            0.75
+          ]
+        },
+        "search": null
+      },
+      {
+        "attack_spec_name": "motion_blur",
+        "mode": "grid",
+        "grid": {
+          "level_ratios": [
+            0.25,
+            0.5,
+            0.75
+          ]
+        },
+        "search": null
+      },
+      {
+        "attack_spec_name": "contrast",
+        "mode": "grid",
+        "grid": {
+          "level_ratios": [
+            0.25,
+            0.5,
+            0.75
+          ]
+        },
+        "search": null
+      },
+      {
+        "attack_spec_name": "bbox_occlusion",
+        "mode": "grid",
+        "grid": {
+          "level_ratios": [
+            0.25,
+            0.5
+          ]
+        },
+        "search": null
+      }
+    ],
+    "strictness": "standard",
+    "min_slice_size": 200
+  },
+  {
+    "key": "weather",
+    "title": "Thời tiết",
+    "description": "Các điều kiện thời tiết và ánh sáng xấu: sương mù, tuyết, băng giá, độ tương phản thấp.",
+    "attacks": [
+      {
+        "attack_spec_name": "fog",
+        "mode": "grid",
+        "grid": {
+          "level_ratios": [
+            0.25,
+            0.5,
+            0.75
+          ]
+        },
+        "search": null
+      },
+      {
+        "attack_spec_name": "snow",
+        "mode": "grid",
+        "grid": {
+          "level_ratios": [
+            0.25,
+            0.5,
+            0.75
+          ]
+        },
+        "search": null
+      },
+      {
+        "attack_spec_name": "frost",
+        "mode": "grid",
+        "grid": {
+          "level_ratios": [
+            0.25,
+            0.5,
+            0.75
+          ]
+        },
+        "search": null
+      },
+      {
+        "attack_spec_name": "contrast",
+        "mode": "grid",
+        "grid": {
+          "level_ratios": [
+            0.25,
+            0.5,
+            0.75
+          ]
+        },
+        "search": null
+      }
+    ],
+    "strictness": "standard",
+    "min_slice_size": 200
+  },
+  {
+    "key": "full",
+    "title": "Đầy đủ",
+    "description": "Toàn bộ catalog: attack white-box (gồm tìm ngưỡng PGD L∞ và patch), corruption và vật che khuất. Chạy lâu, dùng trước khi phát hành.",
+    "attacks": [
+      {
+        "attack_spec_name": "fgsm",
+        "mode": "grid",
+        "grid": {
+          "level_ratios": [
+            0.0625,
+            0.125,
+            0.25
+          ]
+        },
+        "search": null
+      },
+      {
+        "attack_spec_name": "pgd_linf",
+        "mode": "search",
+        "grid": null,
+        "search": {
+          "threshold_kind": "relative_drop",
+          "threshold": 0.3,
+          "lo_ratio": 0.0,
+          "hi_ratio": 0.5,
+          "max_tol_ratio": 0.015625
+        }
+      },
+      {
+        "attack_spec_name": "pgd_l2",
+        "mode": "grid",
+        "grid": {
+          "level_ratios": [
+            0.125,
+            0.25
+          ]
+        },
+        "search": null
+      },
+      {
+        "attack_spec_name": "fog",
+        "mode": "grid",
+        "grid": {
+          "level_ratios": [
+            0.25,
+            0.5,
+            0.75
+          ]
+        },
+        "search": null
+      },
+      {
+        "attack_spec_name": "snow",
+        "mode": "grid",
+        "grid": {
+          "level_ratios": [
+            0.25,
+            0.5,
+            0.75
+          ]
+        },
+        "search": null
+      },
+      {
+        "attack_spec_name": "frost",
+        "mode": "grid",
+        "grid": {
+          "level_ratios": [
+            0.25,
+            0.5,
+            0.75
+          ]
+        },
+        "search": null
+      },
+      {
+        "attack_spec_name": "motion_blur",
+        "mode": "grid",
+        "grid": {
+          "level_ratios": [
+            0.25,
+            0.5,
+            0.75
+          ]
+        },
+        "search": null
+      },
+      {
+        "attack_spec_name": "contrast",
+        "mode": "grid",
+        "grid": {
+          "level_ratios": [
+            0.25,
+            0.5,
+            0.75
+          ]
+        },
+        "search": null
+      },
+      {
+        "attack_spec_name": "bbox_occlusion",
+        "mode": "grid",
+        "grid": {
+          "level_ratios": [
+            0.25,
+            0.5
+          ]
+        },
+        "search": null
+      },
+      {
+        "attack_spec_name": "adv_patch",
+        "mode": "grid",
+        "grid": {
+          "level_ratios": [
+            0.25,
+            0.5
+          ]
+        },
+        "search": null
+      }
+    ],
+    "strictness": "strict",
+    "min_slice_size": 500
+  }
+]

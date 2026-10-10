@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "job_id": "7c2f3e4d-5a6b-4c7d-8e9f-0a1b2c3d4e5f",
+  "payload": {
+    "kind": "quick_try",
+    "quick_try_id": "6b1e2d3c-4f5a-4b6c-8d7e-9f0a1b2c3d4e",
+    "model": {
+      "model_version_id": "81686f0e-32b6-5806-819c-3b0e37072342",
+      "framework": "ultralytics",
+      "architecture": "yolov8n",
+      "weights_sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36",
+      "class_names": [
+        "person",
+        "car",
+        "truck"
+      ],
+      "input_size": 640,
+      "weights_url": "http://minio:9000/advertest-artifacts/x?X-Amz-Signature=abc"
+    },
+    "spec": {
+      "id": "8d15422d-f111-5c7e-96eb-e704767e6218",
+      "schema_version": 1,
+      "name": "fgsm",
+      "version": 1,
+      "kind": "attack",
+      "access": "white_box",
+      "art_class": "FastGradientMethod",
+      "primary_param": {
+        "name": "eps",
+        "type": "continuous",
+        "min": 0,
+        "max": 32,
+        "values": null,
+        "unit": "1/255"
+      },
+      "fixed_params": {
+        "norm": "inf"
+      },
+      "cost_model": {
+        "passes_per_image": 1,
+        "cpu_only": false
+      },
+      "requires_gradients": true,
+      "spec_sha256": "a6d81b6643af13e1d2f7983ce51340f54c26629304f1fdd98b954c236c1e735f"
+    },
+    "levels": [
+      2,
+      8
+    ],
+    "image_url": "http://minio:9000/advertest-artifacts/x?X-Amz-Signature=abc",
+    "clean_upload_url": "http://minio:9000/advertest-artifacts/x?X-Amz-Signature=abc",
+    "level_upload_urls": [
+      "http://minio:9000/advertest-artifacts/x?X-Amz-Signature=abc",
+      "http://minio:9000/advertest-artifacts/x?X-Amz-Signature=abc"
+    ]
+  },
+  "expires_at": "2026-10-09T08:00:00Z"
+}

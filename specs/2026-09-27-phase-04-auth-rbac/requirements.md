@@ -47,6 +47,7 @@ Phase này chỉ phụ thuộc Phase 0 và chạy song song được với Phase
 | `model.manage` | | | ✓ |
 | `attack_catalog.read` | ✓ | ✓ | ✓ |
 | `attack_catalog.manage` | | | ✓ |
+| `attack_catalog.approve` (Phase R2) | | ✓ | |
 | `protocol.read` | ✓ | ✓ | ✓ |
 | `protocol.manage` | | ✓ | |
 | `review.decide` | | ✓ | |
@@ -58,6 +59,7 @@ Phase này chỉ phụ thuộc Phase 0 và chạy song song được với Phase
 | `compute_target.manage` | | | ✓ |
 | `budget.manage` | | | ✓ |
 | `audit.read` | | | ✓ |
+| `quick_try.use` (Phase R2) | ✓ | ✓ | |
 
 Người dùng có nhiều role có hợp các permission. Các luật phụ thuộc đối tượng (chỉ hủy experiment của mình, không review experiment của mình) được kiểm tra ở tầng service, không nằm trong ma trận.
 

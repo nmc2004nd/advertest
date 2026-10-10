@@ -32,6 +32,15 @@
       "title": "ComputeTargetRef",
       "type": "object"
     },
+    "ExperimentMode": {
+      "description": "Suy ra từ protocol: status dev → exploration (mission.md nguyên tắc 11).",
+      "enum": [
+        "exploration",
+        "official"
+      ],
+      "title": "ExperimentMode",
+      "type": "string"
+    },
     "ExperimentStatus": {
       "enum": [
         "draft",
@@ -101,6 +110,10 @@
           ],
           "description": "null khi draft, queued hoặc running",
           "title": "Finished At"
+        },
+        "mode": {
+          "$ref": "#/$defs/ExperimentMode",
+          "description": "Phase R2: exploration khi và chỉ khi protocol có status dev"
         }
       },
       "required": [
@@ -114,7 +127,8 @@
         "run_counts",
         "progress",
         "created_at",
-        "finished_at"
+        "finished_at",
+        "mode"
       ],
       "title": "ExperimentSummary",
       "type": "object"

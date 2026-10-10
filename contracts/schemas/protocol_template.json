@@ -1,0 +1,183 @@
+{
+  "$defs": {
+    "RunMode": {
+      "enum": [
+        "grid",
+        "search"
+      ],
+      "title": "RunMode",
+      "type": "string"
+    },
+    "TemplateAttack": {
+      "additionalProperties": false,
+      "properties": {
+        "attack_spec_name": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Attack Spec Name",
+          "type": "string"
+        },
+        "mode": {
+          "$ref": "#/$defs/RunMode"
+        },
+        "grid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TemplateGrid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "search": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TemplateSearch"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "attack_spec_name",
+        "mode"
+      ],
+      "title": "TemplateAttack",
+      "type": "object"
+    },
+    "TemplateGrid": {
+      "additionalProperties": false,
+      "properties": {
+        "level_ratios": {
+          "description": "Tỷ lệ trên [min, max] của primary_param; level bắt buộc",
+          "items": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "type": "number"
+          },
+          "minItems": 1,
+          "title": "Level Ratios",
+          "type": "array"
+        }
+      },
+      "required": [
+        "level_ratios"
+      ],
+      "title": "TemplateGrid",
+      "type": "object"
+    },
+    "TemplateSearch": {
+      "additionalProperties": false,
+      "properties": {
+        "threshold_kind": {
+          "$ref": "#/$defs/ThresholdKind"
+        },
+        "threshold": {
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Threshold",
+          "type": "number"
+        },
+        "lo_ratio": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Lo Ratio",
+          "type": "number"
+        },
+        "hi_ratio": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Hi Ratio",
+          "type": "number"
+        },
+        "max_tol_ratio": {
+          "description": "max_tol = max_tol_ratio · (hi - lo)",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Max Tol Ratio",
+          "type": "number"
+        }
+      },
+      "required": [
+        "threshold_kind",
+        "threshold",
+        "lo_ratio",
+        "hi_ratio",
+        "max_tol_ratio"
+      ],
+      "title": "TemplateSearch",
+      "type": "object"
+    },
+    "ThresholdKind": {
+      "enum": [
+        "relative_drop",
+        "absolute_drop",
+        "attack_success_rate"
+      ],
+      "title": "ThresholdKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Một template trong `contracts/seeds/protocol_templates.json`; không bao giờ tự tạo\nprotocol (`GET /protocol-templates/{key}/draft` trả `ProtocolCreate`).",
+  "properties": {
+    "key": {
+      "enum": [
+        "quick",
+        "front_camera",
+        "weather",
+        "full"
+      ],
+      "title": "Key",
+      "type": "string"
+    },
+    "title": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "description": {
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Description",
+      "type": "string"
+    },
+    "attacks": {
+      "items": {
+        "$ref": "#/$defs/TemplateAttack"
+      },
+      "minItems": 1,
+      "title": "Attacks",
+      "type": "array"
+    },
+    "strictness": {
+      "enum": [
+        "lenient",
+        "standard",
+        "strict"
+      ],
+      "title": "Strictness",
+      "type": "string"
+    },
+    "min_slice_size": {
+      "exclusiveMinimum": 0,
+      "title": "Min Slice Size",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "key",
+    "title",
+    "description",
+    "attacks",
+    "strictness",
+    "min_slice_size"
+  ],
+  "title": "ProtocolTemplate",
+  "type": "object"
+}

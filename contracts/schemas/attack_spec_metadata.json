@@ -1,0 +1,45 @@
+{
+  "additionalProperties": false,
+  "description": "Thông tin hiển thị của spec, nằm ngoài `spec_sha256` (tech-stack.md mục 9, luật 9); sửa\nkhông đổi version (Phase R2).",
+  "properties": {
+    "display_name": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Display Name",
+      "type": "string"
+    },
+    "description": {
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Description",
+      "type": "string"
+    },
+    "realism": {
+      "description": "Mức sát thực tế",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "title": "Realism",
+      "type": "string"
+    },
+    "level_labels": {
+      "additionalProperties": {
+        "maxLength": 200,
+        "minLength": 1,
+        "type": "string"
+      },
+      "description": "Level (số viết dạng chuỗi, so khớp theo giá trị số) → nhãn dễ đọc",
+      "title": "Level Labels",
+      "type": "object"
+    }
+  },
+  "required": [
+    "display_name",
+    "description",
+    "realism"
+  ],
+  "title": "AttackSpecMetadata",
+  "type": "object"
+}

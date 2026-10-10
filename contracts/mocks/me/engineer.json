@@ -16,6 +16,7 @@
     "experiment.submit_review",
     "model.read",
     "protocol.read",
+    "quick_try.use",
     "report.read",
     "review.comment",
     "slice.create"

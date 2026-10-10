@@ -23,10 +23,12 @@ from backend.app.services.errors import (
     Conflict,
     ExperimentLocked,
     Forbidden,
+    Gone,
     Invalid,
     InvalidConfig,
     NotFound,
     QueueLimitReached,
+    QuickTryBusy,
     ServiceError,
 )
 
@@ -85,6 +87,8 @@ SERVICE_ERRORS: dict[type[ServiceError], tuple[int, ErrorCode]] = {
     Forbidden: (status.HTTP_403_FORBIDDEN, ErrorCode.FORBIDDEN),
     Conflict: (status.HTTP_409_CONFLICT, ErrorCode.CONFLICT),
     Invalid: (status.HTTP_422_UNPROCESSABLE_CONTENT, ErrorCode.INVALID_REQUEST),
+    Gone: (status.HTTP_410_GONE, ErrorCode.GONE),
+    QuickTryBusy: (status.HTTP_429_TOO_MANY_REQUESTS, ErrorCode.QUICK_TRY_BUSY),
 }
 
 

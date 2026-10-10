@@ -26,6 +26,10 @@ from advertest_contracts.models import (
     RunStartResponse,
     SearchResultReport,
     SearchRunCreate,
+    ToolHeartbeat,
+    ToolJobBundle,
+    ToolJobResult,
+    ToolLease,
     WorkerDirective,
     WorkerJobBundle,
     WorkerLease,
@@ -45,7 +49,7 @@ from backend.app.api.errors import (
     VALIDATION_ERROR_RESPONSE,
 )
 from backend.app.api.security import worker_token
-from backend.app.services import bundle, leasing, runs, searches
+from backend.app.services import bundle, leasing, runs, searches, tool_dispatch, tool_jobs
 from backend.app.services.clock import Clock
 
 router = APIRouter(
@@ -238,3 +242,56 @@ def submit_search_result(
     with transaction(sessions) as session:
         target = authenticate_worker(session, credentials)
         searches.submit_result(session, target, experiment_id, body, clock)
+
+
+# Phase R2: job công cụ của worker `--tools` (spec_check, model_check, quick_try).
+
+
+@router.post(
+    "/tool-lease",
+    response_model=ToolLease,
+    responses={status.HTTP_204_NO_CONTENT: {"description": "Không có job công cụ nào chờ"}},
+)
+def tool_lease(credentials: Credentials, sessions: Sessions, clock: Now) -> ToolLease | Response:
+    """Job công cụ cũ nhất: quick_try trước, rồi model_check và spec_check theo thứ tự tạo."""
+    with transaction(sessions) as session:
+        target = authenticate_worker(session, credentials)
+        leased = tool_dispatch.lease(session, target, clock())
+    return leased if leased is not None else Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/tool-jobs/{job_id}")
+def get_tool_job(
+    job_id: UUID, credentials: Credentials, sessions: Sessions, stores: Stores, clock: Now
+) -> ToolJobBundle:
+    """Payload của job, kèm presigned URL (hết hạn sau 15 phút)."""
+    with transaction(sessions) as session:
+        target = authenticate_worker(session, credentials)
+        return tool_dispatch.bundle(
+            session, target, job_id, stores.buckets, stores.presigner, clock()
+        )
+
+
+@router.post("/tool-jobs/{job_id}/heartbeat", status_code=status.HTTP_204_NO_CONTENT)
+def tool_heartbeat(
+    job_id: UUID, body: ToolHeartbeat, credentials: Credentials, sessions: Sessions, clock: Now
+) -> None:
+    """Gia hạn lease 60 giây (409 khi lease đã mất)."""
+    with transaction(sessions) as session:
+        target = authenticate_worker(session, credentials)
+        tool_jobs.heartbeat(session, target, job_id, body.lease_id, clock())
+
+
+@router.post("/tool-jobs/{job_id}/result", status_code=status.HTTP_204_NO_CONTENT)
+def submit_tool_result(
+    job_id: UUID,
+    body: ToolJobResult,
+    credentials: Credentials,
+    sessions: Sessions,
+    stores: Stores,
+    clock: Now,
+) -> None:
+    """Kết quả job; chỉ token worker ghi được (mission.md nguyên tắc 3)."""
+    with transaction(sessions) as session:
+        target = authenticate_worker(session, credentials)
+        tool_dispatch.submit(session, target, job_id, body, stores.buckets, clock())

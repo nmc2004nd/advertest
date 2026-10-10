@@ -1,0 +1,10 @@
+{
+  "display_name": "Sương mù",
+  "description": "Sương mù tổng hợp theo imagecorruptions.",
+  "realism": "high",
+  "level_labels": {
+    "1": "rất nhẹ",
+    "3": "vừa",
+    "5": "rất dày"
+  }
+}
