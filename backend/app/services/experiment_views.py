@@ -241,6 +241,7 @@ def detail(session: Session, experiment_id: UUID) -> ExperimentDetail:
             else None
         ),
         cloned_from=experiment.cloned_from,
+        promoted_from=experiment.promoted_from,
         clean_metrics=MapPair.model_validate(clean) if clean is not None else None,
         attack_ranking=_ranking(session, config, runs),
         search_results=searches.results(session, experiment.id),
