@@ -141,6 +141,7 @@ from backend.app.services import (
     experiment_views,
     experiments,
     model_uploads,
+    quick_tries,
 )
 from backend.app.services.clock import Clock
 from ml_core.store import KeyNotFoundError
@@ -1189,11 +1190,27 @@ def create_quick_try(
     model_version_id: Annotated[UUID, Form()],
     attack_spec_id: Annotated[UUID, Form()],
     image: Annotated[UploadFile, File(description="JPEG/PNG ≤ 10 MB, cạnh dài ≤ 4096 px")],
+    user: CurrentUser,
+    factory: Sessions,
+    stores: Stores,
+    clock: Now,
     preset: Annotated[PresetKey, Form()] = "standard",
 ) -> QuickTryView:
     """Thử nhanh một ảnh: không tạo experiment, kết quả giữ 24 giờ. Field form là các trường của
     `QuickTryCreate`, khai riêng vì form model `extra="forbid"` coi file là field thừa."""
-    not_implemented()
+    # Đọc tối đa 10 MB + 1 byte: đủ để biết ảnh quá lớn mà không nạp cả file vào bộ nhớ.
+    data = image.file.read(quick_tries.MAX_IMAGE_BYTES + 1)
+    with transaction(factory) as session:
+        return quick_tries.create(
+            session,
+            actor=_actor(session, user),
+            model_version_id=model_version_id,
+            attack_spec_id=attack_spec_id,
+            preset=preset,
+            image=data,
+            buckets=stores.buckets,
+            now=clock(),
+        )
 
 
 @router.get(
@@ -1202,9 +1219,14 @@ def create_quick_try(
     responses=QUICK_TRY_RESPONSES,
     **guard(P.QUICK_TRY_USE),
 )
-def get_quick_try(quick_try_id: UUID) -> QuickTryView:
+def get_quick_try(
+    quick_try_id: UUID, user: CurrentUser, factory: Sessions, clock: Now
+) -> QuickTryView:
     """Chỉ người tạo; hết hạn trả 410."""
-    not_implemented()
+    with transaction(factory) as session:
+        return quick_tries.get(
+            session, actor_id=user.user_id, quick_try_id=quick_try_id, now=clock()
+        )
 
 
 # Trang xác minh report công khai, không cần đăng nhập.

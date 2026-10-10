@@ -24,7 +24,7 @@ from advertest_contracts.models import (
 from backend.app import storage
 from backend.app.db import models as m
 from backend.app.presign import Presigner
-from backend.app.services import attack_catalog, model_uploads, tool_jobs
+from backend.app.services import attack_catalog, model_uploads, quick_tries, tool_jobs
 from backend.app.services.errors import Invalid
 
 
@@ -33,6 +33,7 @@ def _on_error(session: Session, job: m.ToolJob, error: str, now: datetime) -> No
         attack_catalog.check_error(session, job, error, now)
     elif job.kind == ToolJobKind.MODEL_CHECK:
         model_uploads.check_error(session, job, error, now)
+    # quick_try: trạng thái của lượt suy từ job (failed + error), không cần cập nhật thêm.
 
 
 def _on_lost(session: Session, job: m.ToolJob, now: datetime) -> None:
@@ -65,7 +66,7 @@ def bundle(
     elif job.kind == ToolJobKind.MODEL_CHECK:
         payload = model_uploads.check_payload(session, job, presigner, now)
     else:
-        raise Invalid(f"Loại job {job.kind} chưa hỗ trợ")
+        payload = quick_tries.payload(session, job, buckets, presigner, now)
     return ToolJobBundle(
         job_id=job.id,
         payload=payload,
@@ -94,5 +95,7 @@ def submit(
         attack_catalog.apply_check(session, job, report.result)
     elif isinstance(report, ModelCheckReport):
         model_uploads.apply_check(session, job, report.result, buckets)
+    else:
+        quick_tries.apply_result(session, job, report, buckets)
     tool_jobs.finish(job, now, result=report.model_dump(mode="json"))
     session.flush()

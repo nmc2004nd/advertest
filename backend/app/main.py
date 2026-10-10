@@ -13,12 +13,12 @@ from fastapi import FastAPI
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from backend.app.api import health, public, worker
-from backend.app.api.deps import get_sessionmaker
+from backend.app.api.deps import get_sessionmaker, get_storage
 from backend.app.api.errors import install_error_handlers
 from backend.app.auth.csrf import CsrfMiddleware
 from backend.app.auth.permissions import check_route_permissions
 from backend.app.reports import service as report_service
-from backend.app.services import notifications
+from backend.app.services import notifications, quick_tries
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         else None
     )
     try:
-        async with _email_delivery():
+        async with _email_delivery(), _quick_try_purge():
             yield
     finally:
         if resume is not None:
@@ -62,6 +62,23 @@ async def _email_delivery() -> AsyncIterator[None]:
     stop = asyncio.Event()
     task = asyncio.create_task(
         notifications.delivery_loop(get_sessionmaker(), notifications.smtp_sender(smtp), stop)
+    )
+    try:
+        yield
+    finally:
+        stop.set()
+        await task
+
+
+@asynccontextmanager
+async def _quick_try_purge() -> AsyncIterator[None]:
+    # Phase R2: dọn lượt thử nhanh hết hạn (24 giờ) định kỳ; chỉ khi đã cấu hình MinIO.
+    if not os.environ.get("MINIO_ENDPOINT"):
+        yield
+        return
+    stop = asyncio.Event()
+    task = asyncio.create_task(
+        quick_tries.purge_loop(get_sessionmaker(), get_storage().buckets, stop)
     )
     try:
         yield

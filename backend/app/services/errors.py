@@ -1,5 +1,6 @@
 """Lỗi nghiệp vụ. Tầng API đổi sang HTTP: NotFound → 404, Forbidden → 403, Conflict → 409,
-Invalid → 422; `InvalidConfig` và `QueueLimitReached` mang mã lỗi riêng (Phase 5)."""
+Invalid → 422, Gone → 410, QuickTryBusy → 429 (Phase R2); `InvalidConfig` và
+`QueueLimitReached` mang mã lỗi riêng (Phase 5)."""
 
 from __future__ import annotations
 
@@ -27,6 +28,14 @@ class Conflict(ServiceError):
 
 class Invalid(ServiceError):
     pass
+
+
+class Gone(ServiceError):
+    """Tài nguyên đã hết hạn và bị xóa (410 `gone`, Phase R2: thử nhanh)."""
+
+
+class QuickTryBusy(ServiceError):
+    """Người dùng đã có một lượt thử nhanh chưa xong (429 `quick_try_busy`, Phase R2)."""
 
 
 class InvalidConfig(Invalid):
