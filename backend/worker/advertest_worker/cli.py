@@ -107,9 +107,7 @@ def main(
     """Worker của AdverTest."""
     if ctx.invoked_subcommand is not None:
         if tools or once:
-            raise typer.BadParameter(
-                "--tools và --once (của --tools) đặt trước, không kèm lệnh con"
-            )
+            raise typer.BadParameter("--tools và --once không dùng cùng lệnh con (run, calibrate)")
         return
     if not tools:
         typer.echo(ctx.get_help())
