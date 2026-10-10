@@ -37,6 +37,7 @@
 - [ ] Upload `.pt`, `.pkl`, zip, hoặc file không phải safetensors/onnx → 422; model `checking`/`check_failed` không dùng được trong experiment.
 - [ ] Thử nhanh: lượt thứ hai khi lượt đầu chưa xong → 429; spec patch → 422; `not_a_test_result = true`; không tạo experiment, run, failure case; sau `expires_at` (giả lập đồng hồ) dọn dẹp xóa object MinIO và `GET` → 410.
 - [ ] Endpoint mới có `x-permission` đúng ma trận quyền (test ma trận Phase 4 mở rộng).
+- [ ] Insight lấy nhãn level từ metadata của spec: `level_label` của điểm yếu và câu kết luận có nhãn; level không khai nhãn thì `level_label = null` (`test_insight.py::test_level_label_from_metadata`, Chốt ở Group 1).
 
 ### Group 5 — Worker công cụ (`test_tool_worker.py`; `db`)
 - [ ] `spec_check`, `model_check`, `quick_try` chạy hết vòng qua worker thật trên fixture; kết quả ghi qua endpoint worker.
