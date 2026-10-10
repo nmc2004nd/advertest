@@ -3,6 +3,8 @@
 Mất kết nối hoặc lỗi 5xx: thử lại với backoff lũy thừa. Lỗi 4xx không thử lại: 409 là
 `LeaseLost` (lease đã được cấp cho worker khác, hoặc run/experiment đổi trạng thái), còn lại là
 `ApiError`.
+
+Phase R2: job công cụ (`/tool-lease`, `/tool-jobs/{id}`) cho worker `--tools`.
 """
 
 from __future__ import annotations
@@ -32,6 +34,10 @@ from advertest_contracts.models import (
     RunStartResponse,
     SearchResultReport,
     SearchRunCreate,
+    ToolHeartbeat,
+    ToolJobBundle,
+    ToolJobResult,
+    ToolLease,
     WorkerDirective,
     WorkerJobBundle,
     WorkerLease,
@@ -158,3 +164,20 @@ class WorkerClient:
     def search_result(self, experiment_id: UUID, body: SearchResultReport) -> None:
         """`SearchResult` tạm thời sau mỗi điểm hoặc kết quả cuối."""
         self._request("POST", f"/experiments/{experiment_id}/search-result", body)
+
+    # Phase R2: job công cụ
+    def tool_lease(self) -> ToolLease | None:
+        response = self._request("POST", "/tool-lease")
+        if response.status_code == httpx.codes.NO_CONTENT:
+            return None
+        return self._parse(ToolLease, response)
+
+    def tool_bundle(self, job_id: UUID) -> ToolJobBundle:
+        return self._parse(ToolJobBundle, self._request("GET", f"/tool-jobs/{job_id}"))
+
+    def tool_heartbeat(self, job_id: UUID, lease_id: UUID) -> None:
+        """Gia hạn lease; `LeaseLost` khi lease đã mất."""
+        self._request("POST", f"/tool-jobs/{job_id}/heartbeat", ToolHeartbeat(lease_id=lease_id))
+
+    def tool_result(self, job_id: UUID, body: ToolJobResult) -> None:
+        self._request("POST", f"/tool-jobs/{job_id}/result", body)
