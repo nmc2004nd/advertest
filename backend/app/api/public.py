@@ -12,8 +12,6 @@ trong OpenAPI là một `Permission` của ma trận hoặc `authenticated` (ch�
 
 from __future__ import annotations
 
-import logging
-from collections.abc import Callable
 from datetime import datetime
 from typing import Annotated, Any, Literal
 from uuid import UUID
@@ -148,10 +146,9 @@ from backend.app.services import (
 from backend.app.services.clock import Clock
 from ml_core.store import KeyNotFoundError
 
-logger = logging.getLogger(__name__)
-
 Sessions = Annotated[SessionFactory, Depends(get_sessionmaker)]
 Now = Annotated[Clock, Depends(get_clock)]
+Stores = Annotated[Storage, Depends(get_storage)]
 
 AUTH_FAILURE_STATUS = {
     ErrorCode.INVALID_CREDENTIALS: status.HTTP_401_UNAUTHORIZED,
@@ -513,28 +510,6 @@ def get_report_stores() -> report_service.Stores:
 
 
 ReportStores = Annotated[report_service.Stores, Depends(get_report_stores)]
-
-
-def lazy_storage(request: Request) -> Callable[[], Storage]:
-    """MinIO lấy lười trong thân endpoint (sau khi kiểm quyền và body), như ảnh và report; vẫn
-    theo `dependency_overrides` của `get_storage`. Thiếu cấu hình là lỗi máy chủ: 500 không kèm
-    chi tiết, chi tiết chỉ ghi log."""
-    factory = request.app.dependency_overrides.get(get_storage, get_storage)
-
-    def storage() -> Storage:
-        try:
-            result: Storage = factory()
-        except RuntimeError as exc:
-            logger.exception("Chưa cấu hình MinIO")
-            raise ApiError(
-                status.HTTP_500_INTERNAL_SERVER_ERROR, ErrorCode.INTERNAL_ERROR, "Lỗi máy chủ"
-            ) from exc
-        return result
-
-    return storage
-
-
-LazyStorage = Annotated[Callable[[], Storage], Depends(lazy_storage)]
 
 
 def _actor(session: Session, user: Principal) -> m.User:
@@ -1172,9 +1147,9 @@ def reject_attack_spec(
 
 
 @router.post("/models/uploads", tags=["models"], responses=R2_RESPONSES, **guard(P.MODEL_MANAGE))
-def create_model_upload(body: ModelUploadCreate, storage: LazyStorage, clock: Now) -> ModelUpload:
+def create_model_upload(body: ModelUploadCreate, stores: Stores, clock: Now) -> ModelUpload:
     """Presigned PUT cho `.onnx` hoặc `.safetensors` tối đa 500 MB."""
-    return model_uploads.create_upload(body, storage().presigner, clock())
+    return model_uploads.create_upload(body, stores.presigner, clock())
 
 
 @router.post(
@@ -1185,17 +1160,13 @@ def create_model_upload(body: ModelUploadCreate, storage: LazyStorage, clock: No
     **guard(P.MODEL_MANAGE),
 )
 def register_model(
-    body: ModelRegister,
-    user: CurrentUser,
-    factory: Sessions,
-    storage: LazyStorage,
-    clock: Now,
+    body: ModelRegister, user: CurrentUser, factory: Sessions, stores: Stores, clock: Now
 ) -> ModelSummary:
     """Model version `checking` (409 khi trùng sha256; 422 khi nội dung không phải safetensors
     hoặc onnx); xếp job model_check."""
     with transaction(factory) as session:
         return model_uploads.register(
-            session, actor=_actor(session, user), body=body, buckets=storage().buckets, now=clock()
+            session, actor=_actor(session, user), body=body, buckets=stores.buckets, now=clock()
         )
 
 
@@ -1221,7 +1192,7 @@ def create_quick_try(
     image: Annotated[UploadFile, File(description="JPEG/PNG ≤ 10 MB, cạnh dài ≤ 4096 px")],
     user: CurrentUser,
     factory: Sessions,
-    storage: LazyStorage,
+    stores: Stores,
     clock: Now,
     preset: Annotated[PresetKey, Form()] = "standard",
 ) -> QuickTryView:
@@ -1237,7 +1208,7 @@ def create_quick_try(
             attack_spec_id=attack_spec_id,
             preset=preset,
             image=data,
-            buckets=storage().buckets,
+            buckets=stores.buckets,
             now=clock(),
         )
 

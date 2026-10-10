@@ -6,6 +6,7 @@ dependency có `yield`, để commit luôn xảy ra trước khi trả response.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -26,6 +27,8 @@ from backend.app.services import compute_targets
 from backend.app.services.clock import Clock, utcnow
 from backend.app.storage import Buckets, make_s3_client
 
+logger = logging.getLogger(__name__)
+
 SessionFactory = sessionmaker[Session]
 
 
@@ -42,7 +45,17 @@ class Storage:
 
 @cache
 def get_storage() -> Storage:
-    return Storage(buckets=Buckets.from_client(make_s3_client()), presigner=Presigner.from_env())
+    """Thiếu cấu hình MinIO là lỗi máy chủ: 500 không kèm chi tiết, chi tiết chỉ ghi log. Route có
+    `guard` vẫn kiểm quyền trước (dependency của route chạy trước dependency của tham số)."""
+    try:
+        return Storage(
+            buckets=Buckets.from_client(make_s3_client()), presigner=Presigner.from_env()
+        )
+    except RuntimeError as exc:
+        logger.exception("Chưa cấu hình MinIO")
+        raise ApiError(
+            status.HTTP_500_INTERNAL_SERVER_ERROR, ErrorCode.INTERNAL_ERROR, "Lỗi máy chủ"
+        ) from exc
 
 
 ArtifactReader = Callable[[str], bytes]
