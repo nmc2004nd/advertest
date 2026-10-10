@@ -24,7 +24,7 @@
 3. ✅ Cập nhật `roadmap.md`: R3 bỏ phụ thuộc 11a; thêm Phase R3b (11a + 11b); sửa mục 3 của thứ tự cắt giảm (áp khi soạn spec, 2026-10-10).
 4. ✅ Viết test nghiệm thu backend (`tests/acceptance/phase_r3/`) và E2E (`frontend/e2e/phase_r3/`) theo `validation.md`. Test của group chưa làm chỉ commit trên `phaser3-reviewer`, như R2.
 
-## Group 1 — Tồn đọng backend và insight trong report `[agent: backend]`
+## Group 1 — Tồn đọng backend và insight trong report `[agent: backend]` ✅
 
 5. `POST /models/{id}/check`: kiểm trạng thái, kiểm weights còn trong storage, xếp `model_check`, ghi audit `model.rechecked`.
 6. `ExperimentDetail.promoted_from` lấy từ cột đã có (migration `0011`).
