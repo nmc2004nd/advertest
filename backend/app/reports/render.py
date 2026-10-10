@@ -20,7 +20,14 @@ from advertest_contracts.enums import (
     CriterionStatus,
     ModelVerdict,
 )
-from advertest_contracts.models import PassCriterion, ReportGridAttack, ReportSnapshot
+from advertest_contracts.models import (
+    WEAKNESS_DROP,
+    WEAKNESS_VISIBLE_DROP,
+    PassCriterion,
+    ReportGridAttack,
+    ReportSnapshot,
+    Weakness,
+)
 
 Reader = Callable[[str], bytes]
 TEMPLATES = Path(__file__).parent / "templates"
@@ -77,6 +84,42 @@ def criterion_text(criterion: PassCriterion) -> str:
     )
 
 
+def percent(value: float) -> str:
+    return f"{value * 100:.0f}%"
+
+
+def weakness_text(weakness: Weakness) -> str:
+    """Một dòng của section "Điểm yếu chính" (Phase R3)."""
+    level = f"{weakness.level:g}"
+    if weakness.level_label:
+        level += f" ({weakness.level_label})"
+    if weakness.kind == "grid":
+        assert weakness.relative_drop is not None  # validator của Weakness
+        drop = percent(weakness.relative_drop)
+        text = f"{weakness.attack_name} ở level {level}: mAP@0.5 giảm {drop}"
+    else:
+        assert weakness.breaking_point is not None
+        text = f"{weakness.attack_name}: điểm gãy ở level {weakness.breaking_point:g}"
+    if weakness.class_name is not None and weakness.class_relative_drop is not None:
+        text += f"; class {weakness.class_name} giảm {percent(weakness.class_relative_drop)}"
+    return text
+
+
+def matrix_class(drop: float | None) -> str:
+    """Lớp CSS của ô ma trận độ bền theo thang màu của design.md mục 3."""
+    if drop is None:
+        return "empty"
+    if drop >= 0.5:
+        shade = "m3"
+    elif drop >= WEAKNESS_DROP:
+        shade = "m2"
+    elif drop >= WEAKNESS_VISIBLE_DROP:
+        return "m1"
+    else:
+        return ""
+    return f"{shade} weak"
+
+
 def _data_uri(data: bytes, media_type: str) -> str:
     return f"data:{media_type};base64,{base64.b64encode(data).decode()}"
 
@@ -120,6 +163,9 @@ def html(snapshot: ReportSnapshot, read_artifact: Reader) -> str:
         severity_text=SEVERITY_TEXT,
         kind_text=KIND_TEXT,
         timeline_text=TIMELINE_TEXT,
+        weakness_text=weakness_text,
+        matrix_class=matrix_class,
+        percent=percent,
     )
 
 

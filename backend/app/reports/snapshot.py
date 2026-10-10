@@ -37,6 +37,7 @@ from advertest_contracts.models import (
     StatusReason,
 )
 from backend.app.db import models as m
+from backend.app.insight.service import insight as experiment_insight
 from backend.app.reviews.views import current_verdicts, load, required_cases, user_ref
 from backend.app.services import experiment_views, searches
 from ml_core.store import KeyNotFoundError
@@ -378,6 +379,10 @@ def build(session: Session, read: Reader, report: m.Report) -> ReportSnapshot:
                 "processing_seconds_used": float(experiment.processing_seconds_used),
                 "limit": Limit(kind=experiment.limit_kind, value=experiment.limit_value),
             },
+            # Phase R3: insight tại lúc xuất (run đã bất biến sau khi duyệt).
+            "insight": experiment_insight(session, experiment.id).model_dump(
+                mode="json", include={"weaknesses", "matrix", "bands", "conclusion"}
+            ),
         }
     )
 

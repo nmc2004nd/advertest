@@ -28,6 +28,14 @@
   .case { display: inline-block; width: 31%; margin: 0 1% 8pt 0; vertical-align: top; }
   .case img { width: 100%; }
   .bad { color: #b00; } .good { color: #070; } .warn { color: #a60; }
+  /* Phase R3: thang màu ma trận độ bền (design.md mục 3), --fail = #dc2626, --line = #e4e7ec. */
+  .matrix td.cell { text-align: center; }
+  .matrix td.m1 { background: rgba(220, 38, 38, 0.2); }
+  .matrix td.m2 { background: rgba(220, 38, 38, 0.5); }
+  .matrix td.m3 { background: rgba(220, 38, 38, 0.85); color: #fff; }
+  .matrix td.weak { border: 2px solid #dc2626; }
+  .matrix td.empty { background: repeating-linear-gradient(45deg, #fff 0 3pt, #e4e7ec 3pt 4pt); color: #555; }
+  .legend span { display: inline-block; padding: 1pt 4pt; margin-right: 4pt; border: 1px solid #bbb; }
 </style>
 </head>
 <body>
@@ -47,6 +55,29 @@
   <tr><th>Người duyệt</th><td>{{ s.summary.approved_by.full_name }}</td></tr>
   <tr><th>Thời điểm duyệt (UTC)</th><td>{{ s.summary.approved_at.strftime("%Y-%m-%d %H:%M:%S") }}</td></tr>
 </table>
+
+{% if s.insight %}
+<h2>Điểm yếu chính</h2>
+<p>{{ s.insight.conclusion.text }}</p>
+<p class="muted">Điểm yếu là gợi ý để review, không thay cho tiêu chí đạt của protocol.</p>
+{% if s.insight.weaknesses %}
+<ol>
+  {% for w in s.insight.weaknesses %}<li>{{ weakness_text(w) }}</li>{% endfor %}
+</ol>
+{% else %}<p class="muted">Không có điểm yếu nào vượt ngưỡng gợi ý.</p>{% endif %}
+{% if s.insight.matrix %}
+<h3>Ma trận độ bền (mức sụt mAP@0.5 tương đối lớn nhất)</h3>
+<table class="matrix">
+  <tr><th>Attack</th>{% for lo, hi in s.insight.bands %}<th>Mức {{ "%d" | format(lo * 100) }}–{{ "%d" | format(hi * 100) }}%</th>{% endfor %}</tr>
+  {% for row in s.insight.matrix %}
+  <tr><td>{{ row.attack_name }}</td>
+    {% for c in row.cells %}<td class="cell {{ matrix_class(c.max_relative_drop) }}">{% if c.max_relative_drop is none %}Chưa chạy{% else %}{{ percent(c.max_relative_drop) }}{% endif %}</td>{% endfor %}
+  </tr>
+  {% endfor %}
+</table>
+<p class="legend muted">Thang màu: <span>&lt; 10%</span><span style="background: rgba(220, 38, 38, 0.2)">10–30%</span><span style="background: rgba(220, 38, 38, 0.5)">30–50%</span><span style="background: rgba(220, 38, 38, 0.85); color: #fff">≥ 50%</span>; viền đỏ: từ 30% (điểm yếu). Cột là mức tấn công so với mức tối đa của attack.</p>
+{% endif %}
+{% endif %}
 
 <h2>2. Phạm vi và lưu ý bắt buộc</h2>
 <ul>

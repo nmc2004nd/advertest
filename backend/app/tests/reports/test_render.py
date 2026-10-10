@@ -60,3 +60,44 @@ def test_grid_chart_needs_points() -> None:
          "points": []}
     )  # fmt: skip
     assert render.grid_chart(empty) is None
+
+
+# ---------------------------------------------------------------- Phase R3: "Điểm yếu chính"
+
+
+@pytest.mark.parametrize(
+    ("drop", "css"),
+    [
+        (None, "empty"),
+        (0.0, ""),
+        (0.0999, ""),
+        (0.1, "m1"),
+        (0.2999, "m1"),
+        (0.3, "m2 weak"),
+        (0.4999, "m2 weak"),
+        (0.5, "m3 weak"),
+        (1.0, "m3 weak"),
+    ],
+)
+def test_matrix_class_follows_design_scale(drop: float | None, css: str) -> None:
+    assert render.matrix_class(drop) == css
+
+
+def test_weakness_text_grid_and_search() -> None:
+    snapshot = ReportSnapshot.model_validate_json(
+        (MOCKS / "approved_grid_insight.json").read_text()
+    )
+    assert snapshot.insight is not None
+    grid, labelled = snapshot.insight.weaknesses
+    assert render.weakness_text(grid) == "fgsm ở level 4: mAP@0.5 giảm 42%; class person giảm 61%"
+    assert render.weakness_text(labelled) == "fog ở level 3 (vừa): mAP@0.5 giảm 18%"
+    search = grid.model_copy(
+        update={
+            "kind": "search",
+            "relative_drop": None,
+            "breaking_point": 6.0,
+            "class_name": None,
+            "class_relative_drop": None,
+        }
+    )
+    assert render.weakness_text(search) == "fgsm: điểm gãy ở level 6"
