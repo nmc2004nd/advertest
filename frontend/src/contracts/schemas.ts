@@ -1650,6 +1650,11 @@ export interface components {
              * @default null
              */
             report: components["schemas"]["ReportView"] | null;
+            /**
+             * Promoted From
+             * @description Phase R3: experiment Khám phá nguồn khi tạo qua nâng lên chính thức
+             */
+            promoted_from?: string | null;
         };
         /**
          * ExperimentDraftRequest
@@ -3239,6 +3244,26 @@ export interface components {
             /** Comments Count */
             comments_count: number;
         };
+        /**
+         * ReportInsight
+         * @description Phase R3: `ExperimentInsight` chép vào snapshot report lúc xuất (bỏ `experiment_id`,
+         *     `mode`, `partial`: report chỉ xuất từ experiment Chính thức đã duyệt).
+         */
+        ReportInsight: {
+            /** Weaknesses */
+            weaknesses: components["schemas"]["Weakness"][];
+            /** Matrix */
+            matrix: components["schemas"]["RobustnessRow"][];
+            /**
+             * Bands
+             * @description (lo, hi], theo ROBUSTNESS_BANDS
+             */
+            bands: [
+                number,
+                number
+            ][];
+            conclusion: components["schemas"]["Conclusion"];
+        };
         /** ReportModel */
         ReportModel: {
             /**
@@ -3436,6 +3461,8 @@ export interface components {
             /** Reproducibility */
             reproducibility: components["schemas"]["ReportReproRun"][];
             resources: components["schemas"]["ReportResources"];
+            /** @description Phase R3: insight tại lúc xuất; report xuất trước R3 không có (hash giữ nguyên) */
+            insight?: components["schemas"]["ReportInsight"] | null;
         };
         /**
          * ReportStatus
@@ -5191,6 +5218,7 @@ export type ReportDownload = components['schemas']['ReportDownload'];
 export type ReportGridAttack = components['schemas']['ReportGridAttack'];
 export type ReportGridPoint = components['schemas']['ReportGridPoint'];
 export type ReportHistory = components['schemas']['ReportHistory'];
+export type ReportInsight = components['schemas']['ReportInsight'];
 export type ReportModel = components['schemas']['ReportModel'];
 export type ReportNote = components['schemas']['ReportNote'];
 export type ReportNoteCode = components['schemas']['ReportNoteCode'];

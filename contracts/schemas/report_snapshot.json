@@ -291,6 +291,46 @@
       "title": "ComputeTargetRef",
       "type": "object"
     },
+    "Conclusion": {
+      "additionalProperties": false,
+      "description": "Câu kết luận sinh theo luật (`backend/app/insight/phrases.py`).",
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/ConclusionCode"
+        },
+        "params": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "description": "Số liệu dùng dựng câu",
+          "title": "Params",
+          "type": "object"
+        },
+        "text": {
+          "description": "Tiếng Việt; cùng đầu vào cho cùng câu",
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "params",
+        "text"
+      ],
+      "title": "Conclusion",
+      "type": "object"
+    },
+    "ConclusionCode": {
+      "enum": [
+        "no_data",
+        "robust",
+        "weak",
+        "weak_class"
+      ],
+      "title": "ConclusionCode",
+      "type": "string"
+    },
     "CriterionKind": {
       "enum": [
         "max_drop_at_level",
@@ -373,6 +413,7 @@
       "title": "ExperimentStatus",
       "type": "string"
     },
+    "JsonValue": {},
     "LibVersions": {
       "additionalProperties": false,
       "properties": {
@@ -1016,6 +1057,56 @@
         "comments_count"
       ],
       "title": "ReportHistory",
+      "type": "object"
+    },
+    "ReportInsight": {
+      "additionalProperties": false,
+      "description": "Phase R3: `ExperimentInsight` chép vào snapshot report lúc xuất (bỏ `experiment_id`,\n`mode`, `partial`: report chỉ xuất từ experiment Chính thức đã duyệt).",
+      "properties": {
+        "weaknesses": {
+          "items": {
+            "$ref": "#/$defs/Weakness"
+          },
+          "maxItems": 5,
+          "title": "Weaknesses",
+          "type": "array"
+        },
+        "matrix": {
+          "items": {
+            "$ref": "#/$defs/RobustnessRow"
+          },
+          "title": "Matrix",
+          "type": "array"
+        },
+        "bands": {
+          "description": "(lo, hi], theo ROBUSTNESS_BANDS",
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Bands",
+          "type": "array"
+        },
+        "conclusion": {
+          "$ref": "#/$defs/Conclusion"
+        }
+      },
+      "required": [
+        "weaknesses",
+        "matrix",
+        "bands",
+        "conclusion"
+      ],
+      "title": "ReportInsight",
       "type": "object"
     },
     "ReportModel": {
@@ -1683,6 +1774,71 @@
       "title": "RequiredSearch",
       "type": "object"
     },
+    "RobustnessCell": {
+      "additionalProperties": false,
+      "properties": {
+        "band": {
+          "description": "Chỉ số trong bands",
+          "exclusiveMaximum": 4,
+          "minimum": 0,
+          "title": "Band",
+          "type": "integer"
+        },
+        "max_relative_drop": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null khi dải không có run có metric",
+          "title": "Max Relative Drop"
+        },
+        "runs": {
+          "minimum": 0,
+          "title": "Runs",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "band",
+        "max_relative_drop",
+        "runs"
+      ],
+      "title": "RobustnessCell",
+      "type": "object"
+    },
+    "RobustnessRow": {
+      "additionalProperties": false,
+      "properties": {
+        "attack_spec_id": {
+          "format": "uuid",
+          "title": "Attack Spec Id",
+          "type": "string"
+        },
+        "attack_name": {
+          "minLength": 1,
+          "title": "Attack Name",
+          "type": "string"
+        },
+        "cells": {
+          "items": {
+            "$ref": "#/$defs/RobustnessCell"
+          },
+          "title": "Cells",
+          "type": "array"
+        }
+      },
+      "required": [
+        "attack_spec_id",
+        "attack_name",
+        "cells"
+      ],
+      "title": "RobustnessRow",
+      "type": "object"
+    },
     "RunMetrics": {
       "additionalProperties": false,
       "properties": {
@@ -2146,6 +2302,115 @@
       ],
       "title": "UserRef",
       "type": "object"
+    },
+    "Weakness": {
+      "additionalProperties": false,
+      "description": "Một điểm yếu (requirements.md Phase R2, Behaviour Insight).",
+      "properties": {
+        "attack_spec_id": {
+          "format": "uuid",
+          "title": "Attack Spec Id",
+          "type": "string"
+        },
+        "attack_name": {
+          "minLength": 1,
+          "title": "Attack Name",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "grid",
+            "search"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "level": {
+          "title": "Level",
+          "type": "number"
+        },
+        "level_ratio": {
+          "description": "level / primary_param.max",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Level Ratio",
+          "type": "number"
+        },
+        "level_label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Nhãn từ metadata của spec; null khi không có",
+          "title": "Level Label"
+        },
+        "relative_drop": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "grid: mức sụt mAP@0.5 tương đối tại level",
+          "title": "Relative Drop"
+        },
+        "breaking_point": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "search: điểm gãy found",
+          "title": "Breaking Point"
+        },
+        "class_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Class sụt AP50 tương đối nhiều nhất tại level; null khi không xác định",
+          "title": "Class Name"
+        },
+        "class_relative_drop": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Mức sụt AP50 tương đối của class_name; null khi class_name null",
+          "title": "Class Relative Drop"
+        }
+      },
+      "required": [
+        "attack_spec_id",
+        "attack_name",
+        "kind",
+        "level",
+        "level_ratio",
+        "level_label",
+        "relative_drop",
+        "breaking_point",
+        "class_name",
+        "class_relative_drop"
+      ],
+      "title": "Weakness",
+      "type": "object"
     }
   },
   "additionalProperties": false,
@@ -2206,6 +2471,17 @@
     },
     "resources": {
       "$ref": "#/$defs/ReportResources"
+    },
+    "insight": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ReportInsight"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Phase R3: insight tại lúc xuất; report xuất trước R3 không có (hash giữ nguyên)"
     }
   },
   "required": [

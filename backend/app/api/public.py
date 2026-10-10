@@ -1170,6 +1170,19 @@ def register_model(
         )
 
 
+@router.post(
+    "/models/{model_id}/check",
+    tags=["models"],
+    status_code=status.HTTP_202_ACCEPTED,
+    responses=R2_RESPONSES,
+    **guard(P.MODEL_MANAGE),
+)
+def recheck_model(model_id: UUID) -> ModelSummary:
+    """Phase R3: kiểm lại model `check_failed` → `checking`, xếp job model_check mới (409 khi
+    status khác hoặc weights không còn trong storage)."""
+    not_implemented()
+
+
 QUICK_TRY_RESPONSES: dict[int | str, dict[str, Any]] = R2_RESPONSES | {
     status.HTTP_410_GONE: {"model": ErrorResponse, "description": "gone: đã hết hạn"},
     status.HTTP_429_TOO_MANY_REQUESTS: {

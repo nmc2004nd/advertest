@@ -1268,6 +1268,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/models/{model_id}/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Recheck Model
+         * @description Phase R3: kiểm lại model `check_failed` → `checking`, xếp job model_check mới (409 khi
+         *     status khác hoặc weights không còn trong storage).
+         */
+        post: operations["recheck_model_models__model_id__check_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/quick-tries": {
         parameters: {
             query?: never;
@@ -3218,6 +3239,11 @@ export interface components {
             review?: components["schemas"]["ReviewView"] | null;
             /** @description Phase 8: report chính thức; chỉ có khi status = approved */
             report?: components["schemas"]["ReportView"] | null;
+            /**
+             * Promoted From
+             * @description Phase R3: experiment Khám phá nguồn khi tạo qua nâng lên chính thức
+             */
+            promoted_from?: string | null;
         };
         /**
          * ExperimentDraftRequest
@@ -4704,6 +4730,26 @@ export interface components {
             /** Comments Count */
             comments_count: number;
         };
+        /**
+         * ReportInsight
+         * @description Phase R3: `ExperimentInsight` chép vào snapshot report lúc xuất (bỏ `experiment_id`,
+         *     `mode`, `partial`: report chỉ xuất từ experiment Chính thức đã duyệt).
+         */
+        ReportInsight: {
+            /** Weaknesses */
+            weaknesses: components["schemas"]["Weakness"][];
+            /** Matrix */
+            matrix: components["schemas"]["RobustnessRow"][];
+            /**
+             * Bands
+             * @description (lo, hi], theo ROBUSTNESS_BANDS
+             */
+            bands: [
+                number,
+                number
+            ][];
+            conclusion: components["schemas"]["Conclusion"];
+        };
         /** ReportModel */
         ReportModel: {
             /**
@@ -4901,6 +4947,8 @@ export interface components {
             /** Reproducibility */
             reproducibility: components["schemas"]["ReportReproRun"][];
             resources: components["schemas"]["ReportResources"];
+            /** @description Phase R3: insight tại lúc xuất; report xuất trước R3 không có (hash giữ nguyên) */
+            insight?: components["schemas"]["ReportInsight"] | null;
         };
         /**
          * ReportStatus
@@ -6631,6 +6679,7 @@ export type ReportDownload = components['schemas']['ReportDownload'];
 export type ReportGridAttack = components['schemas']['ReportGridAttack'];
 export type ReportGridPoint = components['schemas']['ReportGridPoint'];
 export type ReportHistory = components['schemas']['ReportHistory'];
+export type ReportInsight = components['schemas']['ReportInsight'];
 export type ReportModel = components['schemas']['ReportModel'];
 export type ReportNote = components['schemas']['ReportNote'];
 export type ReportNoteCode = components['schemas']['ReportNoteCode'];
@@ -11376,6 +11425,82 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ModelUpload"];
+                };
+            };
+            /** @description Thiếu phiên hợp lệ */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Thiếu permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Không tìm thấy */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Sai trạng thái hoặc trùng */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Chưa cài đặt */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    recheck_model_models__model_id__check_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                model_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelSummary"];
                 };
             };
             /** @description Thiếu phiên hợp lệ */

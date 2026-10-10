@@ -6526,6 +6526,106 @@
         "x-permission": "model.manage"
       }
     },
+    "/models/{model_id}/check": {
+      "post": {
+        "tags": [
+          "models"
+        ],
+        "summary": "Recheck Model",
+        "description": "Phase R3: kiểm lại model `check_failed` → `checking`, xếp job model_check mới (409 khi\nstatus khác hoặc weights không còn trong storage).",
+        "operationId": "recheck_model_models__model_id__check_post",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "model_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Model Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelSummary"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sai trạng thái hoặc trùng",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-permission": "model.manage"
+      }
+    },
     "/quick-tries": {
       "post": {
         "tags": [
@@ -11213,6 +11313,19 @@
               }
             ],
             "description": "Phase 8: report chính thức; chỉ có khi status = approved"
+          },
+          "promoted_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promoted From",
+            "description": "Phase R3: experiment Khám phá nguồn khi tạo qua nâng lên chính thức"
           }
         },
         "additionalProperties": false,
@@ -14400,6 +14513,56 @@
         "title": "ReportHistory",
         "description": "Mục 7: experiment khác cùng model version và dataset version, gắn protocol này (mọi\nversion) hoặc protocol dev, tạo trước thời điểm duyệt; timeline review."
       },
+      "ReportInsight": {
+        "properties": {
+          "weaknesses": {
+            "items": {
+              "$ref": "#/components/schemas/Weakness"
+            },
+            "type": "array",
+            "maxItems": 5,
+            "title": "Weaknesses"
+          },
+          "matrix": {
+            "items": {
+              "$ref": "#/components/schemas/RobustnessRow"
+            },
+            "type": "array",
+            "title": "Matrix"
+          },
+          "bands": {
+            "items": {
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array",
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "type": "array",
+            "title": "Bands",
+            "description": "(lo, hi], theo ROBUSTNESS_BANDS"
+          },
+          "conclusion": {
+            "$ref": "#/components/schemas/Conclusion"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "weaknesses",
+          "matrix",
+          "bands",
+          "conclusion"
+        ],
+        "title": "ReportInsight",
+        "description": "Phase R3: `ExperimentInsight` chép vào snapshot report lúc xuất (bỏ `experiment_id`,\n`mode`, `partial`: report chỉ xuất từ experiment Chính thức đã duyệt)."
+      },
       "ReportModel": {
         "properties": {
           "id": {
@@ -14902,6 +15065,17 @@
           },
           "resources": {
             "$ref": "#/components/schemas/ReportResources"
+          },
+          "insight": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportInsight"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Phase R3: insight tại lúc xuất; report xuất trước R3 không có (hash giữ nguyên)"
           }
         },
         "additionalProperties": false,

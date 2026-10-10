@@ -2274,6 +2274,11 @@ class ExperimentDetail(ExperimentSummary):
     report: ReportView | None = Field(
         default=None, description="Phase 8: report chính thức; chỉ có khi status = approved"
     )
+    promoted_from: UUID | None = Field(
+        default=None,
+        exclude_if=lambda v: v is None,
+        description="Phase R3: experiment Khám phá nguồn khi tạo qua nâng lên chính thức",
+    )
 
     @model_validator(mode="after")
     def _check_review(self) -> ExperimentDetail:
@@ -3153,6 +3158,12 @@ class ReportSnapshot(_Model):
     history: ReportHistory
     reproducibility: list[ReportReproRun]
     resources: ReportResources
+    insight: ReportInsight | None = Field(
+        default=None,
+        exclude_if=lambda v: v is None,
+        description="Phase R3: insight tại lúc xuất; report xuất trước R3 không có (hash giữ"
+        " nguyên)",
+    )
 
     @model_validator(mode="after")
     def _check(self) -> ReportSnapshot:
@@ -3405,6 +3416,22 @@ class ExperimentInsight(_Model):
             not self.weaknesses
         ):
             raise ValueError("code weak, weak_class cần ít nhất một điểm yếu")
+        return self
+
+
+class ReportInsight(_Model):
+    """Phase R3: `ExperimentInsight` chép vào snapshot report lúc xuất (bỏ `experiment_id`,
+    `mode`, `partial`: report chỉ xuất từ experiment Chính thức đã duyệt)."""
+
+    weaknesses: list[Weakness] = Field(max_length=MAX_WEAKNESSES)
+    matrix: list[RobustnessRow]
+    bands: list[tuple[float, float]] = Field(description="(lo, hi], theo ROBUSTNESS_BANDS")
+    conclusion: Conclusion
+
+    @model_validator(mode="after")
+    def _check(self) -> ReportInsight:
+        if tuple(self.bands) != ROBUSTNESS_BANDS:
+            raise ValueError("bands phải bằng ROBUSTNESS_BANDS")
         return self
 
 
@@ -3719,4 +3746,6 @@ class ToolJobResult(_Model):
 
 
 ExperimentDetail.model_rebuild()
+ReportSnapshot.model_rebuild()
+ReportDetail.model_rebuild()
 ModelSummary.model_rebuild()

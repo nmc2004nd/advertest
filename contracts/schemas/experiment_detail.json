@@ -1734,6 +1734,19 @@
       ],
       "default": null,
       "description": "Phase 8: report chính thức; chỉ có khi status = approved"
+    },
+    "promoted_from": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Phase R3: experiment Khám phá nguồn khi tạo qua nâng lên chính thức",
+      "title": "Promoted From"
     }
   },
   "required": [

@@ -1,0 +1,22 @@
+{
+  "id": "5d0b8a0e-3c1f-5e57-9a52-6a2b2f4c1e11",
+  "name": "detr-export-onnx",
+  "framework": "onnx",
+  "weights_sha256": "1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f",
+  "class_names": [
+    "person",
+    "car",
+    "truck"
+  ],
+  "input_size": 640,
+  "supports_gradients": false,
+  "created_at": "2026-09-29T08:00:00Z",
+  "status": "check_failed",
+  "check": {
+    "passed": false,
+    "details": "Đầu ra không theo layout yolo hoặc boxes/scores/labels: nhận 2 đầu ra (logits, pred_boxes).",
+    "gradient_check": null,
+    "checked_at": "2026-10-10T08:00:00Z",
+    "worker_target_id": "8679be42-13ce-51fb-876b-ca6d4d3f3c74"
+  }
+}
