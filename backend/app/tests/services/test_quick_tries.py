@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import io
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -12,10 +12,13 @@ from PIL import Image
 from backend.app.services import artifacts
 from backend.app.services.errors import Invalid
 from backend.app.services.quick_tries import (
+    ORPHAN_MIN_AGE,
     clean_key,
     image_extension,
     level_key,
     original_key,
+    orphan_keys,
+    prefix,
 )
 
 NOW = datetime(2026, 10, 10, tzinfo=UTC)
@@ -67,3 +70,23 @@ def test_result_images_servable_original_never() -> None:
     assert not artifacts.servable(original_key(quick_try_id, "jpg"))
     assert not artifacts.servable(f"datasets/{quick_try_id}.png")
     assert artifacts.servable(f"runs/{quick_try_id}/cases/a.png")
+
+
+# ---------------------------------------------------------------- object mồ côi (Phase R3)
+
+
+def test_orphan_keys_need_dead_quick_try_and_age() -> None:
+    now = NOW
+    old = now - ORPHAN_MIN_AGE - timedelta(seconds=1)
+    fresh = now - ORPHAN_MIN_AGE
+    live, dead = uuid4(), uuid4()
+    objects = [
+        (prefix(live) + "level_0.png", old),  # lượt còn sống: giữ
+        (prefix(dead) + "level_0.png", old),
+        (prefix(dead) + "level_1.png", fresh),  # chưa quá 30 phút: giữ
+        ("quick-tries/khong-phai-uuid/a.png", old),
+    ]
+    assert orphan_keys(objects, {live}, now) == [
+        prefix(dead) + "level_0.png",
+        "quick-tries/khong-phai-uuid/a.png",
+    ]

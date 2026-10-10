@@ -170,11 +170,15 @@ def import_local(
 
 @app.command("purge-quick-tries")
 def purge_quick_tries() -> None:
-    """Dọn lượt thử nhanh đã hết hạn (24 giờ): xóa ảnh trong MinIO, đặt deleted_at. API tự chạy
-    việc này mỗi 10 phút; lệnh này để chạy tay."""
+    """Dọn lượt thử nhanh đã hết hạn (24 giờ): xóa ảnh trong MinIO, đặt deleted_at; rồi xóa object
+    mồ côi dưới quick-tries/ cũ hơn 30 phút. API tự chạy việc này mỗi 10 phút; lệnh này để chạy
+    tay."""
+    buckets = Buckets.from_client(make_s3_client())
     with _transaction() as session:
-        count = quick_tries.purge_expired(session, Buckets.from_client(make_s3_client()), utcnow())
-    typer.echo(f"Đã dọn {count} lượt thử nhanh hết hạn.")
+        now = utcnow()
+        count = quick_tries.purge_expired(session, buckets, now)
+        orphans = quick_tries.purge_orphans(session, buckets, now)
+    typer.echo(f"Đã dọn {count} lượt thử nhanh hết hạn, xóa {orphans} object mồ côi.")
 
 
 # ---------------------------------------------------------------- experiment

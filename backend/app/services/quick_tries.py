@@ -7,7 +7,8 @@
   `quick_try`, PUT ảnh sạch và ảnh bị tấn công đã làm mờ lên presigned URL, rồi gửi bảng object.
 - Không tạo experiment, run hay failure case; kết quả giữ 24 giờ. `GET` chỉ cho người tạo
   (người khác: 404), hết hạn: 410. `purge_expired` xóa mọi object dưới `quick-tries/<id>/` và
-  đặt `deleted_at`. Ảnh gốc (chưa làm mờ) chỉ có presigned GET cho worker, không bao giờ được cấp
+  đặt `deleted_at`; `purge_orphans` (Phase R3) xóa object của lượt không còn sống cũ hơn 30 phút.
+  Ảnh gốc (chưa làm mờ) chỉ có presigned GET cho worker, không bao giờ được cấp
   URL `/artifacts/...` (`artifacts.verify` từ chối khóa `original`).
 """
 
@@ -53,13 +54,16 @@ MAX_IMAGE_SIDE = 4096
 FORMATS = {"PNG": "png", "JPEG": "jpg"}
 EXPIRED_ERROR = "Lượt thử nhanh hết hạn trước khi worker chạy xong"
 PURGE_INTERVAL_S = 600.0
+# Object mồ côi chỉ bị xóa khi cũ hơn thời hạn presigned PUT (15 phút) cộng biên an toàn (Phase R3).
+ORPHAN_MIN_AGE = timedelta(minutes=30)
+ROOT_PREFIX = "quick-tries/"
 
 
 # ---------------------------------------------------------------- khóa MinIO (bucket artifacts)
 
 
 def prefix(quick_try_id: UUID) -> str:
-    return f"quick-tries/{quick_try_id}/"
+    return f"{ROOT_PREFIX}{quick_try_id}/"
 
 
 def original_key(quick_try_id: UUID, extension: str) -> str:
@@ -302,11 +306,63 @@ def purge_expired(session: Session, buckets: storage.Buckets, now: datetime) -> 
     return len(rows)
 
 
+def _quick_try_id(key: str) -> UUID | None:
+    """`<id>` của khóa `quick-tries/<id>/...`; None khi không đúng dạng."""
+    segment = key.removeprefix(ROOT_PREFIX).split("/", 1)[0]
+    try:
+        return UUID(segment)
+    except ValueError:
+        return None
+
+
+def orphan_keys(objects: list[tuple[str, datetime]], live: set[UUID], now: datetime) -> list[str]:
+    """Khóa cần xóa: lượt không còn sống (không có dòng, hoặc dòng đã `deleted_at`) và object cũ
+    hơn `ORPHAN_MIN_AGE` theo `LastModified`."""
+    return [
+        key
+        for key, modified in objects
+        if _quick_try_id(key) not in live and now - modified > ORPHAN_MIN_AGE
+    ]
+
+
+def purge_orphans(session: Session, buckets: storage.Buckets, now: datetime) -> int:
+    """Xóa object dưới `quick-tries/<id>/` không thuộc lượt nào còn sống (Phase R3), ví dụ ảnh
+    worker PUT muộn sau khi `purge_expired` đã dọn, hay ảnh của lượt mà giao dịch tạo bị hủy.
+    Trả số object đã xóa."""
+    store = buckets.artifacts
+    paginator = store.client.get_paginator("list_objects_v2")
+    objects: list[tuple[str, datetime]] = [
+        (item["Key"], item["LastModified"])
+        for page in paginator.paginate(Bucket=store.bucket, Prefix=ROOT_PREFIX)
+        for item in page.get("Contents", [])
+    ]
+    ids = {quick_try_id for key, _ in objects if (quick_try_id := _quick_try_id(key))}
+    live = (
+        set(
+            session.scalars(
+                select(m.QuickTry.id).where(m.QuickTry.id.in_(ids), m.QuickTry.deleted_at.is_(None))
+            )
+        )
+        if ids
+        else set()
+    )
+    keys = orphan_keys(objects, live, now)
+    for key in keys:
+        store.delete(key)
+    return len(keys)
+
+
 def purge_once(
     factory: sessionmaker[Session], buckets: storage.Buckets, clock: Clock = utcnow
 ) -> int:
+    """Một vòng dọn: lượt hết hạn rồi object mồ côi. Trả số lượt hết hạn đã dọn."""
     with factory.begin() as session:
-        return purge_expired(session, buckets, clock())
+        now = clock()
+        count = purge_expired(session, buckets, now)
+        orphans = purge_orphans(session, buckets, now)
+    if orphans:
+        logger.info("Đã xóa %d object mồ côi của thử nhanh", orphans)
+    return count
 
 
 async def purge_loop(
