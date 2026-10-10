@@ -53,6 +53,31 @@ Chỉ học **nguyên tắc tổ chức**. Không dùng màu thương hiệu, lo
 
 Trạng thái luôn hiển thị **màu + icon + chữ**.
 
+### Trạng thái catalog, model và mode (Phase R3)
+
+| Trạng thái | Màu | Icon (lucide) | Nhãn |
+|---|---|---|---|
+| spec `draft` | `--ink-muted` | `file-pen` | Nháp |
+| spec/model `checking` | `--detect` | `loader` | Đang kiểm tra |
+| spec/model `check_failed` | `--fail` | `x-circle` | Kiểm tra không đạt |
+| spec `pending_approval` | `--threshold` | `hourglass` | Chờ duyệt |
+| spec `active` | `--approved` | `badge-check` | Đang dùng |
+| spec `retired` | `--ink-muted` | `archive` | Đã thay thế |
+| model `ready` | `--approved` | `check-circle` | Sẵn sàng |
+
+Mode: Khám phá dùng viền `--ink-muted` với icon `flask-conical`; Chính thức dùng viền `--detect` với icon `shield-check`. Mode không dùng `--approved`.
+
+### Thang màu ma trận độ bền
+
+| Mức sụt tương đối lớn nhất của ô | Nền ô |
+|---|---|
+| < 0.1 | `--surface` |
+| 0.1–0.3 | `--fail` 20% |
+| 0.3–0.5 | `--fail` 50% |
+| ≥ 0.5 | `--fail` 85% |
+
+Ô ≥ `WEAKNESS_DROP` (0.3) thêm viền 2 px `--fail`. Ô chưa chạy: nền gạch chéo xám, chữ "Chưa chạy". Số phần trăm luôn hiện trong ô; luôn có chú thích thang màu cạnh ma trận.
+
 ### Lớp overlay trên ảnh
 
 | Lớp | Màu | Kiểu nét | Phím tắt |

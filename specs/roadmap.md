@@ -31,15 +31,16 @@
 | 6 ✅ | Đủ catalog, quét lưới, làm mờ ảnh | attack, ml-core, backend, frontend | 3, 5 | — |
 | 7 ✅ | Tự tìm ngưỡng | attack, frontend | 5, 6 | 8 |
 | 8 ✅ | Protocol, review, report | backend, frontend | 5 | 7 |
-| 11a | Landing page | frontend-landing | 8 | R1 |
+| 11a | Landing page (gộp vào R3b) | frontend-landing | 8 | R1 |
 | R1 | Refactor lớp chạy giữ hành vi (runner, attack registry, model adapter) | ml-core, attack, worker | 8 | — |
 | R2 ✅ | Backend: insight, template, Khám phá/Chính thức, attack và model qua cấu hình, thử nhanh (gộp R4a, R2, backend R3 cũ) | backend, worker, attack, ml-core | R1 | — |
-| R3 | UX ứng dụng: sửa và bổ sung giao diện (gộp R4b, 11b, giao diện R3 cũ) | frontend | R2, 11a | — |
+| R3 | UX ứng dụng: M1–M8, giao diện của R2, tồn đọng R2 (gộp R4b, giao diện R3 cũ) | frontend, backend, worker, attack | R2 | — |
+| R3b | Áp `design.md` toàn ứng dụng và landing (gộp 11a, 11b) | frontend, frontend-landing | R3 | 10 |
 | 10 | Dataset riêng (giao diện map class theo UX mới của R3) | ml-core, frontend | R1 | — |
 | 9 | Máy thuê và ngân sách | backend | 3, 5 | — |
-| 11c | Hoàn thiện: so sánh, bảo mật, tài liệu | frontend, backend | 9, 10, R3 | — |
+| 11c | Hoàn thiện: so sánh, bảo mật, tài liệu | frontend, backend | 9, 10, R3, R3b | — |
 
-Thứ tự sau review mentor (2026-10-06), gộp phase và đổi thứ tự ngày 2026-10-09: R1 → R2 (backend) → R3 (giao diện) → 10 → 9 → 11c. R2 không cần gì từ Phase 10; Phase 10 làm sau để màn hình map class dùng luôn UX mới, và vẫn thuộc nhóm "Không cắt". Bảng xếp theo thứ tự này.
+Thứ tự sau review mentor (2026-10-06), gộp phase và đổi thứ tự ngày 2026-10-09: R1 → R2 (backend) → R3 (giao diện) → 10 → 9 → 11c. Ngày 2026-10-10: tách phần áp `design.md` toàn ứng dụng (11b) và landing (11a) khỏi R3 thành Phase R3b, làm sau R3, song song được với Phase 10. R2 không cần gì từ Phase 10; Phase 10 làm sau để màn hình map class dùng luôn UX mới, và vẫn thuộc nhóm "Không cắt". Bảng xếp theo thứ tự này.
 
 Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tuần 2 gồm phase 3–6, tuần 3 gồm phase 7–9, tuần 4 gồm phase 10–11. Nếu chỉ có 3 tuần, xem mục "Thứ tự cắt giảm".
 
@@ -237,7 +238,7 @@ Thử nhanh (backend/worker của R3 cũ):
 
 ## Phase R3 — UX ứng dụng
 
-> Gộp R4b, 11b và phần giao diện của R3 cũ (2026-10-09). Giao diện cơ bản đã có từ Phase 5–8: phase này **sửa và bổ sung** trên trang sẵn có, không viết lại.
+> Gộp R4b và phần giao diện của R3 cũ (2026-10-09). Phần 11b chuyển sang Phase R3b (2026-10-10). Spec: `specs/2026-10-10-phase-r3-ux/`. Giao diện cơ bản đã có từ Phase 5–8: phase này **sửa và bổ sung** trên trang sẵn có, không viết lại.
 
 **Mục tiêu:** giải quyết nhận xét M1–M8 của mentor và đưa các API của Phase R2 lên giao diện.
 
@@ -248,13 +249,25 @@ Thử nhanh (backend/worker của R3 cũ):
 - [ ] Trang chủ "việc cần làm" theo vai trò.
 - [ ] Admin: tạo attack spec, xem kết quả tự kiểm tra; reviewer duyệt kích hoạt; đăng ký model ONNX/safetensors.
 - [ ] Thử nhanh: chọn model, ảnh, attack; ảnh sạch và ảnh bị tấn công cạnh nhau kèm box và bảng theo object; thanh trượt level; nhãn "không phải kết quả kiểm thử".
-- [ ] Các mục của Phase 11b.
 - [ ] (Từ R2, agent backend) Service `advertest-worker --tools` trong `docker/compose.yaml`; image worker chứa fixture mà `spec_check` cần. Thiếu mục này thì luồng admin tạo spec → kiểm tra → duyệt không chạy được trong Docker.
-- [ ] (Từ R2) Thử nhanh chỉ làm mờ quanh detection có score ≥ `operating_conf`; cân nhắc làm mờ rộng hơn trước khi đưa ảnh lên giao diện (nguyên tắc 9).
+- [ ] (Từ R2) Thử nhanh làm mờ quanh mọi detection có score ≥ 0.05 trên ảnh sạch và mọi level, hợp vùng cho mọi ảnh của lượt (nguyên tắc 9).
+- [ ] (Từ R2) Kiểm lại model `check_failed` (`POST /models/{id}/check`); dọn object MinIO mồ côi của thử nhanh; `validate` kiểm `art_class`.
+- [ ] Insight (điểm yếu, ma trận, câu kết luận) trong report PDF; report cũ giữ nguyên hash.
 - [ ] (Từ R2, agent attack + worker) Gộp phần dựng fixture: `attacks/selfcheck.py` đưa ra `fixture_inputs(with_estimator=)` công khai và `spec_check.py` gọi lại hàm này.
 - [ ] (Từ R2) Màn hình đăng ký model ONNX nêu rõ hai layout đầu ra được hỗ trợ (`yolo`, `boxes/scores/labels` đã NMS); ghi nhận model nào không vừa (Open Question R2).
 
 **Demo:** người mới tạo experiment Khám phá trong 3 bước và đọc được điểm yếu chính mà không cần giải thích; kéo thanh trượt level trong thử nhanh và thấy object biến mất.
+
+## Phase R3b — Áp `design.md` toàn ứng dụng và landing
+
+> Tách khỏi R3 ngày 2026-10-10; gồm toàn bộ mục của Phase 11a và 11b.
+
+**Mục tiêu:** landing page và giao diện toàn ứng dụng theo `design.md`, không đổi hành vi.
+
+- [ ] Các mục của Phase 11a (spec: `specs/2026-10-02-phase-11a-landing/`, cần cập nhật vì token chuyển thành toàn cục).
+- [ ] Các mục của Phase 11b.
+
+**Demo:** landing; toàn bộ luồng ở hai chế độ sáng và tối, trên desktop và điện thoại.
 
 ## Phase 9 — Máy thuê và ngân sách
 
@@ -291,6 +304,8 @@ Thử nhanh (backend/worker của R3 cũ):
 
 ## Phase 11a — Landing page
 
+> Gộp vào Phase R3b (2026-10-10).
+
 **Mục tiêu:** trang giới thiệu công khai tại `/` với demo "điểm gãy" tương tác, theo vùng B của `design.md`. Không đổi giao diện các trang khác.
 
 - [ ] Token và font cô lập trong landing; module `layers.ts`.
@@ -301,7 +316,7 @@ Thử nhanh (backend/worker của R3 cũ):
 
 ## Phase 11b — Giao diện ứng dụng
 
-> Gộp vào Phase R4b (2026-10-06), nay là Phase R3 (2026-10-09); danh sách dưới đây là các mục R3 phải bao gồm.
+> Gộp vào Phase R4b (2026-10-06), Phase R3 (2026-10-09), nay là Phase R3b (2026-10-10); danh sách dưới đây là các mục R3b phải bao gồm.
 
 **Mục tiêu:** áp dụng `design.md` cho toàn bộ ứng dụng, không đổi hành vi.
 
@@ -333,7 +348,7 @@ Thử nhanh (backend/worker của R3 cũ):
 Cắt theo thứ tự sau:
 1. Pseudo-label cho dữ liệu không nhãn.
 2. So sánh nhiều experiment.
-3. Phần áp dụng `design.md` của Phase R3 (gộp từ 11b); giữ phần M1–M8.
+3. Phase R3b (áp `design.md` toàn ứng dụng và landing); M1–M8 đã thuộc R3.
 4. Khoảng tin cậy bootstrap và giai đoạn tìm trên tập nhỏ của phase 7 (giữ lõi quét thô → chia đôi).
 5. Trang admin chỉ để dạng bảng CRUD thô.
 
