@@ -71,7 +71,7 @@
 ### Group 7 — Thử nhanh (Vitest; E2E `quick-try.spec.ts`)
 - [ ] Danh sách attack ẩn patch, và ẩn attack cần gradient khi model không có gradient.
 - [ ] Kéo thanh trượt level: ảnh và bảng đổi, không có request mạng mới.
-- [ ] Box `lost` vẽ magenta có ×, `new` magenta nét đứt (kiểm qua `layers` dùng cho canvas).
+- [ ] Box theo `design.md` mục 3 (kiểm qua cấu hình kiểu nét của trình vẽ): `lost` đỏ dày 3 px có ×, `new` cam nét đứt 3-3, ground truth nét đứt 8-4 (cả trình xem case).
 - [ ] Nhãn "Không phải kết quả kiểm thử" luôn hiện, kèm giờ xóa; 429 hiện link tới lượt đang chạy; 410 hiện "Thử lại".
 
 ## Manual Checks

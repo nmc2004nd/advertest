@@ -35,12 +35,12 @@
 | R1 | Refactor lớp chạy giữ hành vi (runner, attack registry, model adapter) | ml-core, attack, worker | 8 | — |
 | R2 ✅ | Backend: insight, template, Khám phá/Chính thức, attack và model qua cấu hình, thử nhanh (gộp R4a, R2, backend R3 cũ) | backend, worker, attack, ml-core | R1 | — |
 | R3 | UX ứng dụng: M1–M8, giao diện của R2, tồn đọng R2 (gộp R4b, giao diện R3 cũ) | frontend, backend, worker, attack | R2 | — |
-| R3b | Áp `design.md` toàn ứng dụng và landing (gộp 11a, 11b) | frontend, frontend-landing | R3 | 10 |
+| R3b | Landing và hoàn thiện giao diện: câu chữ `copy/vi.ts`, trang công khai, font report (gộp 11a, 11b) | frontend, frontend-landing | R3 | 10 |
 | 10 | Dataset riêng (giao diện map class theo UX mới của R3) | ml-core, frontend | R1 | — |
 | 9 | Máy thuê và ngân sách | backend | 3, 5 | — |
 | 11c | Hoàn thiện: so sánh, bảo mật, tài liệu | frontend, backend | 9, 10, R3, R3b | — |
 
-Thứ tự sau review mentor (2026-10-06), gộp phase và đổi thứ tự ngày 2026-10-09: R1 → R2 (backend) → R3 (giao diện) → 10 → 9 → 11c. Ngày 2026-10-10: tách phần áp `design.md` toàn ứng dụng (11b) và landing (11a) khỏi R3 thành Phase R3b, làm sau R3, song song được với Phase 10. R2 không cần gì từ Phase 10; Phase 10 làm sau để màn hình map class dùng luôn UX mới, và vẫn thuộc nhóm "Không cắt". Bảng xếp theo thứ tự này.
+Thứ tự sau review mentor (2026-10-06), gộp phase và đổi thứ tự ngày 2026-10-09: R1 → R2 (backend) → R3 (giao diện) → 10 → 9 → 11c. Ngày 2026-10-10: `design.md` viết lại theo app hiện có; tách landing (11a) và phần còn lại của 11b khỏi R3 thành Phase R3b, làm sau R3, song song được với Phase 10. R2 không cần gì từ Phase 10; Phase 10 làm sau để màn hình map class dùng luôn UX mới, và vẫn thuộc nhóm "Không cắt". Bảng xếp theo thứ tự này.
 
 Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tuần 2 gồm phase 3–6, tuần 3 gồm phase 7–9, tuần 4 gồm phase 10–11. Nếu chỉ có 3 tuần, xem mục "Thứ tự cắt giảm".
 
@@ -258,14 +258,16 @@ Thử nhanh (backend/worker của R3 cũ):
 
 **Demo:** người mới tạo experiment Khám phá trong 3 bước và đọc được điểm yếu chính mà không cần giải thích; kéo thanh trượt level trong thử nhanh và thấy object biến mất.
 
-## Phase R3b — Áp `design.md` toàn ứng dụng và landing
+## Phase R3b — Landing và hoàn thiện giao diện
 
-> Tách khỏi R3 ngày 2026-10-10; gồm toàn bộ mục của Phase 11a và 11b.
+> Tách khỏi R3 ngày 2026-10-10. `design.md` đã được viết lại theo app hiện có, nên không còn việc đổi token, font hay nút sáng/tối toàn cục.
 
-**Mục tiêu:** landing page và giao diện toàn ứng dụng theo `design.md`, không đổi hành vi.
+**Mục tiêu:** landing page và các mục 11b còn lại, theo `design.md`, không đổi hành vi.
 
-- [ ] Các mục của Phase 11a (spec: `specs/2026-10-02-phase-11a-landing/`, cần cập nhật vì token chuyển thành toàn cục).
-- [ ] Các mục của Phase 11b.
+- [ ] Landing (Phase 11a) dùng token chung của app, không có token cô lập. Spec `specs/2026-10-02-phase-11a-landing/` cần cập nhật: bỏ bảng màu cyan/magenta riêng và Be Vietnam Pro; `layers.ts` dùng màu overlay của `design.md` mục 3.
+- [ ] Gom và viết lại câu chữ vào `copy/vi.ts` (trước đó: chuyển test E2E sang tìm phần tử theo role, nhãn hoặc `data-testid`).
+- [ ] Rà đăng nhập, yêu cầu truy cập, chờ duyệt, xác minh theo `design.md`.
+- [ ] Font của report PDF (không đổi nội dung và hash).
 
 **Demo:** landing; toàn bộ luồng ở hai chế độ sáng và tối, trên desktop và điện thoại.
 
@@ -316,7 +318,7 @@ Thử nhanh (backend/worker của R3 cũ):
 
 ## Phase 11b — Giao diện ứng dụng
 
-> Gộp vào Phase R4b (2026-10-06), Phase R3 (2026-10-09), nay là Phase R3b (2026-10-10); danh sách dưới đây là các mục R3b phải bao gồm.
+> Gộp vào Phase R4b (2026-10-06), Phase R3 (2026-10-09), nay là Phase R3b (2026-10-10). Danh sách dưới đây là bản gốc; ngày 2026-10-10 `design.md` được viết lại theo app hiện có, nên các mục token, sáng/tối, vùng A/B/C coi như đã đạt và R3b chỉ giữ các mục ghi trong mục Phase R3b.
 
 **Mục tiêu:** áp dụng `design.md` cho toàn bộ ứng dụng, không đổi hành vi.
 
@@ -348,7 +350,7 @@ Thử nhanh (backend/worker của R3 cũ):
 Cắt theo thứ tự sau:
 1. Pseudo-label cho dữ liệu không nhãn.
 2. So sánh nhiều experiment.
-3. Phase R3b (áp `design.md` toàn ứng dụng và landing); M1–M8 đã thuộc R3.
+3. Phase R3b (landing và hoàn thiện giao diện); M1–M8 đã thuộc R3.
 4. Khoảng tin cậy bootstrap và giai đoạn tìm trên tập nhỏ của phase 7 (giữ lõi quét thô → chia đôi).
 5. Trang admin chỉ để dạng bảng CRUD thô.
 

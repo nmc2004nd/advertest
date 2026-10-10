@@ -182,7 +182,7 @@ Mọi trạng thái bất thường (`failed`, `skipped`, `stopped_limit`, `canc
 | Biểu đồ | Recharts |
 | Routing | React Router |
 | Zoom ảnh | `react-zoom-pan-pinch` |
-| Font | Be Vietnam Pro, tự host qua `@fontsource/be-vietnam-pro` |
+| Font | Inter Variable, tự host qua `@fontsource-variable/inter` (`design.md` mục 4, 2026-10-10) |
 | Sinh type từ contract/OpenAPI | `openapi-typescript` (devDependency) |
 | Form | `react-hook-form` + `zod` (Phase 4): validation nhất quán cho form của mọi phase |
 | E2E | `@playwright/test` (devDependency, Phase 4), 3 viewport 390×844, 820×1180, 1440×900 |

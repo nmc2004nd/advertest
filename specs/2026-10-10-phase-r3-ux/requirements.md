@@ -34,7 +34,7 @@ Cuối phase, mọi test nghiệm thu Phase 0–8, R1 và R2 vẫn pass, và gol
 
 ## Out of Scope
 
-- **Áp `design.md` cho toàn ứng dụng** (các mục 11b), gồm: token toàn cục mới, đổi font sang Be Vietnam Pro, nút chuyển sáng/tối, vùng A/B/C cho mọi trang, gom toàn bộ câu chữ vào `copy/vi.ts`, đổi font và màu của report PDF. Phần này chuyển sang **Phase R3b**, làm cùng landing (11a). R3 theo phong cách của app hiện có (mục Behaviour "Phong cách giao diện").
+- Các mục còn lại của 11b chuyển sang **Phase R3b**, làm cùng landing (11a): gom toàn bộ câu chữ cũ vào `copy/vi.ts`, chuyển E2E sang tìm theo role/nhãn, đăng nhập/xác minh, font report PDF. Từ 2026-10-10, `design.md` đã mô tả đúng app hiện có, nên R3 không đổi token, font hay họa tiết (mục Behaviour "Phong cách giao diện").
 - Landing page (Phase 11a, chuyển sang R3b).
 - Thuật toán attack mới, adapter mới, và upload `.pt` hay pickle qua web (`mission.md` nguyên tắc 10).
 - Tạo protocol tự động từ template. Template chỉ điền sẵn form cho reviewer (R2).
@@ -65,12 +65,13 @@ class ReportSnapshot:                        # thêm, schema_version vẫn 1
 
 Không thêm enum mới. Giao diện dùng các enum đã có từ R2: `AttackSpecStatus`, `ModelStatus`, `ToolJobStatus`, `ExperimentMode`, `SpecCheckName`, `ConclusionCode`, `QuickTryObjectStatus`.
 
-**`design.md`** (Group 0, người duyệt) bổ sung:
-- màu trạng thái cho `AttackSpecStatus` và `ModelStatus`;
+**`design.md`** (đã viết lại theo app hiện có, 2026-10-10) có sẵn:
+- tông trạng thái cho `AttackSpecStatus` và `ModelStatus`;
 - nhãn mode Khám phá/Chính thức;
-- thang màu của ma trận độ bền.
+- thang màu ma trận độ bền;
+- lớp overlay của thử nhanh.
 
-Chi tiết ở mục Behaviour "Màu và trạng thái mới". `status-config.ts` khai `Record<Enum, …>` cho các enum này, như quy ước `tech-stack.md` mục 5.1.
+Xem mục 3 của `design.md`. `status-config.ts` khai `Record<Enum, …>` cho các enum này, như quy ước `tech-stack.md` mục 5.1.
 
 ## Behaviour
 
@@ -117,7 +118,7 @@ Quy tắc chung:
 - Tab Kết quả mở đầu bằng `GET /experiments/{id}/insight`:
   1. **Câu kết luận** (`conclusion.text`), kèm nhãn "Kết quả một phần" khi `partial`.
   2. **Danh sách điểm yếu** (tối đa 5). Mỗi dòng gồm attack (`display_name`), level kèm nhãn, class (nếu có), và mức sụt hoặc điểm gãy. Bấm vào dòng thì mở tab Failure case, đã lọc theo attack và level đó.
-  3. **Ma trận độ bền:** hàng là attack, 4 cột là dải cường độ (`bands`, ghi "0–25% dải" …), mỗi ô ghi số phần trăm và tô theo thang màu (mục Màu và trạng thái mới). Ô `null` ghi "Chưa chạy". Cạnh ma trận có chú thích thang màu.
+  3. **Ma trận độ bền:** hàng là attack, 4 cột là dải cường độ (`bands`, ghi "0–25% dải" …), mỗi ô ghi số phần trăm và tô theo thang màu (`design.md` mục 3). Ô `null` ghi "Chưa chạy". Cạnh ma trận có chú thích thang màu.
 - Ngay dưới đó là nút "Nâng lên chính thức", chỉ hiện với experiment Khám phá đã kết thúc:
   - Nút mở hộp chọn protocol `active`, rồi gọi `POST /experiments/{id}/promote` và mở wizard bước 3.
   - Lỗi 409 hiện câu giải thích theo `design.md` mục 7.
@@ -185,7 +186,7 @@ Quy tắc chung:
   - Chọn ảnh JPEG/PNG bằng kéo-thả hoặc chọn file. Client chặn file > 10 MB.
 - Sau khi gửi, trang hiện trạng thái `queued`/`running`, polling 2 giây. Gặp 429 thì hiện "Bạn đang có một lượt thử chưa xong", kèm link tới lượt đó.
 - **Kết quả:**
-  - Ảnh sạch và ảnh bị tấn công đặt cạnh nhau (điện thoại: xếp dọc), box vẽ trên canvas theo lớp overlay của `design.md` mục 3: `kept` cyan liền, `lost` magenta có ×, `new` magenta đứt.
+  - Ảnh sạch và ảnh bị tấn công đặt cạnh nhau (điện thoại: xếp dọc), box vẽ trên canvas theo lớp overlay của `design.md` mục 3: ảnh sạch dùng màu "dự đoán ảnh sạch"; trên ảnh tấn công, `kept` cam liền, `lost` đỏ dày 3 px có ×, `new` cam nét đứt 3-3.
   - **Thanh trượt level** có nhãn level, đổi ảnh tấn công và bảng ngay, không gọi lại API.
   - Bảng theo object: class, score sạch, score sau tấn công, trạng thái. Kèm số đếm `kept`/`lost`/`new` của level đang chọn.
 - Nhãn **"Không phải kết quả kiểm thử"** luôn hiện ở đầu kết quả (`not_a_test_result`), màu `--threshold`, kèm câu giải thích: không tạo experiment, không vào report, ảnh tự xóa sau 24 giờ (ghi giờ xóa từ `expires_at`).
@@ -193,45 +194,19 @@ Quy tắc chung:
 
 ### Phong cách giao diện
 
-- Màn hình mới và trang được sửa dùng **khung, component và token của app hiện có**:
-  - khung và component: `AppShell`, `PageHeader`/`PageHero`, lớp `panel`, `components/ui`, badge trạng thái;
-  - giá trị màu và font hiện tại trong `frontend/src/index.css`, kể cả `--cta`, `--navy`, `--pink`, `--violet` và nền gradient, dùng như trang cũ cùng loại.
+- Màn hình mới và trang được sửa theo `design.md` (đã mô tả đúng app hiện có):
+  - khung và component sẵn có: `AppShell`, `PageHero`/`PageHeader`, `.panel`, `.seg`, `components/ui`, `StatusBadge`, `EmptyState`, `ConfirmDialog`;
+  - token và lớp trong `frontend/src/index.css`.
 
   Mục tiêu: người dùng không phân biệt được trang nào làm ở R3.
-- Không thêm token, màu hex, font hay kiểu trang trí mới ngoài những gì app đã có. Cần thêm thì đề xuất cập nhật `design.md` trước.
-- Từ `design.md` vẫn áp dụng:
-  - ngữ nghĩa màu qua tên token: `--detect` = nhận đúng, `--fail` = thất bại, `--threshold` = ngưỡng/cảnh báo, `--approved` = chỉ cho đã chấp nhận;
-  - trạng thái luôn có màu + icon + chữ;
-  - lớp overlay trên ảnh (mục 3);
-  - câu chữ (mục 7);
-  - quy ước số liệu `tabular-nums`, căn phải.
+- Không thêm token, màu hex, font hay họa tiết mới (`design.md` mục 8). Ngoại lệ duy nhất: các màu overlay đã khai trong `design.md` mục 3.
+- Trạng thái mới (spec, model, mode) dùng tông và icon ở `design.md` mục 3, khai trong `status-config.ts` bằng `Record<Enum, …>` theo `tech-stack.md` mục 5.1.
+- Trình vẽ box (`components/case-viewer/`) bổ sung các phần `design.md` mục 3 ghi là "Phase R3 bổ sung":
+  - ground truth nét đứt 8-4;
+  - nhãn × cho object bị mất;
+  - lớp "phát hiện sai mới" (cam, nét đứt 3-3).
 
-  Mục 8 chỉ áp cho phần tử mới, không bắt gỡ trang trí đang có.
-- Màu dùng giá trị hiện tại của token. Ví dụ `--fail` đang là đỏ `#dc2626`, chưa phải magenta; R3b đổi giá trị token cho cả app một lượt.
-
-### Màu và trạng thái mới (bổ sung `design.md`)
-
-| Trạng thái | Màu | Icon (lucide) | Nhãn |
-|---|---|---|---|
-| spec `draft` | `--ink-muted` | `file-pen` | Nháp |
-| spec `checking`, model `checking` | `--detect` | `loader` | Đang kiểm tra |
-| spec `check_failed`, model `check_failed` | `--fail` | `x-circle` | Kiểm tra không đạt |
-| spec `pending_approval` | `--threshold` | `hourglass` | Chờ duyệt |
-| spec `active` | `--approved` | `badge-check` | Đang dùng |
-| spec `retired` | `--ink-muted` | `archive` | Đã thay thế |
-| model `ready` | `--approved` | `check-circle` | Sẵn sàng |
-
-- **Mode:** Khám phá dùng viền `--ink-muted` với icon `flask-conical`; Chính thức dùng viền `--detect` với icon `shield-check`. Mode không dùng `--approved`, vì màu này chỉ dành cho "đã chấp nhận".
-- **Thang màu ma trận độ bền** (theo `max_relative_drop`):
-
-  | Mức sụt | Màu ô |
-  |---|---|
-  | < 0.1 | `--surface` |
-  | 0.1–0.3 | `--fail` 20% |
-  | 0.3–0.5 | `--fail` 50% |
-  | ≥ 0.5 | `--fail` 85% |
-
-  Ô ≥ `WEAKNESS_DROP` có thêm viền 2 px `--fail`. Ô `null` dùng nền gạch chéo xám. Số luôn hiện trong ô, để không phụ thuộc vào màu.
+  Thử nhanh và trình xem case dùng chung trình vẽ này.
 
 ### Docker: worker công cụ (tồn đọng R2)
 
@@ -282,13 +257,13 @@ Quy tắc chung:
 
 ## Decisions
 
-- **Tách phần áp `design.md` toàn ứng dụng (11b) và landing (11a) sang Phase R3b; R3 bỏ phụ thuộc 11a.** *Lý do:* 11a chưa làm, phạm vi R3 quá lớn; thứ tự cắt giảm vốn xếp phần này sau M1–M8. Người dùng chốt 2026-10-10.
+- **Tách landing (11a) và phần còn lại của 11b sang Phase R3b; R3 bỏ phụ thuộc 11a.** *Lý do:* 11a chưa làm, phạm vi R3 quá lớn. Người dùng chốt 2026-10-10.
 - **M1–M8 suy từ các mục UX của R4b**, như bảng ở Scope. Người dùng chốt 2026-10-10.
 - **Làm mờ thử nhanh dùng ngưỡng 0.05 và hợp vùng trên mọi ảnh của lượt.** *Lý do:* nguyên tắc 9; phương án làm mờ toàn ảnh làm ảnh khó đọc. Người dùng chốt 2026-10-10.
 - **R3 xử lý cả 4 tồn đọng R2:** recheck model, insight trong report PDF, dọn object mồ côi, `validate` kiểm `art_class`. Người dùng chốt 2026-10-10.
 - **Câu kết luận của từng biểu đồ sinh ở frontend; câu kết luận chung lấy từ backend** (`conclusion.text`). *Lý do:* câu chung đã có ở R2 và report dùng lại; câu của từng biểu đồ chỉ để hiển thị.
 - **Tab Chi phí và Tái lập gộp vào Tổng quan**, để trang chỉ còn 5 tab như roadmap.
-- **R3 theo phong cách app hiện có; `design.md` chỉ áp phần ngữ nghĩa** (màu theo tên token, trạng thái, overlay, câu chữ). *Lý do:* tránh app lẫn hai phong cách cho tới R3b; R3b chuyển cả app một lượt. Người dùng chốt 2026-10-10.
+- **`design.md` viết lại theo app hiện có** (màu, font Inter, hero/gradient, tông trạng thái, overlay `BOX_COLORS`); R3 theo đúng file này. *Lý do:* giữ app nhất quán; không có đợt đổi giao diện toàn cục. Người dùng chốt 2026-10-10.
 - **Chuỗi giao diện mới** (thuật ngữ, ý nghĩa quyết định, thử nhanh) nằm ở `frontend/src/copy/`. Chuỗi cũ để R3b gom.
 - **Tên nhánh `phaser3-<agent>`; test ở `tests/acceptance/phase_r3/` và `frontend/e2e/phase_r3/`; merge vào `dev`.** *Lý do:* như R1, R2.
 

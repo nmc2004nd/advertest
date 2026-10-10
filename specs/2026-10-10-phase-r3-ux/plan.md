@@ -20,7 +20,7 @@
    - audit action `model.rechecked`.
 
    Sau đó chạy `make contracts`. Thêm mock: experiment Khám phá có insight, model `check_failed`, spec ở từng `AttackSpecStatus`, report có `insight`.
-2. ✅ Cập nhật `design.md` theo mục Behaviour "Màu và trạng thái mới" (áp khi soạn spec, 2026-10-10).
+2. ✅ Viết lại `design.md` theo app hiện có (gồm tông trạng thái spec/model, mode, thang màu ma trận, overlay thử nhanh), sửa dòng font trong `tech-stack.md` (2026-10-10).
 3. ✅ Cập nhật `roadmap.md`: R3 bỏ phụ thuộc 11a; thêm Phase R3b (11a + 11b); sửa mục 3 của thứ tự cắt giảm (áp khi soạn spec, 2026-10-10).
 4. Viết test nghiệm thu backend (`tests/acceptance/phase_r3/`) và E2E (`frontend/e2e/phase_r3/`) theo `validation.md`. Test của group chưa làm chỉ commit trên `phaser3-reviewer`, như R2.
 
@@ -54,6 +54,7 @@
 ## Group 4 — Nền giao diện, trang experiment, trang chủ `[agent: frontend]`
 
 15. `status-config.ts`: `ATTACK_SPEC_STATUS`, `MODEL_STATUS`, `TOOL_JOB_STATUS`, `EXPERIMENT_MODE` (`Record<Enum, …>`, test so với enum sinh từ contract).
+    Trình vẽ box (`components/case-viewer/`): ground truth nét đứt 8-4, nhãn × cho object bị mất, lớp "phát hiện sai mới" (`design.md` mục 3).
 16. `frontend/src/copy/glossary.ts`, component `Term` (tooltip dùng được bằng bàn phím); `frontend/src/copy/decisions.ts`.
 17. Trang experiment:
     - 5 tab; Chi phí và Tái lập chuyển vào Tổng quan; `?tab=` cũ chuyển hướng;
