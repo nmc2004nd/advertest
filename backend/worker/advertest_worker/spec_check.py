@@ -16,9 +16,10 @@ from __future__ import annotations
 
 import multiprocessing
 import tempfile
+from collections.abc import Callable
 from multiprocessing.connection import Connection
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from advertest_contracts.models import AttackSpec, SpecCheckItem
 from attacks.selfcheck import DEFAULT_TIMEOUT_S, SelfcheckInputs, SelfcheckOutcome, run_selfcheck
@@ -103,11 +104,19 @@ def run_spec_check(
     *,
     timeout_s: float = DEFAULT_TIMEOUT_S,
     load_timeout_s: float = LOAD_TIMEOUT_S,
+    child: Callable[[str, float, Connection], None] = _child,
+    start_method: Literal["spawn", "fork"] = "spawn",
 ) -> SelfcheckOutcome:
-    ctx = multiprocessing.get_context("spawn")
+    """`child`, `start_method`: test thay thân tiến trình con (với `fork`, vì pytest chạy
+    `--import-mode=importlib` nên tiến trình `spawn` không import được hàm trong file test)."""
+    ctx = (
+        multiprocessing.get_context("fork")
+        if start_method == "fork"
+        else multiprocessing.get_context("spawn")
+    )
     receiver, sender = ctx.Pipe(duplex=False)
     process = ctx.Process(
-        target=_child, args=(spec.model_dump_json(), timeout_s, sender), name="spec-check"
+        target=child, args=(spec.model_dump_json(), timeout_s, sender), name="spec-check"
     )
     process.start()
     sender.close()
