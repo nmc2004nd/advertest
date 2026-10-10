@@ -4,6 +4,8 @@
   `--once`: xử lý tối đa một experiment rồi thoát.
 - `advertest-worker calibrate --experiment <id>`: đo lại cost profile cho mọi attack của một
   experiment đang `running` thuộc target, gửi lên API (không lease, không chạy run).
+- `advertest-worker --tools [--once]` (Phase R2): process riêng chỉ lease job công cụ
+  (`spec_check`, `model_check`, `quick_try`), lặp `ToolRunner.run_next`.
 
 Cấu hình qua biến môi trường (`config.py`).
 """
@@ -22,6 +24,7 @@ from advertest_worker.cache import JobCache
 from advertest_worker.client import WorkerClient
 from advertest_worker.config import WorkerSettings
 from advertest_worker.job import JobRunner
+from advertest_worker.tools import ToolRunner
 from ml_core.runner.env import default_device
 
 logger = logging.getLogger(__name__)
@@ -67,8 +70,59 @@ def serve(
             sleep(poll_interval_s)
 
 
+def serve_tools(
+    runner: ToolRunner,
+    *,
+    once: bool = False,
+    poll_interval_s: float,
+    sleep: Callable[[float], None] = time.sleep,
+) -> None:
+    """Vòng lặp của `--tools`: chạy job kế tiếp, chờ khi hết job. Lỗi chỉ được ghi log."""
+    while True:
+        try:
+            ran = runner.run_next()
+        except Exception:
+            logger.exception("Lỗi khi nhận hoặc chạy job công cụ")
+            ran = False  # chờ trước khi thử lại
+        if once:
+            return
+        if not ran:
+            sleep(poll_interval_s)
+
+
 def _logging() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+
+
+@app.callback(invoke_without_command=True)
+def main(
+    ctx: typer.Context,
+    tools: Annotated[
+        bool, typer.Option("--tools", help="Chỉ nhận job công cụ (kiểm tra spec, model, thử nhanh)")
+    ] = False,
+    once: Annotated[
+        bool, typer.Option("--once", help="Với --tools: xử lý tối đa một job rồi thoát")
+    ] = False,
+) -> None:
+    """Worker của AdverTest."""
+    if ctx.invoked_subcommand is not None:
+        if tools or once:
+            raise typer.BadParameter(
+                "--tools và --once (của --tools) đặt trước, không kèm lệnh con"
+            )
+        return
+    if not tools:
+        typer.echo(ctx.get_help())
+        raise typer.Exit(0)
+    _logging()
+    settings = WorkerSettings.from_env()
+    runner = ToolRunner(
+        WorkerClient.connect(settings.api_url, settings.token),
+        JobCache(settings.cache_dir),
+        settings.device or default_device(),
+        heartbeat_interval_s=settings.heartbeat_interval_s,
+    )
+    serve_tools(runner, once=once, poll_interval_s=settings.poll_interval_s)
 
 
 @app.command()
