@@ -22,6 +22,7 @@ from advertest_contracts.models import (
     ComputeTargetPublic,
     DatasetSummary,
     DatasetVersionSummary,
+    ModelCheckResult,
     ModelSummary,
     ProtocolSummary,
     SliceSummary,
@@ -45,6 +46,8 @@ def _model_summary(version: m.ModelVersion, model: m.Model) -> ModelSummary:
         input_size=version.input_size,
         supports_gradients=version.supports_gradients,
         created_at=version.created_at,
+        status=version.status,
+        check=ModelCheckResult.model_validate(version.check) if version.check else None,
     )
 
 

@@ -20,6 +20,7 @@ from advertest_contracts.enums import (
     ErrorCode,
     ExperimentStatus,
     LimitKind,
+    ModelStatus,
     ProtocolStatus,
     RunMode,
     RunStatus,
@@ -186,6 +187,9 @@ def check(
     model = session.get(m.ModelVersion, body.model_version_id)
     if model is None:
         error("model_version_id", "Không có model này")
+    elif model.status != ModelStatus.READY:
+        # Phase R2: model đăng ký qua web chỉ dùng được sau khi job model_check pass.
+        error("model_version_id", f"Model chưa sẵn sàng ({model.status})")
     slice_row = session.get(m.Slice, body.slice_id)
     if slice_row is None:
         error("slice_id", "Không có slice này")

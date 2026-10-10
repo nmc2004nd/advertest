@@ -106,6 +106,7 @@ from backend.app.admin import users as admin_users
 from backend.app.api.deps import (
     ArtifactReader,
     SessionFactory,
+    Storage,
     get_artifact_reader,
     get_clock,
     get_sessionmaker,
@@ -139,12 +140,14 @@ from backend.app.services import (
     experiment_config,
     experiment_views,
     experiments,
+    model_uploads,
 )
 from backend.app.services.clock import Clock
 from ml_core.store import KeyNotFoundError
 
 Sessions = Annotated[SessionFactory, Depends(get_sessionmaker)]
 Now = Annotated[Clock, Depends(get_clock)]
+Stores = Annotated[Storage, Depends(get_storage)]
 
 AUTH_FAILURE_STATUS = {
     ErrorCode.INVALID_CREDENTIALS: status.HTTP_401_UNAUTHORIZED,
@@ -1143,9 +1146,9 @@ def reject_attack_spec(
 
 
 @router.post("/models/uploads", tags=["models"], responses=R2_RESPONSES, **guard(P.MODEL_MANAGE))
-def create_model_upload(body: ModelUploadCreate) -> ModelUpload:
+def create_model_upload(body: ModelUploadCreate, stores: Stores, clock: Now) -> ModelUpload:
     """Presigned PUT cho `.onnx` hoặc `.safetensors` tối đa 500 MB."""
-    not_implemented()
+    return model_uploads.create_upload(body, stores.presigner, clock())
 
 
 @router.post(
@@ -1155,10 +1158,15 @@ def create_model_upload(body: ModelUploadCreate) -> ModelUpload:
     responses=R2_RESPONSES,
     **guard(P.MODEL_MANAGE),
 )
-def register_model(body: ModelRegister) -> ModelSummary:
+def register_model(
+    body: ModelRegister, user: CurrentUser, factory: Sessions, stores: Stores, clock: Now
+) -> ModelSummary:
     """Model version `checking` (409 khi trùng sha256; 422 khi nội dung không phải safetensors
     hoặc onnx); xếp job model_check."""
-    not_implemented()
+    with transaction(factory) as session:
+        return model_uploads.register(
+            session, actor=_actor(session, user), body=body, buckets=stores.buckets, now=clock()
+        )
 
 
 QUICK_TRY_RESPONSES: dict[int | str, dict[str, Any]] = R2_RESPONSES | {

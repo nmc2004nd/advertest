@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from advertest_contracts.enums import ToolJobKind
 from advertest_contracts.models import (
+    ModelCheckReport,
     SpecCheckReport,
     ToolJobBundle,
     ToolJobResult,
@@ -23,13 +24,15 @@ from advertest_contracts.models import (
 from backend.app import storage
 from backend.app.db import models as m
 from backend.app.presign import Presigner
-from backend.app.services import attack_catalog, tool_jobs
+from backend.app.services import attack_catalog, model_uploads, tool_jobs
 from backend.app.services.errors import Invalid
 
 
 def _on_error(session: Session, job: m.ToolJob, error: str, now: datetime) -> None:
     if job.kind == ToolJobKind.SPEC_CHECK:
         attack_catalog.check_error(session, job, error, now)
+    elif job.kind == ToolJobKind.MODEL_CHECK:
+        model_uploads.check_error(session, job, error, now)
 
 
 def _on_lost(session: Session, job: m.ToolJob, now: datetime) -> None:
@@ -59,6 +62,8 @@ def bundle(
     payload: ToolPayload
     if job.kind == ToolJobKind.SPEC_CHECK:
         payload = attack_catalog.check_payload(session, job)
+    elif job.kind == ToolJobKind.MODEL_CHECK:
+        payload = model_uploads.check_payload(session, job, presigner, now)
     else:
         raise Invalid(f"Loại job {job.kind} chưa hỗ trợ")
     return ToolJobBundle(
@@ -87,5 +92,7 @@ def submit(
         raise Invalid(f"report.kind = {report.kind} khác loại job {job.kind}")
     if isinstance(report, SpecCheckReport):
         attack_catalog.apply_check(session, job, report.result)
+    elif isinstance(report, ModelCheckReport):
+        model_uploads.apply_check(session, job, report.result, buckets)
     tool_jobs.finish(job, now, result=report.model_dump(mode="json"))
     session.flush()
