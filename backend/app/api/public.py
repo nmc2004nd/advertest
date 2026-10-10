@@ -132,6 +132,7 @@ from backend.app.reports import service as report_service
 from backend.app.reviews import service as review_service
 from backend.app.services import (
     artifacts,
+    attack_catalog,
     catalog,
     drafts,
     estimate,
@@ -1050,7 +1051,7 @@ def draft_protocol(key: str, factory: Sessions) -> ProtocolCreate:
 @router.get("/attack-adapters", tags=["admin-attacks"], **guard(P.ATTACK_CATALOG_MANAGE))
 def list_attack_adapters() -> list[AttackAdapterInfo]:
     """Adapter có trong registry của worker."""
-    not_implemented()
+    return attack_catalog.adapters()
 
 
 @router.post(
@@ -1060,10 +1061,13 @@ def list_attack_adapters() -> list[AttackAdapterInfo]:
     responses=R2_RESPONSES,
     **guard(P.ATTACK_CATALOG_MANAGE),
 )
-def create_attack_spec(body: AttackSpecCreate) -> AttackSpecAdminView:
+def create_attack_spec(
+    body: AttackSpecCreate, user: CurrentUser, factory: Sessions, clock: Now
+) -> AttackSpecAdminView:
     """Spec mới (`draft` rồi `checking`); 422 khi adapter lạ, `fixed_params` sai hoặc version nhảy
     cóc; 409 khi trùng `spec_sha256`."""
-    not_implemented()
+    with transaction(factory) as session:
+        return attack_catalog.create(session, actor=_actor(session, user), body=body, now=clock())
 
 
 @router.post(
@@ -1072,9 +1076,14 @@ def create_attack_spec(body: AttackSpecCreate) -> AttackSpecAdminView:
     responses=R2_RESPONSES,
     **guard(P.ATTACK_CATALOG_MANAGE),
 )
-def recheck_attack_spec(spec_id: UUID) -> AttackSpecAdminView:
+def recheck_attack_spec(
+    spec_id: UUID, user: CurrentUser, factory: Sessions, clock: Now
+) -> AttackSpecAdminView:
     """Chạy lại tự kiểm tra từ `check_failed` (409 với trạng thái khác)."""
-    not_implemented()
+    with transaction(factory) as session:
+        return attack_catalog.recheck(
+            session, actor=_actor(session, user), spec_id=spec_id, now=clock()
+        )
 
 
 @router.patch(
@@ -1083,15 +1092,21 @@ def recheck_attack_spec(spec_id: UUID) -> AttackSpecAdminView:
     responses=R2_RESPONSES,
     **guard(P.ATTACK_CATALOG_MANAGE),
 )
-def update_attack_spec_metadata(spec_id: UUID, body: AttackSpecMetadata) -> AttackSpecAdminView:
+def update_attack_spec_metadata(
+    spec_id: UUID, body: AttackSpecMetadata, user: CurrentUser, factory: Sessions
+) -> AttackSpecAdminView:
     """Sửa metadata, không đổi `spec_sha256` hay version; ghi audit log."""
-    not_implemented()
+    with transaction(factory) as session:
+        return attack_catalog.update_metadata(
+            session, actor=_actor(session, user), spec_id=spec_id, metadata=body
+        )
 
 
 @router.get("/attack-specs/pending", tags=["attack-specs"], **guard(P.ATTACK_CATALOG_APPROVE))
-def list_pending_attack_specs() -> list[AttackSpecAdminView]:
+def list_pending_attack_specs(factory: Sessions) -> list[AttackSpecAdminView]:
     """Spec `pending_approval` chờ reviewer duyệt."""
-    not_implemented()
+    with transaction(factory) as session:
+        return attack_catalog.list_pending(session)
 
 
 @router.post(
@@ -1100,10 +1115,15 @@ def list_pending_attack_specs() -> list[AttackSpecAdminView]:
     responses=R2_RESPONSES,
     **guard(P.ATTACK_CATALOG_APPROVE),
 )
-def approve_attack_spec(spec_id: UUID) -> AttackSpecAdminView:
+def approve_attack_spec(
+    spec_id: UUID, user: CurrentUser, factory: Sessions, clock: Now
+) -> AttackSpecAdminView:
     """`pending_approval` → `active`; version cũ cùng name chuyển `retired`; người duyệt khác
     người tạo (403)."""
-    not_implemented()
+    with transaction(factory) as session:
+        return attack_catalog.approve(
+            session, actor=_actor(session, user), spec_id=spec_id, now=clock()
+        )
 
 
 @router.post(
@@ -1112,9 +1132,14 @@ def approve_attack_spec(spec_id: UUID) -> AttackSpecAdminView:
     responses=R2_RESPONSES,
     **guard(P.ATTACK_CATALOG_APPROVE),
 )
-def reject_attack_spec(spec_id: UUID, body: AttackSpecReject) -> AttackSpecAdminView:
+def reject_attack_spec(
+    spec_id: UUID, body: AttackSpecReject, user: CurrentUser, factory: Sessions
+) -> AttackSpecAdminView:
     """`pending_approval` → `draft`."""
-    not_implemented()
+    with transaction(factory) as session:
+        return attack_catalog.reject(
+            session, actor=_actor(session, user), spec_id=spec_id, reason=body.reason
+        )
 
 
 @router.post("/models/uploads", tags=["models"], responses=R2_RESPONSES, **guard(P.MODEL_MANAGE))

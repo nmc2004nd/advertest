@@ -35,9 +35,8 @@ UNFINISHED = (ExperimentStatus.DRAFT, ExperimentStatus.QUEUED, ExperimentStatus.
 
 
 def _metadata(row: m.AttackSpecRow) -> AttackSpecMetadata | None:
-    """Metadata hiển thị của spec. Cột `attack_specs.metadata` có từ Group 4 (migration catalog);
-    trước đó mọi spec seed chưa có metadata (Chốt ở Group 0)."""
-    return None
+    """Metadata hiển thị của spec (cột `attack_specs.metadata`, Group 4); spec seed chưa có."""
+    return AttackSpecMetadata.model_validate(row.spec_metadata) if row.spec_metadata else None
 
 
 def _attack(row: m.AttackSpecRow) -> rules.InsightAttack:
