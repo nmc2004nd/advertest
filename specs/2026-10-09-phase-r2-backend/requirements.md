@@ -269,6 +269,33 @@ Quyết định sau review Group 4 (`.claude/handoff/phaser2-g4-review.md`, lư�
 - **Job mất lease lần 3 chỉ bị chốt `failed` khi có worker gọi lease**, như luật lease của experiment. Không có worker `--tools` nào thì spec, model hay lượt thử nhanh nằm ở `checking`/`running`, và người dùng bị 429 tới khi purge chạy (24 giờ).
 - **Thử nhanh từ chối mọi model `supports_gradients = false` gặp attack cần gradient** (422), không chỉ ONNX; ví dụ model torchvision có kiểm gradient fail.
 
+### Chốt ở Group 2 (2026-10-10)
+
+Quyết định ghi lại sau review cả phase (`.claude/handoff/phaser2-review.md`):
+- **Mục 5 `batch_invariant` của selfcheck.** Với attack dùng gradient (FGSM/PGD), mục 5 chỉ kiểm batch 1 hợp lệ (giá trị, pad, chuẩn nhiễu) và ghi độ lệch vào `details`, không so sai số 1e-6. Mọi builder khác so tuyệt đối. Thay cho câu "sai số 1e-6 với attack ART" ở Behaviour "Tự kiểm tra spec". Docstring `_spec` trong `test_selfcheck.py` cần sửa theo.
+- **Schema `art.evasion`:** `norm` ∈ {`"inf"`, `2`}, cùng `max_iter`, `eps_step_ratio`, `num_random_init`. Cả 4 builder dùng `additionalProperties: false`. Bộ kiểm JSON Schema tự viết (`jsonschema` không có trong tech-stack). Builder thiếu `kind` hoặc `params_schema` không được liệt kê.
+- **Giới hạn 120 s của selfcheck là hợp tác**, chỉ kiểm giữa các bước; cắt cứng thuộc về worker (xem Chốt ở Group 5). CLI selfcheck chỉ import `ml_core` trong `main`.
+- **`validate` không kiểm `art_class`** thuộc lớp ART được hỗ trợ: tạo spec vẫn 201, lỗi lộ ra ở mục 1 của selfcheck và spec chuyển `check_failed`. Để R3 hoặc backlog.
+
+### Chốt ở Group 3 (2026-10-10)
+
+- **Kiểm gradient torchvision không đạt** thì model vẫn `ready`, với `supports_gradients = false`.
+- **Torchvision resize** đặt min = max = 640.
+- **Layout ONNX** nhận tự động theo tên và shape đầu ra; đầu ra `boxes/scores/labels` coi là đã qua NMS.
+- **Chữ ký `check_model`:** `check_model(card, weights_path, *, worker_target_id, device="cpu", params=DEFAULT_INFERENCE_PARAMS, images=None) -> ModelCheckResult`. Lỗi của model trả trong kết quả, không ném ra; `images` mặc định là ảnh fixture KITTI.
+- **`TorchvisionDetector` bỏ box suy biến** khi tính loss.
+
+### Chốt ở Group 5 (2026-10-10)
+
+Quyết định sau review cả phase (`.claude/handoff/phaser2-review.md`); người dùng chốt 2026-10-10:
+- **`worker_target_id` do API ghi** theo target đã lease (`job.leased_by`); worker gửi UUID 0.
+- **Nhãn của thử nhanh.** Không có ground truth, nên prediction sạch có score ≥ `operating_conf` được dùng làm nhãn; bảng object cũng chỉ xét detection ≥ `operating_conf`.
+- **Giới hạn làm mờ của thử nhanh (chấp nhận).** Vùng làm mờ `rule_v1` chỉ lấy từ detection có score ≥ `operating_conf`. Người hay xe mà model bỏ sót ở cả ảnh sạch lẫn ảnh tấn công sẽ không bị làm mờ trong ảnh phục vụ qua URL (nguyên tắc 9). R3 cân nhắc làm mờ rộng hơn.
+- **Card của worker công cụ** đặt `supports_gradients = framework != onnx`.
+- **Cắt cứng `spec_check`.** Spec chạy trong tiến trình con. Thời gian nạp tối đa 300 s, không tính vào 120 s; nạp lỗi là lỗi hạ tầng. Quá 120 + 15 s thì giết tiến trình, kết quả có `items` rỗng kèm `error`. Tiến trình con chết sau khi báo `ready` (OOM, segfault) tính là spec `check_failed`, không phải lỗi hạ tầng.
+- **Worker `--tools` chưa có trong Docker.** `docker/compose.yaml` chưa có service `advertest-worker --tools`, và image worker không chứa `tests/fixtures` mà `spec_check` cần. Demo R2 chạy worker `--tools` ngoài Docker; service và fixture trong image để R3.
+- **Backlog R3:** gộp phần dựng fixture của `backend/worker/advertest_worker/spec_check.py` với `attacks/selfcheck.py` qua một hàm công khai (`fixture_inputs(with_estimator=)`), để CLI selfcheck và worker kiểm trên cùng đầu vào.
+
 ### DB (migration `0011` của Group 1 và `0012` của Group 4)
 
 - `attack_specs`: thêm `status`, `metadata` (JSONB), `created_by`, `approved_by`, `approved_at`, `check` (JSONB). Spec trong seed được backfill `status = active` (hoặc `retired` nếu `is_active = false`), rồi bỏ cột `is_active`.
@@ -413,5 +440,5 @@ Kiểm tra chạy trên CPU với torch 1 luồng, có giới hạn thời gian 
 
 ## Open Questions
 
-- [ ] (Từ R1) Số luồng torch và loại lõi CPU (P/E) ảnh hưởng tới failure case của PGD nhưng không có trong fingerprint hay `Environment`. Các phương án: ghi số luồng vào `Environment` (đổi contract), để runner tự ghim, hoặc chấp nhận như hiện tại. Cần quyết trước khi chạy experiment chính thức trên nhiều máy.
+- [x] (Từ R1) Số luồng torch và loại lõi CPU (P/E) ảnh hưởng tới failure case của PGD nhưng không có trong fingerprint hay `Environment`. Các phương án: ghi số luồng vào `Environment` (đổi contract), để runner tự ghim, hoặc chấp nhận như hiện tại. Cần quyết trước khi chạy experiment chính thức trên nhiều máy. → Chuyển sang backlog trong `roadmap.md` (người dùng chốt 2026-10-10).
 - [ ] Layout đầu ra ONNX: hai layout ở trên có đủ cho model người dùng dự kiến đăng ký không?

@@ -33,7 +33,7 @@
 | 8 ✅ | Protocol, review, report | backend, frontend | 5 | 7 |
 | 11a | Landing page | frontend-landing | 8 | R1 |
 | R1 | Refactor lớp chạy giữ hành vi (runner, attack registry, model adapter) | ml-core, attack, worker | 8 | — |
-| R2 | Backend: insight, template, Khám phá/Chính thức, attack và model qua cấu hình, thử nhanh (gộp R4a, R2, backend R3 cũ) | backend, worker, attack, ml-core | R1 | — |
+| R2 ✅ | Backend: insight, template, Khám phá/Chính thức, attack và model qua cấu hình, thử nhanh (gộp R4a, R2, backend R3 cũ) | backend, worker, attack, ml-core | R1 | — |
 | R3 | UX ứng dụng: sửa và bổ sung giao diện (gộp R4b, 11b, giao diện R3 cũ) | frontend | R2, 11a | — |
 | 10 | Dataset riêng (giao diện map class theo UX mới của R3) | ml-core, frontend | R1 | — |
 | 9 | Máy thuê và ngân sách | backend | 3, 5 | — |
@@ -218,20 +218,20 @@ Phân bổ thời gian dự kiến cho 4 tuần: tuần 1 gồm phase 0–2, tu�
 **Mục tiêu:** có đủ dữ liệu và API cho trang kết quả mở đầu bằng kết luận, cho template và luồng Khám phá/Chính thức, cho attack/model đăng ký qua cấu hình và cho thử nhanh.
 
 Insight và luồng (từ R4a):
-- [ ] View insight: điểm yếu chính (attack, level, class, mức sụt), ma trận độ bền attack × khoảng cường độ, câu kết luận sinh có quy tắc từ dữ liệu.
-- [ ] Template protocol (Kiểm tra nhanh, Tiêu chuẩn camera trước, Thời tiết, Đầy đủ) và preset experiment (Nhanh, Tiêu chuẩn, Chuyên sâu); gợi ý tiêu chí tự động.
-- [ ] Khám phá = protocol `dev-open`, trường `mode` trong view; "Nâng lên chính thức" tạo experiment mới theo protocol (nguyên tắc 11 của `mission.md`).
+- [x] View insight: điểm yếu chính (attack, level, class, mức sụt), ma trận độ bền attack × khoảng cường độ, câu kết luận sinh có quy tắc từ dữ liệu.
+- [x] Template protocol (Kiểm tra nhanh, Tiêu chuẩn camera trước, Thời tiết, Đầy đủ) và preset experiment (Nhanh, Tiêu chuẩn, Chuyên sâu); gợi ý tiêu chí tự động.
+- [x] Khám phá = protocol `dev-open`, trường `mode` trong view; "Nâng lên chính thức" tạo experiment mới theo protocol (nguyên tắc 11 của `mission.md`).
 
 Mở rộng attack và model qua cấu hình (từ R2):
-- [ ] Attack spec trỏ tới adapter tổng quát (`adapter`; tham số adapter nằm ở `fixed_params`); metadata hiển thị ngoài hash.
-- [ ] Catalog trong DB; vòng đời spec: admin tạo → tự kiểm tra trên fixture → reviewer duyệt kích hoạt; spec bất biến, sửa là tạo version mới.
-- [ ] Tự kiểm tra spec: chạy được, ảnh trong [0, 1], vùng pad không đổi, level "không biến đổi" cho ảnh y hệt, không phụ thuộc batch size, chuẩn nhiễu đúng khai báo.
-- [ ] Adapter model `torchvision_detection` và `onnx` (chỉ inference); đăng ký model qua API chỉ nhận ONNX hoặc safetensors (nguyên tắc 10 của `mission.md`).
-- [ ] Worker: lỗi `ModelProvider.get` khi kiểm gradient chỉ làm run `failed`, không dừng experiment (tồn đọng R1 Group 5); xét giới hạn cache `ModelProvider`.
+- [x] Attack spec trỏ tới adapter tổng quát (`adapter`; tham số adapter nằm ở `fixed_params`); metadata hiển thị ngoài hash.
+- [x] Catalog trong DB; vòng đời spec: admin tạo → tự kiểm tra trên fixture → reviewer duyệt kích hoạt; spec bất biến, sửa là tạo version mới.
+- [x] Tự kiểm tra spec: chạy được, ảnh trong [0, 1], vùng pad không đổi, level "không biến đổi" cho ảnh y hệt, không phụ thuộc batch size, chuẩn nhiễu đúng khai báo.
+- [x] Adapter model `torchvision_detection` và `onnx` (chỉ inference); đăng ký model qua API chỉ nhận ONNX hoặc safetensors (nguyên tắc 10 của `mission.md`).
+- [x] Worker: lỗi `ModelProvider.get` khi kiểm gradient chỉ làm run `failed`, không dừng experiment (tồn đọng R1 Group 5); xét giới hạn cache `ModelProvider`.
 
 Thử nhanh (backend/worker của R3 cũ):
-- [ ] API nhận model, một ảnh, attack; tính sẵn mọi level một lần; trả ảnh sạch, ảnh bị tấn công, box và bảng theo object cho từng level.
-- [ ] Không tạo experiment, không vào report, response luôn mang nhãn "không phải kết quả kiểm thử"; ảnh upload giữ 24 giờ và vẫn làm mờ.
+- [x] API nhận model, một ảnh, attack; tính sẵn mọi level một lần; trả ảnh sạch, ảnh bị tấn công, box và bảng theo object cho từng level.
+- [x] Không tạo experiment, không vào report, response luôn mang nhãn "không phải kết quả kiểm thử"; ảnh upload giữ 24 giờ và vẫn làm mờ.
 
 **Demo (qua API/CLI):** experiment fixture có danh sách điểm yếu và ma trận; nâng một experiment Khám phá thành experiment Chính thức mới; admin tạo một biến thể corruption, reviewer duyệt, biến thể có trong catalog; đăng ký một model ONNX và chạy corruption trên nó; gọi thử nhanh một ảnh nhận đủ mọi level trong vài giây.
 
@@ -249,6 +249,10 @@ Thử nhanh (backend/worker của R3 cũ):
 - [ ] Admin: tạo attack spec, xem kết quả tự kiểm tra; reviewer duyệt kích hoạt; đăng ký model ONNX/safetensors.
 - [ ] Thử nhanh: chọn model, ảnh, attack; ảnh sạch và ảnh bị tấn công cạnh nhau kèm box và bảng theo object; thanh trượt level; nhãn "không phải kết quả kiểm thử".
 - [ ] Các mục của Phase 11b.
+- [ ] (Từ R2, agent backend) Service `advertest-worker --tools` trong `docker/compose.yaml`; image worker chứa fixture mà `spec_check` cần. Thiếu mục này thì luồng admin tạo spec → kiểm tra → duyệt không chạy được trong Docker.
+- [ ] (Từ R2) Thử nhanh chỉ làm mờ quanh detection có score ≥ `operating_conf`; cân nhắc làm mờ rộng hơn trước khi đưa ảnh lên giao diện (nguyên tắc 9).
+- [ ] (Từ R2, agent attack + worker) Gộp phần dựng fixture: `attacks/selfcheck.py` đưa ra `fixture_inputs(with_estimator=)` công khai và `spec_check.py` gọi lại hàm này.
+- [ ] (Từ R2) Màn hình đăng ký model ONNX nêu rõ hai layout đầu ra được hỗ trợ (`yolo`, `boxes/scores/labels` đã NMS); ghi nhận model nào không vừa (Open Question R2).
 
 **Demo:** người mới tạo experiment Khám phá trong 3 bước và đọc được điểm yếu chính mà không cần giải thích; kéo thanh trượt level trong thử nhanh và thấy object biến mất.
 
@@ -343,3 +347,9 @@ Cắt theo thứ tự sau:
 - Tự bật/tắt máy thuê qua API nhà cung cấp.
 - PWA và push notification.
 - Adversarial training và các biện pháp phòng thủ.
+- (Từ R1/R2) Số luồng torch và loại lõi CPU ảnh hưởng tới failure case của PGD nhưng không có trong fingerprint hay `Environment`. Cần quyết trước khi chạy experiment chính thức trên nhiều máy (Phase 9).
+- (Từ R2) `PerturbationRegistry.validate` kiểm `art_class` thuộc lớp ART được hỗ trợ (hiện chỉ lộ ra ở selfcheck).
+- (Từ R2) `check_model` mở ONNX từ bytes như `ModelProvider`, để không lệch nhau với model dùng external data.
+- (Từ R2) `POST /models` stream file thay vì đọc cả file (≤ 500 MB) vào RAM.
+- (Từ R2) Thay các `assert` còn lại trong code production (`backend/app/reviews/*`, `insight/service.py`, `tool_dispatch.py:91`) bằng kiểm tra tường minh.
+- (Từ R2) Dọn object MinIO mồ côi của thử nhanh và upload model.
