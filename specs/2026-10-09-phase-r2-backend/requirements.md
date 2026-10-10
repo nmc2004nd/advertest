@@ -253,11 +253,27 @@ Quyết định sau review Group 1 (`.claude/handoff/phaser2-g1-review.md`):
 - **`level_label`** luôn `null` cho tới Group 4 (cột `attack_specs.metadata`). Group 4 nối nhãn vào insight; validation Group 4 kiểm nhãn trong insight.
 - **Migration tách đôi.** `0011` (Group 1) chỉ thêm `experiments.promoted_from`; phần DB còn lại của R2 ở `0012` (Group 4).
 
+### Chốt ở Group 4 (2026-10-10)
+
+Quyết định sau review Group 4 (`.claude/handoff/phaser2-g4-review.md`, lượt 1 và 2):
+- **Cột thêm ngoài mục DB.** `quick_tries` thêm `model_version_id`, `attack_spec_id`, `preset`, `created_at`. `tool_jobs` thêm `attempts`, `leased_by`, `error`, `finished_at`. ORM giữ `is_active` dạng hybrid, suy ra từ `status`.
+- **`architecture` của model web** nằm trong payload job `model_check` rồi ghi vào `card.json` khi check pass. Không thêm cột.
+- **Status mặc định** cho bản ghi chèn qua seed hoặc CLI: spec `active`, model `ready`.
+- **Dọn thử nhanh** là vòng lặp nền 10 phút trong lifespan của API (chỉ khi có `MINIO_ENDPOINT`), kèm lệnh `advertest-admin purge-quick-tries`.
+- **Thiếu cấu hình MinIO.** Mọi endpoint dùng storage, kể cả endpoint worker, trả 500 `internal_error`; chi tiết chỉ ghi log. Kiểm quyền chạy trước nên 401/403 không đổi. Lỗi 500 này trả trước lỗi 422 của body, vì FastAPI giải dependency trước khi kiểm body; chỉ xảy ra khi máy chủ cấu hình sai.
+- **Job công cụ lease toàn cục**, chỉ target `local` nhận; target khác (máy thuê) nhận 204.
+- **Spec bị reject về `draft` là ngõ cụt.** Không chạy lại kiểm tra được (`recheck` chỉ nhận `check_failed`), gửi lại cùng nội dung trả 409 vì trùng sha, và version đó vẫn bị chiếm. Muốn tiếp thì tạo version kế tiếp.
+- **Model `check_failed` không kiểm lại được** trong R2: không có endpoint recheck, upload lại cùng file trả 409 vì trùng sha. Recheck model để R3 hoặc sau. Người dùng chốt 2026-10-10.
+- **`card.json.lib_versions` lấy theo môi trường của API**, không theo worker đã kiểm model. Hiện khớp vì dùng chung image; sẽ lệch khi tách image hoặc dùng máy thuê (nguyên tắc tái lập). Người dùng chốt 2026-10-10.
+- **Rủi ro object mồ côi trong MinIO** (chấp nhận, dọn ở G5 hoặc R3): ảnh gốc chưa làm mờ được `put` trước khi commit, nên transaction lỗi sau đó để lại ảnh không có dòng `quick_tries`; presigned PUT sống 15 phút nên worker vẫn PUT được ảnh kết quả (đã làm mờ) sau khi purge xóa prefix. Cách dọn: lọc theo tuổi các object `quick-tries/` không có dòng tương ứng. Người dùng chốt 2026-10-10.
+- **Job mất lease lần 3 chỉ bị chốt `failed` khi có worker gọi lease**, như luật lease của experiment. Không có worker `--tools` nào thì spec, model hay lượt thử nhanh nằm ở `checking`/`running`, và người dùng bị 429 tới khi purge chạy (24 giờ).
+- **Thử nhanh từ chối mọi model `supports_gradients = false` gặp attack cần gradient** (422), không chỉ ONNX; ví dụ model torchvision có kiểm gradient fail.
+
 ### DB (migration `0011` của Group 1 và `0012` của Group 4)
 
 - `attack_specs`: thêm `status`, `metadata` (JSONB), `created_by`, `approved_by`, `approved_at`, `check` (JSONB). Spec trong seed được backfill `status = active` (hoặc `retired` nếu `is_active = false`), rồi bỏ cột `is_active`.
 - `model_versions`: thêm `status` (backfill `ready`) và `check` (JSONB).
-- Bảng mới: `tool_jobs` (kind, payload, status, lease, result, created_by, created_at) và `quick_tries` (id, owner, tool_job_id, input_uri, expires_at, deleted_at).
+- Bảng mới: `tool_jobs` (kind, payload, status, lease, result, created_by, created_at) và `quick_tries` (id, owner, tool_job_id, input_uri, expires_at, deleted_at). Cột thêm: xem Chốt ở Group 4.
 - `experiments`: thêm `promoted_from` (migration `0011`, Group 1). Các thay đổi khác trong mục này ở migration `0012` (Group 4).
 - Migration tự `GRANT` quyền cho `advertest_app` trên bảng mới.
 
@@ -356,7 +372,7 @@ Kiểm tra chạy trên CPU với torch 1 luồng, có giới hạn thời gian 
 
 - `POST /quick-tries` (`quick_try.use`):
   - Nhận ảnh JPEG/PNG tối đa 10 MB, cạnh dài tối đa 4096 px; model `ready` và spec `active`.
-  - Spec cần train (patch) hoặc model ONNX gặp attack cần gradient trả 422.
+  - Spec cần train (patch) hoặc model không có gradient (ONNX, hoặc `supports_gradients = false`) gặp attack cần gradient trả 422.
   - Mỗi người tối đa 1 lượt `queued`/`running` (429 nếu vượt).
 - Level lấy theo preset (mặc định `standard`). Worker tính mọi level trong một job, rồi lưu ảnh đã làm mờ mặt và biển số (pipeline Phase 6) cùng bảng object.
 - Bảng object ghép theo IoU ≥ 0.5 cùng class:
