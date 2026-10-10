@@ -202,12 +202,16 @@ def check_payload(session: Session, job: m.ToolJob) -> SpecCheckPayload:
 
 
 def apply_check(session: Session, job: m.ToolJob, result: SpecCheckResult) -> None:
-    """Kết quả `spec_check`: pass → `pending_approval`, fail → `check_failed`."""
+    """Kết quả `spec_check`: pass → `pending_approval`, fail → `check_failed`.
+
+    `worker_target_id` lấy theo target đã lease job, không theo giá trị worker gửi (Group 5)."""
     row = _row(session, UUID(job.payload["spec_id"]))
     if result.spec_id != row.id:
         raise Invalid("result.spec_id khác spec của job")
     if row.status != AttackSpecStatus.CHECKING:
         raise Conflict(f"Spec đang ở trạng thái {row.status}, không chờ kết quả kiểm tra")
+    assert job.leased_by is not None  # job đang được lease (tool_jobs.leased)
+    result = result.model_copy(update={"worker_target_id": job.leased_by})
     row.check = result.model_dump(mode="json")
     row.status = (
         AttackSpecStatus.PENDING_APPROVAL if result.passed else AttackSpecStatus.CHECK_FAILED

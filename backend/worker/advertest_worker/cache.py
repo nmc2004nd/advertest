@@ -55,14 +55,16 @@ class JobCache:
             f.write(data)
         os.replace(tmp, cached_image_path(self.image_dir, sha256))
 
+    def ensure_weights(self, sha256: str, url: str) -> None:
+        """Tải weights vào `weights_key(sha256)` nếu chưa có (mọi định dạng dùng chung key này)."""
+        if not self.store.exists(weights_key(sha256)):
+            self.store.put(weights_key(sha256), self._download_checked(url, sha256, "Weights"))
+
     def prepare(self, bundle: WorkerJobBundle) -> ShaCacheLoader:
         """Tải những gì còn thiếu, trả loader đọc ảnh từ cache."""
         card = bundle.model_card
         sha = card.weights_sha256
-        if not self.store.exists(weights_key(sha)):
-            self.store.put(
-                weights_key(sha), self._download_checked(bundle.downloads.weights, sha, "Weights")
-            )
+        self.ensure_weights(sha, bundle.downloads.weights)
         self.store.put(card_key(sha), card.model_dump_json(indent=2).encode())
 
         dataset_sha = bundle.slice.dataset_version_sha256
