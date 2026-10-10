@@ -70,6 +70,7 @@ services:
     build:
       context: ..
       dockerfile: docker/api/Dockerfile
+      target: api
       args:
         TORCH: cpu
         GIT_COMMIT: ${GIT_COMMIT:-unknown}
@@ -154,6 +155,7 @@ services:
     build:
       context: ..
       dockerfile: docker/api/Dockerfile
+      target: worker
       args:
         TORCH: cpu
         GIT_COMMIT: ${GIT_COMMIT:-unknown}
@@ -176,6 +178,7 @@ services:
     build:
       context: ..
       dockerfile: docker/api/Dockerfile
+      target: worker
       args:
         TORCH: cuda
         GIT_COMMIT: ${GIT_COMMIT:-unknown}
@@ -194,8 +197,41 @@ services:
               capabilities: [gpu]
     restart: unless-stopped
 
+  # Phase R3: worker công cụ (kiểm tra attack spec, kiểm tra model, thử nhanh) chạy mặc định cùng
+  # `make up`, CPU. Cùng image với worker-cpu (fixture có sẵn trong image); token riêng
+  # WORKER_TOOLS_TOKEN của một compute target (in ra khi tạo target hoặc rotate-token). Token
+  # trống: in hướng dẫn rồi chờ, để `make up --wait` không fail ở lần chạy đầu.
+  worker-tools:
+    image: advertest-worker:cpu
+    build:
+      context: ..
+      dockerfile: docker/api/Dockerfile
+      target: worker
+      args:
+        TORCH: cpu
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+    entrypoint:
+      - sh
+      - -c
+      - |
+        if [ -z "$$WORKER_TOKEN" ]; then
+          echo "worker-tools: chưa đặt WORKER_TOOLS_TOKEN trong ENV_FILE; đặt token của compute target rồi chạy lại make up." >&2
+          exec sleep infinity
+        fi
+        exec advertest-worker --tools
+    network_mode: host
+    environment:
+      API_URL: http://127.0.0.1:${API_PORT:-8000}
+      WORKER_TOKEN: ${WORKER_TOOLS_TOKEN:-}
+      CACHE_DIR: /app/cache
+      DEVICE: cpu
+    volumes:
+      - worker_tools_cache:/app/cache
+    restart: unless-stopped
+
 volumes:
   worker_cache:
+  worker_tools_cache:
   pgdata:
   miniodata:
   frontend_node_modules:

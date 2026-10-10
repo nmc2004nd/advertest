@@ -10,3 +10,8 @@
 !docker/api/entrypoint.sh
 **/__pycache__
 **/tests/
+# Phase R3: fixture của worker công cụ (stage worker), đã kiểm sha256 lúc build.
+!tests/fixtures/checksums.json
+!tests/fixtures/yolov8n.pt
+!tests/fixtures/kitti/
+!docker/worker/check_fixtures.py

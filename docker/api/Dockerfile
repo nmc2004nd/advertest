@@ -1,7 +1,8 @@
 # Image dùng chung cho service api và worker (tech-stack.md mục 6). TORCH=cpu (api, CI, worker-cpu)
 # hoặc cuda (worker có GPU). Worker ghi đè entrypoint bằng `advertest-worker run`, cache ở /app/cache.
 # Build context là gốc repo: docker build -f docker/api/Dockerfile .
-FROM python:3.11-slim
+# Stage `worker` (Phase R3) thêm fixture cho worker công cụ; stage cuối `api` là mặc định.
+FROM python:3.11-slim AS base
 
 COPY --from=ghcr.io/astral-sh/uv:0.12.19 /uv /usr/local/bin/uv
 
@@ -46,5 +47,21 @@ USER advertest
 ARG GIT_COMMIT=unknown
 ENV GIT_COMMIT=$GIT_COMMIT
 
+
+# Worker (compose: target worker). `spec_check` và `model_check` cần 5 ảnh KITTI fixture, nhãn và
+# yolov8n.pt ở FIXTURES_DIR (/app/tests/fixtures); chép từ tests/fixtures (`make fixtures`) và kiểm
+# sha256 theo checksums.json: thiếu file hay lệch sha256 thì build fail.
+FROM base AS worker
+USER root
+COPY tests/fixtures/checksums.json tests/fixtures/yolov8n.pt /app/tests/fixtures/
+COPY tests/fixtures/kitti /app/tests/fixtures/kitti
+COPY docker/worker/check_fixtures.py /tmp/check_fixtures.py
+# Quyền của file trên máy build có thể là 600: chỉ đọc cho mọi user, không ghi được.
+RUN chmod -R a+rX,go-w /app/tests \
+    && python /tmp/check_fixtures.py /app/tests/fixtures \
+    && rm /tmp/check_fixtures.py
+USER advertest
+
+FROM base AS api
 EXPOSE 8000
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

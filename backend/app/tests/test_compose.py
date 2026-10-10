@@ -46,3 +46,21 @@ def test_minio_s3_port_bound_to_localhost_and_api_signs_for_it() -> None:
     assert all(p.startswith("127.0.0.1:") for s in services.values() for p in s.get("ports", []))
     assert "MINIO_PUBLIC_ENDPOINT" in services["api"]["environment"]
     assert "ports" not in services["postgres"]
+
+
+def test_tools_worker_runs_by_default_with_own_token() -> None:
+    """Phase R3: worker công cụ chạy cùng `make up` (không profile), image worker có fixture, token
+    riêng, không có thông tin đăng nhập Postgres hay MinIO."""
+    services = _services()
+    tools = services["worker-tools"]
+    assert "profiles" not in tools
+    assert tools["image"] == services["worker-cpu"]["image"]
+    assert tools["build"]["target"] == "worker"
+    env: dict[str, str] = tools["environment"]
+    assert env["WORKER_TOKEN"] == "${WORKER_TOOLS_TOKEN:-}"
+    for key, value in env.items():
+        assert not SECRET.search(key) and not SECRET.search(str(value)), key
+    assert "depends_on" not in tools and "ports" not in tools
+    assert "exec advertest-worker --tools" in tools["entrypoint"][-1]
+    assert all(services[name]["build"]["target"] == "worker" for name in WORKERS)
+    assert services["api"]["build"]["target"] == "api"
