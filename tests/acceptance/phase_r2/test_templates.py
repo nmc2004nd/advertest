@@ -23,6 +23,7 @@ from fastapi.testclient import TestClient
 
 from advertest_contracts.models import (
     STRICTNESS_MAX_DROP,
+    AttackSpecView,
     ExperimentClone,
     ExperimentPreset,
     ProtocolCreate,
@@ -258,7 +259,11 @@ def test_experiment_draft_whole_catalog_and_patch(api: Any, clients: dict[str, A
         "fgsm", "pgd_linf", "pgd_l2", "fog", "snow", "frost", "motion_blur", "contrast",
         "bbox_occlusion",
     )}  # fmt: skip
-    assert {a.attack_spec_id for a in clone.config.attacks} == set(names)
+    # DB dùng chung với test khác (có thể đã thêm spec active): so với catalog active lúc này.
+    active = [AttackSpecView.model_validate(s) for s in ok(engineer.get("/attack-specs")).json()]
+    expected = {s.id for s in active if not s.requires_training}
+    assert set(names) <= expected
+    assert {a.attack_spec_id for a in clone.config.attacks} == expected
 
     patch = spec_of("adv_patch")
     body = _draft_request(api, target, DEV_OPEN, "deep", attack_spec_ids=[str(patch.id)])

@@ -75,7 +75,7 @@ def _create(client: TestClient, body: dict[str, Any]) -> AttackSpecAdminView:
 def _admin_view(client: TestClient, spec_id: str) -> AttackSpecAdminView:
     cursor = None
     while True:
-        params = {"limit": 200, **({"cursor": cursor} if cursor else {})}
+        params = {"limit": 100, **({"cursor": cursor} if cursor else {})}
         page = client.get("/admin/attack-specs", params=params).json()
         for item in page["items"]:
             if item["id"] == spec_id:

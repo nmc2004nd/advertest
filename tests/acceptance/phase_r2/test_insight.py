@@ -7,6 +7,8 @@
 - Bảng đầu vào → `Conclusion.code` (`no_data`, `robust`, `weak`, `weak_class`); cùng đầu vào cho
   cùng `text` (hàm thuần `backend.app.insight.phrases.conclude`, Chốt ở Group 0).
 - `mode`: experiment gắn protocol `dev` là `exploration`, protocol khác là `official`; lọc `?mode=`.
+- (Group 4) Nhãn level khai trong metadata của spec hiện ở `level_label` của điểm yếu và trong câu
+  kết luận; level không khai nhãn thì `level_label = null`.
 
 Giá trị kỳ vọng của điểm yếu và ma trận được tính lại trong test từ metric của từng run (`GET
 /experiments/{id}/runs`) theo luật ở requirements.md Phase R2, Behaviour Insight.
@@ -33,7 +35,7 @@ from advertest_contracts.models import (
 )
 from backend.app.db import models as m
 
-from .conftest import P5, create_protocol, max_drop, ok, post, required_grid
+from .conftest import P5, create_protocol, csrf, max_drop, ok, post, required_grid, spec_of
 
 pytestmark = pytest.mark.db
 
@@ -387,3 +389,30 @@ def test_mode_follows_protocol_and_filter(api: Any, engineer: tuple[TestClient, 
         ids = {e["id"] for e in page.json()["items"]}
         assert expected in ids
         assert all(e["mode"] == mode for e in page.json()["items"])
+
+
+def test_level_label_from_metadata(api: Any, engineer: tuple[TestClient, Any]) -> None:
+    """Group 4 nối `attack_specs.metadata.level_labels` vào insight (Chốt ở Group 1)."""
+    client, target = engineer
+    _, _, admin = api.user("admin")
+    fgsm = spec_of("fgsm")
+    meta = {"display_name": "FGSM", "description": "Nhiễu đối kháng một bước.", "realism": "low",
+            "level_labels": {"2": "vừa phải"}}  # fmt: skip
+    patched = admin.patch(f"/admin/attack-specs/{fgsm.id}/metadata", json=meta, headers=csrf(admin))
+    assert patched.status_code == 200, patched.text
+
+    experiment_id = _create(api, client, target, {"fgsm": [1.0, 2.0, 4.0]})
+    api.work(target, experiment_id)
+    insight = _insight(client, experiment_id)
+    # FGSM gãy ở eps 2 (như test_weaknesses_and_matrix_follow_rules).
+    (first,) = insight.weaknesses
+    assert first.attack_name == "fgsm" and first.level == 2.0
+    assert first.level_label == "vừa phải"
+    assert "vừa phải" in insight.conclusion.text
+
+    # Level không khai nhãn → null; nhãn đọc từ metadata hiện tại của spec.
+    meta["level_labels"] = {"4": "mạnh"}
+    patched = admin.patch(f"/admin/attack-specs/{fgsm.id}/metadata", json=meta, headers=csrf(admin))
+    assert patched.status_code == 200, patched.text
+    (again,) = _insight(client, experiment_id).weaknesses
+    assert again.level == 2.0 and again.level_label is None

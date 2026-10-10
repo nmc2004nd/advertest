@@ -90,14 +90,14 @@ def _create_spec(admin: TestClient, name: str) -> str:
 
 
 def _spec_status(admin: TestClient, spec_id: str) -> AttackSpecAdminView:
-    page = admin.get("/admin/attack-specs", params={"limit": 200}).json()
+    page = admin.get("/admin/attack-specs", params={"limit": 100}).json()
     while True:
         for item in page["items"]:
             if item["id"] == spec_id:
                 return AttackSpecAdminView.model_validate(item)
         assert page["next_cursor"], spec_id
         page = admin.get(
-            "/admin/attack-specs", params={"limit": 200, "cursor": page["next_cursor"]}
+            "/admin/attack-specs", params={"limit": 100, "cursor": page["next_cursor"]}
         ).json()
 
 

@@ -112,7 +112,8 @@ def _complete(worker: ToolWorker, quick_try_id: str) -> dict[str, Any]:
     return result
 
 
-def test_quick_try_flow_and_expiry(api: Any, engineer: TestClient, tool_worker: ToolWorker) -> None:
+def test_quick_try_flow_and_expiry(api: Any, tool_worker: ToolWorker) -> None:
+    _, email, engineer = api.user("engineer")
     counts = {
         model: count_rows(api.engine, model) for model in (m.Experiment, m.Run, m.FailureCase)
     }
@@ -148,6 +149,9 @@ def test_quick_try_flow_and_expiry(api: Any, engineer: TestClient, tool_worker: 
     prefix = f"quick-tries/{view.id}/"
     assert _keys(api, prefix)
     api.clock.advance(24 * 3600 + 1)
+    # Phiên cũ cũng hết hạn sau 24 giờ đồng hồ giả: đăng nhập lại bằng client mới.
+    engineer = api.client()
+    api.login(engineer, email)
     assert error(engineer.get(f"/quick-tries/{view.id}"))[:2] == (410, "gone")
     now: datetime = api.clock()
     from backend.app.services.quick_tries import purge_expired  # Group 4
