@@ -84,5 +84,6 @@ test('admin thấy khối "tài khoản chờ duyệt" trên /home với đúng 
   await expect(page).toHaveURL(/\/home$/)
   const count = page.getByTestId('so-cho-duyet')
   await expect(count).toHaveText(expected >= 100 ? /^\d+\+?$/ : String(expected))
-  await expect(page.getByText('tài khoản chờ duyệt')).toBeVisible()
+  // Phân biệt hoa thường: danh sách việc cần làm (Phase R3) có link "Tài khoản chờ duyệt".
+  await expect(page.getByText('tài khoản chờ duyệt', { exact: true })).toBeVisible()
 })

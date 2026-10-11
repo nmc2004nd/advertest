@@ -14,7 +14,7 @@ import { expect, type Page, test } from '@playwright/test'
 
 import { expectNoHorizontalScroll } from '../phase_04/helpers'
 import { visibleButton } from '../phase_05/helpers'
-import { attackRow, setLevels, wizardToAttacks } from '../phase_r3/helpers'
+import { attackRow, SERVER_WAIT, setLevels, wizardToAttacks } from '../phase_r3/helpers'
 import {
   APPROVE,
   claimApi,
@@ -138,7 +138,9 @@ test('trọn luồng: protocol → experiment → gửi duyệt → review → c
   await page.getByRole('button', { name: 'Nhận review' }).click()
   await expect(page.getByRole('button', { name: 'Trả lại' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Chấp nhận' })).toBeDisabled()
-  await expect(page.getByTestId('ly-do-khoa')).toContainText('Mọi case bắt buộc đã có verdict')
+  await expect(page.getByTestId('ly-do-khoa')).toContainText('Mọi case bắt buộc đã có verdict', {
+    timeout: SERVER_WAIT,
+  })
   await expectNoHorizontalScroll(page)
   const caseLinks = page.locator(`a[href^="/reviews/${experimentId}/cases/"]`)
   const count = await caseLinks.count()
@@ -289,7 +291,9 @@ test('người có cả role engineer và reviewer không thấy experiment củ
   await expect(both.page.locator(`a[href="/reviews/${experimentId}"]`)).toHaveCount(0)
   await expectNoHorizontalScroll(both.page)
   await other.page.goto('/reviews?status=waiting')
-  await expect(other.page.locator(`a[href="/reviews/${experimentId}"]`).first()).toBeAttached()
+  await expect(other.page.locator(`a[href="/reviews/${experimentId}"]`).first()).toBeAttached({
+    timeout: SERVER_WAIT,
+  })
   // Vào thẳng trang review experiment của mình: không có nút nhận, có lời giải thích.
   await both.page.goto(`/reviews/${experimentId}`)
   await expect(both.page.getByRole('button', { name: 'Nhận review' })).toHaveCount(0)

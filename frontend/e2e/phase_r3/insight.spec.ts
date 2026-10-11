@@ -9,7 +9,7 @@ import { expect, test } from '@playwright/test'
 import { expectNoHorizontalScroll } from '../phase_04/helpers'
 import { cancelExperiment, visibleButton } from '../phase_05/helpers'
 import { createProtocolApi, userPage, waitStatus } from '../phase_08/helpers'
-import { chooseOption, experimentApi, getJson, WORKER_TIMEOUT } from './helpers'
+import { chooseOption, DEV_OPEN, experimentApi, getJson, WORKER_TIMEOUT } from './helpers'
 
 test.setTimeout(WORKER_TIMEOUT + 120_000)
 
@@ -51,7 +51,8 @@ test('tab Kết quả mở đầu bằng kết luận, điểm yếu và ma tr�
 
 test('chưa có kết quả: trạng thái trống, không có ma trận', async ({ browser }, info) => {
   const { page } = await userPage(browser, info, ['engineer'])
-  const id = await experimentApi(page, [2])
+  // Máy không có worker: experiment nằm chờ (trên local-dev, fgsm [2] trúng cache và xong ngay).
+  const id = await experimentApi(page, [2], DEV_OPEN, 'e2e-offline')
   await page.goto(`/experiments/${id}?tab=results`)
   await expect(page.getByTestId('empty-state')).toBeVisible()
   await expect(page.getByTestId('robustness-matrix')).toHaveCount(0)

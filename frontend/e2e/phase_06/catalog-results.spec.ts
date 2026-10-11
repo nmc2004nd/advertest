@@ -35,12 +35,13 @@ test('toàn catalog: xếp hạng, biểu đồ cột, trục chuẩn hóa, case
   const toggle = page.getByRole('switch', { name: /Trục hoành chuẩn hóa/ })
   await expect(toggle).not.toBeChecked()
   await toggle.check()
-  await expect(page.getByRole('columnheader', { name: '% dải' })).toHaveCount(
+  // `exact`: ma trận độ bền (Phase R3) có cột "0–25% dải"….
+  await expect(page.getByRole('columnheader', { name: '% dải', exact: true })).toHaveCount(
     REDUCED_CATALOG.length,
   )
   // Cột thứ hai của mỗi bảng số liệu là % dải.
   const percents = await page
-    .locator('table', { has: page.getByRole('columnheader', { name: '% dải' }) })
+    .locator('table', { has: page.getByRole('columnheader', { name: '% dải', exact: true }) })
     .locator('tbody tr td:nth-child(2)')
     .allInnerTexts()
   expect(percents.length).toBeGreaterThanOrEqual(2 * REDUCED_CATALOG.length)

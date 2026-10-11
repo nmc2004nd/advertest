@@ -10,9 +10,11 @@ import { expect, type Page, test } from '@playwright/test'
 import { expectNoHorizontalScroll } from '../phase_04/helpers'
 import { cancelExperiment, fixtureIds, visibleButton } from '../phase_05/helpers'
 import { createProtocolApi, userPage } from '../phase_08/helpers'
-import { chooseOption, DEV_OPEN, getJson, postJson } from './helpers'
+import { chooseOption, DEV_OPEN, getJson, postJson, SERVER_WAIT } from './helpers'
 
 const STEPS = ['Mục đích', 'Model và dữ liệu', 'Attack và xác nhận']
+
+test.setTimeout(120_000)
 
 type Attack = { attack_spec_id: string; grid: { levels: number[] } | null }
 type Detail = { id: string; protocol: { id: string }; config: { attacks: Attack[] } }
@@ -46,7 +48,7 @@ test('Khám phá trong 3 bước, bằng bản nháp của backend', async ({ br
   await stepTwo(page)
   await next(page)
 
-  await expect(page.getByTestId('attack-row').first()).toBeVisible()
+  await expect(page.getByTestId('attack-row').first()).toBeVisible({ timeout: SERVER_WAIT })
   const numbers = page.locator('input[type="number"]:visible')
   for (const input of await numbers.all()) {
     await expect(input.locator('xpath=ancestor::details')).toHaveCount(1)
@@ -95,7 +97,7 @@ test('Chính thức: attack và level bắt buộc bị khóa', async ({ browser
   await next(page)
 
   const fgsm = page.locator('[data-testid="attack-row"][data-attack="fgsm"]')
-  await expect(fgsm).toBeVisible()
+  await expect(fgsm).toBeVisible({ timeout: SERVER_WAIT })
   await expect(fgsm.getByText('Protocol yêu cầu')).toBeVisible()
   for (const level of ['3', '4']) {
     await expect(fgsm.locator(`[data-level="${level}"]`)).toHaveAttribute('aria-disabled', 'true')

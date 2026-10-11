@@ -11,6 +11,7 @@ test('/home có khối experiment đang chờ; experiment thứ 4 bị chặn v�
   page,
   request,
 }, info) => {
+  test.setTimeout(120_000) // 4 lần tạo và 3 lần hủy qua API, chậm khi worker CPU bận
   const email = await activeUser(request, info, ['engineer'])
   await loginUi(page, email)
   const ids: string[] = []

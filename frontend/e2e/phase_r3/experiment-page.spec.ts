@@ -9,7 +9,7 @@ import { expect, test } from '@playwright/test'
 
 import { expectNoHorizontalScroll } from '../phase_04/helpers'
 import { createProtocolApi, userPage, waitStatus } from '../phase_08/helpers'
-import { experimentApi, lifecycle, WORKER_TIMEOUT } from './helpers'
+import { experimentApi, lifecycle, SERVER_WAIT, WORKER_TIMEOUT } from './helpers'
 
 const TABS = ['Tổng quan', 'Kết quả', 'Failure case', 'Review', 'Report']
 
@@ -23,7 +23,7 @@ test('experiment Khám phá: 5 tab, vòng đời 3 bước, section chuyển t�
   await waitStatus(page, id, 'completed')
 
   await page.goto(`/experiments/${id}`)
-  await expect(page.getByRole('tab')).toHaveText(TABS)
+  await expect(page.getByRole('tab')).toHaveText(TABS, { timeout: SERVER_WAIT })
   await expect(page.getByTestId('experiment-mode')).toHaveText(/Khám phá/)
   expect(await lifecycle(page)).toEqual({ create: 'done', run: 'done', analyze: 'current' })
   await expectNoHorizontalScroll(page)

@@ -9,6 +9,10 @@ import { csrf, WORKER_TIMEOUT } from '../phase_08/helpers'
 
 export { WORKER_TIMEOUT }
 
+/** Chờ phản hồi của server khi worker CPU đang bận (chạy cả bộ E2E: API và trang tải chậm hơn mức
+ * 5 giây mặc định). Chỉ nới thời gian chờ, không đổi điều kiện kiểm. */
+export const SERVER_WAIT = 30_000
+
 /** Protocol `dev-open` (seed migration 0002): experiment Khám phá. */
 export const DEV_OPEN = '2edcdef5-0d3a-5d5f-98ac-b02637fa6718'
 
@@ -24,13 +28,15 @@ export async function getJson<T>(page: Page, path: string): Promise<T> {
   return (await response.json()) as T
 }
 
-/** Experiment qua API (protocol mặc định `dev-open`), attack FGSM quét lưới `levels`. */
+/** Experiment qua API (protocol mặc định `dev-open`), attack FGSM quét lưới `levels`. Máy
+ * `e2e-offline` không có worker: experiment nằm chờ. */
 export async function experimentApi(
   page: Page,
   levels: number[],
   protocolId: string = DEV_OPEN,
+  targetName = 'local-dev',
 ): Promise<string> {
-  const ids = await fixtureIds(page)
+  const ids = await fixtureIds(page, targetName)
   const fgsm = ids.spec('fgsm')
   const created = await postJson<{ id: string }>(page, '/experiments', {
     schema_version: 1,
