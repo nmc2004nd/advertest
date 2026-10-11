@@ -43,7 +43,7 @@
 10. `attacks/selfcheck.py`: hàm công khai `fixture_inputs(*, with_estimator, fixtures_dir=None)`; CLI selfcheck dùng hàm này.
 11. `PerturbationRegistry.validate` kiểm `art_class` của adapter ART; unit test cho spec seed (pass) và `art_class` lạ (`InvalidSpec`).
 
-## Group 3 — Worker `[agent: worker]`
+## Group 3 — Worker `[agent: worker]` ✅
 
 12. `spec_check.py` gọi `attacks.selfcheck.fixture_inputs`, bỏ code dựng fixture riêng; đường dẫn fixture lấy theo image (Group 1 task 9).
 13. `quick_try.py`:
