@@ -24,7 +24,8 @@ gian được kiểm trước và sau mỗi lần dựng hay `apply` (không c�
 việc của tiến trình gọi.
 
 Kiểm tra chạy với torch 1 luồng; số luồng cũ được đặt lại khi xong. Lõi không import `ml_core`;
-CLI (`python -m attacks.selfcheck <spec.json>`) dựng đầu vào từ fixture qua `ml_core` trong `main`.
+`fixture_inputs` (Phase R3) dựng đầu vào từ fixture qua `ml_core` (import trong hàm), dùng chung cho
+CLI (`python -m attacks.selfcheck <spec.json>`) và worker.
 """
 
 from __future__ import annotations
@@ -65,7 +66,14 @@ from attacks.builders import (
 )
 from attacks.patch.training import PatchTrainer
 
-__all__ = ["SelfcheckInputs", "SelfcheckOutcome", "main", "mid_level", "run_selfcheck"]
+__all__ = [
+    "SelfcheckInputs",
+    "SelfcheckOutcome",
+    "fixture_inputs",
+    "main",
+    "mid_level",
+    "run_selfcheck",
+]
 
 DEFAULT_TIMEOUT_S = 120.0
 NORM_TOLERANCE = 1e-6  # mục 6: chuẩn nhiễu ≤ eps + 1e-6
@@ -443,20 +451,27 @@ def _load_spec(path: Path) -> AttackSpec:
     )
 
 
-def _fixture_inputs(kitti_root: Path, weights: Path) -> SelfcheckInputs:
-    """4 ảnh KITTI letterbox với target đã map sang class của model (slice seed 42) và estimator
-    ART của model YOLO trên CPU."""
+def fixture_inputs(*, with_estimator: bool, fixtures_dir: Path | None = None) -> SelfcheckInputs:
+    """4 ảnh KITTI fixture letterbox (slice seed 42, mapping kitti-coco), target đã map sang class
+    của model YOLOv8n fixture; estimator ART trên CPU chỉ khi `with_estimator`.
+
+    `fixtures_dir` chứa `kitti/` và `yolov8n.pt`; `None` là `ml_core.fixtures.FIXTURES_DIR`. CLI và
+    worker (`spec_check`) cùng dựng đầu vào qua hàm này.
+    """
     from ml_core.data.dataset import save_dataset
     from ml_core.data.kitti import import_kitti
     from ml_core.data.loader import SliceLoader
     from ml_core.data.mapping import build_mapping
     from ml_core.data.slice import create_slice, preset_filter
+    from ml_core.fixtures import FIXTURES_DIR
     from ml_core.models.estimator import build_estimator
     from ml_core.models.register import load_check_images, register_model
     from ml_core.models.wrapper import DEFAULT_INFERENCE_PARAMS, load_detection_model
     from ml_core.runner.images import letterbox_mask
     from ml_core.store import LocalStore
 
+    root = FIXTURES_DIR if fixtures_dir is None else fixtures_dir
+    kitti_root, weights = root / "kitti", root / "yolov8n.pt"
     with tempfile.TemporaryDirectory(prefix="selfcheck-") as tmp:
         store = LocalStore(Path(tmp))
         manifest = import_kitti(kitti_root)
@@ -471,7 +486,11 @@ def _fixture_inputs(kitti_root: Path, weights: Path) -> SelfcheckInputs:
             batch.targets, batch.image_ids, batch.ignore, strict=True
         )
     ]
-    estimator = build_estimator(load_detection_model(weights), DEFAULT_INFERENCE_PARAMS, "cpu")
+    estimator = (
+        build_estimator(load_detection_model(weights), DEFAULT_INFERENCE_PARAMS, "cpu")
+        if with_estimator
+        else None
+    )
     return SelfcheckInputs(
         images=batch.images, masks=letterbox_mask(batch.infos), targets=targets, estimator=estimator
     )
@@ -479,20 +498,22 @@ def _fixture_inputs(kitti_root: Path, weights: Path) -> SelfcheckInputs:
 
 def main(argv: Sequence[str] | None = None) -> int:
     """In kết quả các mục dạng JSON; mã thoát 0 khi pass, 1 khi fail."""
-    from ml_core.fixtures import FIXTURES_DIR
-
     parser = argparse.ArgumentParser(
         prog="python -m attacks.selfcheck", description="Tự kiểm tra attack spec trên ảnh fixture"
     )
     parser.add_argument("spec", type=Path, help="File JSON của AttackSpec hoặc AttackSpecBody")
-    parser.add_argument("--kitti-root", type=Path, default=FIXTURES_DIR / "kitti")
-    parser.add_argument("--weights", type=Path, default=FIXTURES_DIR / "yolov8n.pt")
+    parser.add_argument(
+        "--fixtures-dir",
+        type=Path,
+        default=None,
+        help="Thư mục chứa kitti/ và yolov8n.pt (mặc định: fixture của ml_core)",
+    )
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT_S)
     args = parser.parse_args(argv)
 
     spec = _load_spec(args.spec)
-    inputs = _fixture_inputs(args.kitti_root, args.weights)
+    inputs = fixture_inputs(with_estimator=spec.requires_gradients, fixtures_dir=args.fixtures_dir)
     outcome = run_selfcheck(spec, inputs, seed=args.seed, timeout_s=args.timeout)
     report = {
         "spec": f"{spec.name} v{spec.version}",
