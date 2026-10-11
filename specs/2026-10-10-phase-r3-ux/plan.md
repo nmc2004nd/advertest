@@ -90,7 +90,7 @@
     - chi tiết `ModelCheckResult` và "Kiểm tra lại".
 27. Mục điều hướng mới theo quyền (`nav/config.ts`).
 
-## Group 7 — Thử nhanh `[agent: frontend]`
+## Group 7 — Thử nhanh `[agent: frontend]` ✅
 
 28. `/quick-try`:
     - chọn model, attack (lọc theo gradient, ẩn patch), preset và ảnh; chặn > 10 MB ở client;
