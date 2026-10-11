@@ -81,7 +81,7 @@ function FieldErrorText({ message }: { message?: string }) {
 }
 
 /** Thẻ chọn một trong nhiều (radio), vùng chạm ≥ 44px. */
-function ChoiceCard({
+export function ChoiceCard({
   selected,
   onSelect,
   children,

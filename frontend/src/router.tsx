@@ -5,6 +5,7 @@ import { ExperimentDetailPage } from './features/experiments/ExperimentDetailPag
 import { ExperimentsPage } from './features/experiments/ExperimentsPage'
 import { FailureCasePage } from './features/experiments/FailureCasePage'
 import { ProtocolsPage } from './features/protocols/ProtocolsPage'
+import { QuickTryPage } from './features/quick-try/QuickTryPage'
 import { ReportPage } from './features/reports/ReportPage'
 import { ReportsPage } from './features/reports/ReportsPage'
 import { VerifyPage } from './features/reports/VerifyPage'
@@ -76,6 +77,14 @@ const routes: RouteObject[] = [
         element: (
           <RequirePermission requirement="experiment.create">
             <WizardPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: '/quick-try',
+        element: (
+          <RequirePermission requirement="quick_try.use">
+            <QuickTryPage />
           </RequirePermission>
         ),
       },

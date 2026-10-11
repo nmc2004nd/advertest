@@ -69,6 +69,15 @@ describe('box theo level (design.md mục 3)', () => {
     expect(drawn.find((b) => b.kind === 'lost')?.label).toMatch(/^×/)
   })
 
+  it('tắt một lớp thì box của lớp đó không vẽ', () => {
+    const layers = { clean: false, attacked: true, lost: false, fresh: true }
+    expect(boxesOf(cleanBoxes(mixed, layers))).toHaveLength(0)
+    const kinds = boxesOf(attackedBoxes(mixed, layers)).map((b) => b.kind)
+    expect(kinds).not.toContain('lost')
+    expect(kinds).toContain('fresh')
+    expect(kinds).toContain('attacked')
+  })
+
   it('đếm kept/lost/new', () => {
     const counts = statusCounts(mixed)
     expect(counts.kept + counts.lost + counts.new).toBe(mixed.objects.length)

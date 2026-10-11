@@ -3,6 +3,7 @@ import {
   Archive,
   BadgeCheck,
   Ban,
+  CircleAlert,
   CircleCheck,
   CircleX,
   Clock,
@@ -14,6 +15,7 @@ import {
   type LucideIcon,
   OctagonPause,
   PencilLine,
+  ScanEye,
   Send,
   ShieldCheck,
   SkipForward,
@@ -26,6 +28,7 @@ import type {
   ExperimentMode,
   ExperimentStatus,
   ModelStatus,
+  QuickTryObjectStatus,
   RunStatus,
   SearchStatus,
   ToolJobStatus,
@@ -96,6 +99,14 @@ export const TOOL_JOB_STATUS: Record<ToolJobStatus, StatusDisplay> = {
   failed: { label: 'Thất bại', icon: CircleX, tone: 'danger' },
 }
 
+/** Object của thử nhanh (người dùng chốt 2026-10-11): giữ được là "model nhận đúng" (`info`), không
+ * dùng `success` vì không phải "đạt". */
+export const QUICK_TRY_OBJECT_STATUS: Record<QuickTryObjectStatus, StatusDisplay> = {
+  kept: { label: 'Giữ được', icon: ScanEye, tone: 'info' },
+  lost: { label: 'Bị mất', icon: CircleX, tone: 'danger' },
+  new: { label: 'Phát hiện sai mới', icon: CircleAlert, tone: 'warning' },
+}
+
 /** Mode không dùng tông `success` (design.md mục 3). */
 export const EXPERIMENT_MODE: Record<ExperimentMode, StatusDisplay> = {
   exploration: { label: 'Khám phá', icon: FlaskConical, tone: 'neutral' },
@@ -110,6 +121,7 @@ export type StatusBadgeProps =
   | { kind: 'model'; status: ModelStatus }
   | { kind: 'tool_job'; status: ToolJobStatus }
   | { kind: 'mode'; status: ExperimentMode }
+  | { kind: 'quick_try_object'; status: QuickTryObjectStatus }
 
 export function statusDisplay(props: StatusBadgeProps): StatusDisplay {
   switch (props.kind) {
@@ -127,6 +139,8 @@ export function statusDisplay(props: StatusBadgeProps): StatusDisplay {
       return TOOL_JOB_STATUS[props.status]
     case 'mode':
       return EXPERIMENT_MODE[props.status]
+    case 'quick_try_object':
+      return QUICK_TRY_OBJECT_STATUS[props.status]
   }
 }
 

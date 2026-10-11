@@ -8,6 +8,7 @@ import {
   House,
   Library,
   ListChecks,
+  ScanSearch,
   ScrollText,
   SquarePlus,
   Users,
@@ -53,6 +54,14 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: 'Tạo experiment',
     icon: SquarePlus,
     requirement: 'experiment.create',
+    implemented: true,
+  },
+  {
+    // Phase R3: minh họa một attack trên một ảnh (không phải kiểm thử).
+    path: '/quick-try',
+    label: 'Thử nhanh',
+    icon: ScanSearch,
+    requirement: 'quick_try.use',
     implemented: true,
   },
   {

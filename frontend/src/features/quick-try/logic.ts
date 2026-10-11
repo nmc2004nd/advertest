@@ -39,6 +39,21 @@ export function imageError(file: Pick<File, 'size' | 'type'>): string | null {
   return null
 }
 
+/** Lớp box bật/tắt được trong chú thích (design.md mục 3). */
+export type QuickTryLayer = 'clean' | 'attacked' | 'lost' | 'fresh'
+export const QUICK_TRY_LAYERS: readonly QuickTryLayer[] = ['clean', 'attacked', 'lost', 'fresh']
+export const ALL_LAYERS: Readonly<Record<QuickTryLayer, boolean>> = {
+  clean: true,
+  attacked: true,
+  lost: true,
+  fresh: true,
+}
+const LAYER_OF: Record<QuickTryObjectStatus, QuickTryLayer> = {
+  kept: 'attacked',
+  lost: 'lost',
+  new: 'fresh',
+}
+
 const asBox = (o: QuickTryObject, score: number | null): CaseBox => ({
   bbox: o.bbox,
   class_name: o.class_name,
@@ -46,11 +61,11 @@ const asBox = (o: QuickTryObject, score: number | null): CaseBox => ({
 })
 
 /** Box trên ảnh sạch: các object model thấy trên ảnh sạch (`kept`, `lost`), lớp "dự đoán ảnh sạch". */
-export function cleanBoxes(level: Pick<QuickTryLevel, 'objects'>): BoxSet {
+export function cleanBoxes(level: Pick<QuickTryLevel, 'objects'>, layers = ALL_LAYERS): BoxSet {
   return {
     groundTruth: [],
     predictions: level.objects
-      .filter((o) => o.status !== 'new')
+      .filter((o) => o.status !== 'new' && layers.clean)
       .map((o) => asBox(o, o.clean_score)),
     predictionKind: 'clean',
     ignoreRegions: [],
@@ -62,9 +77,10 @@ export function cleanBoxes(level: Pick<QuickTryLevel, 'objects'>): BoxSet {
  * Box trên ảnh bị tấn công (design.md mục 3): `kept` cam liền, `lost` đỏ dày có ×, `new` cam nét
  * đứt. Object bị mất đi qua lớp "object bị mất" của trình vẽ (đặt ở vị trí trên ảnh sạch).
  */
-export function attackedBoxes(level: Pick<QuickTryLevel, 'objects'>): BoxSet {
-  const lost = level.objects.filter((o) => o.status === 'lost')
-  const shown = level.objects.filter((o) => o.status !== 'lost')
+export function attackedBoxes(level: Pick<QuickTryLevel, 'objects'>, layers = ALL_LAYERS): BoxSet {
+  const visible = level.objects.filter((o) => layers[LAYER_OF[o.status]])
+  const lost = visible.filter((o) => o.status === 'lost')
+  const shown = visible.filter((o) => o.status !== 'lost')
   return {
     groundTruth: lost.map((o) => asBox(o, o.clean_score)),
     lost: lost.map((_, i) => i),

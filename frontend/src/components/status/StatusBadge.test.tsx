@@ -6,6 +6,7 @@ import {
   experimentModeValues,
   experimentStatusValues,
   modelStatusValues,
+  quickTryObjectStatusValues,
   runStatusValues,
   searchStatusValues,
   toolJobStatusValues,
@@ -17,6 +18,7 @@ import {
   EXPERIMENT_MODE,
   EXPERIMENT_STATUS,
   MODEL_STATUS,
+  QUICK_TRY_OBJECT_STATUS,
   RUN_STATUS,
   SEARCH_STATUS,
   type StatusBadgeProps,
@@ -39,6 +41,11 @@ const KINDS: KindCase[] = [
   { kind: 'model', values: modelStatusValues, config: MODEL_STATUS },
   { kind: 'tool_job', values: toolJobStatusValues, config: TOOL_JOB_STATUS },
   { kind: 'mode', values: experimentModeValues, config: EXPERIMENT_MODE },
+  {
+    kind: 'quick_try_object',
+    values: quickTryObjectStatusValues,
+    config: QUICK_TRY_OBJECT_STATUS,
+  },
 ]
 
 it('mode không dùng tông success (design.md mục 3)', () => {
