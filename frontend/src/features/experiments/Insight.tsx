@@ -1,5 +1,5 @@
 import { ChevronRight } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { type ReactNode, useId } from 'react'
 import { useSearchParams } from 'react-router'
 
 import { RobustnessMatrix } from '@/components/charts/RobustnessMatrix'
@@ -81,11 +81,13 @@ export function InsightSection({
   const [, setParams] = useSearchParams()
   const nameOf = displayNames(catalog)
   const paramOf = new Map(catalog.map((spec) => [spec.id, spec.primary_param.name]))
+  // id sinh theo instance: trang review dựng tab Kết quả cạnh form có ô "Kết luận" (`#ket-luan`).
+  const id = useId()
   return (
     <div className="space-y-6">
-      <section className="panel space-y-2 p-5" aria-labelledby="ket-luan">
+      <section className="panel space-y-2 p-5" aria-labelledby={`${id}-ket-luan`}>
         <div className="flex flex-wrap items-center gap-2">
-          <h3 id="ket-luan" className="font-semibold">
+          <h3 id={`${id}-ket-luan`} className="font-semibold">
             Kết luận
           </h3>
           {insight.partial && (
@@ -103,8 +105,8 @@ export function InsightSection({
         </p>
       </section>
       {insight.weaknesses.length > 0 && (
-        <section className="space-y-3" aria-labelledby="diem-yeu">
-          <h3 id="diem-yeu" className="font-semibold">
+        <section className="space-y-3" aria-labelledby={`${id}-diem-yeu`}>
+          <h3 id={`${id}-diem-yeu`} className="font-semibold">
             Điểm yếu chính
           </h3>
           <p className="text-sm text-muted-foreground">

@@ -1,3 +1,5 @@
+import { useId } from 'react'
+
 import type { RobustnessRow } from '@/contracts/api'
 import { NOT_RUN, READING } from '@/copy/charts'
 import { cn } from '@/lib/utils'
@@ -78,9 +80,10 @@ export function RobustnessMatrix({
   /** Tên hiển thị của attack (metadata), mặc định tên kỹ thuật. */
   name?: (row: RobustnessRow) => string
 }) {
+  const id = useId()
   return (
-    <section className="space-y-3" aria-labelledby="ma-tran-do-ben">
-      <h3 id="ma-tran-do-ben" className="font-semibold">
+    <section className="space-y-3" aria-labelledby={id}>
+      <h3 id={id} className="font-semibold">
         Ma trận độ bền
       </h3>
       <ChartReading sentence={matrixSentence(rows, bands, name)} reading={READING.matrix} />

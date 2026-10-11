@@ -17,6 +17,7 @@ import { EXPERIMENTS_KEY, experimentKey, failureCaseKey, failureCasesKey } from 
 import { ExperimentDetailPage } from './ExperimentDetailPage'
 import { ExperimentsPage } from './ExperimentsPage'
 import { FailureCasePage } from './FailureCasePage'
+import { InsightSection } from './Insight'
 
 const details = listMocks<ExperimentDetail>('experiment_detail')
 const completed = details.find((d) => d.status === 'completed')
@@ -361,5 +362,24 @@ describe('/failure-cases/:id', () => {
     expect(html).toContain(`case ${position}/${list.length}`)
     expect(html).toContain('Case trước')
     expect(html).toContain('Case sau')
+  })
+})
+
+describe('insight: id không trùng', () => {
+  it('trang review dựng insight cạnh ô "Kết luận" (#ket-luan): mọi id là duy nhất', () => {
+    const html = render(
+      <>
+        <label htmlFor="ket-luan">Kết luận</label>
+        <textarea id="ket-luan" />
+        <InsightSection insight={weakInsight} catalog={[]} />
+        <InsightSection insight={weakInsight} catalog={[]} />
+      </>,
+    )
+    const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1])
+    expect(ids.filter((id) => id === 'ket-luan')).toHaveLength(1)
+    expect(new Set(ids).size).toBe(ids.length)
+    for (const [, target] of html.matchAll(/aria-labelledby="([^"]+)"/g)) {
+      expect(ids).toContain(target)
+    }
   })
 })
