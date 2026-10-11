@@ -1,16 +1,28 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 
-import { experimentStatusValues, runStatusValues, searchStatusValues } from '@/contracts/schemas'
+import {
+  attackSpecStatusValues,
+  experimentModeValues,
+  experimentStatusValues,
+  modelStatusValues,
+  runStatusValues,
+  searchStatusValues,
+  toolJobStatusValues,
+} from '@/contracts/schemas'
 
 import { StatusBadge } from './StatusBadge'
 import {
+  ATTACK_SPEC_STATUS,
+  EXPERIMENT_MODE,
   EXPERIMENT_STATUS,
+  MODEL_STATUS,
   RUN_STATUS,
   SEARCH_STATUS,
   type StatusBadgeProps,
   type StatusDisplay,
   TONE_CLASS,
+  TOOL_JOB_STATUS,
 } from './status-config'
 
 interface KindCase {
@@ -23,7 +35,15 @@ const KINDS: KindCase[] = [
   { kind: 'run', values: runStatusValues, config: RUN_STATUS },
   { kind: 'experiment', values: experimentStatusValues, config: EXPERIMENT_STATUS },
   { kind: 'search', values: searchStatusValues, config: SEARCH_STATUS },
+  { kind: 'attack_spec', values: attackSpecStatusValues, config: ATTACK_SPEC_STATUS },
+  { kind: 'model', values: modelStatusValues, config: MODEL_STATUS },
+  { kind: 'tool_job', values: toolJobStatusValues, config: TOOL_JOB_STATUS },
+  { kind: 'mode', values: experimentModeValues, config: EXPERIMENT_MODE },
 ]
+
+it('mode không dùng tông success (design.md mục 3)', () => {
+  expect(Object.values(EXPERIMENT_MODE).map((d) => d.tone)).not.toContain('success')
+})
 
 describe.each(KINDS)('StatusBadge kind=$kind', ({ kind, values, config }) => {
   it('cấu hình có đúng tập giá trị của enum trong contract, không thừa không thiếu', () => {

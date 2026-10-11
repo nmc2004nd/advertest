@@ -1,5 +1,6 @@
 import {
   Activity,
+  Archive,
   BadgeCheck,
   Ban,
   CircleCheck,
@@ -7,6 +8,8 @@ import {
   Clock,
   Eye,
   FilePen,
+  FlaskConical,
+  Hourglass,
   LoaderCircle,
   type LucideIcon,
   OctagonPause,
@@ -18,7 +21,15 @@ import {
   TriangleAlert,
 } from 'lucide-react'
 
-import type { ExperimentStatus, RunStatus, SearchStatus } from '@/contracts/schemas'
+import type {
+  AttackSpecStatus,
+  ExperimentMode,
+  ExperimentStatus,
+  ModelStatus,
+  RunStatus,
+  SearchStatus,
+  ToolJobStatus,
+} from '@/contracts/schemas'
 
 /** Tông màu của badge; mỗi tông có màu riêng cho giao diện sáng và tối. */
 export type StatusTone = 'neutral' | 'info' | 'success' | 'warning' | 'danger' | 'muted'
@@ -62,10 +73,43 @@ export const SEARCH_STATUS: Record<SearchStatus, StatusDisplay> = {
   failed: { label: 'Thất bại', icon: CircleX, tone: 'danger' },
 }
 
+// Trạng thái catalog, model và mode (design.md mục 3, Phase R3).
+export const ATTACK_SPEC_STATUS: Record<AttackSpecStatus, StatusDisplay> = {
+  draft: { label: 'Nháp', icon: FilePen, tone: 'neutral' },
+  checking: { label: 'Đang kiểm tra', icon: LoaderCircle, tone: 'info' },
+  check_failed: { label: 'Kiểm tra không đạt', icon: CircleX, tone: 'danger' },
+  pending_approval: { label: 'Chờ duyệt', icon: Hourglass, tone: 'warning' },
+  active: { label: 'Đang dùng', icon: BadgeCheck, tone: 'success' },
+  retired: { label: 'Đã thay thế', icon: Archive, tone: 'muted' },
+}
+
+export const MODEL_STATUS: Record<ModelStatus, StatusDisplay> = {
+  checking: { label: 'Đang kiểm tra', icon: LoaderCircle, tone: 'info' },
+  check_failed: { label: 'Kiểm tra không đạt', icon: CircleX, tone: 'danger' },
+  ready: { label: 'Sẵn sàng', icon: CircleCheck, tone: 'success' },
+}
+
+export const TOOL_JOB_STATUS: Record<ToolJobStatus, StatusDisplay> = {
+  queued: { label: 'Đang chờ', icon: Clock, tone: 'neutral' },
+  running: { label: 'Đang chạy', icon: LoaderCircle, tone: 'info' },
+  completed: { label: 'Hoàn thành', icon: CircleCheck, tone: 'success' },
+  failed: { label: 'Thất bại', icon: CircleX, tone: 'danger' },
+}
+
+/** Mode không dùng tông `success` (design.md mục 3). */
+export const EXPERIMENT_MODE: Record<ExperimentMode, StatusDisplay> = {
+  exploration: { label: 'Khám phá', icon: FlaskConical, tone: 'neutral' },
+  official: { label: 'Chính thức', icon: ShieldCheck, tone: 'info' },
+}
+
 export type StatusBadgeProps =
   | { kind: 'run'; status: RunStatus }
   | { kind: 'experiment'; status: ExperimentStatus }
   | { kind: 'search'; status: SearchStatus }
+  | { kind: 'attack_spec'; status: AttackSpecStatus }
+  | { kind: 'model'; status: ModelStatus }
+  | { kind: 'tool_job'; status: ToolJobStatus }
+  | { kind: 'mode'; status: ExperimentMode }
 
 export function statusDisplay(props: StatusBadgeProps): StatusDisplay {
   switch (props.kind) {
@@ -75,6 +119,14 @@ export function statusDisplay(props: StatusBadgeProps): StatusDisplay {
       return EXPERIMENT_STATUS[props.status]
     case 'search':
       return SEARCH_STATUS[props.status]
+    case 'attack_spec':
+      return ATTACK_SPEC_STATUS[props.status]
+    case 'model':
+      return MODEL_STATUS[props.status]
+    case 'tool_job':
+      return TOOL_JOB_STATUS[props.status]
+    case 'mode':
+      return EXPERIMENT_MODE[props.status]
   }
 }
 
