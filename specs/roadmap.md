@@ -267,7 +267,7 @@ Thử nhanh (backend/worker của R3 cũ):
 - [ ] Landing (Phase 11a) dùng token chung của app, không có token cô lập. Spec `specs/2026-10-02-phase-11a-landing/` cần cập nhật: bỏ bảng màu cyan/magenta riêng và Be Vietnam Pro; `layers.ts` dùng màu overlay của `design.md` mục 3.
 - [ ] Gom và viết lại câu chữ vào `copy/vi.ts` (trước đó: chuyển test E2E sang tìm phần tử theo role, nhãn hoặc `data-testid`).
 - [ ] Rà đăng nhập, yêu cầu truy cập, chờ duyệt, xác minh theo `design.md`.
-- [ ] Sửa lỗi có từ trước R3 (`389fca1`): ở trang đăng nhập trên tablet/desktop, lần bấm đầu vào "Yêu cầu truy cập" không chuyển trang. Ô Email autofocus bị kiểm hợp lệ khi rời ô, thông báo lỗi chèn vào làm link dịch chỗ. E2E `phase_04/onboarding` "người dùng mới yêu cầu truy cập" fail vì lỗi này (Group 8 R3).
+- [ ] Sửa lỗi có từ trước R3 (`389fca1`): ở trang đăng nhập, lần bấm đầu vào "Yêu cầu truy cập" không chuyển trang. Ô Email autofocus bị kiểm hợp lệ khi rời ô, thông báo lỗi chèn vào làm link dịch chỗ. E2E `phase_04/onboarding` "người dùng mới yêu cầu truy cập" fail vì lỗi này (Group 8 R3).
 - [ ] Font của report PDF (không đổi nội dung và hash).
 - [ ] Đề xuất contract: thêm `reject_reason` vào `AttackSpecAdminView` để trang admin không phải đọc lý do từ chối qua `GET /audit-log` (review R3 #6). Gỡ việc `protocol_draft` khỏi `features/home/` (review R3 #2).
 
