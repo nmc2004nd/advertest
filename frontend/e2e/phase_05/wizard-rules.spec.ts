@@ -54,7 +54,8 @@ test('nhân bản: wizard mở tại bước 3 với dữ liệu điền sẵn',
   await loginUi(page, email)
   const id = await createExperiment(page, [['fgsm', [2, 8]]])
   await page.goto(`/experiments/${id}`)
-  await page.getByRole('link', { name: 'Nhân bản' }).click()
+  // Trang experiment có hai link "Nhân bản" (đầu trang và trong tab, Phase R3): bấm link đang hiện.
+  await page.getByRole('link', { name: 'Nhân bản' }).filter({ visible: true }).first().click()
   await expect(page).toHaveURL(new RegExp(`/experiments/new\\?clone=${id}$`))
   await expect(page.getByRole('heading', { name: 'Attack và xác nhận' })).toBeVisible()
   await expect(page.getByText('fgsm: 2, 8').first()).toBeAttached()
