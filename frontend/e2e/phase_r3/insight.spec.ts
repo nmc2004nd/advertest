@@ -9,7 +9,14 @@ import { expect, test } from '@playwright/test'
 import { expectNoHorizontalScroll } from '../phase_04/helpers'
 import { cancelExperiment, visibleButton } from '../phase_05/helpers'
 import { createProtocolApi, userPage, waitStatus } from '../phase_08/helpers'
-import { chooseOption, DEV_OPEN, experimentApi, getJson, WORKER_TIMEOUT } from './helpers'
+import {
+  chooseOption,
+  DEV_OPEN,
+  experimentApi,
+  getJson,
+  PROTOCOL_LEVELS,
+  WORKER_TIMEOUT,
+} from './helpers'
 
 test.setTimeout(WORKER_TIMEOUT + 120_000)
 
@@ -62,7 +69,7 @@ test('chưa có kết quả: trạng thái trống, không có ma trận', async
 
 test('nâng lên chính thức đi qua wizard bước 3', async ({ browser }, info) => {
   const reviewer = await userPage(browser, info, ['reviewer'])
-  const protocol = await createProtocolApi(reviewer.page, [3, 4])
+  const protocol = await createProtocolApi(reviewer.page, PROTOCOL_LEVELS)
   const protocolName = (await getJson<{ name: string }>(reviewer.page, `/protocols/${protocol.id}`))
     .name
   const { page } = await userPage(browser, info, ['engineer'])
@@ -83,5 +90,7 @@ test('nâng lên chính thức đi qua wizard bước 3', async ({ browser }, in
   expect(created).not.toBe(source)
   await expect(page.getByTestId('experiment-mode')).toHaveText(/Chính thức/)
   await expect(page.getByRole('link', { name: new RegExp(`Nâng từ.*${sourceName}`) })).toBeVisible()
-  await cancelExperiment(page, created)
+  // Dọn dẹp, không phải điều kiện kiểm: run có thể trúng cache và xong trước khi hủy.
+  const { status } = await getJson<{ status: string }>(page, `/experiments/${created}`)
+  if (status === 'queued' || status === 'running') await cancelExperiment(page, created)
 })

@@ -9,7 +9,7 @@ import { expect, test } from '@playwright/test'
 
 import { expectNoHorizontalScroll } from '../phase_04/helpers'
 import { createProtocolApi, userPage, waitStatus } from '../phase_08/helpers'
-import { experimentApi, lifecycle, SERVER_WAIT, WORKER_TIMEOUT } from './helpers'
+import { experimentApi, lifecycle, PROTOCOL_LEVELS, SERVER_WAIT, WORKER_TIMEOUT } from './helpers'
 
 const TABS = ['Tổng quan', 'Kết quả', 'Failure case', 'Review', 'Report']
 
@@ -50,9 +50,9 @@ test('experiment Chính thức: vòng đời 6 bước, hộp gửi duyệt có 
   browser,
 }, info) => {
   const reviewer = await userPage(browser, info, ['reviewer'])
-  const protocol = await createProtocolApi(reviewer.page, [3, 4])
+  const protocol = await createProtocolApi(reviewer.page, PROTOCOL_LEVELS)
   const { page } = await userPage(browser, info, ['engineer'])
-  const id = await experimentApi(page, [3, 4], protocol.id)
+  const id = await experimentApi(page, PROTOCOL_LEVELS, protocol.id)
   await waitStatus(page, id, 'completed')
 
   await page.goto(`/experiments/${id}`)

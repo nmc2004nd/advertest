@@ -10,7 +10,7 @@ import { expect, type Page, test } from '@playwright/test'
 import { expectNoHorizontalScroll } from '../phase_04/helpers'
 import { cancelExperiment, fixtureIds, visibleButton } from '../phase_05/helpers'
 import { createProtocolApi, userPage } from '../phase_08/helpers'
-import { chooseOption, DEV_OPEN, getJson, postJson, SERVER_WAIT } from './helpers'
+import { chooseOption, DEV_OPEN, getJson, postJson, PROTOCOL_LEVELS, SERVER_WAIT } from './helpers'
 
 const STEPS = ['Mục đích', 'Model và dữ liệu', 'Attack và xác nhận']
 
@@ -79,7 +79,7 @@ test('Khám phá trong 3 bước, bằng bản nháp của backend', async ({ br
 
 test('Chính thức: attack và level bắt buộc bị khóa', async ({ browser }, info) => {
   const reviewer = await userPage(browser, info, ['reviewer'])
-  const protocol = await createProtocolApi(reviewer.page, [3, 4])
+  const protocol = await createProtocolApi(reviewer.page, PROTOCOL_LEVELS)
   const { page } = await userPage(browser, info, ['engineer'])
   await page.goto('/experiments/new')
   await page
@@ -99,7 +99,7 @@ test('Chính thức: attack và level bắt buộc bị khóa', async ({ browser
   const fgsm = page.locator('[data-testid="attack-row"][data-attack="fgsm"]')
   await expect(fgsm).toBeVisible({ timeout: SERVER_WAIT })
   await expect(fgsm.getByText('Protocol yêu cầu')).toBeVisible()
-  for (const level of ['3', '4']) {
+  for (const level of PROTOCOL_LEVELS) {
     await expect(fgsm.locator(`[data-level="${level}"]`)).toHaveAttribute('aria-disabled', 'true')
   }
   await expect(fgsm.getByRole('button', { name: /Bỏ attack/ })).toHaveCount(0)

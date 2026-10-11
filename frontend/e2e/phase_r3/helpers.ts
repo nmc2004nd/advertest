@@ -13,6 +13,10 @@ export { WORKER_TIMEOUT }
  * 5 giây mặc định). Chỉ nới thời gian chờ, không đổi điều kiện kiểm. */
 export const SERVER_WAIT = 30_000
 
+/** Level FGSM bắt buộc của protocol trong E2E R3. Không trùng `LEVELS` của Phase 8 (1–6): trùng thì
+ * run của Phase 8 ở viewport sau trúng cache, không có failure case để review. */
+export const PROTOCOL_LEVELS: [number, number] = [9, 10]
+
 /** Protocol `dev-open` (seed migration 0002): experiment Khám phá. */
 export const DEV_OPEN = '2edcdef5-0d3a-5d5f-98ac-b02637fa6718'
 

@@ -65,11 +65,17 @@ test('wizard: cả catalog, slice huấn luyện, dừng sớm, thời gian trai
   await setLevels(patch, [0.1, 0.25])
   await expect(visibleButton(page, 'Tạo experiment')).toBeEnabled()
 
-  // Ước lượng có thời gian train patch.
+  // Ước lượng có thời gian train patch. Patch 0.1 có thể đã được train bởi E2E khác
+  // (phase_06/catalog-results) nên chỉ cần ít nhất một level còn phải train.
   const estimate = page.locator('table', { has: page.getByText('Ước lượng từng run') })
-  const patchRun = estimate.locator('tbody tr', {
+  const patchRuns = estimate.locator('tbody tr', {
     has: page.getByText('adv_patch', { exact: true }),
   })
-  await expect(patchRun.first().locator('td').last()).not.toHaveText('—')
+  await expect(patchRuns).toHaveCount(2)
+  await expect
+    .poll(async () =>
+      (await patchRuns.locator('td:last-child').allInnerTexts()).some((t) => t !== '—'),
+    )
+    .toBe(true)
   await expectNoHorizontalScroll(page)
 })
