@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 
 import { apiGet, apiSend } from '@/api/client'
 import type {
-  AttackSpec,
+  AttackSpecView,
   ClassMappingSummary,
   ComputeTargetPublic,
   DatasetSummary,
@@ -12,6 +12,8 @@ import type {
   ExperimentClone,
   ExperimentCreateInput,
   ExperimentDetail,
+  ExperimentDraftRequest,
+  ExperimentPreset,
   ModelSummary,
   ProtocolSummary,
   ProtocolView,
@@ -43,8 +45,16 @@ export const useModels = () =>
   useQuery({ queryKey: ['models'], queryFn: list<ModelSummary>('/models') })
 export const useDatasets = () =>
   useQuery({ queryKey: ['datasets'], queryFn: list<DatasetSummary>('/datasets') })
+/** Spec `active` kèm metadata hiển thị (Phase R2). */
 export const useAttackSpecs = () =>
-  useQuery({ queryKey: ['attack-specs'], queryFn: list<AttackSpec>('/attack-specs') })
+  useQuery({ queryKey: ['attack-specs'], queryFn: list<AttackSpecView>('/attack-specs') })
+/** Phase R3: preset Nhanh/Tiêu chuẩn/Chuyên sâu (seed, không đổi trong phiên). */
+export const usePresets = () =>
+  useQuery({
+    queryKey: ['experiment-presets'],
+    queryFn: list<ExperimentPreset>('/experiment-presets'),
+    staleTime: Infinity,
+  })
 export const useComputeTargets = () =>
   useQuery({
     queryKey: ['compute-targets'],
@@ -130,5 +140,23 @@ export function useClone(experimentId: string | null) {
     queryFn: () => apiGet<ExperimentClone>(`/experiments/${experimentId ?? ''}/clone`),
     enabled: experimentId !== null,
     staleTime: Infinity,
+  })
+}
+
+/** Phase R3: bản nháp từ protocol và preset (`POST /experiments/draft`); không tạo experiment. */
+export function useDraft() {
+  return useMutation({
+    mutationFn: (body: ExperimentDraftRequest) =>
+      apiSend<ExperimentClone>('POST', '/experiments/draft', body),
+  })
+}
+
+/** Phase R3: bản nháp Chính thức từ experiment Khám phá (`POST /experiments/{id}/promote`). */
+export function usePromote(experimentId: string) {
+  return useMutation({
+    mutationFn: (protocolId: string) =>
+      apiSend<ExperimentClone>('POST', `/experiments/${experimentId}/promote`, {
+        protocol_id: protocolId,
+      }),
   })
 }

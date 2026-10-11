@@ -1,6 +1,4 @@
-import type { AttackSpec, PrimaryParam } from '@/contracts/api'
-
-import type { AttackDraft } from './state'
+import type { AttackSpec, AttackSpecMetadata, AttackSpecView, PrimaryParam } from '@/contracts/api'
 
 /** Tối đa 12 level mỗi attack (requirements.md Phase 5, Kiểm tra khi tạo). */
 export const MAX_LEVELS = 12
@@ -14,29 +12,6 @@ export function rangeText(param: PrimaryParam): string {
   const unit = param.unit ? ` ${param.unit}` : ''
   if (param.type === 'discrete' && param.values) return param.values.map(format).join(', ') + unit
   return `${format(param.min)}–${format(param.max)}${unit}`
-}
-
-/**
- * Lỗi khi thêm `raw` vào danh sách level (null nếu hợp lệ): phải là số, trong dải của spec
- * (spec rời rạc thì thuộc danh sách giá trị), không trùng, không quá 12 level.
- */
-export function levelError(param: PrimaryParam, levels: number[], raw: string): string | null {
-  const text = raw.trim().replace(',', '.')
-  if (text === '') return 'Nhập một giá trị'
-  const value = Number(text)
-  if (!Number.isFinite(value)) return `"${raw.trim()}" không phải là số`
-  const inRange =
-    param.type === 'discrete' && param.values
-      ? param.values.includes(value)
-      : value >= param.min && value <= param.max
-  if (!inRange) return `Level ${format(value)} ngoài dải ${rangeText(param)}`
-  if (levels.includes(value)) return `Level ${format(value)} đã có`
-  if (levels.length >= MAX_LEVELS) return `Tối đa ${MAX_LEVELS} level mỗi attack`
-  return null
-}
-
-export function parseLevel(raw: string): number {
-  return Number(raw.trim().replace(',', '.'))
 }
 
 /** Thêm level và giữ thứ tự tăng dần. */
@@ -67,15 +42,48 @@ export function suggestedLevels(spec: Pick<AttackSpec, 'primary_param' | 'requir
   return presetLevels(param)
 }
 
-/** Preset "Toàn bộ catalog" (requirements.md Phase 6, Frontend): mọi spec với level gợi ý. */
-export function catalogPreset(specs: AttackSpec[]): AttackDraft[] {
-  return specs.map((spec) => ({
-    attackSpecId: spec.id,
-    specSha256: spec.spec_sha256,
-    levels: suggestedLevels(spec),
-    requiresTraining: spec.requires_training === true,
-    trainingSliceId: null,
-    mode: 'grid' as const,
-    search: null,
-  }))
+/** Nhãn dễ đọc của level từ metadata (`level_labels`, so theo giá trị số); null khi không có. */
+export function levelLabel(
+  metadata: Pick<AttackSpecMetadata, 'level_labels'> | null | undefined,
+  level: number,
+): string | null {
+  for (const [key, label] of Object.entries(metadata?.level_labels ?? {})) {
+    if (Number(key) === level) return label
+  }
+  return null
+}
+
+/**
+ * Chip level của một attack ở bước 3 (Phase R3: không có ô gõ level): level đang chọn, level
+ * khai nhãn trong metadata, mọi giá trị của tham số rời rạc, và bộ gợi ý. Chỉ giữ giá trị trong
+ * dải của spec, sắp tăng dần, tối đa `MAX_LEVELS` cộng các level đang chọn.
+ */
+export function levelCandidates(
+  spec: Pick<AttackSpec, 'primary_param' | 'requires_training'> & {
+    metadata?: Pick<AttackSpecMetadata, 'level_labels'> | null
+  },
+  levels: number[],
+): number[] {
+  const param = spec.primary_param
+  const inRange = (v: number) =>
+    param.type === 'discrete' && param.values
+      ? param.values.includes(v)
+      : v >= param.min && v <= param.max
+  const extra = [
+    ...Object.keys(spec.metadata?.level_labels ?? {}).map(Number),
+    ...(param.type === 'discrete' && param.values ? param.values : []),
+    ...suggestedLevels(spec),
+  ].filter((v) => Number.isFinite(v) && inRange(v) && !levels.includes(v))
+  const unique = [...new Set(extra)].sort((a, b) => a - b)
+  return [...levels, ...unique.slice(0, Math.max(0, MAX_LEVELS - levels.length))].sort(
+    (a, b) => a - b,
+  )
+}
+
+/** Tên hiển thị của spec: `display_name` của metadata, chưa có thì tên kỹ thuật. */
+export function specTitle(
+  spec: Pick<AttackSpecView, 'name' | 'metadata'> | AttackSpec | undefined,
+): string {
+  if (!spec) return '—'
+  return ('metadata' in spec ? spec.metadata?.display_name : undefined) ?? spec.name
 }

@@ -125,26 +125,52 @@ describe('reducer với protocol', () => {
   })
 })
 
-describe('bước 4 với protocol', () => {
-  it('attack bắt buộc có khóa "Theo protocol", ô chọn bị tắt, ngưỡng bị khóa', () => {
-    const draft = { ...withProtocol(search), step: 4 as const }
-    const html = render(
+describe('bước 3 với protocol (Phase R3)', () => {
+  const renderStep = (draft: Draft) =>
+    render(
       <AttackStep
-        draft={draft}
+        draft={{ ...draft, step: 3 }}
         dispatch={() => undefined}
         errors={{}}
         model={undefined}
-        onLevelInputError={() => undefined}
+        onInputError={() => undefined}
+        onAdd={() => undefined}
+        adding={false}
         estimate={undefined as EstimateResponse | undefined}
       />,
       '/',
       'engineer',
       [[['attack-specs'], specs]],
     )
-    expect(html).toContain('data-testid="khoa-pgd_linf"')
-    expect(html).toContain('Theo protocol')
-    expect(html).toContain('data-testid="nguong-khoa"')
-    expect(html).toMatch(/<input type="checkbox"[^>]*disabled=""[^>]*>/)
-    expect(html).toContain('aria-label="Level 2 bắt buộc theo protocol"')
+  const row = (html: string, name: string) => {
+    const start = html.indexOf(`data-attack="${name}"`)
+    expect(start).toBeGreaterThan(-1)
+    return html.slice(start, html.indexOf('</li>', start))
+  }
+
+  it('attack bắt buộc ghi "Protocol yêu cầu", không có nút bỏ; ngưỡng tìm kiếm bị khóa', () => {
+    const html = renderStep(withProtocol(search))
+    const pgd = row(html, 'pgd_linf')
+    expect(pgd).toContain('Protocol yêu cầu')
+    expect(pgd).not.toContain('Bỏ attack')
+    expect(pgd).toContain('data-testid="nguong-khoa"')
+  })
+
+  it('level bắt buộc là chip aria-disabled; attack thêm ngoài protocol bỏ được', () => {
+    const extra = reducer(withProtocol(baseline), {
+      type: 'toggleAttack',
+      attackSpecId: spec('fog').id,
+      specSha256: spec('fog').spec_sha256,
+      requiresTraining: false,
+    })
+    const html = renderStep(extra)
+    const lock = requiredLocks(baseline.body, specs).locks.find((l) => l.mode === 'grid')
+    if (!lock) throw new Error('Thiếu attack quét lưới bắt buộc')
+    const locked = row(html, lock.name)
+    for (const level of lock.levels) {
+      expect(locked).toMatch(new RegExp(`data-level="${level}"[^>]*aria-disabled="true"`))
+    }
+    expect(row(html, 'fog')).toContain('aria-label="Bỏ attack fog"')
+    expect(row(html, 'fog')).not.toContain('Protocol yêu cầu')
   })
 })

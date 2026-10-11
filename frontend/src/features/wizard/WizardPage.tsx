@@ -1,13 +1,13 @@
 import { Check, ChevronLeft, ChevronRight, TriangleAlert, X } from 'lucide-react'
-import { useEffect, useMemo, useReducer, useState } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 
 import { ApiError } from '@/api/errors'
 import { errorMessage } from '@/api/messages'
-import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { FormAlert } from '@/components/FormAlert'
 import { Button } from '@/components/ui/button'
-import type { EstimateResponse } from '@/contracts/api'
+import type { EstimateResponse, ExperimentClone } from '@/contracts/api'
+import { STEP_THREE_HINT, STEP_TWO_HINT, WIZARD_INTRO } from '@/copy/wizard'
 import { GradientWaves } from '@/components/background/GradientWaves'
 import { cn } from '@/lib/utils'
 
@@ -17,8 +17,10 @@ import {
   useClone,
   useComputeTargets,
   useCreateExperiment,
+  useDraft,
   useEstimate,
   useModels,
+  usePresets,
   useProtocol,
   useProtocols,
   useSlices,
@@ -31,92 +33,78 @@ import {
   clearDraft,
   type Draft,
   draftFromClone,
+  draftKeyOf,
+  draftRequest,
   estimateText,
   formatDuration,
   groupFieldErrors,
   hasLevelInputError,
   hasSearchInputError,
+  LAST_STEP,
   loadDraft,
   reducer,
-  runCounts,
   saveDraft,
   searchCostSummary,
   SEED,
   type Step,
   STEPS,
 } from './state'
-import { AttackStep, DatasetStep, ModelStep, ProtocolStep, TargetStep } from './steps'
+import { specTitle } from './levels'
+import { AttackStep, DataStep, PurposeStep } from './steps'
 import { FloatingDecor } from '@/components/background/FloatingDecor'
 import { WIZARD_DECOR } from '@/components/background/decor-presets'
 
 /** Một câu hướng dẫn cho từng bước, hiện ngay dưới tiêu đề bước. */
-const STEP_HINTS: Record<Step, string> = {
-  1: 'Chọn protocol để hệ thống tự thêm attack bắt buộc và kiểm tra tuân thủ. Protocol dev chỉ để thử, không gửi duyệt được.',
-  2: 'Chọn model cần kiểm định. Attack white-box cần model hỗ trợ gradient.',
-  3: 'Chọn dataset và slice ảnh. Slice phải đủ lớn theo protocol mới gửi duyệt được.',
-  4: 'Bật attack và chọn level, hoặc để hệ thống tự tìm ngưỡng gãy. Ước lượng thời gian cập nhật ngay bên phải.',
-  5: 'Chọn máy chạy và giới hạn thời gian. Chạm giới hạn thì experiment dừng và giữ kết quả đã có.',
-  6: 'Kiểm tra lại cấu hình và ước lượng rồi bấm chạy. Kết quả là bản nháp cho tới khi được duyệt.',
+const STEP_HINTS: Record<Step, string | null> = {
+  1: null, // bước 1 có đoạn giới thiệu kèm thuật ngữ (PurposeStep)
+  2: STEP_TWO_HINT,
+  3: STEP_THREE_HINT,
 }
 
+/** Thanh bước (Phase R3: 3 bước). Phần tử `wizard-step` chỉ chứa tên bước; số thứ tự vẽ bằng CSS. */
 function StepBar({ draft, onGo }: { draft: Draft; onGo: (step: Step) => void }) {
-  const current = STEPS[draft.step - 1]
   return (
     <nav aria-label="Các bước">
-      <div className="flex flex-col gap-2 md:hidden">
-        <p className="text-sm text-muted-foreground">
-          Bước {draft.step}/6: <span className="font-medium text-foreground">{current.title}</span>
-        </p>
-        <div className="flex gap-1" aria-hidden>
-          {STEPS.map(({ step }) => (
-            <span
-              key={step}
-              className={cn(
-                'h-1 flex-1 rounded-full',
-                step <= draft.step
-                  ? 'bg-gradient-to-r from-[#2563eb] via-[#7c3aed] to-[#ec4899] bg-fixed'
-                  : 'bg-secondary',
-              )}
-            />
-          ))}
-        </div>
-      </div>
-      <ol className="hidden items-center gap-1 md:flex">
+      <ol className="flex items-center gap-1">
         {STEPS.map(({ step, title }) => {
           const done = step < draft.step
           const here = step === draft.step
           return (
             <li key={step} className="flex min-w-0 flex-1 items-center gap-1">
+              <span
+                aria-hidden
+                data-n={step}
+                className={cn(
+                  'flex size-7 shrink-0 items-center justify-center rounded-full text-[12.5px] font-semibold tabular-nums transition-all duration-300',
+                  done && 'bg-navy text-primary-foreground',
+                  here &&
+                    'border-2 border-navy bg-surface-solid text-foreground ring-4 ring-violet/15',
+                  !done && !here && 'border-2 border-line text-muted-foreground',
+                  !done && 'before:content-[attr(data-n)]',
+                )}
+              >
+                {done && <Check className="size-3.5" />}
+              </span>
               <button
                 type="button"
+                data-testid="wizard-step"
                 disabled={step > draft.step}
                 aria-current={here ? 'step' : undefined}
                 onClick={() => onGo(step)}
                 className={cn(
-                  'flex min-h-11 min-w-0 items-center gap-2 rounded-lg px-1.5 text-left text-[13.5px] transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
+                  'flex min-h-11 min-w-0 items-center rounded-lg px-1.5 text-left text-[13px] leading-tight transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none md:text-[13.5px]',
                   here && 'font-semibold text-foreground',
                   done && 'text-foreground hover:bg-muted',
                   step > draft.step && 'text-muted-foreground',
                 )}
               >
-                <span
-                  className={cn(
-                    'flex size-7 shrink-0 items-center justify-center rounded-full text-[12.5px] font-semibold tabular-nums transition-all duration-300',
-                    done && 'bg-navy text-primary-foreground',
-                    here &&
-                      'border-2 border-navy bg-surface-solid text-foreground ring-4 ring-violet/15',
-                    !done && !here && 'border-2 border-line text-muted-foreground',
-                  )}
-                >
-                  {done ? <Check className="size-3.5" aria-hidden="true" /> : step}
-                </span>
-                <span className="leading-tight">{title}</span>
+                {title}
               </button>
-              {step < 6 && (
+              {step < LAST_STEP && (
                 <span
                   aria-hidden
                   className={cn(
-                    'h-0.5 min-w-3 flex-1 rounded-full',
+                    'hidden h-0.5 min-w-3 flex-1 rounded-full sm:block',
                     done ? 'bg-gradient-to-r from-[#2563eb] to-[#7c3aed]' : 'bg-line',
                   )}
                 />
@@ -158,7 +146,7 @@ function EstimateWarnings({ estimate }: { estimate: EstimateResponse | undefined
   )
 }
 
-/** Tóm tắt cấu hình (cột phải trên desktop, nội dung bước 6). */
+/** Tóm tắt cấu hình (cột phải trên desktop; trong bước 3 trên màn hình nhỏ). */
 function Summary({
   draft,
   estimate,
@@ -169,6 +157,7 @@ function Summary({
   estimating: boolean
 }) {
   const protocols = useProtocols()
+  const presets = usePresets()
   const models = useModels()
   const slices = useSlices(draft.datasetVersionId)
   const specs = useAttackSpecs()
@@ -178,7 +167,9 @@ function Summary({
     id: string | null,
   ) => items?.find((item) => item.id === id)?.name ?? '—'
   const rows: [string, string][] = [
+    ['Mode', draft.mode === 'official' ? 'Chính thức' : 'Khám phá'],
     ['Protocol', name(protocols.data, draft.protocolId)],
+    ['Preset', presets.data?.find((p) => p.key === draft.preset)?.title ?? '—'],
     ['Model', name(models.data, draft.modelId)],
     ['Slice', name(slices.data, draft.sliceId)],
     ['Máy chạy', name(targets.data, draft.targetId)],
@@ -214,7 +205,7 @@ function Summary({
           <ul>
             {draft.attacks.map((a) => (
               <li key={a.attackSpecId}>
-                {name(specs.data, a.attackSpecId)}:{' '}
+                {specTitle(specs.data?.find((spec) => spec.id === a.attackSpecId))}:{' '}
                 {a.mode === 'search' ? 'tự tìm ngưỡng' : a.levels.join(', ') || 'chưa có level'}
               </li>
             ))}
@@ -276,7 +267,8 @@ function ComplianceTable({ estimate }: { estimate: EstimateResponse | undefined 
   )
 }
 
-function ConfirmStep({
+/** Phần xác nhận của bước 3: tên, lưu ý của bản nháp, ước lượng từng run. */
+function ConfirmSection({
   draft,
   estimate,
   estimating,
@@ -290,8 +282,19 @@ function ConfirmStep({
   onName: (name: string) => void
 }) {
   const specs = useAttackSpecs()
+  const specName = (id: string) => specTitle(specs.data?.find((spec) => spec.id === id))
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 border-t border-line pt-5">
+      {draft.notes.length > 0 && (
+        <div role="alert" className="space-y-1 text-sm text-threshold" data-testid="draft-notes">
+          {draft.notes.map((note) => (
+            <p key={note.code} className="flex gap-2">
+              <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+              {note.message}
+            </p>
+          ))}
+        </div>
+      )}
       {draft.cloneWarnings.length > 0 && (
         <div
           role="alert"
@@ -331,8 +334,7 @@ function ConfirmStep({
           <ul>
             {(estimate.searches ?? []).map((s) => (
               <li key={s.attack_spec_id}>
-                {specs.data?.find((spec) => spec.id === s.attack_spec_id)?.name ?? '—'}:{' '}
-                {searchCostSummary(estimate, s.attack_spec_id)}
+                {specName(s.attack_spec_id)}: {searchCostSummary(estimate, s.attack_spec_id)}
               </li>
             ))}
           </ul>
@@ -367,9 +369,7 @@ function ConfirmStep({
             <tbody>
               {estimate.runs.map((run) => (
                 <tr key={`${run.attack_spec_id}-${run.level}`} className="border-t">
-                  <td className="py-1 pr-3">
-                    {specs.data?.find((s) => s.id === run.attack_spec_id)?.name ?? '—'}
-                  </td>
+                  <td className="py-1 pr-3">{specName(run.attack_spec_id)}</td>
                   <td className="py-1 pr-3 tabular-nums">{run.level}</td>
                   <td className="py-1 pr-3 tabular-nums">{run.images}</td>
                   <td className="py-1 pr-3">
@@ -385,13 +385,16 @@ function ConfirmStep({
         </div>
       )}
       <p className="text-sm text-muted-foreground">
-        Kết quả là bản nháp, chưa được duyệt. Protocol dev không gửi duyệt được.
+        {draft.mode === 'exploration'
+          ? 'Experiment Khám phá không gửi duyệt được; muốn có report thì nâng lên chính thức sau khi chạy xong.'
+          : 'Kết quả là bản nháp cho tới khi reviewer duyệt.'}
       </p>
     </div>
   )
 }
 
-/** Wizard tạo experiment 6 bước (`/experiments/new`, `?clone=<id>` để nhân bản). */
+/** Wizard tạo experiment 3 bước (`/experiments/new`; `?clone=<id>` để nhân bản; nâng lên chính thức
+ * lưu sẵn nháp rồi mở trang này ở bước 3). */
 export function WizardPage() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
@@ -399,7 +402,6 @@ export function WizardPage() {
   const [draft, dispatch] = useReducer(reducer, undefined, loadDraft)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [levelInputErrors, setLevelInputErrors] = useState<Record<string, boolean>>({})
-  const [confirming, setConfirming] = useState(false)
 
   const protocols = useProtocols()
   const models = useModels()
@@ -410,22 +412,26 @@ export function WizardPage() {
   const specs = useAttackSpecs()
   const allSlices = useSlices(null, cloneId !== null)
   const create = useCreateExperiment()
+  const drafting = useDraft()
 
   useEffect(() => saveDraft(draft), [draft])
 
-  // Nhân bản: điền sẵn và mở bước 6 (một lần cho mỗi experiment gốc).
+  // Nhân bản: điền sẵn và mở bước 3 (một lần cho mỗi experiment gốc).
   useEffect(() => {
-    if (!clone.data || !allSlices.data || draft.clonedFrom === cloneId) return
+    if (!clone.data || !allSlices.data || !protocols.data || draft.clonedFrom === cloneId) return
     const slice = allSlices.data.find((s) => s.id === clone.data.config.slice_id)
+    const source = protocols.data.find((p) => p.id === clone.data.config.protocol_id)
     dispatch({
       type: 'load',
       draft: draftFromClone(
         clone.data.config,
         clone.data.warnings,
         slice?.dataset_version_id ?? null,
+        source?.status === 'dev' ? 'exploration' : 'official',
+        clone.data.notes ?? [],
       ),
     })
-  }, [clone.data, allSlices.data, cloneId, draft.clonedFrom])
+  }, [clone.data, allSlices.data, protocols.data, cloneId, draft.clonedFrom])
 
   // Phase 8: tải xong protocol thì thêm và khóa attack bắt buộc (cả khi nhân bản).
   useEffect(() => {
@@ -440,12 +446,12 @@ export function WizardPage() {
     })
   }, [protocol.data, specs.data, draft.protocolId, draft.requiredFor])
 
-  // Chọn sẵn khi chỉ có một lựa chọn, và máy local (ưu tiên online) để ước lượng từ bước 4.
+  // Khám phá dùng protocol dev; máy local (ưu tiên online) chọn sẵn; mapping duy nhất chọn sẵn.
   useEffect(() => {
-    if (!draft.protocolId && protocols.data?.length === 1) {
-      dispatch({ type: 'protocol', id: protocols.data[0].id })
-    }
-  }, [draft.protocolId, protocols.data])
+    if (draft.mode !== 'exploration' || draft.protocolId || !protocols.data) return
+    const dev = protocols.data.find((p) => p.status === 'dev')
+    if (dev) dispatch({ type: 'protocol', id: dev.id })
+  }, [draft.mode, draft.protocolId, protocols.data])
   useEffect(() => {
     if (draft.targetId || !targets.data) return
     const local = targets.data.filter((t) => t.kind === 'local')
@@ -472,24 +478,66 @@ export function WizardPage() {
   const estimateBody = useMemo(() => (body ? { ...body, name: null } : null), [body])
   // Form tìm ngưỡng còn lỗi thì chưa ước lượng: API chỉ trả 422 (review Group 5 #1).
   const searchInputError = hasSearchInputError(draft.attacks, levelInputErrors)
-  const estimate = useEstimate(draft.step >= 4 && !searchInputError ? estimateBody : null)
+  const estimate = useEstimate(draft.step === LAST_STEP && !searchInputError ? estimateBody : null)
   const target = targets.data?.find((t) => t.id === draft.targetId)
   const model = models.data?.find((m) => m.id === draft.modelId)
   const levelInputError = hasLevelInputError(draft.attacks, levelInputErrors)
-  const counts = runCounts(draft, estimate.data)
-  const advance = canAdvance(draft, {
+  const stepOptions = {
     maxLimitSeconds: target?.max_time_limit_s,
     levelInputError,
-  })
-  const missing = missingHint(draft, {
-    maxLimitSeconds: target?.max_time_limit_s,
-    levelInputError,
-  })
+    needsTrainingSlice: draft.required.some((lock) => lock.requiresTraining),
+  }
+  const advance = canAdvance(draft, stepOptions)
+  const missing = missingHint(draft, stepOptions)
 
   const go = (step: Step) => dispatch({ type: 'go', step })
-  const next = () => {
-    if (draft.step < 6 && advance) go((draft.step + 1) as Step)
+
+  const showErrors = (error: unknown) => {
+    if (error instanceof ApiError && error.fields.length > 0) {
+      const grouped = groupFieldErrors(error.fields)
+      setErrors(grouped.byPath)
+      if (grouped.firstStep) go(grouped.firstStep)
+    }
   }
+
+  const loadDraftResult = useCallback(
+    (key: string, result: ExperimentClone, merge: boolean) =>
+      dispatch({ type: 'drafted', key, clone: result, merge }),
+    [],
+  )
+
+  const next = () => {
+    if (!advance) return
+    if (draft.step === 1) return go(2)
+    if (draft.step !== 2) return
+    // Bước 2 → 3: dựng bản nháp từ protocol và preset (giữ attack đã sửa nếu lựa chọn không đổi).
+    const request = draftRequest(draft)
+    if (!request) return
+    const key = draftKeyOf(request)
+    if (key === draft.draftKey && draft.attacks.length > 0) return go(3)
+    setErrors({})
+    drafting.mutate(request, {
+      onSuccess: (result) => loadDraftResult(key, result, false),
+      onError: showErrors,
+    })
+  }
+
+  // Khám phá: thêm attack bằng chip = dựng lại bản nháp có thêm spec đó.
+  const { mutate: redraft } = drafting
+  const addAttack = useCallback(
+    (attackSpecId: string, trainingSliceId?: string) => {
+      const source = trainingSliceId ? { ...draft, trainingSliceId } : draft
+      const request = draftRequest(source, [
+        ...draft.attacks.map((a) => a.attackSpecId),
+        attackSpecId,
+      ])
+      if (!request) return
+      redraft(request, {
+        onSuccess: (result) => loadDraftResult(draftKeyOf(request), result, true),
+      })
+    },
+    [draft, redraft, loadDraftResult],
+  )
 
   const submit = () => {
     if (!body) return
@@ -499,20 +547,15 @@ export function WizardPage() {
         clearDraft()
         void navigate(`/experiments/${experiment.id}`)
       },
-      onError: (error) => {
-        setConfirming(false)
-        if (error instanceof ApiError && error.fields.length > 0) {
-          const grouped = groupFieldErrors(error.fields)
-          setErrors(grouped.byPath)
-          if (grouped.firstStep) go(grouped.firstStep)
-        }
-      },
+      onError: showErrors,
     })
   }
 
   const stepProps = { draft, dispatch, errors }
   const cloneFailed = clone.isError || allSlices.isError
   const loadingClone = cloneId !== null && draft.clonedFrom !== cloneId && !cloneFailed
+  const last = draft.step === LAST_STEP
+  const nextTitle = STEPS.find(({ step }) => step === draft.step + 1)?.title ?? ''
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6 p-4 pb-24 md:p-8">
       {/* Dải cảnh lụa 3D phía trên, thanh bước nằm trong thẻ trắng đè lên mép dưới (giống màn hình
@@ -527,10 +570,7 @@ export function WizardPage() {
         <h1 className="text-[clamp(1.85rem,2.6vw,2.5rem)] leading-[1.1] font-bold tracking-[-0.035em]">
           Tạo experiment
         </h1>
-        <p className="mt-2 max-w-[60ch] text-[15px] leading-6 text-white/85">
-          Sáu bước: chọn protocol, model, ảnh và attack. Nháp được lưu tự động trên trình duyệt này;
-          rời trang rồi quay lại vẫn còn.
-        </p>
+        <p className="mt-2 max-w-[60ch] text-[15px] leading-6 text-white/85">{WIZARD_INTRO}</p>
       </div>
       <div className="panel relative z-10 mx-3 px-3 py-2 md:mx-6">
         <StepBar draft={draft} onGo={go} />
@@ -538,6 +578,7 @@ export function WizardPage() {
       {cloneId !== null && cloneFailed && (
         <FormAlert>Không tải được cấu hình để nhân bản.</FormAlert>
       )}
+      {drafting.isError && <FormAlert>{errorMessage(drafting.error)}</FormAlert>}
       {create.isError && (
         <FormAlert>
           {create.error instanceof ApiError && create.error.code === 'queue_limit_reached'
@@ -551,43 +592,47 @@ export function WizardPage() {
         <section aria-labelledby="tieu-de-buoc" className="panel min-w-0 space-y-5 p-5 md:p-6">
           <div className="flex flex-col gap-1.5 border-b border-line pb-4">
             <p className="self-start rounded-full bg-violet-soft px-2.5 py-0.5 text-[12.5px] font-semibold text-[#6d28d9] dark:text-violet">
-              Bước {draft.step} trên 6
+              Bước {draft.step} trên {LAST_STEP}
             </p>
             <h2 id="tieu-de-buoc" className="text-xl font-semibold">
               {STEPS[draft.step - 1].title}
             </h2>
-            <p className="max-w-[72ch] text-sm text-muted-foreground">{STEP_HINTS[draft.step]}</p>
+            {STEP_HINTS[draft.step] && (
+              <p className="max-w-[72ch] text-sm text-muted-foreground">{STEP_HINTS[draft.step]}</p>
+            )}
           </div>
           {loadingClone ? (
             <p className="text-muted-foreground">Đang tải cấu hình để nhân bản…</p>
           ) : (
             <>
-              {draft.step === 1 && <ProtocolStep {...stepProps} />}
-              {draft.step === 2 && <ModelStep {...stepProps} />}
-              {draft.step === 3 && <DatasetStep {...stepProps} />}
-              {draft.step === 4 && (
-                <AttackStep
-                  {...stepProps}
-                  model={model}
-                  estimate={estimate.data}
-                  onLevelInputError={(id, bad) =>
-                    setLevelInputErrors((current) => ({ ...current, [id]: bad }))
-                  }
-                />
+              {draft.step === 1 && <PurposeStep {...stepProps} />}
+              {draft.step === 2 && (
+                <DataStep {...stepProps} needsTrainingSlice={stepOptions.needsTrainingSlice} />
               )}
-              {draft.step === 5 && <TargetStep {...stepProps} estimate={estimate.data} />}
-              {draft.step === 6 && (
-                <ConfirmStep
-                  draft={draft}
-                  estimate={estimate.data}
-                  estimating={estimate.isFetching}
-                  errors={errors}
-                  onName={(name) => dispatch({ type: 'name', name })}
-                />
+              {draft.step === 3 && (
+                <>
+                  <AttackStep
+                    {...stepProps}
+                    model={model}
+                    estimate={estimate.data}
+                    onInputError={(id, bad) =>
+                      setLevelInputErrors((current) => ({ ...current, [id]: bad }))
+                    }
+                    onAdd={addAttack}
+                    adding={drafting.isPending}
+                  />
+                  <ConfirmSection
+                    draft={draft}
+                    estimate={estimate.data}
+                    estimating={estimate.isFetching}
+                    errors={errors}
+                    onName={(name) => dispatch({ type: 'name', name })}
+                  />
+                </>
               )}
             </>
           )}
-          {estimate.isError && draft.step >= 4 && (
+          {estimate.isError && last && (
             <p className="text-sm text-muted-foreground">
               Chưa ước lượng được: {errorMessage(estimate.error)}
             </p>
@@ -602,22 +647,26 @@ export function WizardPage() {
               <ChevronLeft aria-hidden="true" />
               Lùi
             </Button>
-            {draft.step < 6 && !advance && (
+            {!advance && missing && (
               <p className="ml-auto text-right text-sm text-muted-foreground">{missing}</p>
             )}
-            {draft.step < 6 ? (
-              <Button onClick={next} disabled={!advance} className={cn(advance && 'ml-auto')}>
-                Tiếp: {STEPS[draft.step as 1 | 2 | 3 | 4 | 5].title}
+            {!last ? (
+              <Button
+                onClick={next}
+                disabled={!advance || drafting.isPending}
+                className={cn(advance && 'ml-auto')}
+              >
+                {drafting.isPending ? 'Đang dựng danh sách attack…' : `Tiếp: ${nextTitle}`}
                 <ChevronRight aria-hidden="true" />
               </Button>
             ) : (
               <Button
                 size="lg"
-                className="ml-auto"
-                onClick={() => setConfirming(true)}
-                disabled={!body || create.isPending}
+                className={cn(advance && 'ml-auto')}
+                onClick={submit}
+                disabled={!advance || !body || create.isPending}
               >
-                Chạy experiment
+                Tạo experiment
               </Button>
             )}
           </div>
@@ -630,7 +679,7 @@ export function WizardPage() {
             />
             <h2 className="font-semibold">Bạn đang cấu hình</h2>
             <p className="mb-2 text-sm text-muted-foreground">
-              Cập nhật theo từng lựa chọn. Chưa có gì được chạy cho tới khi bạn bấm "Chạy
+              Cập nhật theo từng lựa chọn. Chưa có gì được chạy cho tới khi bạn bấm "Tạo
               experiment".
             </p>
             <Summary draft={draft} estimate={estimate.data} estimating={estimate.isFetching} />
@@ -652,35 +701,18 @@ export function WizardPage() {
           <p className="min-w-0 flex-1 truncate text-sm" data-testid="uoc-luong-thanh-duoi">
             Ước lượng: <strong>{estimateText(estimate.data)}</strong>
           </p>
-          {draft.step < 6 ? (
-            <Button onClick={next} disabled={!advance}>
+          {!last ? (
+            <Button onClick={next} disabled={!advance || drafting.isPending}>
               Tiếp
               <ChevronRight aria-hidden="true" />
             </Button>
           ) : (
-            <Button onClick={() => setConfirming(true)} disabled={!body || create.isPending}>
-              Chạy
+            <Button onClick={submit} disabled={!advance || !body || create.isPending}>
+              Tạo experiment
             </Button>
           )}
         </div>
       </div>
-      <ConfirmDialog
-        open={confirming}
-        onOpenChange={setConfirming}
-        title="Chạy experiment?"
-        confirmLabel="Chạy experiment"
-        pending={create.isPending}
-        onConfirm={submit}
-      >
-        <div className="space-y-2 text-sm">
-          <p>
-            {counts.grid} run quét lưới
-            {counts.maxPoints > 0 && ` · tìm ngưỡng tối đa ${counts.maxPoints} điểm`} · ước lượng{' '}
-            {estimateText(estimate.data)} · giới hạn {formatDuration(draft.limitSeconds)}
-          </p>
-          <EstimateWarnings estimate={estimate.data} />
-        </div>
-      </ConfirmDialog>
     </div>
   )
 }

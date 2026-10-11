@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest'
 
 import type { PrimaryParam } from '@/contracts/api'
 
-import { addLevel, levelError, MAX_LEVELS, presetLevels, rangeText } from './levels'
+import {
+  addLevel,
+  levelCandidates,
+  levelLabel,
+  MAX_LEVELS,
+  presetLevels,
+  rangeText,
+} from './levels'
 
 const EPS: PrimaryParam = {
   name: 'eps',
@@ -29,34 +36,30 @@ const SEVERITY: PrimaryParam = {
   unit: '',
 }
 
-describe('chip level (validation.md: từ chối giá trị ngoài dải và giá trị trùng)', () => {
-  it('nhận giá trị trong dải', () => {
-    expect(levelError(EPS, [2], '4')).toBeNull()
-    expect(levelError(EPS, [], '0')).toBeNull()
-    expect(levelError(EPS, [], '32')).toBeNull()
-    expect(levelError(L2, [], '0,5')).toBeNull() // dấu phẩy thập phân
+describe('chip level (Phase R3: chọn bằng chip, không gõ số)', () => {
+  const spec = (primary_param: PrimaryParam, labels: Record<string, string> = {}) => ({
+    primary_param,
+    requires_training: false,
+    metadata: { level_labels: labels },
   })
 
-  it('từ chối giá trị ngoài dải', () => {
-    expect(levelError(EPS, [], '40')).toBe('Level 40 ngoài dải 0–32 1/255')
-    expect(levelError(EPS, [], '-1')).toContain('ngoài dải')
+  it('gồm level đang chọn, level có nhãn và bộ gợi ý, sắp tăng dần, không trùng', () => {
+    expect(levelCandidates(spec(EPS, { '2': 'rất nhẹ' }), [3, 8])).toEqual([2, 3, 4, 8, 16, 32])
   })
 
-  it('từ chối giá trị trùng', () => {
-    expect(levelError(EPS, [2, 4], '4')).toBe('Level 4 đã có')
-    expect(levelError(EPS, [2, 4], '4.0')).toBe('Level 4 đã có')
+  it('rời rạc: mọi giá trị; nhãn ngoài dải bị bỏ', () => {
+    expect(levelCandidates(spec(SEVERITY, { '9': 'ngoài dải' }), [2])).toEqual([1, 2, 3, 4, 5])
   })
 
-  it('từ chối chữ, ô trống và quá 12 level', () => {
-    expect(levelError(EPS, [], 'abc')).toContain('không phải là số')
-    expect(levelError(EPS, [], '  ')).toBe('Nhập một giá trị')
-    const full = Array.from({ length: MAX_LEVELS }, (_, i) => i + 1)
-    expect(levelError(EPS, full, '20')).toBe('Tối đa 12 level mỗi attack')
+  it('không quá MAX_LEVELS chip, trừ level đang chọn', () => {
+    const many = Object.fromEntries(Array.from({ length: 20 }, (_, i) => [String(i + 1), 'x']))
+    expect(levelCandidates(spec(EPS, many), [])).toHaveLength(MAX_LEVELS)
   })
 
-  it('spec rời rạc chỉ nhận giá trị trong danh sách', () => {
-    expect(levelError(SEVERITY, [], '3')).toBeNull()
-    expect(levelError(SEVERITY, [], '2.5')).toBe('Level 2.5 ngoài dải 1, 2, 3, 4, 5')
+  it('nhãn so theo giá trị số', () => {
+    expect(levelLabel({ level_labels: { '1.0': 'lất phất' } }, 1)).toBe('lất phất')
+    expect(levelLabel({ level_labels: {} }, 1)).toBeNull()
+    expect(levelLabel(null, 1)).toBeNull()
   })
 
   it('giữ thứ tự tăng dần', () => {

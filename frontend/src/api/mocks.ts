@@ -63,6 +63,7 @@ function mockPhase5(pathname: string, query: URLSearchParams): unknown {
     '/datasets': 'dataset_summary',
     '/attack-specs': 'attack_spec',
     '/compute-targets': 'compute_target_public',
+    '/experiment-presets': 'experiment_preset',
   }
   if (pathname in simple) return listMocks(simple[pathname])
   if (pathname === '/protocols') {
@@ -183,13 +184,27 @@ export function mockMe(name: string = import.meta.env.VITE_MOCK_ME ?? 'admin'): 
 }
 
 /**
- * Chế độ mock không ghi được gì: request thay đổi dữ liệu báo lỗi rõ ràng. Riêng
- * `POST /experiments/estimate` (chỉ tính toán, không tạo gì) trả mock ước lượng để wizard dùng được.
+ * Chế độ mock không ghi được gì: request thay đổi dữ liệu báo lỗi rõ ràng. Riêng các request chỉ
+ * tính toán, không tạo gì (`POST /experiments/estimate`, Phase R3: `POST /experiments/draft` và
+ * `POST /experiments/{id}/promote`) trả mock để wizard dùng được.
  */
 export function mockSend<T>(method: string, path: string): T {
   if (method === 'POST' && path === '/experiments/estimate') {
     const estimate = listMocks<EstimateResponse>('estimate_response')[0]
     if (estimate) return estimate as T
+  }
+  if (method === 'POST' && path === '/experiments/draft') {
+    // Bản nháp không phải nhân bản: bỏ `cloned_from` của mock.
+    const clone = listMocks<ExperimentClone>('experiment_clone').find(
+      (c) => !c.config.promoted_from,
+    )
+    if (clone) return { ...clone, config: { ...clone.config, cloned_from: null } } as T
+  }
+  if (method === 'POST' && /^\/experiments\/[^/]+\/promote$/.test(path)) {
+    const promoted = listMocks<ExperimentClone>('experiment_clone').find(
+      (c) => c.config.promoted_from,
+    )
+    if (promoted) return promoted as T
   }
   throw new Error(`Chế độ mock không hỗ trợ ${method} ${path}`)
 }

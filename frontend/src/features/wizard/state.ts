@@ -2,14 +2,19 @@
  * Trạng thái nháp của wizard (requirements.md Phase 5, Frontend: wizard): thuần, lưu
  * sessionStorage để giữ qua lần tải lại trang, xóa sau khi tạo thành công. Phase 6 thêm slice huấn
  * luyện cho attack cần train (patch) và công tắc dừng sớm. Phase 7 thêm chế độ tự tìm ngưỡng theo
- * từng attack; nháp cũ (khóa `v2`) thiếu chế độ thì coi là quét lưới. Phase 8 thêm attack bắt
- * buộc của protocol (khóa trên giao diện) và kích thước slice tối thiểu.
+ * từng attack. Phase 8 thêm attack bắt buộc của protocol (khóa trên giao diện) và kích thước slice
+ * tối thiểu. Phase R3 gộp thành 3 bước: mode và preset, model và dữ liệu, rồi attack lấy từ
+ * `POST /experiments/draft` (requirements.md Phase R3, Wizard 3 bước).
  */
 import type {
   CloneWarning,
+  DraftNote,
   EstimateResponse,
   ExperimentCreateInput,
   ExperimentCreateOutput,
+  ExperimentDraftRequest,
+  ExperimentMode,
+  ExperimentPreset,
   FieldError,
 } from '@/contracts/api'
 
@@ -17,21 +22,23 @@ import { applyLocks, type RequiredLock, withoutLockedFields, withRequiredLevels 
 import { fromSearchConfig, type SearchDraft, toSearchConfig } from './search'
 
 export const STEPS = [
-  { step: 1, title: 'Protocol' },
-  { step: 2, title: 'Model' },
-  { step: 3, title: 'Dataset và slice' },
-  { step: 4, title: 'Attack' },
-  { step: 5, title: 'Máy chạy và giới hạn' },
-  { step: 6, title: 'Xác nhận' },
+  { step: 1, title: 'Mục đích' },
+  { step: 2, title: 'Model và dữ liệu' },
+  { step: 3, title: 'Attack và xác nhận' },
 ] as const
 
 export type Step = (typeof STEPS)[number]['step']
+export const LAST_STEP: Step = 3
+
+export type PresetKey = ExperimentPreset['key']
+/** Preset chọn sẵn (Phase R3: "chỉ dùng lựa chọn mặc định cộng chọn model/slice"). */
+export const DEFAULT_PRESET: PresetKey = 'standard'
 
 /** Seed cố định của mọi attack (requirements.md Phase 5: tái lập được, trúng cache). */
 export const SEED = 0
-/** Phase 6: khóa `v2` vì nháp có thêm trường; nháp `v1` cũ bị bỏ qua (requirements.md Phase 6).
- * Phase 7 giữ `v2`: nháp thiếu `mode`/`search` được điền mặc định (quét lưới), không mất trường nào. */
-export const STORAGE_KEY = 'advertest.wizard.v2'
+/** Phase R3: khóa `v3` vì số bước đổi (6 → 3); nháp `v2` cũ bị bỏ qua. Nháp `v3` thiếu trường
+ * được điền mặc định, không mất trường nào. */
+export const STORAGE_KEY = 'advertest.wizard.v3'
 
 export type AttackMode = 'grid' | 'search'
 
@@ -50,6 +57,9 @@ export interface AttackDraft {
 
 export interface Draft {
   step: Step
+  /** Phase R3: Khám phá dùng protocol `dev`; Chính thức chọn protocol `active`. */
+  mode: ExperimentMode
+  preset: PresetKey
   protocolId: string | null
   modelId: string | null
   datasetVersionId: string | null
@@ -69,12 +79,23 @@ export interface Draft {
   required: RequiredLock[]
   /** Protocol mà `required` được tính cho (null: chưa tải protocol). */
   requiredFor: string | null
-  /** `min_slice_size` của protocol (slice nhỏ hơn bị ẩn ở bước 3). */
+  /** `min_slice_size` của protocol (slice nhỏ hơn bị ẩn ở bước 2). */
   minSliceSize: number | null
+  /** Phase R3: slice huấn luyện gửi kèm `POST /experiments/draft` (spec cần train). */
+  trainingSliceId: string | null
+  /** Phase R3: experiment Khám phá nguồn khi nâng lên chính thức. */
+  promotedFrom: string | null
+  /** Lưu ý của bản nháp từ server (`slice_too_small`). */
+  notes: DraftNote[]
+  /** Request `draft` đã dựng `attacks` (null: attack chưa lấy từ server). Bước 2 đổi lựa chọn thì
+   * khóa đổi và bản nháp được dựng lại. */
+  draftKey: string | null
 }
 
 export const EMPTY_DRAFT: Draft = {
   step: 1,
+  mode: 'exploration',
+  preset: DEFAULT_PRESET,
   protocolId: null,
   modelId: null,
   datasetVersionId: null,
@@ -91,15 +112,23 @@ export const EMPTY_DRAFT: Draft = {
   required: [],
   requiredFor: null,
   minSliceSize: null,
+  trainingSliceId: null,
+  promotedFrom: null,
+  notes: [],
+  draftKey: null,
 }
 
 export type Action =
   | { type: 'go'; step: Step }
+  | { type: 'experimentMode'; mode: ExperimentMode }
+  | { type: 'preset'; key: PresetKey }
   | { type: 'protocol'; id: string }
   | { type: 'requirements'; protocolId: string; locks: RequiredLock[]; minSliceSize: number }
   | { type: 'model'; id: string }
   | { type: 'datasetVersion'; id: string }
   | { type: 'slice'; id: string }
+  | { type: 'dataSlice'; datasetVersionId: string; sliceId: string }
+  | { type: 'draftTrainingSlice'; id: string }
   | { type: 'mapping'; id: string | null }
   | { type: 'target'; id: string; defaultLimitSeconds: number }
   | { type: 'limit'; seconds: number | null }
@@ -109,14 +138,35 @@ export type Action =
   | { type: 'search'; attackSpecId: string; patch: Partial<SearchDraft> }
   | { type: 'trainingSlice'; attackSpecId: string; id: string }
   | { type: 'earlyStop'; on: boolean }
-  | { type: 'preset'; attacks: AttackDraft[] }
+  | { type: 'drafted'; key: string; clone: DraftResult; merge: boolean }
   | { type: 'name'; name: string }
   | { type: 'load'; draft: Draft }
+
+/** Phần của `ExperimentClone` mà wizard dùng (bản nháp từ `draft`, `promote`, `clone`). */
+export interface DraftResult {
+  config: ExperimentCreateOutput
+  warnings: CloneWarning[]
+  notes?: DraftNote[]
+}
 
 export function reducer(draft: Draft, action: Action): Draft {
   switch (action.type) {
     case 'go':
       return { ...draft, step: action.step }
+    case 'experimentMode':
+      // Đổi mode: chọn lại protocol (Khám phá tự chọn protocol dev ở WizardPage).
+      return draft.mode === action.mode
+        ? draft
+        : {
+            ...draft,
+            mode: action.mode,
+            protocolId: null,
+            required: [],
+            requiredFor: null,
+            minSliceSize: null,
+          }
+    case 'preset':
+      return { ...draft, preset: action.key }
     case 'protocol':
       // Đổi protocol: bỏ khóa cũ (attack đã thêm vẫn giữ), khóa mới áp khi tải xong protocol.
       return draft.protocolId === action.id
@@ -149,6 +199,12 @@ export function reducer(draft: Draft, action: Action): Draft {
       return draft.sliceId === action.id
         ? draft
         : { ...draft, sliceId: action.id, attacks: withoutTrainingSlices(draft.attacks) }
+    case 'dataSlice': {
+      const version = reducer(draft, { type: 'datasetVersion', id: action.datasetVersionId })
+      return reducer(version, { type: 'slice', id: action.sliceId })
+    }
+    case 'draftTrainingSlice':
+      return { ...draft, trainingSliceId: action.id }
     case 'mapping':
       return { ...draft, mappingId: action.id }
     case 'target':
@@ -185,23 +241,21 @@ export function reducer(draft: Draft, action: Action): Draft {
       }
     case 'earlyStop':
       return { ...draft, earlyStop: action.on, earlyStopMixed: false }
-    case 'preset': {
-      // Giữ slice huấn luyện, chế độ và cấu hình tìm ngưỡng của attack đã có (review Group 5 #5).
-      const chosen = new Map(draft.attacks.map((a) => [a.attackSpecId, a]))
+    case 'drafted': {
+      // `merge`: thêm attack ở Khám phá; attack đã có giữ level và chế độ người dùng đã sửa.
+      const loaded = attacksFromConfig(action.clone.config)
+      const current = new Map(draft.attacks.map((a) => [a.attackSpecId, a]))
       return {
         ...draft,
-        attacks: applyLocks(
-          action.attacks.map((a) => {
-            const old = chosen.get(a.attackSpecId)
-            return {
-              ...a,
-              trainingSliceId: old?.trainingSliceId ?? a.trainingSliceId,
-              mode: old?.mode ?? a.mode,
-              search: old?.search ?? a.search,
-            }
-          }),
-          draft.required,
-        ),
+        step: 3,
+        draftKey: action.key,
+        attacks: action.merge ? loaded.map((a) => current.get(a.attackSpecId) ?? a) : loaded,
+        earlyStop: action.merge ? draft.earlyStop : earlyStopOf(action.clone.config).on,
+        earlyStopMixed: action.merge
+          ? draft.earlyStopMixed
+          : earlyStopOf(action.clone.config).mixed,
+        cloneWarnings: action.clone.warnings,
+        notes: action.clone.notes ?? [],
       }
     }
     case 'levels': {
@@ -258,31 +312,40 @@ function withoutTrainingSlices(attacks: AttackDraft[]): AttackDraft[] {
   return attacks.map((a) => (a.trainingSliceId === null ? a : { ...a, trainingSliceId: null }))
 }
 
-/** Bước hiện tại đủ dữ liệu để sang bước sau chưa. `maxLimitSeconds` của target đang chọn. */
-export function canAdvance(
-  draft: Draft,
-  options: { maxLimitSeconds?: number; levelInputError?: boolean } = {},
-): boolean {
+interface StepOptions {
+  /** `max_time_limit_s` của máy đang chọn. */
+  maxLimitSeconds?: number
+  /** Ô nhập của phần "Tùy chỉnh nâng cao" đang có giá trị sai. */
+  levelInputError?: boolean
+  /** Bản nháp cần slice huấn luyện (protocol bắt buộc spec cần train). */
+  needsTrainingSlice?: boolean
+}
+
+/** Bước 2 đủ để dựng `POST /experiments/draft`. */
+function dataReady(draft: Draft, options: StepOptions): boolean {
+  return (
+    draft.modelId !== null &&
+    draft.sliceId !== null &&
+    draft.mappingId !== null &&
+    draft.targetId !== null &&
+    draft.limitSeconds !== null &&
+    draft.limitSeconds > 0 &&
+    (options.maxLimitSeconds === undefined || draft.limitSeconds <= options.maxLimitSeconds) &&
+    (!options.needsTrainingSlice || draft.trainingSliceId !== null)
+  )
+}
+
+/** Bước hiện tại đủ dữ liệu để sang bước sau chưa (bước 3: đủ để tạo experiment). */
+export function canAdvance(draft: Draft, options: StepOptions = {}): boolean {
   switch (draft.step) {
     case 1:
       return draft.protocolId !== null
     case 2:
-      return draft.modelId !== null
+      return dataReady(draft, options)
     case 3:
-      return draft.sliceId !== null && draft.mappingId !== null
-    case 4:
       return (
         !options.levelInputError && draft.attacks.length > 0 && draft.attacks.every(attackReady)
       )
-    case 5:
-      return (
-        draft.targetId !== null &&
-        draft.limitSeconds !== null &&
-        draft.limitSeconds > 0 &&
-        (options.maxLimitSeconds === undefined || draft.limitSeconds <= options.maxLimitSeconds)
-      )
-    case 6:
-      return false
   }
 }
 
@@ -290,30 +353,20 @@ export function canAdvance(
  * Câu nói rõ còn thiếu gì ở bước hiện tại (hiện cạnh nút "Tiếp" khi nút bị khóa), để người dùng
  * không phải đoán. `null` khi đã đủ.
  */
-export function missingHint(
-  draft: Draft,
-  options: { maxLimitSeconds?: number; levelInputError?: boolean } = {},
-): string | null {
+export function missingHint(draft: Draft, options: StepOptions = {}): string | null {
   if (canAdvance(draft, options)) return null
   switch (draft.step) {
     case 1:
-      return 'Chọn một protocol để đi tiếp.'
+      return draft.mode === 'official'
+        ? 'Chọn protocol của kiểm thử chính thức.'
+        : 'Đang tải protocol dev…'
     case 2:
-      return 'Chọn model bạn muốn kiểm thử.'
-    case 3:
-      if (draft.sliceId === null) return 'Chọn một slice ảnh để đi tiếp.'
-      return 'Chọn class mapping giữa dataset và model.'
-    case 4: {
-      if (options.levelInputError) return 'Sửa ô level đang báo lỗi rồi đi tiếp.'
-      if (draft.attacks.length === 0) return 'Chọn ít nhất một attack.'
-      const notReady = draft.attacks.find((a) => !attackReady(a))
-      if (notReady?.mode === 'search') return 'Điền đủ các ô của phần tự tìm ngưỡng.'
-      if (notReady?.requiresTraining && notReady.trainingSliceId === null)
-        return 'Chọn slice huấn luyện cho attack cần train.'
-      return 'Thêm ít nhất một level cho mỗi attack đã chọn.'
-    }
-    case 5:
+      if (draft.modelId === null) return 'Chọn model bạn muốn kiểm thử.'
+      if (draft.sliceId === null) return 'Chọn dataset và slice ảnh.'
+      if (draft.mappingId === null) return 'Chọn class mapping giữa dataset và model.'
       if (draft.targetId === null) return 'Chọn máy sẽ chạy experiment.'
+      if (options.needsTrainingSlice && draft.trainingSliceId === null)
+        return 'Chọn slice huấn luyện cho attack cần train.'
       if (
         options.maxLimitSeconds !== undefined &&
         draft.limitSeconds !== null &&
@@ -321,8 +374,15 @@ export function missingHint(
       )
         return 'Giới hạn thời gian đang vượt mức tối đa của máy này.'
       return 'Đặt giới hạn thời gian lớn hơn 0.'
-    case 6:
-      return null
+    case 3: {
+      if (options.levelInputError) return 'Sửa ô đang báo lỗi trong "Tùy chỉnh nâng cao".'
+      if (draft.attacks.length === 0) return 'Chọn ít nhất một attack.'
+      const notReady = draft.attacks.find((a) => !attackReady(a))
+      if (notReady?.mode === 'search') return 'Điền đủ các ô của phần tự tìm ngưỡng.'
+      if (notReady?.requiresTraining && notReady.trainingSliceId === null)
+        return 'Chọn slice huấn luyện cho attack cần train.'
+      return 'Giữ ít nhất một level cho mỗi attack.'
+    }
   }
 }
 
@@ -411,18 +471,53 @@ export function buildBody(draft: Draft): ExperimentCreateInput | null {
     limit: { kind: 'time' as const, value: String(limitSeconds) },
     name: draft.name.trim() || null,
     cloned_from: draft.clonedFrom,
+    ...(draft.promotedFrom ? { promoted_from: draft.promotedFrom } : {}),
   }
 }
+
+/**
+ * Body của `POST /experiments/draft` (null khi bước 2 chưa đủ). `attackSpecIds` chỉ gửi với
+ * protocol dev (Khám phá); null là toàn bộ catalog `active` trừ spec cần train.
+ */
+export function draftRequest(
+  draft: Draft,
+  attackSpecIds: string[] | null = null,
+): ExperimentDraftRequest | null {
+  const { protocolId, modelId, sliceId, mappingId, targetId, limitSeconds } = draft
+  if (!protocolId || !modelId || !sliceId || !mappingId || !targetId || !limitSeconds) return null
+  return {
+    protocol_id: protocolId,
+    preset: draft.preset,
+    model_version_id: modelId,
+    slice_id: sliceId,
+    class_mapping_id: mappingId,
+    compute_target_id: targetId,
+    limit: { kind: 'time', value: String(limitSeconds) },
+    attack_spec_ids: draft.mode === 'exploration' ? attackSpecIds : null,
+    training_slice_id: draft.trainingSliceId,
+  }
+}
+
+/** Khóa so sánh: cùng lựa chọn ở bước 1–2 thì không dựng lại bản nháp. */
+export function draftKeyOf(request: ExperimentDraftRequest): string {
+  return JSON.stringify({ ...request, attack_spec_ids: null })
+}
+
+const STEP_TWO_FIELDS = new Set([
+  'model_version_id',
+  'slice_id',
+  'class_mapping_id',
+  'compute_target_id',
+  'limit',
+  'training_slice_id',
+])
 
 /** Bước chứa trường sai (đường dẫn trường của lỗi 422). */
 export function stepOfField(path: string): Step {
   const head = path.split('.')[0]
-  if (head === 'protocol_id') return 1
-  if (head === 'model_version_id') return 2
-  if (head === 'slice_id' || head === 'class_mapping_id') return 3
-  if (head === 'attacks') return 4
-  if (head === 'compute_target_id' || head === 'limit') return 5
-  return 6
+  if (head === 'protocol_id' || head === 'preset') return 1
+  if (STEP_TWO_FIELDS.has(head)) return 2
+  return 3
 }
 
 /** Lỗi theo đường dẫn trường, và bước sớm nhất có lỗi. */
@@ -442,16 +537,40 @@ export function groupFieldErrors(fields: FieldError[]): {
   return { byPath, firstStep }
 }
 
-/** Nháp từ cấu hình nhân bản, mở tại bước 6 (dataset version tra từ slice). */
+/** Attack của wizard từ một cấu hình (bản nháp của server hoặc experiment gốc). */
+export function attacksFromConfig(config: ExperimentCreateOutput): AttackDraft[] {
+  return config.attacks.map((a) => ({
+    attackSpecId: a.attack_spec_id,
+    specSha256: a.spec_sha256,
+    levels: [...(a.grid?.levels ?? [])],
+    requiresTraining: (a.training_slice_id ?? null) !== null,
+    trainingSliceId: a.training_slice_id ?? null,
+    mode: a.mode,
+    search: a.search ? fromSearchConfig(a.search) : null,
+  }))
+}
+
+/** Công tắc dừng sớm theo cấu hình; chỉ áp cho attack quét lưới (Phase 7). */
+function earlyStopOf(config: ExperimentCreateOutput): { on: boolean; mixed: boolean } {
+  const stops = config.attacks.filter((a) => a.grid).map((a) => a.grid?.early_stop !== false)
+  return { on: stops.every(Boolean), mixed: stops.some(Boolean) && !stops.every(Boolean) }
+}
+
+/** Nháp từ cấu hình nhân bản hoặc nâng lên chính thức, mở tại bước 3 (dataset version tra từ
+ * slice). `mode` theo protocol của cấu hình. */
 export function draftFromClone(
   config: ExperimentCreateOutput,
   warnings: CloneWarning[],
   datasetVersionId: string | null,
+  mode: ExperimentMode = 'exploration',
+  notes: DraftNote[] = [],
 ): Draft {
-  // Dừng sớm chỉ áp cho attack quét lưới (Phase 7).
-  const stops = config.attacks.filter((a) => a.grid).map((a) => a.grid?.early_stop !== false)
-  return {
-    step: 6,
+  const earlyStop = earlyStopOf(config)
+  const trainingSliceId = config.attacks.find((a) => a.training_slice_id)?.training_slice_id ?? null
+  const draft: Draft = {
+    ...EMPTY_DRAFT,
+    step: 3,
+    mode,
     protocolId: config.protocol_id,
     modelId: config.model_version_id,
     datasetVersionId,
@@ -459,25 +578,23 @@ export function draftFromClone(
     mappingId: config.class_mapping_id,
     targetId: config.compute_target_id,
     limitSeconds: Number(config.limit.value),
-    attacks: config.attacks.map((a) => ({
-      attackSpecId: a.attack_spec_id,
-      specSha256: a.spec_sha256,
-      levels: [...(a.grid?.levels ?? [])],
-      requiresTraining: (a.training_slice_id ?? null) !== null,
-      trainingSliceId: a.training_slice_id ?? null,
-      mode: a.mode,
-      search: a.search ? fromSearchConfig(a.search) : null,
-    })),
-    earlyStop: stops.every(Boolean),
-    earlyStopMixed: stops.some(Boolean) && !stops.every(Boolean),
+    attacks: attacksFromConfig(config),
+    earlyStop: earlyStop.on,
+    earlyStopMixed: earlyStop.mixed,
     name: config.name ?? '',
     clonedFrom: config.cloned_from ?? null,
+    promotedFrom: config.promoted_from ?? null,
     cloneWarnings: warnings,
+    notes,
+    trainingSliceId,
     // Phase 8: khóa theo protocol áp lại khi tải xong protocol (WizardPage).
     required: [],
     requiredFor: null,
     minSliceSize: null,
   }
+  // Lùi về bước 1–2 mà không đổi lựa chọn thì giữ attack của cấu hình gốc.
+  const request = draftRequest(draft)
+  return { ...draft, draftKey: request ? draftKeyOf(request) : null }
 }
 
 type Store = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
@@ -585,7 +702,7 @@ export function runCounts(
 }
 
 /**
- * Ước lượng hiển thị (bước 5, bước 6, thanh dưới): có attack tìm ngưỡng thì là chi phí tối đa
+ * Ước lượng hiển thị (bước 3, tóm tắt, thanh dưới): có attack tìm ngưỡng thì là chi phí tối đa
  * "tối đa ~X (tối đa N điểm)" (requirements.md Phase 7, Frontend), không thì như Phase 5.
  */
 export function estimateText(estimate: EstimateResponse | undefined): string {

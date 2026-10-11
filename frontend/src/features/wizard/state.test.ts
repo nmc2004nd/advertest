@@ -1,14 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { listMocks } from '@/api/mocks'
-import type {
-  AttackSpecAdminPage,
-  EstimateResponse,
-  ExperimentClone,
-  ExperimentDetail,
-} from '@/contracts/api'
+import type { EstimateResponse, ExperimentClone, ExperimentDetail } from '@/contracts/api'
 
-import { catalogPreset, PATCH_PRESET_LEVELS } from './levels'
 import { defaultSearch } from './search'
 
 import {
@@ -17,6 +11,8 @@ import {
   clearDraft,
   type Draft,
   draftFromClone,
+  draftKeyOf,
+  draftRequest,
   EMPTY_DRAFT,
   estimateText,
   formatDuration,
@@ -38,7 +34,7 @@ import {
 
 const FULL: Draft = {
   ...EMPTY_DRAFT,
-  step: 4,
+  step: 3,
   protocolId: 'p',
   modelId: 'm',
   datasetVersionId: 'dv',
@@ -121,10 +117,11 @@ describe('điều kiện sang bước sau', () => {
   it.each([
     [1, { protocolId: null }, false],
     [2, { modelId: null }, false],
-    [3, { mappingId: null }, false],
-    [4, { attacks: [] }, false],
-    [4, { attacks: [{ ...FULL.attacks[0], levels: [] }] }, false],
-    [5, { limitSeconds: 0 }, false],
+    [2, { mappingId: null }, false],
+    [2, { targetId: null }, false],
+    [2, { limitSeconds: 0 }, false],
+    [3, { attacks: [] }, false],
+    [3, { attacks: [{ ...FULL.attacks[0], levels: [] }] }, false],
   ] satisfies [Step, Partial<Draft>, boolean][])(
     'bước %i thiếu dữ liệu thì chặn',
     (step, change, expected) => {
@@ -132,15 +129,22 @@ describe('điều kiện sang bước sau', () => {
     },
   )
 
-  it('bước 4 có level sai đang nhập thì chặn (validation.md: không sang bước tiếp)', () => {
+  it('bước 3 có ô nâng cao sai đang nhập thì chặn (validation.md: không sang bước tiếp)', () => {
     expect(canAdvance(FULL)).toBe(true)
     expect(canAdvance(FULL, { levelInputError: true })).toBe(false)
   })
 
-  it('bước 5: giới hạn không vượt max của target', () => {
-    const step5 = { ...FULL, step: 5 as const }
-    expect(canAdvance(step5, { maxLimitSeconds: 7200 })).toBe(true)
-    expect(canAdvance(step5, { maxLimitSeconds: 3600 })).toBe(false)
+  it('bước 2: giới hạn không vượt max của target', () => {
+    const step2 = { ...FULL, step: 2 as const }
+    expect(canAdvance(step2, { maxLimitSeconds: 7200 })).toBe(true)
+    expect(canAdvance(step2, { maxLimitSeconds: 3600 })).toBe(false)
+  })
+
+  it('bước 2: protocol bắt buộc spec cần train thì phải chọn slice huấn luyện', () => {
+    const step2 = { ...FULL, step: 2 as const }
+    expect(canAdvance(step2, { needsTrainingSlice: true })).toBe(false)
+    const chosen = reducer(step2, { type: 'draftTrainingSlice', id: 'ts' })
+    expect(canAdvance(chosen, { needsTrainingSlice: true })).toBe(true)
   })
 })
 
@@ -176,20 +180,22 @@ describe('body gửi lên', () => {
 describe('lỗi 422 theo bước', () => {
   it('đường dẫn trường → bước', () => {
     expect(stepOfField('protocol_id')).toBe(1)
+    expect(stepOfField('preset')).toBe(1)
     expect(stepOfField('model_version_id')).toBe(2)
-    expect(stepOfField('class_mapping_id')).toBe(3)
-    expect(stepOfField('attacks.0.grid.levels')).toBe(4)
-    expect(stepOfField('limit.value')).toBe(5)
-    expect(stepOfField('cloned_from')).toBe(6)
+    expect(stepOfField('class_mapping_id')).toBe(2)
+    expect(stepOfField('training_slice_id')).toBe(2)
+    expect(stepOfField('limit.value')).toBe(2)
+    expect(stepOfField('attacks.0.grid.levels')).toBe(3)
+    expect(stepOfField('cloned_from')).toBe(3)
   })
 
   it('gom lỗi, bước sớm nhất', () => {
     const { byPath, firstStep } = groupFieldErrors([
-      { path: 'limit.value', message: 'Quá giới hạn' },
       { path: 'attacks.0.grid.levels', message: 'Ngoài dải' },
+      { path: 'limit.value', message: 'Quá giới hạn' },
       { path: 'attacks.0.grid.levels', message: 'Trùng' },
     ])
-    expect(firstStep).toBe(4)
+    expect(firstStep).toBe(2)
     expect(byPath['attacks.0.grid.levels']).toBe('Ngoài dải; Trùng')
   })
 })
@@ -209,13 +215,10 @@ describe('nháp trong sessionStorage', () => {
     expect(loadDraft(store)).toEqual(EMPTY_DRAFT)
   })
 
-  it('Phase 6: nháp v1 cũ bị bỏ qua (khóa mới v2)', () => {
+  it('Phase R3: nháp v2 cũ (wizard 6 bước) bị bỏ qua (khóa mới v3)', () => {
     const store = new MemoryStore()
-    store.setItem(
-      'advertest.wizard.v1',
-      JSON.stringify({ ...FULL, attacks: [{ attackSpecId: 'a' }] }),
-    )
-    expect(STORAGE_KEY).toBe('advertest.wizard.v2')
+    store.setItem('advertest.wizard.v2', JSON.stringify({ ...FULL, step: 5 }))
+    expect(STORAGE_KEY).toBe('advertest.wizard.v3')
     expect(loadDraft(store)).toEqual(EMPTY_DRAFT)
   })
 
@@ -241,7 +244,7 @@ describe('Phase 6: slice huấn luyện và dừng sớm', () => {
 
   it('đổi slice đánh giá hoặc dataset version thì phải chọn lại slice huấn luyện', () => {
     const chosen = reducer(
-      { ...WITH_PATCH, step: 3 },
+      { ...WITH_PATCH, step: 2 },
       { type: 'trainingSlice', attackSpecId: 'p', id: 'ts' },
     )
     expect(reducer(chosen, { type: 'slice', id: 's' }).attacks[1].trainingSliceId).toBe('ts')
@@ -256,38 +259,6 @@ describe('Phase 6: slice huấn luyện và dừng sớm', () => {
     expect(buildBody(FULL)?.attacks[0].grid).toEqual({ levels: [4] })
     const off = reducer(FULL, { type: 'earlyStop', on: false })
     expect(buildBody(off)?.attacks[0].grid).toEqual({ levels: [4], early_stop: false })
-  })
-
-  it('preset "Toàn bộ catalog": mọi spec, patch 0.1 và 0.25, giữ slice huấn luyện đã chọn', () => {
-    const page = listMocks<AttackSpecAdminPage>('attack_spec_admin_page')[0]
-    const specs = page.items.filter((spec) => spec.is_active)
-    const preset = catalogPreset(specs)
-    expect(preset).toHaveLength(specs.length)
-    const patch = specs.find((spec) => spec.requires_training)
-    if (!patch) throw new Error('Thiếu spec patch trong mock')
-    expect(preset.find((a) => a.attackSpecId === patch.id)?.levels).toEqual(PATCH_PRESET_LEVELS)
-    for (const spec of specs.filter((s) => s.primary_param.type === 'discrete')) {
-      expect(preset.find((a) => a.attackSpecId === spec.id)?.levels).toEqual(
-        spec.primary_param.values,
-      )
-    }
-    // Dưới trần 50 run mỗi experiment (backend `MAX_RUNS`).
-    expect(preset.reduce((n, a) => n + a.levels.length, 0)).toBeLessThanOrEqual(50)
-
-    const before = reducer(
-      { ...FULL, attacks: [] },
-      {
-        type: 'toggleAttack',
-        attackSpecId: patch.id,
-        specSha256: patch.spec_sha256,
-        requiresTraining: true,
-      },
-    )
-    const kept = reducer(
-      reducer(before, { type: 'trainingSlice', attackSpecId: patch.id, id: 'ts' }),
-      { type: 'preset', attacks: preset },
-    )
-    expect(kept.attacks.find((a) => a.attackSpecId === patch.id)?.trainingSliceId).toBe('ts')
   })
 
   it('nhân bản giữ slice huấn luyện và dừng sớm', () => {
@@ -318,12 +289,106 @@ describe('Phase 6: slice huấn luyện và dừng sớm', () => {
   })
 })
 
+describe('Phase R3: bản nháp từ POST /experiments/draft', () => {
+  const clones = listMocks<ExperimentClone>('experiment_clone')
+  const STEP2: Draft = { ...FULL, step: 2, attacks: [], draftKey: null }
+
+  it('request: đủ bước 2 mới dựng; Khám phá gửi attack_spec_ids, Chính thức luôn null', () => {
+    expect(draftRequest({ ...STEP2, sliceId: null })).toBeNull()
+    expect(draftRequest(STEP2)).toEqual({
+      protocol_id: 'p',
+      preset: 'standard',
+      model_version_id: 'm',
+      slice_id: 's',
+      class_mapping_id: 'map',
+      compute_target_id: 't',
+      limit: { kind: 'time', value: '7200' },
+      attack_spec_ids: null,
+      training_slice_id: null,
+    })
+    expect(draftRequest(STEP2, ['a', 'b'])?.attack_spec_ids).toEqual(['a', 'b'])
+    const official = reducer(STEP2, { type: 'experimentMode', mode: 'official' })
+    expect(draftRequest({ ...official, protocolId: 'p' }, ['a'])?.attack_spec_ids).toBeNull()
+    const fast = reducer(STEP2, { type: 'preset', key: 'fast' })
+    expect(draftRequest(fast)?.preset).toBe('fast')
+  })
+
+  it('khóa bản nháp bỏ qua attack_spec_ids; đổi lựa chọn bước 1–2 thì đổi khóa', () => {
+    const base = draftRequest(STEP2)
+    const withIds = draftRequest(STEP2, ['a'])
+    if (!base || !withIds) throw new Error('Thiếu request')
+    expect(draftKeyOf(withIds)).toBe(draftKeyOf(base))
+    const other = draftRequest(reducer(STEP2, { type: 'preset', key: 'deep' }))
+    if (!other) throw new Error('Thiếu request')
+    expect(draftKeyOf(other)).not.toBe(draftKeyOf(base))
+  })
+
+  it('đổi mode thì chọn lại protocol và bỏ khóa của protocol cũ', () => {
+    const locked = { ...STEP2, mode: 'official' as const, requiredFor: 'p', minSliceSize: 200 }
+    const next = reducer(locked, { type: 'experimentMode', mode: 'exploration' })
+    expect([next.protocolId, next.requiredFor, next.minSliceSize]).toEqual([null, null, null])
+    expect(reducer(next, { type: 'experimentMode', mode: 'exploration' })).toBe(next)
+  })
+
+  it('chọn dataset và slice trong một ô: đổi version thì bỏ mapping', () => {
+    const next = reducer(STEP2, { type: 'dataSlice', datasetVersionId: 'dv2', sliceId: 's2' })
+    expect([next.datasetVersionId, next.sliceId, next.mappingId]).toEqual(['dv2', 's2', null])
+    const same = reducer(STEP2, { type: 'dataSlice', datasetVersionId: 'dv', sliceId: 's3' })
+    expect([same.sliceId, same.mappingId]).toEqual(['s3', 'map'])
+  })
+
+  it.each(clones.map((c, i) => [i, c] as const))(
+    'config tạo qua wizard bằng config của bản nháp (mock %i): cùng config_sha256',
+    (_, clone) => {
+      const loaded = reducer(STEP2, { type: 'drafted', key: 'k', clone, merge: false })
+      expect([loaded.step, loaded.draftKey]).toEqual([3, 'k'])
+      expect(loaded.notes).toEqual(clone.notes ?? [])
+      expect(loaded.cloneWarnings).toEqual(clone.warnings)
+      const body = buildBody({
+        ...loaded,
+        protocolId: clone.config.protocol_id,
+        modelId: clone.config.model_version_id,
+        sliceId: clone.config.slice_id,
+        mappingId: clone.config.class_mapping_id,
+        targetId: clone.config.compute_target_id,
+        limitSeconds: Number(clone.config.limit.value),
+      })
+      expect(body?.attacks).toEqual(clone.config.attacks)
+      expect(body?.limit).toEqual(clone.config.limit)
+    },
+  )
+
+  it('nâng lên chính thức: mở bước 3, giữ promoted_from và lưu ý slice nhỏ', () => {
+    const promoted = clones.find((c) => c.config.promoted_from)
+    if (!promoted) throw new Error('Thiếu mock nâng lên chính thức')
+    const draft = draftFromClone(
+      promoted.config,
+      promoted.warnings,
+      'dv',
+      'official',
+      promoted.notes ?? [],
+    )
+    expect([draft.step, draft.mode, draft.promotedFrom]).toEqual([
+      3,
+      'official',
+      promoted.config.promoted_from,
+    ])
+    expect(draft.notes.map((n) => n.code)).toEqual(['slice_too_small'])
+    expect(buildBody(draft)?.promoted_from).toBe(promoted.config.promoted_from)
+    // Lùi về bước 2 rồi đi tiếp mà không đổi gì: giữ attack của bản nháp (không dựng lại).
+    const request = draftRequest(draft)
+    if (!request) throw new Error('Thiếu request')
+    expect(draft.draftKey).toBe(draftKeyOf(request))
+    expect(buildBody({ ...draft, promotedFrom: null })).not.toHaveProperty('promoted_from')
+  })
+})
+
 describe('nhân bản', () => {
-  it('điền sẵn và mở bước 6 kèm cảnh báo', () => {
+  it('điền sẵn và mở bước 3 kèm cảnh báo', () => {
     const clone = listMocks<ExperimentClone>('experiment_clone').find((c) => c.warnings.length > 0)
     if (!clone) throw new Error('Thiếu mock clone có cảnh báo')
     const draft = draftFromClone(clone.config, clone.warnings, 'dv')
-    expect(draft.step).toBe(6)
+    expect(draft.step).toBe(3)
     expect(draft.clonedFrom).toBe(clone.config.cloned_from)
     expect(draft.attacks).toHaveLength(clone.config.attacks.length)
     expect(draft.cloneWarnings).toEqual(clone.warnings)
@@ -490,16 +555,23 @@ describe('Phase 7: tự tìm ngưỡng', () => {
     expect(hasSearchInputError(FULL.attacks, { a: true, [searchErrorKey('a')]: true })).toBe(false)
   })
 
-  it('preset "Toàn bộ catalog" giữ chế độ và cấu hình tìm ngưỡng của attack đã có (review Group 5 #5)', () => {
-    const preset = reducer(searching, {
-      type: 'preset',
-      attacks: [
-        { ...FULL.attacks[0], levels: [2, 4, 8] },
-        { ...FULL.attacks[0], attackSpecId: 'moi', levels: [1] },
-      ],
+  it('thêm attack ở Khám phá giữ chế độ và cấu hình tìm ngưỡng của attack đã có (review Group 5 #5)', () => {
+    const { config } = listMocks<ExperimentClone>('experiment_clone')[0]
+    const first = { ...config.attacks[0], attack_spec_id: 'a', grid: { levels: [2, 4, 8] } }
+    const added = reducer(searching, {
+      type: 'drafted',
+      key: 'k',
+      merge: true,
+      clone: {
+        config: {
+          ...config,
+          attacks: [first, { ...first, attack_spec_id: 'moi' }],
+        },
+        warnings: [],
+      },
     })
-    expect(preset.attacks[0]).toMatchObject({ mode: 'search', search: SEARCH })
-    expect(preset.attacks[1]).toMatchObject({ attackSpecId: 'moi', mode: 'grid', search: null })
+    expect(added.attacks[0]).toMatchObject({ mode: 'search', search: SEARCH })
+    expect(added.attacks[1]).toMatchObject({ attackSpecId: 'moi', mode: 'grid', search: null })
   })
 
   it('nhân bản experiment tìm ngưỡng giữ cấu hình tìm ngưỡng', () => {
