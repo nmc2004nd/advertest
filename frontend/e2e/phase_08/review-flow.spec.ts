@@ -152,7 +152,7 @@ test('trọn luồng: protocol → experiment → gửi duyệt → review → c
   // 4. Khung quyết định: đủ điều kiện thì "Chấp nhận" mở khóa.
   await page.goto(`/reviews/${experimentId}`)
   await expect(page.getByText(`${count}/${count} đã review`)).toBeVisible()
-  await page.getByLabel('Kết luận', { exact: true }).fill(APPROVE.conclusion)
+  await page.getByRole('textbox', { name: 'Kết luận', exact: true }).fill(APPROVE.conclusion)
   await page.getByLabel('Biện pháp khắc phục').fill(APPROVE.mitigation)
   await page.getByLabel('Kết luận về model').selectOption('meets_criteria')
   await expect(page.getByRole('button', { name: 'Chấp nhận' })).toBeEnabled()
@@ -216,7 +216,9 @@ test('yêu cầu sửa: engineer thấy quyết định và "Nhân bản để s
 
   const page = reviewer.page
   await page.goto(`/reviews/${experimentId}`)
-  await page.getByLabel('Kết luận', { exact: true }).fill('Thiếu level eps 8; chạy lại')
+  await page
+    .getByRole('textbox', { name: 'Kết luận', exact: true })
+    .fill('Thiếu level eps 8; chạy lại')
   await page.getByRole('button', { name: 'Yêu cầu sửa' }).click()
   await page.getByRole('dialog').getByRole('button', { name: 'Yêu cầu sửa' }).click()
   await expect(page.getByRole('dialog')).toBeHidden()
