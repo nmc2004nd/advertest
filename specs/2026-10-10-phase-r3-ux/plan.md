@@ -38,7 +38,7 @@
    - Dockerfile worker chép fixture đã kiểm sha256;
    - biến token trong `.env.example`.
 
-## Group 2 — Attack `[agent: attack]`
+## Group 2 — Attack `[agent: attack]` ✅
 
 10. `attacks/selfcheck.py`: hàm công khai `fixture_inputs(*, with_estimator, fixtures_dir=None)`; CLI selfcheck dùng hàm này.
 11. `PerturbationRegistry.validate` kiểm `art_class` của adapter ART; unit test cho spec seed (pass) và `art_class` lạ (`InvalidSpec`).
