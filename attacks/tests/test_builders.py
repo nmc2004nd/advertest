@@ -13,6 +13,7 @@ from attacks.builders import (
     DEFAULT_REGISTRY,
     BuildContext,
     IncompatibleAttack,
+    InvalidSpec,
     PerturbationRegistry,
     UnsupportedAttack,
 )
@@ -104,6 +105,33 @@ def test_unknown_art_class_keeps_art_message() -> None:
     fgsm = spec("fgsm").model_copy(update={"art_class": "CarliniL2Method"})
     with pytest.raises(UnsupportedAttack, match="art_class 'CarliniL2Method' chưa được hỗ trợ"):
         DEFAULT_REGISTRY.build(fgsm, BuildContext(estimator=fd.estimator()))
+
+
+@pytest.mark.parametrize("name", ["fgsm", "pgd_linf", "pgd_l2", "adv_patch", "fog"])
+def test_validate_accepts_seed_art_class(name: str) -> None:
+    DEFAULT_REGISTRY.validate(spec(name))
+
+
+@pytest.mark.parametrize(
+    ("name", "art_class", "adapter"),
+    [
+        ("fgsm", "CarliniL2Method", None),
+        ("pgd_linf", None, None),
+        ("adv_patch", "FastGradientMethod", "patch.robust_dpatch"),
+        ("fgsm", "RobustDPatch", "art.evasion"),
+    ],
+)
+def test_validate_rejects_art_class_outside_builder(
+    name: str, art_class: str | None, adapter: str | None
+) -> None:
+    bad = spec(name).model_copy(update={"art_class": art_class, "adapter": adapter})
+    with pytest.raises(InvalidSpec, match=rf"art_class {art_class!r} không được adapter"):
+        DEFAULT_REGISTRY.validate(bad)
+
+
+def test_validate_skips_art_class_for_builder_without_art_classes() -> None:
+    # Corruption không khai báo `art_classes`: `art_class` không bị kiểm.
+    DEFAULT_REGISTRY.validate(spec("fog").model_copy(update={"art_class": "Anything"}))
 
 
 # Như `ml_core/runner/images.py::perturbation_kind` và `executor.py::linf_eps` trước R1.

@@ -26,6 +26,8 @@ _ART_CLASSES: dict[str, Any] = {
     "FastGradientMethod": FastGradientMethod,
     "ProjectedGradientDescent": ProjectedGradientDescent,
 }
+# Tên lớp ART mà adapter `art.evasion` dựng được (`builders.ArtEvasionBuilder.art_classes`).
+SUPPORTED_ART_CLASSES: frozenset[str] = frozenset(_ART_CLASSES)
 # Hệ số đổi `level` → `eps` theo `primary_param.unit`.
 _UNIT_SCALE = {"1/255": 1.0 / 255.0, "L2": 1.0}
 # Bước nhảy PGD mặc định eps/4 (tech-stack.md mục 3.2).

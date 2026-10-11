@@ -10,6 +10,11 @@ Phase R2 (plan.md bước 10): resolver mặc định là `adapter_of`, đọc `
 tính này (builder giả của test R1) vẫn đăng ký và dựng được, nhưng không được liệt kê và không bị
 kiểm `fixed_params`.
 
+Phase R3 (plan.md bước 11): builder dựng attack của ART khai báo thêm `art_classes` (tên lớp ART
+dựng được); `validate` báo `InvalidSpec` khi `spec.art_class` nằm ngoài tập này, để
+`POST /admin/attack-specs` trả 422 ngay thay vì để lỗi lộ ra ở mục 1 của selfcheck. Builder không
+khai báo `art_classes` (corruption, occlusion, builder giả) không bị kiểm `art_class`.
+
 `UnsupportedAttack` và `IncompatibleAttack` được export lại ở đây để worker chỉ import
 `attacks.builders` và `attacks.registry`.
 """
@@ -25,7 +30,12 @@ from art.estimators.estimator import BaseEstimator
 from advertest_contracts.enums import AttackKind, PerturbationImageKind
 from advertest_contracts.models import AttackAdapterInfo, AttackSpec
 from advertest_contracts.perturbation import Perturbation
-from attacks.art_adapter import IncompatibleAttack, UnsupportedAttack, level_to_eps
+from attacks.art_adapter import (
+    SUPPORTED_ART_CLASSES,
+    IncompatibleAttack,
+    UnsupportedAttack,
+    level_to_eps,
+)
 from attacks.art_adapter import build_perturbation as build_art_perturbation
 from attacks.common.params_schema import SchemaError, schema_errors
 from attacks.corruptions.adapter import CorruptionPerturbation
@@ -67,7 +77,8 @@ class BuildContext:
 
 
 class PerturbationBuilder(Protocol):
-    """`kind: ClassVar[AttackKind]`, `params_schema: ClassVar[dict]` là tùy chọn (xem đầu file)."""
+    """`kind: ClassVar[AttackKind]`, `params_schema: ClassVar[dict]` và
+    `art_classes: ClassVar[frozenset[str]]` là tùy chọn (xem đầu file)."""
 
     adapter: ClassVar[str]
     requires: ClassVar[frozenset[str]]  # {"gradients"} với attack white-box
@@ -90,6 +101,7 @@ class ArtEvasionBuilder:
 
     adapter: ClassVar[str] = "art.evasion"
     kind: ClassVar[AttackKind] = AttackKind.ATTACK
+    art_classes: ClassVar[frozenset[str]] = SUPPORTED_ART_CLASSES
     # Khóa ngoài `eps_step_ratio` được truyền thẳng cho lớp ART (`art_adapter._build_attack`).
     params_schema: ClassVar[dict[str, Any]] = {
         "type": "object",
@@ -163,6 +175,7 @@ class PatchBuilder:
 
     adapter: ClassVar[str] = "patch.robust_dpatch"
     kind: ClassVar[AttackKind] = AttackKind.ATTACK
+    art_classes: ClassVar[frozenset[str]] = frozenset({_PATCH_ART_CLASS})
     params_schema: ClassVar[dict[str, Any]] = {
         "type": "object",
         "properties": {
@@ -232,8 +245,8 @@ class PerturbationRegistry:
 
     def validate(self, spec: AttackSpec) -> None:
         """Báo `InvalidSpec` khi adapter không có trong registry, khi `kind` của spec khác `kind`
-        của builder, hoặc khi `fixed_params` sai `params_schema` (requirements.md Phase R2,
-        Catalog attack)."""
+        của builder, khi `art_class` ngoài `art_classes` của builder (Phase R3), hoặc khi
+        `fixed_params` sai `params_schema` (requirements.md Phase R2, Catalog attack)."""
         adapter = self.resolver(spec)
         builder = self._builders.get(adapter)
         if builder is None:
@@ -246,6 +259,12 @@ class PerturbationRegistry:
             raise InvalidSpec(
                 f"{spec.name}: adapter {adapter!r} dành cho kind = {kind}, "
                 f"spec có kind = {spec.kind}"
+            )
+        art_classes = getattr(builder, "art_classes", None)
+        if art_classes is not None and spec.art_class not in art_classes:
+            raise InvalidSpec(
+                f"{spec.name}: art_class {spec.art_class!r} không được adapter {adapter!r} hỗ trợ "
+                f"(có: {', '.join(sorted(art_classes))})"
             )
         schema = getattr(builder, "params_schema", None)
         if schema is not None:
