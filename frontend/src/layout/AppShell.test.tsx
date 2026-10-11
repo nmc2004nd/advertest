@@ -58,8 +58,8 @@ describe('SideNav (tablet, desktop)', () => {
     expect(html).toContain('hidden')
     expect(html).toContain('md:flex')
     expect(html).toContain('xl:w-60')
-    // Tên truy cập của mục ở cột icon là chữ sr-only (không phải aria-label).
-    expect(html).toMatch(/<span class="sr-only xl:not-sr-only[^"]*">Mục 0<\/span>/)
+    // Cột icon: tên truy cập lấy từ `title` (chữ ẩn dưới 1280px), không phải aria-label.
+    expect(html).toContain('title="Mục 0"')
     expect(html).not.toContain('aria-label="Mục 0"')
   })
 })

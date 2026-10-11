@@ -320,12 +320,16 @@ function NavList({ items, badges }: { items: NavItem[]; badges?: Record<string, 
       {items.map((item) => {
         const badge = badges?.[item.path]
         return (
-          <ItemLink key={item.path} item={item} className={navClass} title={item.label}>
+          // Tên truy cập lấy từ chữ (từ 1280px) hoặc `title` (cột icon), không dùng aria-label: ô
+          // nhập cùng nhãn, ví dụ "Protocol" của wizard, không bị nhầm với link điều hướng.
+          <ItemLink
+            key={item.path}
+            item={item}
+            className={navClass}
+            title={badge ? `${item.label} (${badge} việc chờ bạn)` : item.label}
+          >
             <item.icon className="size-[18px] shrink-0" aria-hidden />
-            {/* Tên truy cập lấy từ chữ (ẩn trực quan ở cột icon), không dùng aria-label: ô nhập cùng
-                nhãn, ví dụ "Protocol" của wizard, không bị nhầm với link điều hướng. */}
-            <span className="sr-only xl:not-sr-only xl:flex-1">{item.label}</span>
-            {badge ? <span className="sr-only"> ({badge} việc chờ bạn)</span> : null}
+            <span className="hidden flex-1 xl:inline">{item.label}</span>
             {badge ? (
               <em
                 aria-hidden
