@@ -12,6 +12,10 @@ export default defineConfig({
   // song thì kết quả phụ thuộc thứ tự (người dùng chốt ở Phase 4 Group 7).
   workers: 1,
   retries: process.env.CI ? 1 : 0,
+  // Chạy cả bộ thì worker CPU nghẽn, API và trang tải chậm hơn 5 giây mặc định: chờ lâu hơn, không
+  // đổi điều kiện kiểm (Phase R3 Group 8, người dùng chốt 2026-10-11). Thời gian mỗi test tăng theo.
+  expect: { timeout: 15_000 },
+  timeout: 60_000,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,
