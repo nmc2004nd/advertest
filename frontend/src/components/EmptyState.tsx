@@ -19,7 +19,7 @@ export function EmptyState({
   return (
     <div
       className="panel flex flex-col items-center gap-3 px-6 py-12 text-center"
-      data-testid="trang-thai-trong"
+      data-testid="empty-state"
     >
       <span className="bbox flex size-14 items-center justify-center text-detect-strong [--bbox-color:var(--detect)] [--bbox-size:12px]">
         <Icon className="size-6" aria-hidden />

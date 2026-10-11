@@ -173,6 +173,89 @@ describe('/experiments/:id', () => {
   })
 })
 
+describe('/experiments/:id Phase R3 (validation.md Group 4)', () => {
+  const byStatus = (mode: string, status: string) => {
+    const found = details.find((d) => d.mode === mode && d.status === status && !d.promoted_from)
+    if (!found) throw new Error(`Thiếu mock ${mode} ${status}`)
+    return found
+  }
+  const tabNames = (html: string) =>
+    [...html.matchAll(/role="tab"[^>]*>([^<]+)</g)].map((m) => m[1])
+  const selectedTab = (html: string) =>
+    /role="tab" aria-selected="true"[^>]*>([^<]+)</.exec(html)?.[1]
+
+  it('đúng 5 tab theo thứ tự; Review và Report luôn hiện', () => {
+    expect(tabNames(detailPage(completed))).toEqual([
+      'Tổng quan',
+      'Kết quả',
+      'Failure case',
+      'Review',
+      'Report',
+    ])
+  })
+
+  it.each([
+    ['cost', 'Chi phí', 'Thời gian xử lý đã dùng'],
+    ['repro', 'Tái lập', 'Chưa chạy: chưa có fingerprint.'],
+  ])('?tab=%s cũ mở Tổng quan, section "%s" mở sẵn', (tab, heading, content) => {
+    const html = detailPage(completed, tab)
+    expect(selectedTab(html)).toBe('Tổng quan')
+    expect(html).toMatch(new RegExp(`aria-expanded="true"[^>]*>${heading}<`))
+    expect(html).toContain(content)
+  })
+
+  it('Tổng quan mặc định: section Chi phí và Tái lập thu gọn, không render nội dung', () => {
+    const html = detailPage(completed)
+    expect(html).toMatch(/aria-expanded="false"[^>]*>Chi phí</)
+    expect(html).toMatch(/aria-expanded="false"[^>]*>Tái lập</)
+    expect(html).not.toContain('Thời gian xử lý đã dùng')
+  })
+
+  it('nhãn mode và thanh vòng đời: Khám phá 3 bước, Chính thức 6 bước', () => {
+    const exploration = detailPage(completed)
+    expect(exploration).toMatch(/data-testid="experiment-mode"[^>]*>.*Khám phá/)
+    expect(exploration.match(/data-testid="lifecycle-step"/g)).toHaveLength(3)
+    const official = detailPage(byStatus('official', 'completed'))
+    expect(official).toMatch(/data-testid="experiment-mode"[^>]*>.*Chính thức/)
+    expect(official.match(/data-testid="lifecycle-step"/g)).toHaveLength(6)
+    expect(official).toContain('data-step="analyze" data-state="current"')
+  })
+
+  it('promoted_from: link "Nâng từ <tên nguồn>"', () => {
+    const promoted = details.find((d) => d.promoted_from)
+    if (!promoted?.promoted_from) throw new Error('Thiếu mock promoted_official')
+    const source = { ...completed, id: promoted.promoted_from, name: 'kham-pha-fgsm' }
+    const html = detailPage(promoted, '', 'engineer', [[experimentKey(source.id), source]])
+    expect(html).toContain(`href="/experiments/${source.id}"`)
+    expect(html).toContain('Nâng từ kham-pha-fgsm')
+    expect(detailPage(completed)).not.toContain('Nâng từ')
+  })
+
+  it('tab Review và Report của experiment Khám phá: trạng thái trống nói điều gì còn thiếu', () => {
+    const review = detailPage(completed, 'review')
+    expect(review).toContain('data-testid="empty-state"')
+    expect(review).toContain('Experiment Khám phá không gửi duyệt được')
+    const report = detailPage(completed, 'report')
+    expect(report).toContain('data-testid="empty-state"')
+    expect(report).toContain('Experiment Khám phá không có report')
+  })
+
+  it('tab Report: report đã có thì hiện kết luận và link tới report', () => {
+    const approved = details.find((d) => d.report?.status === 'ready')
+    if (!approved?.report) throw new Error('Thiếu mock report ready')
+    const html = detailPage(approved, 'report', 'reviewer')
+    expect(html).not.toContain('data-testid="empty-state"')
+    expect(html).toContain(`href="/reports/${approved.report.id}"`)
+  })
+
+  it('tab Report khi bị yêu cầu sửa: trạng thái trống kèm "Nhân bản để sửa"', () => {
+    const changes = byStatus('official', 'changes_requested')
+    const html = detailPage(changes, 'report')
+    expect(html).toContain('Reviewer yêu cầu sửa')
+    expect(html.match(/Nhân bản để sửa/g)?.length).toBeGreaterThanOrEqual(2)
+  })
+})
+
 describe('/failure-cases/:id', () => {
   it('trình xem có watermark, vị trí trong run và nút chuyển case', () => {
     const views = listMocks<FailureCaseView>('failure_case_view')

@@ -44,15 +44,18 @@ function page(detail: ExperimentDetail, tab = '', me = 'engineer') {
   )
 }
 
+const SUBMIT_BUTTON = /<button[^>]*>Gửi duyệt<\/button>/
+
 describe('gửi duyệt', () => {
   const ready = mock('review_completed_ready_to_submit')
   const blocked = mock('review_completed_dirty_blocked')
 
   it('chủ sở hữu thấy nút "Gửi duyệt" khi completed và protocol không phải dev', () => {
-    expect(page(ready)).toContain('Gửi duyệt')
-    expect(page(ready, '', 'reviewer')).not.toContain('Gửi duyệt')
+    // Phase R3: thanh vòng đời cũng có bước tên "Gửi duyệt", nên tìm đúng nút.
+    expect(page(ready)).toMatch(SUBMIT_BUTTON)
+    expect(page(ready, '', 'reviewer')).not.toMatch(SUBMIT_BUTTON)
     // Mock Phase 5 gắn dev-open: không có nút.
-    expect(page(mock('completed'))).not.toContain('Gửi duyệt')
+    expect(page(mock('completed'))).not.toMatch(SUBMIT_BUTTON)
   })
 
   it('canSubmit theo submit_check', () => {
@@ -93,7 +96,7 @@ describe('sau khi gửi', () => {
     expect(html).toContain('data-testid="dai-khoa"')
     expect(html).toContain('Đã khóa – đang chờ duyệt')
     expect(html).toContain('>Review<')
-    expect(html).not.toContain('Gửi duyệt<')
+    expect(html).not.toMatch(SUBMIT_BUTTON)
   })
 
   it('tab Review: người nhận, giải trình, bình luận, ô bình luận khi đang review', () => {
@@ -124,9 +127,16 @@ describe('sau khi gửi', () => {
     expect(lockedBannerText('changes_requested')).toContain('nhân bản')
   })
 
-  it('experiment chưa gửi duyệt không có tab Review (kể cả khi URL chỉ định)', () => {
+  it('Phase R3: experiment chưa gửi duyệt vẫn có tab Review, hiện trạng thái trống', () => {
     const html = page(mock('completed'), 'review')
-    expect(html).not.toContain('>Review<')
+    expect(html).toContain('>Review<')
+    expect(html).toContain('data-testid="empty-state"')
     expect(lockedBannerText('completed')).toBeNull()
+  })
+
+  it('Phase R3: tab Review trống của experiment Chính thức sẵn sàng có nút "Gửi duyệt"', () => {
+    const html = page(mock('review_completed_ready_to_submit'), 'review')
+    expect(html).toContain('Chưa gửi duyệt')
+    expect(html).toMatch(SUBMIT_BUTTON)
   })
 })

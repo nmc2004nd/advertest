@@ -1,9 +1,9 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, Copy } from 'lucide-react'
-import { useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ArrowUpRight, ChevronLeft, Copy } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router'
 
-import { apiSend } from '@/api/client'
+import { apiGet, apiSend } from '@/api/client'
 import { errorMessage } from '@/api/messages'
 import { can } from '@/auth/permissions'
 import { useMe } from '@/auth/useMe'
@@ -12,6 +12,7 @@ import { FormAlert } from '@/components/FormAlert'
 import { LoadError } from '@/components/LoadError'
 import { PageLoading } from '@/components/PageLoading'
 import { Person } from '@/components/Avatar'
+import { StatusBadge } from '@/components/status/StatusBadge'
 import { Button } from '@/components/ui/button'
 import type { ExperimentDetail } from '@/contracts/api'
 
@@ -24,24 +25,35 @@ import {
 } from './api'
 import { ExperimentStatusSummary } from './ExperimentStatusSummary'
 import { humanTime } from './format'
+import { Lifecycle } from './Lifecycle'
+import { lifecycle } from './lifecycle'
+import { OverviewSection } from './OverviewSection'
 import { ProgressBar } from './ProgressBar'
 import { nextStep } from './next-step'
 import { NextStepPanel } from './NextStep'
+import { ReportTab } from './ReportTab'
 import { ReviewTab } from './ReviewTab'
 import { SubmitDialog } from './SubmitDialog'
 import { CostTab, FailureCasesTab, ReproTab, ResultsTab, RunsTable } from './tabs'
 
+// Phase R3: 5 tab; Review và Report luôn hiện (trạng thái trống khi chưa có dữ liệu).
 const TABS = [
   ['overview', 'Tổng quan'],
   ['results', 'Kết quả'],
   ['cases', 'Failure case'],
-  ['cost', 'Chi phí'],
-  ['repro', 'Tái lập'],
-  // Phase 8: chỉ hiện khi đã gửi duyệt.
   ['review', 'Review'],
+  ['report', 'Report'],
 ] as const
 
 type Tab = (typeof TABS)[number][0]
+
+/** Tab Chi phí và Tái lập cũ: nay là section cuối Tổng quan; `?tab=` cũ mở section đó. */
+const LEGACY_SECTIONS = ['cost', 'repro'] as const
+type LegacySection = (typeof LEGACY_SECTIONS)[number]
+
+function legacySection(tab: string | null): LegacySection | null {
+  return LEGACY_SECTIONS.find((key) => key === tab) ?? null
+}
 
 function useCancel(id: string) {
   const queryClient = useQueryClient()
@@ -54,12 +66,35 @@ function useCancel(id: string) {
   })
 }
 
-/** Chi tiết experiment với 5 tab (requirements.md Phase 5, Frontend: danh sách và chi tiết); Phase 8
- * thêm gửi duyệt, dải "Đã khóa", tab Review và "Nhân bản để sửa". */
+/** Link "Nâng từ <tên nguồn>" khi experiment được tạo qua nâng lên chính thức (Phase R3). */
+function PromotedFrom({ id }: { id: string }) {
+  const source = useQuery({
+    queryKey: experimentKey(id),
+    queryFn: () => apiGet<ExperimentDetail>(`/experiments/${id}`),
+  })
+  return (
+    <Link
+      to={`/experiments/${id}`}
+      className="inline-flex min-h-9 items-center gap-1 text-sm font-semibold text-cta underline-offset-4 hover:underline"
+    >
+      <ArrowUpRight className="size-4" aria-hidden="true" />
+      Nâng từ {source.data?.name ?? 'experiment Khám phá nguồn'}
+    </Link>
+  )
+}
+
+/** Chi tiết experiment (requirements.md Phase 5, Frontend: danh sách và chi tiết); Phase 8 thêm gửi
+ * duyệt, dải "Đã khóa", tab Review và "Nhân bản để sửa"; Phase R3: thanh vòng đời, nhãn mode, 5 tab
+ * (Chi phí và Tái lập thành section của Tổng quan), tab Review và Report luôn hiện. */
 export function ExperimentDetailPage() {
   const { id = '' } = useParams()
   const [params, setParams] = useSearchParams()
-  const requested: Tab = TABS.some(([key]) => key === params.get('tab'))
+  // `?tab=cost|repro` cũ: nhớ section cần mở rồi đưa URL về Tổng quan.
+  const [section] = useState(() => legacySection(params.get('tab')))
+  useEffect(() => {
+    if (legacySection(params.get('tab'))) setParams({}, { replace: true })
+  }, [params, setParams])
+  const tab: Tab = TABS.some(([key]) => key === params.get('tab'))
     ? (params.get('tab') as Tab)
     : 'overview'
   const { data: me } = useMe()
@@ -89,9 +124,19 @@ export function ExperimentDetailPage() {
     e.status === 'completed' &&
     e.protocol.status !== 'dev'
   const step = nextStep(e, me, canOpenSubmit)
-  const tabs = TABS.filter(([key]) => key !== 'review' || e.review)
   const fixClone = e.status === 'changes_requested'
-  const tab: Tab = tabs.some(([key]) => key === requested) ? requested : 'overview'
+  const cloneLink = can(me, 'experiment.create') &&
+    (e.status === 'changes_requested' || e.status === 'cancelled') && (
+      <Button asChild variant="outline">
+        <Link to={`/experiments/new?clone=${e.id}`}>
+          <Copy aria-hidden="true" />
+          {fixClone ? 'Nhân bản để sửa' : 'Nhân bản'}
+        </Link>
+      </Button>
+    )
+  const submitButton = canOpenSubmit && (
+    <Button onClick={() => setSubmitting(true)}>Gửi duyệt</Button>
+  )
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6 p-4 md:p-8">
@@ -109,7 +154,13 @@ export function ExperimentDetailPage() {
             <h1 className="min-w-0 text-[clamp(1.5rem,2vw,1.85rem)] leading-tight font-bold tracking-[-0.03em] break-all">
               {e.name}
             </h1>
-            <ExperimentStatusSummary experiment={e} />
+            <div className="flex flex-wrap items-center gap-2">
+              <span data-testid="experiment-mode" className="inline-flex">
+                <StatusBadge kind="mode" status={e.mode} />
+              </span>
+              <ExperimentStatusSummary experiment={e} />
+            </div>
+            {e.promoted_from && <PromotedFrom id={e.promoted_from} />}
           </div>
           <div className="flex flex-wrap gap-2">
             {can(me, 'experiment.create') && (
@@ -134,11 +185,12 @@ export function ExperimentDetailPage() {
             {e.protocol.name}, bằng máy {e.compute_target.name}; {humanTime(e)}.
           </span>
         </p>
+        <Lifecycle steps={lifecycle(e)} />
       </header>
       <NextStepPanel experiment={e} view={step} onSubmit={() => setSubmitting(true)} />
       {cancel.isError && <FormAlert>{errorMessage(cancel.error)}</FormAlert>}
       <div role="tablist" aria-label="Chi tiết experiment" className="seg self-start">
-        {tabs.map(([key, label]) => (
+        {TABS.map(([key, label]) => (
           <button
             key={key}
             type="button"
@@ -152,7 +204,7 @@ export function ExperimentDetailPage() {
       </div>
       <section
         role="tabpanel"
-        aria-label={tabs.find(([key]) => key === tab)?.[1]}
+        aria-label={TABS.find(([key]) => key === tab)?.[1]}
         className="min-w-0"
       >
         {tab === 'overview' && (
@@ -163,13 +215,28 @@ export function ExperimentDetailPage() {
             ) : (
               <RunsTable runs={runList} />
             )}
+            <OverviewSection
+              title="Chi phí"
+              defaultOpen={section === 'cost'}
+              scrollTo={section === 'cost' && !runs.isPending}
+            >
+              <CostTab experiment={e} runs={runList} />
+            </OverviewSection>
+            <OverviewSection
+              title="Tái lập"
+              defaultOpen={section === 'repro'}
+              scrollTo={section === 'repro' && !runs.isPending}
+            >
+              <ReproTab runs={runList} />
+            </OverviewSection>
           </div>
         )}
         {tab === 'results' && <ResultsTab experiment={e} runs={runList} />}
         {tab === 'cases' && <FailureCasesTab runs={runList} />}
-        {tab === 'cost' && <CostTab experiment={e} runs={runList} />}
-        {tab === 'repro' && <ReproTab runs={runList} />}
-        {tab === 'review' && <ReviewTab experiment={e} runs={runList} />}
+        {tab === 'review' && (
+          <ReviewTab experiment={e} runs={runList} action={submitButton || cloneLink} />
+        )}
+        {tab === 'report' && <ReportTab experiment={e} action={cloneLink} />}
       </section>
       {canOpenSubmit && (
         <SubmitDialog

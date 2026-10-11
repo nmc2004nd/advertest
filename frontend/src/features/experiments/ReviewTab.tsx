@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { ClipboardCheck } from 'lucide-react'
+import { type ReactNode, useState } from 'react'
 import { Link } from 'react-router'
 
 import { formatDateTime } from '@/admin/format'
 import { errorMessage } from '@/api/messages'
 import { can } from '@/auth/permissions'
 import { useMe } from '@/auth/useMe'
+import { EmptyState } from '@/components/EmptyState'
 import { FormAlert } from '@/components/FormAlert'
 import { LoadError } from '@/components/LoadError'
 import { StatusBadge } from '@/components/status/StatusBadge'
@@ -34,18 +36,52 @@ function targetText(comment: ReviewComment, runs: RunView[]): string | null {
   return null
 }
 
+/** Trạng thái trống của tab Review: điều gì còn thiếu (requirements.md Phase R3). */
+function notSubmitted(e: ExperimentDetail): { title: string; body: string } {
+  if (e.mode === 'exploration') {
+    return {
+      title: 'Experiment Khám phá không gửi duyệt được',
+      body: 'Muốn có kết quả được duyệt, tạo experiment Chính thức theo một protocol đã chốt.',
+    }
+  }
+  if (e.status === 'cancelled') {
+    return {
+      title: 'Experiment đã hủy',
+      body: 'Experiment đã hủy không gửi duyệt được. Nhân bản để chạy lại.',
+    }
+  }
+  return {
+    title: 'Chưa gửi duyệt',
+    body: 'Gửi duyệt khi mọi run bắt buộc đã xong. Sau khi gửi, một reviewer khác bạn sẽ xem kết quả.',
+  }
+}
+
 /**
  * Tab Review của engineer (requirements.md Phase 8, Frontend engineer; plan task 26): trạng thái,
  * người nhận, quyết định, bình luận (chỉ thêm, khi đang chờ hoặc đang review).
  */
-export function ReviewTab({ experiment, runs }: { experiment: ExperimentDetail; runs: RunView[] }) {
+export function ReviewTab({
+  experiment,
+  runs,
+  action,
+}: {
+  experiment: ExperimentDetail
+  runs: RunView[]
+  /** Nút hành động tiếp theo khi chưa gửi duyệt (ví dụ "Gửi duyệt"). */
+  action?: ReactNode
+}) {
   const review = experiment.review
   const { data: me } = useMe()
   const comments = useComments(experiment.id, review !== null && review !== undefined)
   const add = useAddComment(experiment.id)
   const [body, setBody] = useState('')
   if (!review) {
-    return <p className="text-sm text-muted-foreground">Experiment chưa gửi duyệt.</p>
+    const { title, body } = notSubmitted(experiment)
+    return (
+      <EmptyState icon={ClipboardCheck} title={title} action={action}>
+        {body}
+      </EmptyState>
+    )
   }
   const canComment = can(me, 'review.comment') && OPEN_REVIEW.includes(experiment.status)
   const send = () =>
