@@ -35,14 +35,40 @@ describe('/admin/attacks (Phase 6, task 35)', () => {
     expect(html).not.toContain('Tải thêm')
   })
 
-  it('spec đã tắt có nhãn; còn trang sau thì có "Tải thêm"', () => {
+  it('trạng thái hiện bằng badge (bảng và thẻ); còn trang sau thì có "Tải thêm"', () => {
     const [first, ...rest] = page.items
     const html = renderPage({
-      items: [{ ...first, is_active: false }, ...rest],
+      items: [{ ...first, is_active: false, status: 'retired' }, ...rest],
       next_cursor: 'tiep',
     })
-    expect(html.split('Đã tắt')).toHaveLength(3) // bảng và thẻ
+    expect(html.split('data-status="retired"')).toHaveLength(3) // bảng và thẻ
+    expect(html.split('data-status="active"')).toHaveLength(1 + 2 * rest.length)
     expect(html).toContain('Tải thêm')
+  })
+
+  it('tên dễ đọc link sang chi tiết, có adapter, nút tạo spec và bộ lọc trạng thái', () => {
+    const snow = page.items.find((s) => s.name === 'snow')
+    if (!snow) throw new Error('Thiếu snow')
+    const html = renderPage({
+      items: [
+        {
+          ...snow,
+          metadata: {
+            display_name: 'Tuyết',
+            description: 'Tuyết rơi.',
+            realism: 'high',
+            level_labels: {},
+          },
+        },
+      ],
+      next_cursor: null,
+    })
+    expect(html).toContain(`href="/admin/attacks/${snow.id}"`)
+    expect(html).toContain('Tuyết')
+    expect(html).toContain('corruption.imagecorruptions')
+    expect(html).toMatch(/<button[^>]*>.*Tạo attack spec<\/button>/)
+    expect(html).toContain('Mọi trạng thái')
+    expect(html).toContain('Chờ duyệt') // lựa chọn của bộ lọc
   })
 
   it('tham số cố định dạng khóa = giá trị', () => {

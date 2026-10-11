@@ -16,11 +16,16 @@ import { AppShell } from './layout/AppShell'
 import { AccountPage } from './pages/AccountPage'
 import { AttacksPage } from './pages/admin/AttacksPage'
 import { AuditPage } from './pages/admin/AuditPage'
+import { ModelDetailPage } from './pages/admin/ModelDetailPage'
+import { ModelsPage } from './pages/admin/ModelsPage'
+import { SpecCreatePage } from './pages/admin/SpecCreatePage'
+import { SpecDetailPage } from './pages/admin/SpecDetailPage'
 import { UsersPage } from './pages/admin/UsersPage'
 import { ForbiddenPage } from './pages/ForbiddenPage'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
 import { PendingPage } from './pages/PendingPage'
+import { PendingSpecsPage } from './pages/PendingSpecsPage'
 import { RequestAccessPage, RequestAccessSentPage } from './pages/RequestAccessPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
 
@@ -135,6 +140,46 @@ const routes: RouteObject[] = [
         element: (
           <RequirePermission requirement="attack_catalog.manage">
             <AttacksPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: '/admin/attacks/new',
+        element: (
+          <RequirePermission requirement="attack_catalog.manage">
+            <SpecCreatePage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: '/admin/attacks/:id',
+        element: (
+          <RequirePermission requirement="attack_catalog.manage">
+            <SpecDetailPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: '/attack-specs/pending',
+        element: (
+          <RequirePermission requirement="attack_catalog.approve">
+            <PendingSpecsPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: '/admin/models',
+        element: (
+          <RequirePermission requirement="model.manage">
+            <ModelsPage />
+          </RequirePermission>
+        ),
+      },
+      {
+        path: '/admin/models/:id',
+        element: (
+          <RequirePermission requirement="model.manage">
+            <ModelDetailPage />
           </RequirePermission>
         ),
       },

@@ -55,18 +55,31 @@ function first<T>(items: T[], path: string): T {
   return items[0]
 }
 
+/**
+ * Model mock: file JSON bỏ trường có giá trị mặc định (`status = ready`, `check = null`), còn API
+ * luôn trả đủ; điền lại để giao diện nhận đúng hình dạng của API.
+ */
+export function modelMocks(): ModelSummary[] {
+  return listMocks<ModelSummary>('model_summary').map((model) => ({
+    ...model,
+    status: model.status ?? 'ready',
+    check: model.check ?? null,
+  }))
+}
+
 /** Dữ liệu mock cho các GET của Phase 5 (wizard, experiment, run, failure case). */
 function mockPhase5(pathname: string, query: URLSearchParams): unknown {
   const id = '([0-9a-f-]{36})'
   const match = (pattern: string) => new RegExp(`^${pattern}$`).exec(pathname)
   const simple: Record<string, string> = {
-    '/models': 'model_summary',
     '/datasets': 'dataset_summary',
     '/attack-specs': 'attack_spec',
     '/compute-targets': 'compute_target_public',
     '/experiment-presets': 'experiment_preset',
+    '/attack-adapters': 'attack_adapter_info',
   }
   if (pathname in simple) return listMocks(simple[pathname])
+  if (pathname === '/models') return modelMocks()
   if (pathname === '/protocols') {
     // Phase 8: bản `retired` chỉ có khi `include_retired=true` (như API).
     const all = listMocks<ProtocolSummary>('protocol_summary')
@@ -88,6 +101,7 @@ function mockPhase5(pathname: string, query: URLSearchParams): unknown {
     const model = query.get('model')
     return model ? byVersion.filter((m) => m.model_version_id === model) : byVersion
   }
+  if (pathname === '/audit-log') return listMocks('audit_log_page')[0]
   if (pathname === '/admin/attack-specs') return listMocks('attack_spec_admin_page')[0]
   // Phase R3: spec chờ kích hoạt (việc cần làm của reviewer).
   if (pathname === '/attack-specs/pending')
@@ -97,7 +111,11 @@ function mockPhase5(pathname: string, query: URLSearchParams): unknown {
   if (pathname === '/experiments')
     return first(listMocks<ExperimentPage>('experiment_page'), pathname)
   let m = match(`/models/${id}`)
-  if (m) return first(where<ModelSummary>('model_summary', 'id', m[1]), pathname)
+  if (m)
+    return first(
+      modelMocks().filter((model) => model.id === m?.[1]),
+      pathname,
+    )
   m = match(`/dataset-versions/${id}`)
   if (m) return first(where<DatasetVersionSummary>('dataset_version_summary', 'id', m[1]), pathname)
   if (pathname === '/reviews') {

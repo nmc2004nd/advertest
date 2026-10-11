@@ -82,7 +82,7 @@ describe('/home', () => {
 })
 
 describe('điều hướng (Phase 5 Group 6: Experiment, Tạo experiment; Phase 8: Duyệt, Protocol, Report)', () => {
-  it('engineer có Tạo experiment; reviewer có Duyệt; mọi role xem Protocol và Report; admin thêm trang quản trị', () => {
+  it('engineer có Tạo experiment; reviewer có Duyệt (Phase R3: thêm Spec chờ duyệt); mọi role xem Protocol và Report; admin thêm trang quản trị (Phase R3: Model)', () => {
     expect(visibleNav(mockMe('engineer')).map((i) => i.path)).toEqual([
       '/home',
       '/experiments',
@@ -95,6 +95,7 @@ describe('điều hướng (Phase 5 Group 6: Experiment, Tạo experiment; Phase
       '/home',
       '/experiments',
       '/reviews',
+      '/attack-specs/pending',
       '/protocols',
       '/reports',
       '/account',
@@ -105,6 +106,7 @@ describe('điều hướng (Phase 5 Group 6: Experiment, Tạo experiment; Phase
       '/admin/users',
       '/admin/audit',
       '/admin/attacks',
+      '/admin/models',
       '/protocols',
       '/reports',
       '/account',

@@ -1,5 +1,7 @@
 import {
+  Boxes,
   CircleUser,
+  FileCheck2,
   ClipboardCheck,
   FileText,
   FlaskConical,
@@ -61,6 +63,14 @@ export const NAV_ITEMS: readonly NavItem[] = [
     implemented: true,
   },
   {
+    // Phase R3: reviewer kích hoạt attack spec mới.
+    path: '/attack-specs/pending',
+    label: 'Spec chờ duyệt',
+    icon: FileCheck2,
+    requirement: 'attack_catalog.approve',
+    implemented: true,
+  },
+  {
     path: '/admin/users',
     group: 'admin',
     label: 'Người dùng',
@@ -82,6 +92,14 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: 'Attack catalog',
     icon: Library,
     requirement: 'attack_catalog.manage',
+    implemented: true,
+  },
+  {
+    path: '/admin/models',
+    group: 'admin',
+    label: 'Model',
+    icon: Boxes,
+    requirement: 'model.manage',
     implemented: true,
   },
   {
