@@ -112,7 +112,7 @@ Test gọi trực tiếp các tên dưới đây. Đổi tên hoặc chữ ký p
   |---|---|
   | Trang experiment | `role=tab` đúng 5 tên; `data-testid="experiment-mode"` ("Khám phá"/"Chính thức"); `data-testid="lifecycle"` chứa `lifecycle-step` có `data-step` ∈ `create, run, analyze, submit, review, report` và `data-state` ∈ `done, current, todo, failed`; heading "Chi phí", "Tái lập" trong Tổng quan; `data-testid="empty-state"`; link "Nâng từ <tên nguồn>" |
   | Ý nghĩa quyết định | `data-testid="decision-meaning"` trong hộp gửi duyệt, cột quyết định review, trang report |
-  | Trang chủ | `data-testid="todo-list"` chứa `todo-item` có `data-kind` (engineer: `submit_ready`, `changes_requested`, `promote_ready`; reviewer: `review_pending`, `spec_pending`, `protocol_draft`; admin: `user_pending`, `spec_check_failed`, `model_check_failed`) và số lượng; trống: chữ "Không có việc cần làm", link "Tạo experiment Khám phá" (engineer) |
+  | Trang chủ | `data-testid="todo-list"` chứa `todo-item` có `data-kind` (engineer: `submit_ready`, `changes_requested`, `promote_ready`; reviewer: `review_pending`, `spec_pending`; admin: `user_pending`, `spec_check_failed`, `model_check_failed`) và số lượng; trống: chữ "Không có việc cần làm", link "Tạo experiment Khám phá" (engineer) |
   | Wizard | `data-testid="wizard-step"` đúng 3 phần tử ("Mục đích", "Model và dữ liệu", "Attack và xác nhận"), bước hiện tại `aria-current="step"`; `radiogroup` "Mode", "Preset" (radio theo `title` của preset); ô chọn nhãn "Protocol", "Model", "Dataset và slice", "Máy chạy" (`<select>` hoặc combobox có `role=option`); nút "Tiếp…", "Tạo experiment"; `data-testid="attack-row"` có `data-attack` = tên spec, chip level có `data-level`, chip bắt buộc có `aria-disabled="true"` và chữ "Protocol yêu cầu"; nút "Bỏ attack…" không có ở attack bắt buộc; ô số chỉ nằm trong `<details>` "Tùy chỉnh nâng cao" |
   | Kết quả | `data-testid="insight-conclusion"`, `weakness` (bấm được, `data-level`; mở tab Failure case với query `attack=<tên>&level=<level>`), `robustness-matrix` chứa `matrix-cell` (4 ô mỗi hàng), `matrix-legend`; nút "Cách đọc"; nút "Nâng lên chính thức" → hộp thoại có ô chọn "Protocol" và nút "Tiếp tục" |
   | Thuật ngữ | phần tử có thuộc tính `data-term`, focus được; tooltip `role="tooltip"` có `id` trùng `aria-describedby`; Esc đóng |
@@ -120,6 +120,44 @@ Test gọi trực tiếp các tên dưới đây. Đổi tên hoặc chữ ký p
   | Duyệt spec | `/attack-specs/pending`: `data-testid="pending-spec"` mỗi spec; nút "Kích hoạt" (vô hiệu với spec của chính mình, kèm chữ "Bạn đã tạo spec này"), "Từ chối" → hộp thoại có ô "Lý do" và nút "Từ chối" vô hiệu khi trống; hộp thoại kích hoạt có nút "Kích hoạt" |
   | Model | `/admin/models` nút "Đăng ký model"; ô chọn "Framework"; `data-testid="onnx-layouts"` ghi "(1, 4+C, N)" và "boxes/scores/labels"; ô file "File weights"; lỗi đuôi file hiện `role="alert"` có ".onnx" và nút "Đăng ký" vô hiệu; `/admin/models/:id` có `data-testid="model-status"`, `model-check`, nút "Kiểm tra lại" |
   | Thử nhanh | `/quick-try`: ô chọn "Model", "Attack"; ô file "Ảnh"; nút "Chạy thử nhanh"; `data-testid="quick-try-result"`, `not-a-test-result` (có giờ xóa dạng `HH:MM`), `attacked-image` (`src` đổi theo level), `object-table`; `role="slider"` tên "Level" |
+
+### Chốt ở Group 8 (2026-10-11)
+
+Ghi lại quyết định đã chốt trong lúc làm Group 4–7 và review cả phase (`.claude/handoff/phaser3-review.md`). Các mục ở đây ưu tiên hơn mục Behaviour khi hai bên khác nhau.
+
+- **Trang experiment và trang chủ (G4).**
+  - Thanh vòng đời: bước Chạy `failed` khi experiment đã kết thúc (`completed`/`cancelled`) mà `run_counts.failed > 0`; Phân tích vẫn `current`. Review: `changes_requested` hoặc `rejected` → `failed`. Report: đã duyệt mà chưa có report hoặc `generating` → `current`; report `failed` → `failed`.
+  - Danh sách việc cần làm thay banner "Việc nên làm tiếp" trên `/home`.
+  - **Bỏ việc `protocol_draft`** khỏi R3: `ProtocolStatus` không có `draft` nên việc này không có nguồn. Reviewer chỉ có `review_pending`, `spec_pending`. Code frontend gỡ loại việc này ở lần sửa kế tiếp của `features/home/` (R3b); trong lúc chờ, số đếm luôn 0 nên việc không hiện.
+- **Wizard 3 bước (G5).**
+  - Khám phá thêm attack: gọi lại `POST /experiments/draft` với `attack_spec_ids`. Attack đã có giữ level đã sửa. Bỏ attack chỉ bỏ ở client.
+  - Chip level gồm: level của bản nháp, khóa của `level_labels`, mọi giá trị rời rạc và bộ gợi ý (lũy thừa của 2 trong dải; spec cần train: 0.1 và 0.25), tối đa 12.
+  - Giới hạn thời gian là thanh trượt bước 5 phút, giá trị gợi ý là `default_time_limit_s` của máy.
+  - Slice huấn luyện chọn ở bước 2 khi protocol bắt buộc spec cần train; ở Khám phá thì chọn ngay tại chỗ khi thêm spec cần train.
+  - "Nâng lên chính thức" hiện với experiment Khám phá `completed` hoặc `cancelled`, người dùng có `experiment.create`, nằm dưới insight. Lỗi 409 hiện trong hộp thoại.
+  - **Bỏ preset "Toàn bộ catalog"** của wizard cũ. Bản nháp Khám phá mặc định đã gồm cả catalog `active` trừ spec cần train.
+  - Không còn hộp xác nhận "Chạy experiment": nút "Tạo experiment" ở bước 3 tạo luôn. Nháp lưu dưới khóa `advertest.wizard.v3`; nháp `v1`/`v2` bị bỏ qua.
+- **Admin catalog và duyệt spec (G6).**
+  - Trường không có trên form (`access`, `art_class`, `cost_model`, `requires_training`/`training`) lấy từ spec "Sao chép từ" cùng adapter. Corruption/occlusion không có spec nguồn thì dùng: không áp dụng, `art_class` null, chỉ CPU. Adapter kiểu attack bắt buộc chọn spec nguồn cùng adapter.
+  - Version tự tính ở client (lớn nhất + 1). "Tạo version mới" khóa tên.
+  - Chi tiết spec ở `/admin/attacks/:id`, đọc từ `GET /admin/attack-specs` (API không có endpoint chi tiết).
+  - Khác biệt khi duyệt spec so với version `active` cùng tên lấy từ `GET /attack-specs`.
+  - Mục điều hướng mới: "Spec chờ duyệt" (`attack_catalog.approve`) và "Model" (nhóm Quản trị, `model.manage`).
+  - **Lý do từ chối spec đọc qua `GET /audit-log`** (cần `audit.read`). Chạy được vì chỉ admin có `attack_catalog.manage` và admin có `audit.read`; đổi ma trận quyền mà tách hai quyền này thì phải sửa chỗ này. Đề xuất contract thêm `reject_reason` vào `AttackSpecAdminView` làm ở R3b.
+- **Thử nhanh (G7).**
+  - Gặp 429: link tới lượt đang chạy lấy id lượt vừa tạo, lưu ở `localStorage` (`advertest-quick-try:<user_id>`). Không có id thì chỉ hiện câu thông báo.
+  - Tông `QuickTryObjectStatus`: `kept` info, icon scan-eye, "Giữ được"; `lost` danger, circle-x, "Bị mất"; `new` warning, circle-alert, "Phát hiện sai mới".
+  - Lượt đang xem nằm trên URL `/quick-try?id=<id>`. Mục điều hướng "Thử nhanh" (`quick_try.use`).
+  - Box `kept` trên ảnh tấn công vẽ theo bbox của ảnh sạch, vì contract chỉ có một bbox cho mỗi object. Người xem có thể hiểu nhầm vị trí box; muốn sửa thì cần đổi contract.
+- **Attack (G2).**
+  - CLI selfcheck dùng `--fixtures-dir` thay cho `--kitti-root`/`--weights`. Estimator chỉ dựng khi spec `requires_gradients`.
+  - `validate` chỉ kiểm `art_class` với adapter ART; corruption và occlusion không bị kiểm.
+- **E2E cũ (task 23a).** 6 file của Phase 5–8 chuyển sang wizard 3 bước qua `wizardToAttacks`, `keepAttacks`, `setLevels` trong `frontend/e2e/phase_r3/helpers.ts`. Assertion chỉ đổi khi hành vi cũ đã bị spec R3 bỏ:
+  - "nhập level ngoài dải" → level chỉ chọn bằng chip trong dải; attack không còn level thì nút "Tạo experiment" bị vô hiệu;
+  - preset "Toàn bộ catalog" → bản nháp Khám phá đủ 9 attack, thêm `adv_patch` bằng chip sau khi chọn slice huấn luyện;
+  - ước lượng tối đa trên thẻ máy chạy và hộp xác nhận → ở tóm tắt cấu hình (thanh dưới trên điện thoại);
+  - nháp `v2` của Phase 6 → cùng nội dung lưu dưới khóa `v3`;
+  - "Bước 4/6", heading "Xác nhận", tab "Chi phí" → "Bước 3 trên 3", heading "Attack và xác nhận", section "Chi phí" trong Tổng quan.
 
 ## Behaviour
 
@@ -194,7 +232,7 @@ Quy tắc chung:
 
 - `/home` mở đầu bằng danh sách **việc cần làm** theo vai trò, mỗi việc là một link tới đúng nơi xử lý:
   - **engineer:** experiment của mình đã xong mà chưa gửi duyệt; experiment bị yêu cầu sửa; experiment Khám phá đã xong có thể nâng lên chính thức.
-  - **reviewer:** review đang chờ; spec attack `pending_approval` (của người khác); protocol `draft` của mình.
+  - **reviewer:** review đang chờ; spec attack `pending_approval` (của người khác). (Protocol `draft` bỏ khỏi R3, xem Chốt ở Group 8.)
   - **admin:** tài khoản chờ duyệt; spec `check_failed`; model `check_failed`.
 - Mỗi việc có số lượng. Khi không có việc nào, trang hiện "Không có việc cần làm" và một hành động gợi ý (engineer: "Tạo experiment Khám phá").
 - Danh sách lấy từ endpoint hiện có. Hàm gom việc là hàm thuần, có unit test theo từng vai trò. Người có nhiều vai trò thấy gộp, không trùng.
