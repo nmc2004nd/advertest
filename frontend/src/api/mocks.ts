@@ -3,6 +3,7 @@
  * Chỉ được nạp khi VITE_USE_MOCKS=true.
  */
 import type {
+  AttackSpecAdminView,
   ClassMappingSummary,
   DatasetVersionSummary,
   EstimateResponse,
@@ -86,6 +87,11 @@ function mockPhase5(pathname: string, query: URLSearchParams): unknown {
     return model ? byVersion.filter((m) => m.model_version_id === model) : byVersion
   }
   if (pathname === '/admin/attack-specs') return listMocks('attack_spec_admin_page')[0]
+  // Phase R3: spec chờ kích hoạt (việc cần làm của reviewer).
+  if (pathname === '/attack-specs/pending')
+    return listMocks<AttackSpecAdminView>('attack_spec_admin_view').filter(
+      (s) => s.status === 'pending_approval',
+    )
   if (pathname === '/experiments')
     return first(listMocks<ExperimentPage>('experiment_page'), pathname)
   let m = match(`/models/${id}`)

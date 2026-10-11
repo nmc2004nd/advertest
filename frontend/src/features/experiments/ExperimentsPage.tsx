@@ -129,14 +129,15 @@ function ExperimentCards({ items }: { items: ExperimentSummary[] }) {
 export function ExperimentsPage() {
   const { data: me } = useMe()
   const canCreate = can(me, 'experiment.create')
-  // `?status=` (link từ thẻ chỉ số ở trang chủ) chọn sẵn bộ lọc trạng thái, xem mọi người tạo.
+  // `?status=` (link từ thẻ chỉ số ở trang chủ) chọn sẵn bộ lọc trạng thái, xem mọi người tạo;
+  // `&owner=me` (việc cần làm, Phase R3) chỉ xem của tôi.
   const [params] = useSearchParams()
   const fromUrl = params.get('status')
   const initialStatus = experimentStatusValues.includes(fromUrl as ExperimentStatus)
     ? (fromUrl as ExperimentStatus)
     : ''
   const [filters, setFilters] = useState<ExperimentFilters>({
-    owner: canCreate && !initialStatus ? 'me' : 'all',
+    owner: canCreate && (!initialStatus || params.get('owner') === 'me') ? 'me' : 'all',
     status: initialStatus,
     model: '',
   })

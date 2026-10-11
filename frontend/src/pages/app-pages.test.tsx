@@ -10,8 +10,9 @@ import { PENDING_USERS_QUERY_KEY, pendingCountLabel } from '@/auth/pending-count
 import { ME_QUERY_KEY } from '@/auth/useMe'
 import type { UserAdminPage } from '@/contracts/schemas'
 import { visibleNav } from '@/nav/config'
-import type { ExperimentPage } from '@/contracts/api'
+import type { ExperimentDetail, ExperimentPage } from '@/contracts/api'
 import { EXPERIMENTS_KEY } from '@/features/experiments/api'
+import { TODO_EXPERIMENTS_KEY } from '@/features/home/useTodos'
 import { expectLabelledControls, render } from '@/test-utils'
 
 import { AccountPage } from './AccountPage'
@@ -51,6 +52,27 @@ describe('/home', () => {
     expect(html).toContain('Kết thúc gần đây')
     expect(html).toContain('role="progressbar"')
     expect(html).not.toContain('chờ duyệt')
+  })
+
+  it('Phase R3: engineer chưa có việc thấy "Không có việc cần làm" và gợi ý tạo experiment Khám phá', () => {
+    const html = render(<HomePage />, '/home', 'engineer', [[TODO_EXPERIMENTS_KEY, []]])
+    expect(html).toContain('Không có việc cần làm')
+    expect(html).toContain('Tạo experiment Khám phá')
+    expect(html).not.toContain('data-testid="todo-list"')
+  })
+
+  it('Phase R3: việc cần làm mở đầu trang, mỗi việc có loại và số lượng', () => {
+    const detail = listMocks<ExperimentDetail>('experiment_detail').find(
+      (d) => d.mode === 'exploration' && d.status === 'completed',
+    )
+    if (!detail) throw new Error('Thiếu mock experiment Khám phá completed')
+    const me = mockMe('engineer')
+    const html = render(<HomePage />, '/home', 'engineer', [
+      [TODO_EXPERIMENTS_KEY, [{ ...detail, owner: { ...detail.owner, id: me.id } }]],
+    ])
+    expect(html).toMatch(/data-testid="todo-item" data-kind="promote_ready"/)
+    expect(html).toContain(`href="/experiments/${detail.id}"`)
+    expect(html.indexOf('data-testid="todo-list"')).toBeLessThan(html.indexOf('Việc của tôi'))
   })
 
   it('nhãn đếm có dấu + khi còn trang sau', () => {

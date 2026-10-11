@@ -1,10 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import {
   Activity,
-  ArrowRight,
   BadgeCheck,
   ChevronRight,
-  CircleCheck,
   Eye,
   FileText,
   FlaskConical,
@@ -25,36 +23,19 @@ import { ROLE_LABELS } from '@/auth/roles'
 import { useMe } from '@/auth/useMe'
 import { Avatar } from '@/components/Avatar'
 import { StatusBadge } from '@/components/status/StatusBadge'
-import { GradientWaves } from '@/components/background/GradientWaves'
-import { Button } from '@/components/ui/button'
 import type { ExperimentSummary } from '@/contracts/api'
 import type { Role, UserAdminPage } from '@/contracts/schemas'
 import { EngineerHome } from '@/features/experiments/EngineerHome'
 import { humanTime } from '@/features/experiments/format'
 import { FlowRail } from '@/features/flow/FlowRail'
-import type { StageId, StageView } from '@/features/flow/flow'
 import { useFlow } from '@/features/flow/useFlow'
+import { TodoList } from '@/features/home/TodoList'
+import type { TodoItem } from '@/features/home/todos'
+import { useTodos } from '@/features/home/useTodos'
 import { ReviewerHome } from '@/features/reviews/ReviewerHome'
 import { useCountUp } from '@/lib/useCountUp'
 import { cn } from '@/lib/utils'
 import { PageHeader, SectionTitle } from '@/layout/PageHeader'
-import { FloatingDecor } from '@/components/background/FloatingDecor'
-import { BANNER_DECOR } from '@/components/background/decor-presets'
-
-/** Vì sao nên làm việc này bây giờ: một câu giải thích, nói như đồng nghiệp. */
-const WHY: Record<StageId, string> = {
-  accounts: 'Người mới chưa vào được hệ thống cho tới khi bạn duyệt và gán vai trò cho họ.',
-  protocol:
-    'Kỹ sư cần một protocol đã chốt để biết phải chạy những attack nào và ngưỡng đạt là bao nhiêu.',
-  configure:
-    'Chọn protocol, model, slice ảnh và attack trong 6 bước. Hệ thống ước lượng thời gian trước khi chạy.',
-  run: 'Worker đang xử lý. Bạn có thể làm việc khác; hệ thống gửi email khi xong.',
-  submit:
-    'Xem nhanh failure case cho chắc, rồi gửi cho một reviewer độc lập. Sau khi gửi, experiment được khóa để giữ nguyên kết quả.',
-  review:
-    'Một kỹ sư đang chờ kết luận của bạn. Xem các case bắt buộc rồi chấp nhận, yêu cầu sửa hoặc từ chối.',
-  report: 'Report chính thức có mã xác minh; người ngoài kiểm tra được file bằng trang xác minh.',
-}
 
 /** Tên gọi tiếng Việt: từ cuối của họ tên ("Nguyễn Thu Linh" → "Linh"). */
 function givenName(fullName: string): string {
@@ -63,8 +44,8 @@ function givenName(fullName: string): string {
 }
 
 /** Một câu tóm tắt tình hình hôm nay. */
-function summarySentence(stages: readonly StageView[], experiments: ExperimentSummary[]): string {
-  const waiting = stages.filter((s) => s.state === 'action' && s.cta).length
+function summarySentence(todos: readonly TodoItem[], experiments: ExperimentSummary[]): string {
+  const waiting = todos.reduce((sum, t) => sum + t.count, 0)
   const running = experiments.filter((e) => e.status === 'running' || e.status === 'queued').length
   const parts = [
     waiting > 0 ? `Có ${waiting} việc đang chờ bạn.` : 'Hiện không có việc nào chờ bạn.',
@@ -76,21 +57,22 @@ function summarySentence(stages: readonly StageView[], experiments: ExperimentSu
 }
 
 /**
- * Trang chủ kiểu bảng điều khiển (tham khảo beehiiv): lời chào, banner cảnh 3D chứa đúng một việc
- * nên làm tiếp, bốn thẻ số liệu, rồi hai cột: bên trái việc của tôi và việc gần đây của nhóm, bên
- * phải checklist quy trình (requirements.md Phase 4, mục Điều hướng).
+ * Trang chủ kiểu bảng điều khiển (tham khảo beehiiv): lời chào, danh sách việc cần làm theo vai trò
+ * (Phase R3, thay banner "Việc nên làm tiếp"), bốn thẻ số liệu, rồi hai cột: bên trái việc của tôi
+ * và việc gần đây của nhóm, bên phải checklist quy trình (requirements.md Phase 4, mục Điều hướng).
  */
 export function HomePage() {
   const { data: me } = useMe()
   const flow = useFlow()
+  const todo = useTodos(me)
   if (!me) return null
   return (
     <div className="enter mx-auto flex max-w-[1180px] flex-col gap-6 px-4 py-7 md:px-8 md:py-9">
       <PageHeader
         title={<>Chào {givenName(me.full_name)} 👋</>}
         description={
-          me.roles.length > 0 && !flow.loading
-            ? summarySentence(flow.stages, flow.experiments)
+          me.roles.length > 0 && !flow.loading && !todo.loading
+            ? summarySentence(todo.todos, flow.experiments)
             : 'Đây là tình hình kiểm định của nhóm bạn hôm nay.'
         }
       />
@@ -100,7 +82,12 @@ export function HomePage() {
         </p>
       ) : (
         <>
-          <NextActionCard next={flow.next} loading={flow.loading} />
+          <TodoList
+            todos={todo.todos}
+            loading={todo.loading}
+            failed={todo.failed}
+            canCreate={me.roles.includes('engineer') && can(me, 'experiment.create')}
+          />
           {can(me, 'experiment.read') && <TeamPulse experiments={flow.experiments} />}
           <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
             <div className="flex min-w-0 flex-col gap-6">
@@ -128,71 +115,6 @@ export function HomePage() {
           </div>
         </>
       )}
-    </div>
-  )
-}
-
-/**
- * Banner cảnh lụa 3D chứa một việc duy nhất nên làm tiếp, kèm lý do và một nút; không có việc thì
- * nói rõ là không có. Lớp phủ tối bên trái giữ chữ trắng đạt tương phản trên mọi màu của cảnh.
- */
-function NextActionCard({ next, loading }: { next: StageView | null; loading: boolean }) {
-  if (loading) {
-    return <div className="panel h-[184px] animate-pulse" aria-hidden />
-  }
-  const cta = next?.cta
-  const done = !next || !cta
-  return (
-    <div
-      role={done ? 'status' : undefined}
-      className="relative isolate overflow-hidden rounded-2xl shadow-[0_12px_32px_-12px_rgba(76,29,149,0.45)]"
-      data-testid="viec-tiep-theo"
-    >
-      <GradientWaves className="absolute inset-0 -z-10" scale={0.8} />
-      <div
-        aria-hidden
-        className="absolute inset-0 -z-10 bg-gradient-to-r from-[#1e1b4b]/80 via-[#1e1b4b]/45 to-transparent"
-      />
-      <FloatingDecor items={BANNER_DECOR} className="hidden md:block" />
-      <div className="relative z-10 flex min-h-[184px] flex-col justify-center gap-5 p-6 text-white sm:flex-row sm:items-center sm:justify-between md:px-8 md:pr-[30%]">
-        {done ? (
-          <div className="flex max-w-[60ch] items-start gap-4">
-            <span className="grid size-11 shrink-0 place-items-center rounded-full bg-white/15 backdrop-blur">
-              <CircleCheck className="size-5" aria-hidden />
-            </span>
-            <div className="flex flex-col gap-1">
-              <p className="text-[20px] font-semibold tracking-[-0.02em]">
-                Bạn đã xong hết việc của mình 🎉
-              </p>
-              <p className="text-[14.5px] leading-6 text-white/85">
-                Checklist "Quy trình của nhóm" cho biết mọi người đang ở bước nào, nếu bạn muốn hỗ
-                trợ ai đó.
-              </p>
-            </div>
-          </div>
-        ) : (
-          <>
-            <div className="flex max-w-[60ch] flex-col gap-1.5">
-              <span className="inline-flex items-center gap-2 self-start rounded-full bg-white/15 px-3 py-1 text-[12.5px] font-semibold backdrop-blur">
-                <span className="status-dot live size-1.5 text-[#fde68a]" aria-hidden />
-                Việc nên làm tiếp
-              </span>
-              <p className="text-[22px] leading-7 font-semibold tracking-[-0.02em]">{next.title}</p>
-              <p className="text-[14.5px] leading-6 text-white/85">{WHY[next.id]}</p>
-            </div>
-            <Button
-              asChild
-              size="lg"
-              className="shrink-0 self-start bg-white text-[#1e293b] shadow-[0_6px_20px_rgba(15,23,42,0.25)] hover:bg-white/90 sm:self-auto"
-            >
-              <Link to={cta.to}>
-                {cta.label}
-                <ArrowRight aria-hidden />
-              </Link>
-            </Button>
-          </>
-        )}
-      </div>
     </div>
   )
 }
