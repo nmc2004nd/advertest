@@ -129,6 +129,7 @@ export type Action =
   | { type: 'slice'; id: string }
   | { type: 'dataSlice'; datasetVersionId: string; sliceId: string }
   | { type: 'draftTrainingSlice'; id: string }
+  | { type: 'resolveDatasetVersion'; id: string }
   | { type: 'mapping'; id: string | null }
   | { type: 'target'; id: string; defaultLimitSeconds: number }
   | { type: 'limit'; seconds: number | null }
@@ -205,6 +206,9 @@ export function reducer(draft: Draft, action: Action): Draft {
     }
     case 'draftTrainingSlice':
       return { ...draft, trainingSliceId: action.id }
+    case 'resolveDatasetVersion':
+      // Nháp nâng lên chính thức chỉ biết slice: điền dataset version, giữ slice và mapping.
+      return draft.datasetVersionId === null ? { ...draft, datasetVersionId: action.id } : draft
     case 'mapping':
       return { ...draft, mappingId: action.id }
     case 'target':

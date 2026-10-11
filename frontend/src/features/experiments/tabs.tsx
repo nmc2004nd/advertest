@@ -1,20 +1,25 @@
-import { Download, EyeOff, TriangleAlert } from 'lucide-react'
-import { Link } from 'react-router'
+import { ChartNoAxesColumn, Download, EyeOff, TriangleAlert, X } from 'lucide-react'
+import type { ReactNode } from 'react'
+import { Link, useSearchParams } from 'react-router'
 
 import { middleTruncate } from '@/admin/format'
 import { AttackRanking } from '@/components/charts/AttackRanking'
 import { gridAttackIds } from '@/components/charts/breakpoints'
 import { MetricCurves } from '@/components/charts/MetricCurves'
 import { CopyButton } from '@/components/CopyButton'
+import { EmptyState } from '@/components/EmptyState'
 import { WATERMARK } from '@/components/case-viewer/CaseViewer'
 import { LoadError } from '@/components/LoadError'
 import { PageLoading } from '@/components/PageLoading'
 import { StatusBadge } from '@/components/status/StatusBadge'
 import type { ExperimentDetail, FailureCaseView, Manifest, RunView } from '@/contracts/api'
+import { NO_RESULT_BODY, NO_RESULT_TITLE } from '@/copy/charts'
 
-import { artifactSrc, useFailureCases, useManifest } from './api'
+import { artifactSrc, useAttackCatalog, useFailureCases, useInsight, useManifest } from './api'
 import { BreakingPoints } from './BreakingPoints'
 import { downloadJson, formatDuration, reasonText, runLabel } from './format'
+import { InsightSection } from './Insight'
+import { filterRuns } from './results'
 import { ProgressBar } from './ProgressBar'
 import { RunProgress } from './RunProgress'
 
@@ -61,19 +66,39 @@ export function RunsTable({ runs }: { runs: RunView[] }) {
 
 // ---------------------------------------------------------------- Kết quả
 
+/**
+ * Tab Kết quả: Phase R3 mở đầu bằng insight (kết luận, điểm yếu, ma trận, `action` nâng lên chính
+ * thức), rồi tới các biểu đồ có sẵn; chưa có run nào có metric thì chỉ hiện trạng thái trống.
+ */
 export function ResultsTab({
   experiment,
   runs,
+  action,
 }: {
   experiment: ExperimentDetail
   runs: RunView[]
+  action?: ReactNode
 }) {
+  const insight = useInsight(experiment.id, experiment.status)
+  const catalog = useAttackCatalog()
+  if (insight.isPending) return <PageLoading />
+  if (insight.isError) {
+    return <LoadError onRetry={() => void insight.refetch()} retrying={insight.isFetching} />
+  }
+  if (insight.data.conclusion.code === 'no_data') {
+    return (
+      <EmptyState icon={ChartNoAxesColumn} title={NO_RESULT_TITLE}>
+        {NO_RESULT_BODY}
+      </EmptyState>
+    )
+  }
   // Phase 7: xếp hạng và đường cong chỉ gồm attack quét lưới; run tìm ngưỡng (kể cả tập con)
   // nằm ở mục "Điểm gãy".
   const grid = gridAttackIds(experiment)
   const gridRuns = runs.filter((run) => grid.has(run.attack_spec_id))
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      <InsightSection insight={insight.data} catalog={catalog.data ?? []} action={action} />
       <BreakingPoints experiment={experiment} runs={runs} />
       <AttackRanking ranking={experiment.attack_ranking ?? []} />
       {grid.size > 0 && (
@@ -148,12 +173,40 @@ function RunCases({ run }: { run: RunView }) {
 }
 
 export function FailureCasesTab({ runs }: { runs: RunView[] }) {
-  const withCases = runs.filter((run) => run.failure_case_ids.length > 0)
+  const [params, setParams] = useSearchParams()
+  const attack = params.get('attack')
+  const level = params.get('level')
+  const filtered = attack !== null || level !== null
+  const withCases = filterRuns(runs, attack, level).filter((run) => run.failure_case_ids.length > 0)
+  const filter = filtered && (
+    <div className="flex flex-wrap items-center gap-2 text-sm" data-testid="case-filter">
+      <span className="text-muted-foreground">Đang lọc:</span>
+      <span className="rounded-full bg-surface-raised px-2.5 py-1 font-medium">
+        {[attack, level !== null && `level ${level}`].filter(Boolean).join(' · ')}
+      </span>
+      <button
+        type="button"
+        onClick={() => setParams({ tab: 'cases' }, { replace: true })}
+        className="inline-flex min-h-11 items-center gap-1 rounded-lg px-2 font-semibold text-cta hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+      >
+        <X aria-hidden="true" className="size-4" />
+        Bỏ lọc
+      </button>
+    </div>
+  )
   if (withCases.length === 0) {
-    return <p className="text-muted-foreground">Chưa có failure case nào.</p>
+    return (
+      <div className="space-y-3">
+        {filter}
+        <p className="text-muted-foreground">
+          {filtered ? 'Không có failure case nào khớp bộ lọc.' : 'Chưa có failure case nào.'}
+        </p>
+      </div>
+    )
   }
   return (
     <div className="space-y-6">
+      {filter}
       <p className="text-sm text-muted-foreground">
         {WATERMARK}: kết quả chưa được reviewer duyệt. Case sắp theo mức nghiêm trọng giảm dần.
       </p>

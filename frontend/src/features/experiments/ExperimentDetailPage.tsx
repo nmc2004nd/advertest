@@ -28,6 +28,8 @@ import { humanTime } from './format'
 import { Lifecycle } from './Lifecycle'
 import { lifecycle } from './lifecycle'
 import { OverviewSection } from './OverviewSection'
+import { canPromote, PROMOTE_LABEL } from './results'
+import { PromoteDialog } from './PromoteDialog'
 import { ProgressBar } from './ProgressBar'
 import { nextStep } from './next-step'
 import { NextStepPanel } from './NextStep'
@@ -103,6 +105,7 @@ export function ExperimentDetailPage() {
   const cancel = useCancel(id)
   const [confirming, setConfirming] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [promoting, setPromoting] = useState(false)
 
   if (experiment.isPending) return <PageLoading />
   if (experiment.isError) {
@@ -134,6 +137,19 @@ export function ExperimentDetailPage() {
         </Link>
       </Button>
     )
+  // Phase R3: nâng experiment Khám phá đã kết thúc lên chính thức (nút dưới insight của tab Kết quả).
+  const promotable = can(me, 'experiment.create') && canPromote(e)
+  const promoteButton = promotable && (
+    <div className="flex flex-wrap items-center gap-3">
+      <Button onClick={() => setPromoting(true)}>
+        <ArrowUpRight aria-hidden="true" />
+        {PROMOTE_LABEL}
+      </Button>
+      <p className="text-sm text-muted-foreground">
+        Tạo experiment Chính thức theo protocol để gửi duyệt; kết quả Khám phá không được chép sang.
+      </p>
+    </div>
+  )
   const submitButton = canOpenSubmit && (
     <Button onClick={() => setSubmitting(true)}>Gửi duyệt</Button>
   )
@@ -231,7 +247,9 @@ export function ExperimentDetailPage() {
             </OverviewSection>
           </div>
         )}
-        {tab === 'results' && <ResultsTab experiment={e} runs={runList} />}
+        {tab === 'results' && (
+          <ResultsTab experiment={e} runs={runList} action={promoteButton || undefined} />
+        )}
         {tab === 'cases' && <FailureCasesTab runs={runList} />}
         {tab === 'review' && (
           <ReviewTab experiment={e} runs={runList} action={submitButton || cloneLink} />
@@ -246,6 +264,7 @@ export function ExperimentDetailPage() {
           onOpenChange={setSubmitting}
         />
       )}
+      {promotable && <PromoteDialog experiment={e} open={promoting} onOpenChange={setPromoting} />}
       <ConfirmDialog
         open={confirming}
         onOpenChange={setConfirming}

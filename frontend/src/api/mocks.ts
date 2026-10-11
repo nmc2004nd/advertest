@@ -9,6 +9,7 @@ import type {
   EstimateResponse,
   ExperimentClone,
   ExperimentDetail,
+  ExperimentInsight,
   ExperimentPage,
   FailureCaseView,
   HealthResponse,
@@ -138,6 +139,15 @@ function mockPhase5(pathname: string, query: URLSearchParams): unknown {
   if (m) return first(where<ExperimentDetail>('experiment_detail', 'id', m[1]), pathname)
   m = match(`/experiments/${id}/runs`)
   if (m) return where<RunView>('run_view', 'experiment_id', m[1])
+  m = match(`/experiments/${id}/insight`)
+  if (m) {
+    // Phase R3: insight theo experiment_id của mock, không có thì mock điểm yếu đầu tiên.
+    const insights = listMocks<ExperimentInsight>('experiment_insight')
+    return (
+      insights.find((i) => i.experiment_id === m?.[1] && i.conclusion.code !== 'no_data') ??
+      first(insights, pathname)
+    )
+  }
   m = match(`/experiments/${id}/clone`)
   if (m) {
     const clones = listMocks<ExperimentClone>('experiment_clone')

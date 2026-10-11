@@ -5,6 +5,7 @@ import { listMocks } from '@/api/mocks'
 import type {
   AttackSpec,
   ExperimentDetail,
+  ExperimentInsight,
   ExperimentPage,
   FailureCaseView,
   Manifest,
@@ -24,6 +25,10 @@ const queued = details.find((d) => d.status === 'queued')
 if (!completed || !running || !queued) throw new Error('Thiếu mock experiment_detail')
 const runsOf = (id: string) => listMocks<RunView>('run_view').filter((r) => r.experiment_id === id)
 const ENGINEER_ID = '0f6d2c3e-8a41-4b7d-9c5e-1a2b3c4d5e02' // mock me/engineer, chủ của mock
+const insights = listMocks<ExperimentInsight>('experiment_insight')
+const weakInsight = insights.find((i) => i.conclusion.code === 'weak')
+const noData = insights.find((i) => i.conclusion.code === 'no_data')
+if (!weakInsight || !noData) throw new Error('Thiếu mock experiment_insight')
 
 function detailPage(
   detail: ExperimentDetail,
@@ -40,6 +45,8 @@ function detailPage(
     [
       [experimentKey(detail.id), detail],
       [[...experimentKey(detail.id), 'runs'], runsOf(detail.id)],
+      // Phase R3: tab Kết quả mở đầu bằng insight (mặc định có điểm yếu).
+      [[...experimentKey(detail.id), 'insight'], { ...weakInsight, experiment_id: detail.id }],
       ...extra,
     ],
   )
@@ -99,6 +106,81 @@ describe('/experiments/:id', () => {
 
   it('Kết quả: biểu đồ và bảng số liệu', () => {
     expect(detailPage(completed, 'results')).toContain('Số liệu của fgsm')
+  })
+
+  describe('Phase R3: insight đầu tab Kết quả', () => {
+    const exploration = { ...completed, mode: 'exploration' as const }
+    const official = { ...completed, mode: 'official' as const }
+
+    it('câu kết luận, điểm yếu có data-level, ma trận 4 ô mỗi hàng, chú thích thang màu', () => {
+      const html = detailPage(exploration, 'results')
+      expect(html).toContain('data-testid="insight-conclusion"')
+      expect(html).toContain(weakInsight.conclusion.text)
+      const weak = [
+        ...html.matchAll(/data-testid="weakness" data-attack="([^"]+)" data-level="([^"]+)"/g),
+      ]
+      expect(weak.map((m) => [m[1], Number(m[2])])).toEqual(
+        weakInsight.weaknesses.map((w) => [w.attack_name, w.level]),
+      )
+      const cells = html.match(/data-testid="matrix-cell"/g) ?? []
+      expect(cells).toHaveLength(weakInsight.matrix.length * 4)
+      expect(html).toContain('Chưa chạy')
+      expect(html).toContain('data-testid="matrix-legend"')
+      expect(html).toContain('0–25% dải')
+      // Câu kết luận và nút "Cách đọc" cho ma trận và mọi biểu đồ có sẵn.
+      expect((html.match(/>Cách đọc</g) ?? []).length).toBeGreaterThanOrEqual(3)
+      expect(html).toContain('data-term="map"')
+    })
+
+    it('ô ma trận tô theo thang màu, ô ≥ 30% có viền', () => {
+      const html = detailPage(exploration, 'results')
+      const tones = [
+        ...html.matchAll(
+          /data-testid="matrix-cell" data-band="\d" data-tone="(\w+)" class="([^"]*)"/g,
+        ),
+      ]
+      expect(tones.map((m) => m[1])).toEqual(
+        weakInsight.matrix.flatMap((row) =>
+          row.cells.map((c) => {
+            const d = c.max_relative_drop
+            if (d === null) return 'empty'
+            return d < 0.1 ? 'none' : d < 0.3 ? 'low' : d < 0.5 ? 'mid' : 'high'
+          }),
+        ),
+      )
+      for (const [, tone, cls] of tones) {
+        expect(cls.includes('border-fail')).toBe(tone === 'mid' || tone === 'high')
+      }
+    })
+
+    it('kết quả một phần có nhãn', () => {
+      const html = detailPage(exploration, 'results', 'engineer', [
+        [[...experimentKey(exploration.id), 'insight'], { ...weakInsight, partial: true }],
+      ])
+      expect(html).toContain('Kết quả một phần')
+    })
+
+    it('no_data: trạng thái trống, không có ma trận, không có nút nâng lên', () => {
+      const html = detailPage(exploration, 'results', 'engineer', [
+        [[...experimentKey(exploration.id), 'insight'], noData],
+      ])
+      expect(html).toContain('data-testid="empty-state"')
+      expect(html).toContain('Chưa có run nào có kết quả')
+      expect(html).not.toContain('robustness-matrix')
+      expect(html).not.toContain('Nâng lên chính thức')
+    })
+
+    it('"Nâng lên chính thức" chỉ với experiment Khám phá đã kết thúc và người có quyền tạo', () => {
+      expect(detailPage(exploration, 'results')).toContain('Nâng lên chính thức</button>')
+      expect(detailPage({ ...exploration, status: 'cancelled' }, 'results')).toContain(
+        'Nâng lên chính thức</button>',
+      )
+      expect(detailPage(official, 'results')).not.toContain('Nâng lên chính thức')
+      expect(detailPage({ ...exploration, status: 'running' }, 'results')).not.toContain(
+        'Nâng lên chính thức',
+      )
+      expect(detailPage(exploration, 'results', 'reviewer')).not.toContain('Nâng lên chính thức')
+    })
   })
 
   describe('Phase 7: mục Điểm gãy', () => {

@@ -410,7 +410,8 @@ export function WizardPage() {
   const clone = useClone(cloneId)
   const protocol = useProtocol(draft.protocolId)
   const specs = useAttackSpecs()
-  const allSlices = useSlices(null, cloneId !== null)
+  const unresolved = draft.sliceId !== null && draft.datasetVersionId === null
+  const allSlices = useSlices(null, cloneId !== null || unresolved)
   const create = useCreateExperiment()
   const drafting = useDraft()
 
@@ -432,6 +433,13 @@ export function WizardPage() {
       ),
     })
   }, [clone.data, allSlices.data, protocols.data, cloneId, draft.clonedFrom])
+
+  // Nâng lên chính thức: bản nháp chỉ có slice, tra dataset version của slice.
+  useEffect(() => {
+    if (!unresolved || !allSlices.data) return
+    const slice = allSlices.data.find((s) => s.id === draft.sliceId)
+    if (slice) dispatch({ type: 'resolveDatasetVersion', id: slice.dataset_version_id })
+  }, [unresolved, allSlices.data, draft.sliceId])
 
   // Phase 8: tải xong protocol thì thêm và khóa attack bắt buộc (cả khi nhân bản).
   useEffect(() => {

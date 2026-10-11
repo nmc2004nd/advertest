@@ -12,6 +12,7 @@ import { POLL_INTERVAL_MS } from '@/api/queries'
 import type {
   AttackSpec,
   ExperimentDetail,
+  ExperimentInsight,
   ExperimentPage,
   ExperimentStatus,
   FailureCaseView,
@@ -48,6 +49,15 @@ export function useExperimentRuns(id: string, status: ExperimentStatus | undefin
   return useQuery({
     queryKey: [...experimentKey(id), 'runs'],
     queryFn: () => apiGet<RunView[]>(`/experiments/${id}/runs`),
+    refetchInterval: experimentPollInterval(status),
+  })
+}
+
+/** Phase R3: insight của tab Kết quả (điểm yếu, ma trận, câu kết luận); polling như danh sách run. */
+export function useInsight(id: string, status: ExperimentStatus | undefined) {
+  return useQuery({
+    queryKey: [...experimentKey(id), 'insight'],
+    queryFn: () => apiGet<ExperimentInsight>(`/experiments/${id}/insight`),
     refetchInterval: experimentPollInterval(status),
   })
 }
