@@ -18,6 +18,7 @@ import type {
   ModelSummary,
   ProtocolSummary,
   ProtocolView,
+  QuickTryView,
   CaseVerdictView,
   ReviewComment,
   ReportDetail,
@@ -190,6 +191,13 @@ function mockPhase5(pathname: string, query: URLSearchParams): unknown {
   }
   m = match(`/failure-cases/${id}`)
   if (m) return first(where<FailureCaseView>('failure_case_view', 'id', m[1]), pathname)
+  // Phase R3: lượt thử nhanh (mock không tạo được lượt mới, chỉ xem lượt có sẵn). Các mock dùng
+  // chung id ở mọi trạng thái: ưu tiên bản đã xong để xem được kết quả.
+  m = match(`/quick-tries/${id}`)
+  if (m) {
+    const views = where<QuickTryView>('quick_try_view', 'id', m[1])
+    return views.find((v) => v.status === 'completed') ?? first(views, pathname)
+  }
   throw new Error(`Không có mock cho GET ${pathname}`)
 }
 

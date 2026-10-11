@@ -1,6 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { ApiError, CSRF_COOKIE, CSRF_HEADER, apiGet, apiSend, readCookie } from './client'
+import {
+  ApiError,
+  CSRF_COOKIE,
+  CSRF_HEADER,
+  apiGet,
+  apiPostForm,
+  apiSend,
+  readCookie,
+} from './client'
 
 function stubFetch(status: number, body: unknown) {
   const fetchMock = vi
@@ -75,6 +83,32 @@ describe('apiSend', () => {
     await expect(apiSend('POST', '/auth/logout')).rejects.toMatchObject({
       status: 401,
       code: 'unauthenticated',
+    })
+  })
+})
+
+describe('apiPostForm', () => {
+  it('gửi FormData nguyên vẹn, không tự đặt Content-Type, kèm X-CSRF-Token', async () => {
+    vi.stubEnv('VITE_USE_MOCKS', 'false')
+    vi.stubGlobal('document', { cookie: 'csrf_token=abc' })
+    const fetchMock = stubFetch(202, { id: 'x' })
+    const form = new FormData()
+    form.set('preset', 'fast')
+    await expect(apiPostForm('/quick-tries', form)).resolves.toEqual({ id: 'x' })
+    const [path, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(path).toBe('/quick-tries')
+    expect(init).toMatchObject({ method: 'POST', credentials: 'include', body: form })
+    expect(init.headers).toMatchObject({ [CSRF_HEADER]: 'abc' })
+    expect(init.headers).not.toHaveProperty('Content-Type')
+  })
+
+  it('429 thành ApiError quick_try_busy', async () => {
+    vi.stubEnv('VITE_USE_MOCKS', 'false')
+    vi.stubGlobal('document', { cookie: '' })
+    stubFetch(429, { schema_version: 1, error: { code: 'quick_try_busy', message: 'x' } })
+    await expect(apiPostForm('/quick-tries', new FormData())).rejects.toMatchObject({
+      status: 429,
+      code: 'quick_try_busy',
     })
   })
 })

@@ -62,3 +62,23 @@ export async function apiSend<T>(method: Method, path: string, body?: unknown): 
   })
   return parse<T>(response)
 }
+
+/** POST `multipart/form-data` (Phase R3: ảnh thử nhanh). Trình duyệt tự đặt `Content-Type` kèm
+ * boundary; CSRF như `apiSend`. */
+export async function apiPostForm<T>(path: string, form: FormData): Promise<T> {
+  // Viết thẳng biểu thức (không qua hàm): bản build thay bằng hằng số và bỏ nhánh mock.
+  if (import.meta.env.VITE_USE_MOCKS === 'true') {
+    const { mockSend } = await import('./mocks')
+    return mockSend('POST', path)
+  }
+  const headers: Record<string, string> = { Accept: 'application/json' }
+  const csrf = readCookie(CSRF_COOKIE)
+  if (csrf) headers[CSRF_HEADER] = csrf
+  const response = await fetch(apiUrl(path), {
+    method: 'POST',
+    credentials: 'include',
+    headers,
+    body: form,
+  })
+  return parse<T>(response)
+}

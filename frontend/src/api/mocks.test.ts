@@ -4,6 +4,7 @@ import type {
   ExperimentDetail,
   FailureCaseView,
   RunResultOutput as RunResult,
+  QuickTryView,
   RunView,
   SliceSummary,
 } from '@/contracts/api'
@@ -60,5 +61,11 @@ describe('mock từ contracts/mocks', () => {
 
   it('đường dẫn không có mock thì báo lỗi rõ ràng', () => {
     expect(() => mockGet('/users')).toThrow('Không có mock cho GET /users')
+  })
+
+  it('Phase R3: GET /quick-tries/{id} trả lượt thử nhanh có sẵn', () => {
+    const view = listMocks<QuickTryView>('quick_try_view').find((v) => v.status === 'completed')
+    if (!view) throw new Error('Thiếu mock quick_try_view completed')
+    expect(mockGet(`/quick-tries/${view.id}`)).toEqual(view)
   })
 })
