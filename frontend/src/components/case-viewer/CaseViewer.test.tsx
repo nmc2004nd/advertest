@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { listMocks } from '@/api/mocks'
 import type { DisplayMode, FailureCaseView } from '@/contracts/api'
 
-import { boxesOf } from './boxes'
+import { BOX_COLORS, BOX_STROKE, boxesOf } from './boxes'
 import { BLURRED_TEXT, CaseViewer, DEV_WARNING, HIDDEN_TEXT, WATERMARK } from './CaseViewer'
 import { THIRD_IMAGE_LABEL } from './labels'
 
@@ -75,7 +75,7 @@ describe('CaseViewer (validation.md Frontend unit)', () => {
       ignoreRegions: detections.ignore_regions,
       lost: [0],
     })
-    expect(boxes.filter((b) => b.kind === 'lost').map((b) => b.label)).toEqual(['car (bị mất)'])
+    expect(boxes.filter((b) => b.kind === 'lost').map((b) => b.label)).toEqual(['× car (bị mất)'])
     expect(boxes).toHaveLength(
       detections.ground_truth.length +
         detections.attacked.length +
@@ -119,5 +119,42 @@ describe('CaseViewer Phase 6 (task 34)', () => {
         if (other !== THIRD_IMAGE_LABEL[kind]) expect(html).not.toContain(other)
       }
     }
+  })
+})
+
+describe('Trình vẽ box Phase R3 (design.md mục 3)', () => {
+  const detections = listMocks<FailureCaseView>('failure_case_view')[0].detections
+
+  it('kiểu nét: ground truth đứt 8-4, phát hiện sai mới đứt 3-3, object bị mất liền dày 3', () => {
+    expect(BOX_STROKE.ground_truth).toEqual({ width: 2, dash: [8, 4] })
+    expect(BOX_STROKE.fresh).toEqual({ width: 2, dash: [3, 3] })
+    expect(BOX_STROKE.lost).toEqual({ width: 3, dash: [] })
+    expect(BOX_STROKE.ignore_regions.dash).toEqual([4, 3])
+    expect(BOX_COLORS.fresh).toBe('#f97316')
+  })
+
+  it('dự đoán thuộc `fresh` vẽ ở lớp phát hiện sai mới, phần còn lại giữ lớp sau tấn công', () => {
+    if (detections.attacked.length === 0) throw new Error('Mock thiếu dự đoán sau tấn công')
+    const boxes = boxesOf({
+      groundTruth: [],
+      predictions: detections.attacked,
+      predictionKind: 'attacked',
+      ignoreRegions: [],
+      lost: [],
+      fresh: [0],
+    })
+    expect(boxes.map((b) => b.kind)).toEqual([
+      'fresh',
+      ...detections.attacked.slice(1).map(() => 'attacked'),
+    ])
+    expect(boxes[0].label).toContain('(mới)')
+  })
+
+  it('chú thích lớp: ô màu ground truth nét đứt, object bị mất có ký hiệu ×', () => {
+    const html = renderToStaticMarkup(
+      <CaseViewer caseView={listMocks<FailureCaseView>('failure_case_view')[0]} />,
+    )
+    expect(html).toMatch(/data-swatch="ground_truth"[^>]*border-style:dashed/)
+    expect(html).toContain('× Object bị mất')
   })
 })

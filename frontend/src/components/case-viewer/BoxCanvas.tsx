@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-import { BOX_COLORS, type BoxSet, boxesOf, LABELS_MEDIA_QUERY } from './boxes'
+import { BOX_COLORS, BOX_STROKE, type BoxSet, boxesOf, LABELS_MEDIA_QUERY } from './boxes'
 import { canvasSize, hitTest, LETTERBOX, toCss } from './geometry'
 
 /**
@@ -42,13 +42,14 @@ export function BoxCanvas({ set, imageSize = LETTERBOX }: { set: BoxSet; imageSi
     for (const [index, box] of boxes.entries()) {
       const [x1, y1, x2, y2] = toCss(box.bbox, cssSize, imageSize)
       ctx.strokeStyle = BOX_COLORS[box.kind]
-      ctx.lineWidth = box.kind === 'lost' ? 3 : 2
-      ctx.setLineDash(box.kind === 'ignore_regions' ? [4, 3] : [])
+      ctx.lineWidth = BOX_STROKE[box.kind].width
+      ctx.setLineDash(BOX_STROKE[box.kind].dash)
       ctx.strokeRect(x1, y1, x2 - x1, y2 - y1)
       if (labelsShown || index === selected) {
         const text = box.label
         const w = ctx.measureText(text).width + 6
         ctx.fillStyle = BOX_COLORS[box.kind]
+        ctx.setLineDash([])
         ctx.fillRect(x1, Math.max(0, y1 - 16), w, 16)
         ctx.fillStyle = '#000'
         ctx.fillText(text, x1 + 3, Math.max(12, y1 - 4))

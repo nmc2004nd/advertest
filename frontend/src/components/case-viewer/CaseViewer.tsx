@@ -11,7 +11,8 @@ import type { FailureCaseView } from '@/contracts/api'
 import { artifactSrc } from '@/features/experiments/api'
 
 import { BoxCanvas } from './BoxCanvas'
-import { BOX_COLORS, type BoxSet } from './boxes'
+import { type BoxSet, LOST_MARK } from './boxes'
+import { BoxSwatch } from './BoxSwatch'
 import { ALL_LAYERS, type Layer, LAYERS, lostObjects } from './geometry'
 import { THIRD_IMAGE_LABEL } from './labels'
 
@@ -97,21 +98,13 @@ function LayerToggles({
           aria-pressed={layers[key]}
           onClick={() => onChange({ ...layers, [key]: !layers[key] })}
         >
-          <span
-            aria-hidden="true"
-            className="inline-block size-3 rounded-sm"
-            style={{ backgroundColor: BOX_COLORS[key] }}
-          />
+          <BoxSwatch kind={key} />
           {label}
         </Button>
       ))}
       <span className="inline-flex min-h-11 items-center gap-1 text-sm text-muted-foreground">
-        <span
-          aria-hidden="true"
-          className="inline-block size-3 rounded-sm"
-          style={{ backgroundColor: BOX_COLORS.lost }}
-        />
-        Object bị mất
+        <BoxSwatch kind="lost" />
+        {LOST_MARK} Object bị mất
       </span>
     </div>
   )
