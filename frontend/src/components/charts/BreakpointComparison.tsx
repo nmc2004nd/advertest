@@ -9,8 +9,11 @@ import {
 } from 'recharts'
 
 import { StatusBadge } from '@/components/status/StatusBadge'
+import { READING } from '@/copy/charts'
 
 import { comparisonRows, type SearchAttack } from './breakpoints'
+import { ChartReading } from './ChartReading'
+import { breakpointSentence } from './sentences'
 
 const BAR = 'var(--foreground)'
 const MUTED = 'var(--muted-foreground)'
@@ -27,6 +30,7 @@ export function BreakpointComparison({ attacks }: { attacks: SearchAttack[] }) {
       <h4 id="so-sanh-diem-gay" className="text-sm font-medium">
         So sánh điểm gãy (% dải của spec, càng nhỏ càng dễ gãy)
       </h4>
+      <ChartReading sentence={breakpointSentence(rows)} reading={READING.breakpoints} />
       {bars.length > 0 && (
         <div style={{ height: 40 + bars.length * 32 }} className="w-full" aria-hidden="true">
           <ResponsiveContainer width="100%" height="100%">

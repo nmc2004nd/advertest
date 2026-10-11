@@ -13,6 +13,10 @@ import {
 import { StatusBadge } from '@/components/status/StatusBadge'
 import { Button } from '@/components/ui/button'
 import type { RunView } from '@/contracts/api'
+import { READING } from '@/copy/charts'
+
+import { ChartReading } from './ChartReading'
+import { curveSentence } from './sentences'
 
 import {
   type AttackCurve,
@@ -226,6 +230,7 @@ function AttackBlock({
         {curve.name}{' '}
         <span className="text-sm font-normal text-muted-foreground">v{curve.version}</span>
       </h3>
+      <ChartReading sentence={curveSentence(curve)} reading={READING.curves} />
       <div role="tablist" aria-label={`Biểu đồ của ${curve.name}`} className="flex gap-2 md:hidden">
         {(Object.keys(METRICS) as Metric[]).map((key) => (
           <Button

@@ -1,7 +1,11 @@
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
 import type { AttackRankingEntry } from '@/contracts/api'
+import { READING } from '@/copy/charts'
 import { ATTACK_KIND_LABEL } from '@/lib/attack-kinds'
+
+import { ChartReading } from './ChartReading'
+import { rankingSentence } from './sentences'
 
 import { formatPercent } from './curves'
 import { formatAuc, levelsText } from './ranking'
@@ -136,6 +140,7 @@ export function AttackRanking({ ranking }: { ranking: AttackRankingEntry[] }) {
       <h3 id="xep-hang-attack" className="font-semibold">
         Xếp hạng attack
       </h3>
+      <ChartReading sentence={rankingSentence(ranking)} reading={READING.ranking} />
       <p className="text-sm text-muted-foreground">
         auc_drop: diện tích dưới đường mức sụt mAP@0.5 theo level chuẩn hóa (level / giá trị lớn
         nhất của tham số), tính đến độ phủ, không ngoại suy. Level bỏ qua do dừng sớm lấy mức sụt
