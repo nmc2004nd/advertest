@@ -6,7 +6,8 @@ interface FieldShellProps {
   label: string
   /** Thông điệp lỗi hiển thị ngay dưới ô nhập. */
   error?: string
-  hint?: string
+  /** Có thể chứa `Term` (requirements.md Phase R3, mục Thuật ngữ). */
+  hint?: ReactNode
   id?: string
   children: (control: {
     id: string

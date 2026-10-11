@@ -15,6 +15,7 @@ import { SelectField, TextField } from '@/components/form/TextField'
 import { LoadError } from '@/components/LoadError'
 import { PageLoading } from '@/components/PageLoading'
 import { StatusBadge } from '@/components/status/StatusBadge'
+import { Term } from '@/components/Term'
 import { Button } from '@/components/ui/button'
 import type { QuickTryLevel, QuickTryView } from '@/contracts/api'
 import { quickTryObjectStatusValues } from '@/contracts/schemas'
@@ -150,7 +151,13 @@ function QuickTryForm({ onCreated }: { onCreated: (id: string) => void }) {
         </SelectField>
         <SelectField
           label="Attack"
-          hint={COPY.attackHint}
+          hint={
+            <>
+              {COPY.attackHint.noPatch} <Term term="patch" />.{' '}
+              <Term term="white_box">{COPY.attackHint.gradient}</Term>{' '}
+              {COPY.attackHint.gradientRest}
+            </>
+          }
           value={attack?.id ?? ''}
           onChange={(e) => setAttackId(e.target.value)}
           disabled={attacks.length === 0}
@@ -438,9 +445,12 @@ export function QuickTryResult({
       {level && (
         <>
           <div className="flex flex-col gap-2">
-            <label htmlFor="quick-try-level" className="text-sm font-semibold">
-              {COPY.level}: <span className="tabular-nums">{levelText(level, param)}</span>
-            </label>
+            {/* Không dùng <label>: chạm vào Term trong label sẽ chuyển focus sang thanh trượt và
+                đóng tooltip; thanh trượt có tên qua aria-label. */}
+            <p className="text-sm font-semibold">
+              <Term term="level">{COPY.level}</Term>:{' '}
+              <span className="tabular-nums">{levelText(level, param)}</span>
+            </p>
             <input
               id="quick-try-level"
               type="range"

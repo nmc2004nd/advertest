@@ -4,7 +4,12 @@ export const QUICK_TRY_COPY = {
   description:
     'Áp một attack lên một ảnh để xem model giữ được và mất những object nào. Chỉ để minh họa, không phải kiểm thử.',
   formTitle: 'Chọn model, attack và ảnh',
-  attackHint: 'Không có attack patch. Attack cần gradient chỉ hiện khi model hỗ trợ gradient.',
+  // Gợi ý attack ghép quanh hai thuật ngữ `patch` và `white_box` (bọc bằng `Term` ở trang).
+  attackHint: {
+    noPatch: 'Không có attack',
+    gradient: 'Attack cần gradient',
+    gradientRest: 'chỉ hiện khi model hỗ trợ gradient.',
+  },
   imageHint: 'JPEG hoặc PNG, tối đa 10 MB. Kéo ảnh thả vào đây hoặc chọn file.',
   imageMissing: 'Chọn một ảnh.',
   submit: 'Chạy thử nhanh',

@@ -58,6 +58,12 @@ describe('/quick-try: form', () => {
     expect(html).not.toContain(`(${patch.name})</option>`)
   })
 
+  it('gợi ý attack dùng Term cho patch và attack white-box (M4)', () => {
+    const html = render(<QuickTryPage />, '/quick-try', 'engineer', data)
+    expect(html).toContain('data-term="patch"')
+    expect(html).toContain('data-term="white_box"')
+  })
+
   it('chỉ liệt kê model ready', () => {
     const ready = modelMocks().find((m) => m.status === 'ready')
     if (!ready) throw new Error('Thiếu mock model ready')
@@ -84,6 +90,8 @@ describe('kết quả', () => {
   it('thanh trượt Level, ảnh sạch và ảnh tấn công cạnh nhau, bảng object và số đếm', () => {
     const html = render(<QuickTryResult view={completed} />, '/quick-try', 'engineer', data)
     expect(html).toMatch(/<input[^>]*type="range"[^>]*aria-label="Level"/)
+    // M4: nhãn Level là Term (lần đầu thuật ngữ xuất hiện trong kết quả).
+    expect(html).toMatch(/data-term="level"[^>]*>Level</)
     expect(html).toContain(`max="${completed.levels.length - 1}"`)
     expect(html).toContain(`src="${completed.clean_image_url ?? ''}"`)
     expect(html).toContain(`src="${completed.levels[0].image_url}"`)
