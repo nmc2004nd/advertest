@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 import { listMocks } from '@/api/mocks'
 import type { ExperimentDetail, ReviewComment, RunView } from '@/contracts/api'
+import { DECISIONS } from '@/copy/decisions'
 import { expectLabelledControls, render } from '@/test-utils'
 
 import { experimentKey } from './api'
@@ -79,6 +80,11 @@ describe('gửi duyệt', () => {
         error="Lỗi"
       />,
     )
+    // Phase R3: dòng ý nghĩa của Gửi duyệt.
+    expect(html).toContain('data-testid="decision-meaning"')
+    expect(html).toContain('data-decision="submit"')
+    expect(html).toContain(DECISIONS.submit.now)
+    expect(DECISIONS.submit.now).toContain('khóa')
     expect(html).toContain('Chưa đạt: ')
     expect(html).toContain('Không có run chạy từ code chưa commit')
     expect(html).toContain(`(0/${needed.length})`)

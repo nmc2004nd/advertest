@@ -8,12 +8,14 @@ import { can } from '@/auth/permissions'
 import { useMe } from '@/auth/useMe'
 import { AttackRanking } from '@/components/charts/AttackRanking'
 import { THRESHOLD_KIND_LABEL } from '@/components/charts/breakpoints'
+import { DecisionMeaning } from '@/components/DecisionMeaning'
 import { FormAlert } from '@/components/FormAlert'
 import { LoadError } from '@/components/LoadError'
 import { PageLoading } from '@/components/PageLoading'
 import { StatusBadge } from '@/components/status/StatusBadge'
 import { Button } from '@/components/ui/button'
 import type { ReportDownload, ReportSnapshot, ReportView } from '@/contracts/api'
+import { TEST_ENVIRONMENT_NOTE } from '@/copy/decisions'
 import { artifactSrc } from '@/features/experiments/api'
 import { formatDuration } from '@/features/experiments/format'
 import { MODEL_VERDICT_LABEL } from '@/features/experiments/review-labels'
@@ -513,6 +515,15 @@ export function ReportPage() {
           {regenerate.isError && <FormAlert>{errorMessage(regenerate.error)}</FormAlert>}
         </div>
       )}
+      <DecisionMeaning decisions={['export']} title="Report này có nghĩa là gì">
+        <p>
+          Reviewer {report.approved_by.full_name} đã chấp nhận bài test. Kết luận về model:{' '}
+          <strong>{MODEL_VERDICT_LABEL[report.model_verdict]}</strong>. Chấp nhận là xác nhận bài
+          test làm đúng protocol, không phải tuyên bố model đạt.
+        </p>
+        <p>{TEST_ENVIRONMENT_NOTE}</p>
+        <p className="font-semibold">Xuất report</p>
+      </DecisionMeaning>
       {snapshot && (
         // Nội dung report trình bày như một tờ giấy: nền trắng, mép trên chuyển màu.
         <article className="panel relative overflow-hidden p-6 pt-8 md:p-10 md:pt-11">

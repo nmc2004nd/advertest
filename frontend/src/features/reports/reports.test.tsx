@@ -10,8 +10,10 @@ import type {
   ReportView,
   VerifyInfo,
 } from '@/contracts/api'
+import { DECISIONS, TEST_ENVIRONMENT_NOTE } from '@/copy/decisions'
 import { experimentKey } from '@/features/experiments/api'
 import { ExperimentDetailPage } from '@/features/experiments/ExperimentDetailPage'
+import { MODEL_VERDICT_LABEL } from '@/features/experiments/review-labels'
 import { expectLabelledControls, render } from '@/test-utils'
 
 import { REPORTS_KEY, reportKey, verifyKey } from './api'
@@ -128,6 +130,15 @@ function reportPage(detail: ReportDetail, me: string) {
 }
 
 describe('trang report', () => {
+  it('Phase R3: đoạn "Report này có nghĩa là gì" gồm verdict, nguyên tắc 8 và ý nghĩa xuất report', () => {
+    const html = reportPage(ready, 'engineer')
+    expect(html).toContain('data-testid="decision-meaning"')
+    expect(html).toContain('Report này có nghĩa là gì')
+    expect(html).toContain(MODEL_VERDICT_LABEL[ready.report.model_verdict])
+    expect(html).toContain(TEST_ENVIRONMENT_NOTE)
+    expect(html).toContain(DECISIONS.export.now)
+  })
+
   it('report sẵn sàng: "BẢN CHÍNH THỨC", mã report, link xác minh, đủ 9 mục', () => {
     const html = reportPage(ready, 'reviewer')
     expect(html).toContain(OFFICIAL)

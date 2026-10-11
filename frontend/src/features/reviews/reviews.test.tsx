@@ -179,6 +179,15 @@ describe('khung quyết định', () => {
     expect(approveBlockers(review, filled)).toEqual([])
   })
 
+  it('Phase R3: cột quyết định có bảng ý nghĩa của cả 3 quyết định, chưa dòng nào được nhấn', () => {
+    const html = render(<DecisionPanel experiment={ready} review={reviewOf(ready)} />)
+    expect(html).toContain('data-testid="decision-meaning"')
+    for (const key of ['approve', 'changes_requested', 'reject']) {
+      expect(html).toContain(`data-decision="${key}"`)
+    }
+    expect(html).not.toContain('data-active')
+  })
+
   it('giải trình chỉ bắt buộc khi có tiêu chí chưa kết luận; body gửi đúng trường', () => {
     const review = reviewOf(ready)
     const noJustification = { ...filled, inconclusiveJustification: '' }

@@ -6,6 +6,7 @@ import { errorMessage } from '@/api/messages'
 import { can } from '@/auth/permissions'
 import { useMe } from '@/auth/useMe'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { DecisionMeaning } from '@/components/DecisionMeaning'
 import { FormAlert } from '@/components/FormAlert'
 import { LoadError } from '@/components/LoadError'
 import { PageLoading } from '@/components/PageLoading'
@@ -188,6 +189,14 @@ export function DecisionPanel({
   const decide = useDecide(experiment.id)
   const [form, setForm] = useState<DecisionForm>(initial)
   const [confirm, setConfirm] = useState<ReviewDecision | null>(null)
+  // Quyết định đang rê chuột hoặc focus: nhấn dòng tương ứng trong bảng ý nghĩa.
+  const [pointing, setPointing] = useState<ReviewDecision | null>(null)
+  const point = (decision: ReviewDecision) => ({
+    onMouseEnter: () => setPointing(decision),
+    onMouseLeave: () => setPointing(null),
+    onFocus: () => setPointing(decision),
+    onBlur: () => setPointing(null),
+  })
   const blockers = approveBlockers(review, form)
   const others = otherBlockers(form)
   const patch = (value: Partial<DecisionForm>) => setForm((f) => ({ ...f, ...value }))
@@ -263,14 +272,24 @@ export function DecisionPanel({
           'Vì sao chấp nhận dù tiêu chí chưa kết luận được, ví dụ: thiếu dữ liệu ban đêm.',
         )}
       {decide.isError && <FormAlert>{errorMessage(decide.error)}</FormAlert>}
+      <DecisionMeaning
+        decisions={['approve', 'changes_requested', 'reject']}
+        highlight={confirm ?? pointing}
+        title="Mỗi quyết định có nghĩa là"
+      />
       <div className="flex flex-col gap-2 md:flex-row">
-        <Button disabled={blockers.length > 0} onClick={() => setConfirm('approve')}>
+        <Button
+          disabled={blockers.length > 0}
+          onClick={() => setConfirm('approve')}
+          {...point('approve')}
+        >
           Chấp nhận
         </Button>
         <Button
           variant="outline"
           disabled={others.length > 0}
           onClick={() => setConfirm('changes_requested')}
+          {...point('changes_requested')}
         >
           Yêu cầu sửa
         </Button>
@@ -278,6 +297,7 @@ export function DecisionPanel({
           variant="destructive"
           disabled={others.length > 0}
           onClick={() => setConfirm('reject')}
+          {...point('reject')}
         >
           Từ chối
         </Button>

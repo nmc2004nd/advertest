@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { ApiError } from '@/api/errors'
 import { errorMessage } from '@/api/messages'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { DecisionMeaning } from '@/components/DecisionMeaning'
 import { FormAlert } from '@/components/FormAlert'
 import type { ExperimentDetail, RunView } from '@/contracts/api'
 
@@ -77,7 +78,7 @@ export function SubmitDialog({
   )
 }
 
-/** Thân hộp gửi duyệt: điều kiện ✓/✗, giải trình từng run, ghi chú. */
+/** Thân hộp gửi duyệt: ý nghĩa của gửi duyệt (Phase R3), điều kiện ✓/✗, giải trình từng run, ghi chú. */
 export function SubmitFields({
   experiment,
   runs,
@@ -101,6 +102,7 @@ export function SubmitFields({
   const missing = needed.filter((id) => !(explanations[id] ?? '').trim())
   return (
     <div className="max-h-[60vh] space-y-4 overflow-y-auto text-sm">
+      <DecisionMeaning decisions={['submit']} title="Gửi duyệt nghĩa là" />
       {error && Object.keys(fieldErrors).length === 0 && <FormAlert>{error}</FormAlert>}
       <section className="space-y-1" aria-label="Điều kiện gửi duyệt">
         <p className="font-medium">Điều kiện</p>
