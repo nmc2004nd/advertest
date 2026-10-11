@@ -64,7 +64,7 @@
 18. Bảng ý nghĩa quyết định ở hộp gửi duyệt, màn hình review và trang report.
 19. Trang chủ "việc cần làm" theo vai trò (hàm gom việc thuần + test theo vai trò).
 
-## Group 5 — Wizard 3 bước, kết quả và nâng lên chính thức `[agent: frontend]`
+## Group 5 — Wizard 3 bước, kết quả và nâng lên chính thức `[agent: frontend]` ✅
 
 20. Wizard 3 bước:
     - mode, preset, danh sách chọn và thanh trượt;
