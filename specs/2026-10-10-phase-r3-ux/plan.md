@@ -51,7 +51,7 @@
     - bảng object giữ `operating_conf`.
 14. Chạy lại phép đo thời gian thử nhanh của R2, ghi vào handoff (làm mờ mới không được vượt mục tiêu < 10 giây).
 
-## Group 4 — Nền giao diện, trang experiment, trang chủ `[agent: frontend]`
+## Group 4 — Nền giao diện, trang experiment, trang chủ `[agent: frontend]` ✅
 
 15. `status-config.ts`: `ATTACK_SPEC_STATUS`, `MODEL_STATUS`, `TOOL_JOB_STATUS`, `EXPERIMENT_MODE` (`Record<Enum, …>`, test so với enum sinh từ contract).
     Trình vẽ box (`components/case-viewer/`): ground truth nét đứt 8-4, nhãn × cho object bị mất, lớp "phát hiện sai mới" (`design.md` mục 3).
