@@ -7,12 +7,14 @@
 // - engineer không thấy nút tải report; trang report có "BẢN CHÍNH THỨC";
 // - người có cả role engineer và reviewer không thấy experiment của mình trong hàng đợi;
 // - không trang nào của phase cuộn ngang (390px trên điện thoại).
+// Phase R3 (plan.md task 23a): tạo experiment qua wizard 3 bước.
 import { readFile } from 'node:fs/promises'
 
 import { expect, type Page, test } from '@playwright/test'
 
 import { expectNoHorizontalScroll } from '../phase_04/helpers'
 import { visibleButton } from '../phase_05/helpers'
+import { attackRow, setLevels, wizardToAttacks } from '../phase_r3/helpers'
 import {
   APPROVE,
   claimApi,
@@ -49,28 +51,24 @@ async function createProtocolUi(page: Page, name: string, levels: [number, numbe
   await expectNoHorizontalScroll(page)
 }
 
-async function createExperimentUi(page: Page, protocol: string): Promise<string> {
-  const next = () => visibleButton(page, /^Tiếp/).click()
-  await page.goto('/experiments/new')
-  await page.getByRole('radiogroup', { name: 'Protocol' }).getByText(protocol).click()
-  await expect(page.getByTestId('protocol-chi-tiet')).toBeVisible()
-  await next()
-  await page.getByRole('radio', { name: /yolov8n-coco/ }).click()
-  await next()
-  await page.getByRole('radiogroup', { name: 'Dataset version' }).getByRole('radio').first().click()
-  await page
-    .getByRole('radiogroup', { name: 'Slice' })
-    .getByRole('radio', { name: /5 ảnh/ })
-    .click()
-  await next()
-  // Bước 4: attack bắt buộc đã được thêm và khóa theo protocol.
-  const fgsm = page.getByRole('checkbox', { name: 'fgsm v1 Theo protocol' })
-  await expect(fgsm).toBeChecked()
-  await expect(fgsm).toBeDisabled()
-  await next()
-  await next()
-  await visibleButton(page, /^Chạy/).click()
-  await page.getByRole('dialog').getByRole('button', { name: 'Chạy experiment' }).click()
+async function createExperimentUi(
+  page: Page,
+  protocol: string,
+  levels: [number, number],
+): Promise<string> {
+  // Phase R3 (plan.md task 23a): wizard 3 bước, mode Chính thức.
+  await wizardToAttacks(page, {
+    official: protocol,
+    onPurpose: async () => {
+      await expect(page.getByTestId('protocol-chi-tiet')).toBeVisible()
+    },
+  })
+  // Bước 3: attack bắt buộc đã được thêm và khóa theo protocol; chỉ giữ level bắt buộc.
+  const fgsm = attackRow(page, 'fgsm')
+  await expect(fgsm.getByText('Protocol yêu cầu')).toBeVisible()
+  await expect(fgsm.getByRole('button', { name: /Bỏ attack/ })).toHaveCount(0)
+  await setLevels(fgsm, levels)
+  await visibleButton(page, 'Tạo experiment').click()
   await expect(page).toHaveURL(/\/experiments\/[0-9a-f-]{36}$/)
   return page.url().split('/').pop() ?? ''
 }
@@ -123,7 +121,7 @@ test('trọn luồng: protocol → experiment → gửi duyệt → review → c
   await createProtocolUi(reviewer.page, protocol, levels)
 
   // 2. Engineer tạo experiment theo protocol bằng wizard, chờ chạy xong, gửi duyệt.
-  const experimentId = await createExperimentUi(engineer.page, protocol)
+  const experimentId = await createExperimentUi(engineer.page, protocol, levels)
   await expect(
     engineer.page.locator('[data-kind="experiment"][data-status="completed"]').first(),
   ).toBeVisible({ timeout: WORKER_TIMEOUT })
@@ -233,7 +231,7 @@ test('yêu cầu sửa: engineer thấy quyết định và "Nhân bản để s
     .first()
     .click()
   await expect(mine).toHaveURL(new RegExp(`/experiments/new\\?clone=${experimentId}$`))
-  await expect(mine.getByRole('heading', { name: 'Xác nhận' })).toBeVisible()
+  await expect(mine.getByRole('heading', { name: 'Attack và xác nhận' })).toBeVisible()
   await expect(mine.getByText(`fgsm: ${levels.join(', ')}`).first()).toBeAttached()
   await expectNoHorizontalScroll(mine)
 })

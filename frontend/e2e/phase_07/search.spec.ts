@@ -1,38 +1,32 @@
 // validation.md Phase 7, Frontend E2E (backend, worker CPU thật, fixture 5 ảnh của scripts/e2e.sh):
 // - wizard điền tol mặc định (hi − lo)/256 và cảnh báo tập con dưới 20 ảnh; công tắc tìm ngưỡng của
 //   adv_patch bị khóa kèm giải thích;
-// - engineer tạo experiment tìm ngưỡng PGD L∞, bước 6 hiển thị "tối đa"; khi chạy dòng tiến độ tìm
+// - engineer tạo experiment tìm ngưỡng PGD L∞, bước xác nhận hiển thị "tối đa"; khi chạy dòng tiến độ tìm
 //   kiếm cập nhật; khi xong thẻ tóm tắt và biểu đồ quỹ đạo hiển thị;
 // - 390px: chỉ thẻ tóm tắt, chạm thẻ mở quỹ đạo toàn màn hình, không cuộn ngang;
 // - nháp wizard lưu theo định dạng trước Phase 7 mở được, attack là quét lưới, không mất trường nào.
 // Câu kết luận theo từng trạng thái, nhãn "> 100%"/"≤ mức nhỏ nhất", thẻ failed/stopped_limit chỉ có
 // trong mock: kiểm bằng Vitest (BreakpointCard.test.tsx, breakpoints.test.ts).
+// Phase R3 (plan.md task 23a): wizard 3 bước.
 import { expect, type Page, test } from '@playwright/test'
 
 import { activeUser, expectNoHorizontalScroll, loginUi } from '../phase_04/helpers'
-import { attackCard, fixtureIds, visibleButton } from '../phase_05/helpers'
+import { fixtureIds, visibleButton } from '../phase_05/helpers'
+import { attackRow, keepAttacks, wizardToAttacks } from '../phase_r3/helpers'
 
 const RUN_TIMEOUT = 300_000
 // Mỗi viewport một cận trên khác nhau: level thô khác nên worker phải chạy thật (không trúng cache
 // của viewport trước), dòng tiến độ mới kịp hiện.
 const HI: Record<string, string> = { phone: '16', tablet: '15', desktop: '14' }
 
-async function toAttackStep(page: Page) {
-  const next = () => visibleButton(page, /^Tiếp/).click()
-  await page.goto('/experiments/new')
-  await page.getByRole('radio', { name: /dev-open/ }).click()
-  await next()
-  await page.getByRole('radio', { name: /yolov8n-coco/ }).click()
-  await next()
-  await page.getByRole('radiogroup', { name: 'Dataset version' }).getByRole('radio').first().click()
-  await page
-    .getByRole('radiogroup', { name: 'Slice' })
-    .getByRole('radio', { name: /5 ảnh/ })
-    .click()
-  await expect(page.getByText('Tự chọn mapping duy nhất')).toBeVisible()
-  await next()
-  await expect(page.getByRole('heading', { name: 'Tấn công', exact: true })).toBeVisible()
-  return next
+/** Bước 3 của wizard 3 bước (Phase R3, plan.md task 23a), slice 5 ảnh. */
+async function toAttackStep(page: Page, slice: RegExp = /5 ảnh/) {
+  await wizardToAttacks(page, {
+    slice,
+    beforeNext: async () => {
+      await expect(page.getByText('Tự chọn class mapping duy nhất')).toBeVisible()
+    },
+  })
 }
 
 test('tìm ngưỡng PGD: wizard, chi phí tối đa, tiến độ, thẻ tóm tắt và quỹ đạo', async ({
@@ -42,18 +36,22 @@ test('tìm ngưỡng PGD: wizard, chi phí tối đa, tiến độ, thẻ tóm t
   test.setTimeout(RUN_TIMEOUT + 120_000)
   const email = await activeUser(request, info, ['engineer'])
   await loginUi(page, email)
-  const next = await toAttackStep(page)
-
-  // adv_patch: công tắc tìm ngưỡng bị khóa, có giải thích.
-  await page.getByLabel('adv_patch v2', { exact: true }).check()
-  const patch = attackCard(page, 'adv_patch v2')
+  // adv_patch: công tắc tìm ngưỡng bị khóa, có giải thích. Phase R3: patch cần slice huấn luyện
+  // không giao slice đánh giá nên xem trên slice 3 ảnh, rồi bỏ nháp đó.
+  await toAttackStep(page, /3 ảnh/)
+  await page.getByRole('button', { name: 'adv_patch', exact: true }).click()
+  await page.getByLabel('Slice huấn luyện', { exact: true }).selectOption({ index: 1 })
+  const patch = attackRow(page, 'adv_patch')
+  await patch.getByText('Tùy chỉnh nâng cao').click()
   await expect(patch.getByRole('radio', { name: 'Tự tìm ngưỡng' })).toBeDisabled()
   await expect(patch.getByTestId('tim-nguong-khoa')).toContainText('train patch')
-  await page.getByLabel('adv_patch v2', { exact: true }).uncheck()
+  await page.evaluate(() => sessionStorage.removeItem('advertest.wizard.v3'))
 
   // PGD L∞: tự tìm ngưỡng. Dải mặc định 0–32, tol mặc định 32/256 = 0.125.
-  await page.getByLabel('pgd_linf v1', { exact: true }).check()
-  const pgd = attackCard(page, 'pgd_linf v1')
+  await toAttackStep(page)
+  await keepAttacks(page, { pgd_linf: [8] })
+  const pgd = attackRow(page, 'pgd_linf')
+  await pgd.getByText('Tùy chỉnh nâng cao').click()
   await pgd.getByRole('radio', { name: 'Tự tìm ngưỡng' }).click()
   await expect(pgd.getByLabel(/^Từ/)).toHaveValue('0')
   await expect(pgd.getByLabel(/^Đến/)).toHaveValue('32')
@@ -61,27 +59,25 @@ test('tìm ngưỡng PGD: wizard, chi phí tối đa, tiến độ, thẻ tóm t
   // Dải nhỏ cho CPU; tol 2 như test backend. Tập con 3 ảnh (slice 5 ảnh): cảnh báo dưới 20.
   await pgd.getByLabel(/^Đến/).fill(HI[info.project.name])
   await pgd.getByLabel(/^Độ chính xác/).fill('2')
-  await pgd.getByText('Nâng cao').click()
+  await pgd.getByText('Nâng cao', { exact: true }).click()
   await pgd.getByLabel(/^Kích thước tập con/).fill('3')
   await expect(pgd.getByTestId('tap-con-nho')).toBeVisible()
   await expectNoHorizontalScroll(page)
-  await next()
 
-  // Bước 5: thẻ máy chạy hiện ước lượng tối đa. DB của E2E mới: lần đầu máy chưa có số đo của PGD
-  // (worker tự đo) nên chỉ có số điểm tối đa; các viewport sau có cả thời gian.
-  await expect(page.getByRole('radio', { name: /local-dev/ })).toContainText(
-    /Ước lượng: (tối đa ~.+|chưa ước lượng được tối đa) \(tối đa \d+ điểm\)/,
-  )
-  await next()
-
-  // Bước 6: chi phí tối đa từng attack.
+  // Ước lượng tối đa (Phase R3: ở tóm tắt cấu hình và thanh dưới, thay cho thẻ máy chạy và hộp
+  // xác nhận). DB của E2E mới: lần đầu máy chưa có số đo của PGD (worker tự đo) nên chỉ có số điểm
+  // tối đa; các viewport sau có cả thời gian.
+  await expect(
+    page
+      .getByText(/(tối đa ~.+|chưa ước lượng được tối đa) \(tối đa \d+ điểm\)/)
+      .filter({ visible: true })
+      .first(),
+  ).toBeVisible()
+  // Chi phí tối đa từng attack.
   await expect(page.getByTestId('chi-phi-tim-nguong')).toContainText(
     /pgd_linf: (Tối đa ~.+|Chưa đo được tốc độ trên máy này) \(tối đa \d+ điểm\)/,
   )
-  await visibleButton(page, /^Chạy/).click()
-  const dialog = page.getByRole('dialog')
-  await expect(dialog).toContainText(/tìm ngưỡng tối đa \d+ điểm/)
-  await dialog.getByRole('button', { name: 'Chạy experiment' }).click()
+  await visibleButton(page, 'Tạo experiment').click()
   await expect(page).toHaveURL(/\/experiments\/[0-9a-f-]{36}$/)
 
   // Khi chạy: dòng tiến độ trong thẻ ở tab Kết quả, tăng dần không cần tải lại trang.
@@ -143,9 +139,10 @@ test('nháp wizard lưu trước Phase 7 mở được: attack là quét lưới
   }[]
   const datasetVersionId = slices.find((s) => s.id === ids.sliceId)?.dataset_version_id
   const fgsm = ids.spec('fgsm')
-  // Định dạng nháp Phase 6 (khóa v2): attack không có mode/search.
+  // Định dạng nháp Phase 6: attack không có mode/search. Phase R3 bỏ qua nháp khóa v2 (số bước
+  // đổi), nên lưu cùng nội dung dưới khóa v3, bước 3.
   const draft = {
-    step: 4,
+    step: 3,
     protocolId: '2edcdef5-0d3a-5d5f-98ac-b02637fa6718',
     modelId: ids.modelId,
     datasetVersionId,
@@ -169,19 +166,21 @@ test('nháp wizard lưu trước Phase 7 mở được: attack là quét lưới
     cloneWarnings: [],
   }
   await page.addInitScript((saved) => {
-    sessionStorage.setItem('advertest.wizard.v2', saved)
+    sessionStorage.setItem('advertest.wizard.v3', saved)
   }, JSON.stringify(draft))
   await page.goto('/experiments/new')
-  await expect(page.getByRole('heading', { name: 'Tấn công', exact: true })).toBeVisible()
-  const card = attackCard(page, 'fgsm v1')
-  await expect(page.getByLabel('fgsm v1', { exact: true })).toBeChecked()
+  await expect(page.getByRole('heading', { name: 'Attack và xác nhận' })).toBeVisible()
+  const card = attackRow(page, 'fgsm')
+  await expect(card).toBeVisible()
+  await card.getByText('Tùy chỉnh nâng cao').click()
   await expect(card.getByRole('radio', { name: 'Quét lưới' })).toHaveAttribute(
     'aria-checked',
     'true',
   )
-  await expect(card.getByText('2', { exact: true })).toBeVisible()
-  await expect(card.getByText('8', { exact: true })).toBeVisible()
+  await expect(card.locator('[data-level="2"]')).toHaveAttribute('aria-pressed', 'true')
+  await expect(card.locator('[data-level="8"]')).toHaveAttribute('aria-pressed', 'true')
+  await page.getByText('Tùy chỉnh nâng cao: mọi attack').click()
   await expect(page.getByRole('switch', { name: 'Dừng sớm khi model đã sụp' })).not.toBeChecked()
-  await expect(visibleButton(page, /^Tiếp/)).toBeEnabled()
+  await expect(visibleButton(page, 'Tạo experiment')).toBeEnabled()
   await expectNoHorizontalScroll(page)
 })

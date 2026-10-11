@@ -1,8 +1,10 @@
 // validation.md Phase 5, Frontend E2E: wizard → chi tiết → tiến độ → kết quả, failure case, tái lập.
+// Phase R3 (plan.md task 23a): đi qua wizard 3 bước; Chi phí và Tái lập là section của Tổng quan.
 import { expect, test } from '@playwright/test'
 
 import { activeUser, expectNoHorizontalScroll, loginUi } from '../phase_04/helpers'
-import { addLevel, attackCard, visibleButton, WORKER_TIMEOUT } from './helpers'
+import { keepAttacks, selectedOption, wizardToAttacks } from '../phase_r3/helpers'
+import { visibleButton, WORKER_TIMEOUT } from './helpers'
 
 test('engineer đi hết wizard, theo dõi tới khi xong, xem kết quả, failure case và tái lập', async ({
   page,
@@ -11,48 +13,28 @@ test('engineer đi hết wizard, theo dõi tới khi xong, xem kết quả, fail
   test.setTimeout(WORKER_TIMEOUT + 120_000)
   const email = await activeUser(request, info, ['engineer'])
   await loginUi(page, email)
-  await page.goto('/experiments/new')
-  const next = () => visibleButton(page, /^Tiếp/).click()
+  // Bước 1–2 (wizard 3 bước, Phase R3): Khám phá, preset Nhanh, model, slice 5 ảnh. Máy local-dev
+  // chọn sẵn (worker của E2E đang online).
+  await wizardToAttacks(page, {
+    beforeNext: async () => {
+      await expect(page.getByText('Tự chọn class mapping duy nhất')).toBeVisible()
+      await expect(selectedOption(page, 'Máy chạy')).toHaveText(/local-dev/)
+    },
+  })
 
-  // Bước 1–3.
-  await page.getByRole('radio', { name: /dev-open/ }).click()
-  await next()
-  await page.getByRole('radio', { name: /yolov8n-coco/ }).click()
-  await next()
-  await page.getByRole('radiogroup', { name: 'Dataset version' }).getByRole('radio').first().click()
-  await page
-    .getByRole('radiogroup', { name: 'Slice' })
-    .getByRole('radio', { name: /5 ảnh/ })
-    .click()
-  await expect(page.getByText('Tự chọn mapping duy nhất')).toBeVisible()
-  await next()
-
-  // Bước 4: FGSM eps 4, PGD eps 4.
-  for (const label of ['fgsm v1', 'pgd_linf v1']) {
-    await page.getByLabel(label, { exact: true }).check()
-    await addLevel(attackCard(page, label), '4')
-  }
+  // Bước 3: chỉ FGSM eps 4, PGD eps 4.
+  await keepAttacks(page, { fgsm: [4], pgd_linf: [4] })
   if (info.project.name === 'phone') {
     // Điện thoại: một bước một màn hình, thanh dưới hiển thị thời gian ước lượng.
     await expect(page.getByTestId('uoc-luong-thanh-duoi')).toBeVisible()
-    await expect(page.getByText('Bước 4/6')).toBeVisible()
+    await expect(page.getByText('Bước 3 trên 3')).toBeVisible()
   }
   await expectNoHorizontalScroll(page)
-  await next()
 
-  // Bước 5: local-dev chọn sẵn (worker của E2E đang online).
-  await expect(page.getByRole('radio', { name: /local-dev/ })).toHaveAttribute(
-    'aria-checked',
-    'true',
-  )
-  await next()
-
-  // Bước 6: thấy ước lượng, xác nhận.
+  // Thấy ước lượng, tạo experiment.
   await expect(page.getByText('Ước lượng từng run')).toBeVisible()
   await expect(page.locator('dt:text-is("Seed") + dd').filter({ visible: true })).toHaveText('0')
-  await visibleButton(page, /^Chạy/).click()
-  const dialog = page.getByRole('dialog')
-  await dialog.getByRole('button', { name: 'Chạy experiment' }).click()
+  await visibleButton(page, 'Tạo experiment').click()
   await expect(page).toHaveURL(/\/experiments\/[0-9a-f-]{36}$/)
   const detailUrl = page.url()
 
@@ -70,8 +52,9 @@ test('engineer đi hết wizard, theo dõi tới khi xong, xem kết quả, fail
   await expect(page.getByText('Số liệu của fgsm')).toBeAttached()
   await expect(page.locator('svg.recharts-surface').first()).toBeVisible()
 
-  // Chi phí: thời gian đã dùng so với giới hạn.
-  await page.getByRole('tab', { name: 'Chi phí' }).click()
+  // Chi phí (Phase R3: section trong Tổng quan): thời gian đã dùng so với giới hạn.
+  await page.getByRole('tab', { name: 'Tổng quan' }).click()
+  await page.getByRole('button', { name: 'Chi phí' }).click()
   await expect(
     page.getByText(/Thời gian xử lý đã dùng: .+ \/ giới hạn \d+ (giờ|phút)/),
   ).toBeVisible()

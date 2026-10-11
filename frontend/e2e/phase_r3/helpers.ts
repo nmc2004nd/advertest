@@ -2,9 +2,9 @@
 // ảnh của scripts/e2e.sh. Dữ liệu dựng qua API khi bước đó không phải đối tượng của kịch bản.
 // Nhãn, role và data-testid dùng ở đây là interface ghi ở requirements.md Phase R3, mục
 // "Chốt ở Group 0" (Interface cho test nghiệm thu).
-import { expect, type Page } from '@playwright/test'
+import { expect, type Locator, type Page } from '@playwright/test'
 
-import { fixtureIds } from '../phase_05/helpers'
+import { fixtureIds, visibleButton } from '../phase_05/helpers'
 import { csrf, WORKER_TIMEOUT } from '../phase_08/helpers'
 
 export { WORKER_TIMEOUT }
@@ -100,4 +100,101 @@ export async function optionNames(page: Page, label: string): Promise<string[]> 
   const names = await page.getByRole('option').allTextContents()
   await page.keyboard.press('Escape')
   return names
+}
+
+/** Ô `<option>` đang chọn của ô chọn có nhãn `label` (`<select>` gốc). */
+export function selectedOption(page: Page, label: string): Locator {
+  return page
+    .getByLabel(label, { exact: true })
+    .filter({ visible: true })
+    .first()
+    .locator('option:checked')
+}
+
+export const nextStep = (page: Page) => visibleButton(page, /^Tiếp/).click()
+
+/**
+ * Wizard 3 bước (Phase R3) qua bước 1–2, dừng ở bước 3 khi danh sách attack đã hiện. Dùng cho E2E
+ * cũ đi qua wizard (plan.md task 23a): `official` là tên protocol chính thức (bỏ trống: Khám phá).
+ */
+export async function wizardToAttacks(
+  page: Page,
+  {
+    official,
+    preset = /Nhanh/,
+    slice = /5 ảnh/,
+    target,
+    onPurpose,
+    beforeNext,
+  }: {
+    official?: string
+    preset?: string | RegExp
+    slice?: string | RegExp
+    target?: string
+    /** Gọi ở bước 1 ngay trước khi sang bước 2. */
+    onPurpose?: () => Promise<void>
+    /** Gọi ở bước 2 ngay trước khi sang bước 3. */
+    beforeNext?: () => Promise<void>
+  } = {},
+): Promise<void> {
+  await page.goto('/experiments/new')
+  await expect(page.getByTestId('wizard-step')).toHaveCount(3)
+  const mode = page.getByRole('radiogroup', { name: 'Mode' })
+  if (official) {
+    await mode.getByRole('radio', { name: /Chính thức/ }).check()
+    await chooseOption(page, 'Protocol', official)
+  } else {
+    await mode.getByRole('radio', { name: /Khám phá/ }).check()
+  }
+  await page
+    .getByRole('radiogroup', { name: 'Preset' })
+    .getByRole('radio', { name: preset })
+    .check()
+  if (onPurpose) await onPurpose()
+  await nextStep(page)
+  await chooseOption(page, 'Model', 'yolov8n-coco')
+  await chooseOption(page, 'Dataset và slice', slice)
+  if (target) await chooseOption(page, 'Máy chạy', target)
+  if (beforeNext) await beforeNext()
+  await nextStep(page)
+  await expect(page.getByTestId('attack-row').first()).toBeVisible()
+}
+
+/** Dòng attack ở bước 3 theo tên spec. */
+export function attackRow(page: Page, name: string): Locator {
+  return page.locator(`[data-testid="attack-row"][data-attack="${name}"]`)
+}
+
+/** Bật/tắt chip level của một dòng attack để level đang chọn đúng bằng `levels`. */
+export async function setLevels(row: Locator, levels: number[]): Promise<void> {
+  // Chip theo giá trị, không theo vị trí: tắt một level ngoài bộ gợi ý thì chip đó biến mất.
+  const values = await row
+    .locator('[data-level]')
+    .evaluateAll((els) => els.map((el) => el.getAttribute('data-level') ?? ''))
+  for (const value of values) {
+    const chip = row.locator(`[data-level="${value}"]`)
+    if ((await chip.count()) === 0) continue
+    const want = levels.includes(Number(value))
+    if (((await chip.getAttribute('aria-pressed')) === 'true') !== want) await chip.click()
+  }
+  for (const level of levels) {
+    await expect(row.locator(`[data-level="${level}"]`)).toHaveAttribute('aria-pressed', 'true')
+  }
+  await expect(row.locator('[data-level][aria-pressed="true"]')).toHaveCount(levels.length)
+}
+
+/** Bước 3: chỉ giữ các attack trong `wanted` (bỏ attack khác), mỗi attack đúng các level đó. */
+export async function keepAttacks(page: Page, wanted: Record<string, number[]>): Promise<void> {
+  const rows = page.getByTestId('attack-row')
+  const names = await rows.evaluateAll((els) => els.map((el) => el.getAttribute('data-attack')))
+  for (const name of names) {
+    if (name && !(name in wanted)) {
+      await attackRow(page, name)
+        .getByRole('button', { name: /^Bỏ attack/ })
+        .click()
+    }
+  }
+  await expect(rows).toHaveCount(Object.keys(wanted).length)
+  for (const [name, levels] of Object.entries(wanted))
+    await setLevels(attackRow(page, name), levels)
 }
