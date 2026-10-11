@@ -7,7 +7,7 @@ import { expect, test } from '@playwright/test'
 
 import { activeUser, expectNoHorizontalScroll, loginUi } from '../phase_04/helpers'
 import { visibleButton } from '../phase_05/helpers'
-import { attackRow, setLevels, wizardToAttacks } from '../phase_r3/helpers'
+import { attackRow, getJson, setLevels, wizardToAttacks } from '../phase_r3/helpers'
 import { createPhase06Experiment, RUN_TIMEOUT, waitCompleted } from './helpers'
 
 test('wizard: cả catalog, slice huấn luyện, dừng sớm, thời gian train', async ({
@@ -38,8 +38,12 @@ test('wizard: cả catalog, slice huấn luyện, dừng sớm, thời gian trai
       await expect(page.getByText('Tự chọn class mapping duy nhất')).toBeVisible()
     },
   })
+  // Catalog active đổi theo dữ liệu E2E (phase_r3/catalog kích hoạt thêm spec): đếm từ API.
+  const catalog = await getJson<{ requires_training: boolean | null }[]>(page, '/attack-specs')
+  const untrained = catalog.filter((spec) => !spec.requires_training).length
+  expect(untrained).toBeGreaterThanOrEqual(9)
   const rows = page.getByTestId('attack-row')
-  await expect(rows).toHaveCount(9)
+  await expect(rows).toHaveCount(untrained)
   for (const kind of ['Tấn công', 'Biến đổi điều kiện', 'Che khuất']) {
     await expect(rows.getByText(kind, { exact: true }).first()).toBeVisible()
   }
@@ -54,7 +58,7 @@ test('wizard: cả catalog, slice huấn luyện, dừng sớm, thời gian trai
   await expect(options).toHaveCount(1) // chỉ slice 2 ảnh (không giao)
   await expect(options).toContainText('2 ảnh')
   await training.selectOption({ index: 1 })
-  await expect(rows).toHaveCount(10)
+  await expect(rows).toHaveCount(untrained + 1)
   const patch = attackRow(page, 'adv_patch')
   await expect(patch.locator('[data-level="0.1"]')).toBeVisible()
   await expect(patch.locator('[data-level="0.25"]')).toBeVisible()

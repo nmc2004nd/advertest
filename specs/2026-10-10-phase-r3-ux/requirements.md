@@ -154,7 +154,7 @@ Ghi lại quyết định đã chốt trong lúc làm Group 4–7 và review c�
   - `validate` chỉ kiểm `art_class` với adapter ART; corruption và occlusion không bị kiểm.
 - **E2E cũ (task 23a).** 6 file của Phase 5–8 chuyển sang wizard 3 bước qua `wizardToAttacks`, `keepAttacks`, `setLevels` trong `frontend/e2e/phase_r3/helpers.ts`. Assertion chỉ đổi khi hành vi cũ đã bị spec R3 bỏ:
   - "nhập level ngoài dải" → level chỉ chọn bằng chip trong dải; attack không còn level thì nút "Tạo experiment" bị vô hiệu;
-  - preset "Toàn bộ catalog" → bản nháp Khám phá đủ 9 attack, thêm `adv_patch` bằng chip sau khi chọn slice huấn luyện;
+  - preset "Toàn bộ catalog" → bản nháp Khám phá gồm mọi spec `active` không cần train (đếm qua `GET /attack-specs` vì E2E khác kích hoạt thêm spec), thêm `adv_patch` bằng chip sau khi chọn slice huấn luyện;
   - ước lượng tối đa trên thẻ máy chạy và hộp xác nhận → ở tóm tắt cấu hình (thanh dưới trên điện thoại);
   - nháp `v2` của Phase 6 → cùng nội dung lưu dưới khóa `v3`;
   - "Bước 4/6", heading "Xác nhận", tab "Chi phí" → "Bước 3 trên 3", heading "Attack và xác nhận", section "Chi phí" trong Tổng quan.
