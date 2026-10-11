@@ -1,4 +1,5 @@
-"""Tính một lượt thử nhanh (requirements.md Phase R2, mục Thử nhanh); không gọi HTTP.
+"""Tính một lượt thử nhanh (requirements.md Phase R2, mục Thử nhanh; Phase R3, mục Làm mờ rộng hơn
+cho thử nhanh); không gọi HTTP.
 
 1. Ảnh gốc → letterbox 640 và mask vùng ảnh thật; predict ảnh sạch.
 2. Perturbation dựng một lần qua registry; mỗi level `apply` rồi predict. Thử nhanh không có
@@ -7,9 +8,10 @@
 3. Bảng object: chỉ xét detection có score ≥ `operating_conf`; ghép greedy theo IoU giảm dần,
    IoU ≥ 0.5 và cùng class. Object sạch không ghép được là `lost`, object chỉ có sau tấn công là
    `new`, còn lại là `kept`.
-4. Ảnh trả về được làm mờ theo `rule_v1` như failure case Phase 6: ảnh sạch dùng vùng của detection
-   sạch, ảnh mỗi level dùng vùng của detection sạch cộng detection sau tấn công. Ảnh chưa làm mờ
-   không rời khỏi hàm này.
+4. Ảnh trả về được làm mờ theo `rule_v1` (người, xe), mọi ảnh của lượt (ảnh sạch và mọi level) dùng
+   chung một tập vùng: hợp vùng của mọi detection có score ≥ `QUICK_TRY_BLUR_MIN_SCORE` trên ảnh
+   sạch và trên mọi level, không lọc theo `operating_conf`. Object model chỉ thấy ở một level vẫn
+   bị làm mờ ở mọi ảnh. Ảnh chưa làm mờ không rời khỏi hàm này.
 """
 
 from __future__ import annotations
@@ -35,6 +37,7 @@ from ml_core.metrics.attack import iou
 from ml_core.models.adapter import ModelAdapter, Prediction
 from ml_core.preprocess.letterbox import letterbox
 from ml_core.privacy.blur import blur_regions
+from ml_core.privacy.regions import Box as Region
 from ml_core.privacy.regions import Detection, rule_v1_regions
 from ml_core.runner.images import letterbox_mask, png_bytes
 from ml_core.runner.perturbations import gradient_estimator
@@ -42,11 +45,12 @@ from ml_core.runner.perturbations import gradient_estimator
 MATCH_IOU = 0.5
 SEED = 0
 IMAGE_ID = "quick-try"
+QUICK_TRY_BLUR_MIN_SCORE = 0.05
 
 
 @dataclass(frozen=True)
 class Box:
-    """Một detection đã lọc theo `operating_conf` (xyxy letterbox)."""
+    """Một detection đã lọc theo ngưỡng score (xyxy letterbox)."""
 
     xyxy: tuple[float, float, float, float]
     class_name: str
@@ -122,23 +126,21 @@ def match_objects(clean: Sequence[Box], attacked: Sequence[Box]) -> list[QuickTr
     return objects
 
 
-def _detections(boxes: Sequence[Box]) -> list[Detection]:
-    return [Detection(b.xyxy, b.class_name, b.score) for b in boxes]
-
-
-def blurred_png(
-    image: NDArray[np.float32], clean: Sequence[Box], attacked: Sequence[Box] = ()
-) -> bytes:
-    """PNG của ảnh (3, H, W) đã làm mờ vùng `rule_v1` của các detection."""
-    _, height, width = image.shape
-    regions = rule_v1_regions(
+def blur_union(boxes: Sequence[Box], width: int, height: int) -> list[Region]:
+    """Vùng `rule_v1` của các detection có score ≥ `QUICK_TRY_BLUR_MIN_SCORE`."""
+    return rule_v1_regions(
         ground_truth=[],
-        clean=_detections(clean),
-        attacked=_detections(attacked),
+        clean=[Detection(b.xyxy, b.class_name, b.score) for b in boxes],
+        attacked=[],
         ignore_boxes=[],
         width=width,
         height=height,
+        min_score=QUICK_TRY_BLUR_MIN_SCORE,
     )
+
+
+def blurred_png(image: NDArray[np.float32], regions: Sequence[Region]) -> bytes:
+    """PNG của ảnh (3, H, W) đã làm mờ các vùng."""
     return png_bytes(blur_regions(image, regions))
 
 
@@ -173,18 +175,29 @@ def run_quick_try(
     mask = letterbox_mask([info])
     names = adapter.class_names()
 
-    clean = detections(adapter.predict(images, batch_size=1)[0], names, params.operating_conf)
+    # `faint`: detection gom qua ảnh sạch và mọi level cho vùng làm mờ; bảng object lọc lại theo
+    # `operating_conf` (ngưỡng thấp hơn trong hai ngưỡng để không mất object của bảng).
+    floor = min(QUICK_TRY_BLUR_MIN_SCORE, params.operating_conf)
+    faint = detections(adapter.predict(images, batch_size=1)[0], names, floor)
+    clean = [b for b in faint if b.score >= params.operating_conf]
     perturbation = registry.build(spec, BuildContext(estimator=gradient_estimator(adapter)))
     targets = _targets(clean, names)
 
-    level_pngs: list[bytes] = []
+    adversarials: list[NDArray[np.float32]] = []
     reports: list[QuickTryLevelReport] = []
     for level in levels:
         adversarial = perturbation.apply(images, targets, level, SEED, mask)
         pred = adapter.predict(adversarial, batch_size=1)[0]
-        attacked = detections(pred, names, params.operating_conf)
-        level_pngs.append(blurred_png(adversarial[0], clean, attacked))
+        level_faint = detections(pred, names, floor)
+        faint.extend(level_faint)
+        attacked = [b for b in level_faint if b.score >= params.operating_conf]
+        adversarials.append(adversarial[0])
         reports.append(QuickTryLevelReport(level=level, objects=match_objects(clean, attacked)))
+
+    _, height, width = image.shape
+    regions = blur_union(faint, width, height)
     return QuickTryOutput(
-        clean_png=blurred_png(image, clean), level_pngs=level_pngs, levels=reports
+        clean_png=blurred_png(image, regions),
+        level_pngs=[blurred_png(adversarial, regions) for adversarial in adversarials],
+        levels=reports,
     )

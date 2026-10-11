@@ -11,7 +11,14 @@ import pytest
 from PIL import Image
 
 from advertest_contracts.models import AttackSpec
-from advertest_worker.quick_try import Box, blurred_png, match_objects, run_quick_try
+from advertest_worker.quick_try import (
+    QUICK_TRY_BLUR_MIN_SCORE,
+    Box,
+    blur_union,
+    blurred_png,
+    match_objects,
+    run_quick_try,
+)
 from attacks.builders import DEFAULT_REGISTRY
 from ml_core.models.adapter import Capabilities
 from ml_core.models.wrapper import DEFAULT_INFERENCE_PARAMS
@@ -57,12 +64,22 @@ def test_match_is_greedy_by_highest_iou() -> None:
 def test_blur_only_inside_rule_v1_region() -> None:
     rng = np.random.default_rng(0)
     image = rng.random((3, 128, 128), dtype=np.float32)
-    data = blurred_png(image, [Box((0, 0, 64, 96), "person", 0.9)])
+    data = blurred_png(image, blur_union([Box((0, 0, 64, 96), "person", 0.9)], 128, 128))
     served = np.asarray(Image.open(io.BytesIO(data)), dtype=np.float32)
     original = np.round(image.transpose(1, 2, 0) * 255)
     diff = np.abs(served - original).mean(axis=2)
     assert diff[:32, :64].mean() > 10  # đầu người: 1/3 phía trên của box
     assert diff[32:, :].max() == 0 and diff[:, 64:].max() == 0
+
+
+def test_blur_union_threshold_and_classes() -> None:
+    boxes = [
+        Box((0, 0, 30, 90), "person", QUICK_TRY_BLUR_MIN_SCORE),
+        Box((40, 0, 70, 90), "person", 0.049),
+        Box((0, 100, 100, 200), "car", 0.06),
+        Box((0, 0, 50, 50), "dog", 0.9),  # rule_v1 không làm mờ class khác người, xe
+    ]
+    assert blur_union(boxes, 640, 640) == [(0.0, 0.0, 30.0, 30.0), (0.0, 160.0, 100.0, 200.0)]
 
 
 class _Adapter:
