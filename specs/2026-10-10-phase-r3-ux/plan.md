@@ -77,7 +77,7 @@
 23. Nút "Nâng lên chính thức": chọn protocol, gọi `promote`, mở wizard bước 3 với `promoted_from`.
 23a. `[người duyệt]` Sau khi Group 5 xong: chuyển 6 file E2E cũ đi qua wizard (Phase 5–8) sang wizard 3 bước, giữ nguyên assertion (Chốt ở Group 0).
 
-## Group 6 — Admin catalog, duyệt spec, đăng ký model `[agent: frontend]`
+## Group 6 — Admin catalog, duyệt spec, đăng ký model `[agent: frontend]` ✅
 
 24. `/admin/attacks`:
     - cột trạng thái, bộ lọc;
