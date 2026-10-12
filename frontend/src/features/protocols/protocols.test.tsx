@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { ApiError } from '@/api/errors'
 import { listMocks } from '@/api/mocks'
 import type { AttackSpec, ProtocolBody, ProtocolSummary, ProtocolView } from '@/contracts/api'
+import { levelInputError } from '@/features/wizard/levels'
 import { expectLabelledControls, render } from '@/test-utils'
 
 import {
@@ -11,8 +12,10 @@ import {
   EMPTY_ATTACK,
   EMPTY_FORM,
   formOf,
+  formatLevels,
   formPath,
   isShownPath,
+  parseLevels,
   type ProtocolForm,
 } from './form'
 import { ProtocolEditor } from './ProtocolEditor'
@@ -42,6 +45,25 @@ const summaries: ProtocolSummary[] = views.map(({ id, name, version, status, bod
 }))
 
 describe('form protocol', () => {
+  it('gõ thêm level: kiểm tra số, dải, trùng; chuỗi level tăng dần không trùng', () => {
+    const p: AttackSpec['primary_param'] = {
+      name: 'eps',
+      type: 'continuous',
+      min: 0,
+      max: 32,
+      values: null,
+      unit: '1/255',
+    }
+    expect(levelInputError(p, [2], '4')).toBeNull()
+    expect(levelInputError(p, [2], '2,5')).toBeNull()
+    expect(levelInputError(p, [2], '')).toBe('Nhập một giá trị')
+    expect(levelInputError(p, [2], 'abc')).toBe('Level phải là số')
+    expect(levelInputError(p, [2], '40')).toMatch(/Ngoài dải/)
+    expect(levelInputError(p, [2], '2')).toBe('Level đã có')
+    expect(formatLevels([8, 2, 4, 2])).toBe('2, 4, 8')
+    expect(parseLevels('2, x, 4')).toEqual([2, 4])
+  })
+
   it.each(['default', 'search'])('body %s đi qua form rồi dựng lại y nguyên', (name) => {
     const body = bodies[name]
     const result = buildProtocol(formOf('P', body), specs)
@@ -147,8 +169,63 @@ describe('form protocol', () => {
     expect(html).toMatch(/id="protocol-ten"[^>]*disabled=""|disabled=""[^>]*id="protocol-ten"/)
     expect(html).toContain('Không chấp nhận run chạy từ code chưa commit')
     expect(html).toContain('Ngưỡng và class lấy theo cấu hình tìm ngưỡng của attack.')
-    // Tên, mục đích, slice, số case; attack quét lưới 3 ô, tìm ngưỡng 9 ô; tiêu chí 6 + 3 ô.
-    expectLabelledControls(html.replace(/<input type="checkbox"[^>]*>/g, ''), 4 + 3 + 9 + 6 + 3)
+    // Tên, mục đích, slice, số case; attack quét lưới 3 ô (attack, chế độ, gõ thêm level), tìm
+    // ngưỡng 9 ô; tiêu chí quét lưới 5 ô (level là nhóm chip), điểm gãy 3 ô.
+    expectLabelledControls(html.replace(/<input type="checkbox"[^>]*>/g, ''), 4 + 3 + 9 + 5 + 3)
+    expect(html).toContain('aria-labelledby="tieu-chi-0-level-nhan"')
+    expect(html).toContain('id="attack-0-level-them"')
+  })
+
+  it('level quét lưới là chip bấm chọn; level đang chọn bật sẵn', () => {
+    const body = bodies.default
+    const grid = body.required_attacks.find((a) => a.grid)
+    if (!grid?.grid) throw new Error('thiếu mock')
+    const html = render(
+      <ProtocolEditor
+        specs={specs}
+        pending={false}
+        error={null}
+        submitLabel="Lưu"
+        onSubmit={() => undefined}
+        onCancel={() => undefined}
+        initial={formOf('P', body)}
+      />,
+    )
+    for (const level of grid.grid.levels) {
+      expect(html).toMatch(new RegExp(`aria-pressed="true" aria-label="Level ${level}"`))
+    }
+  })
+
+  it('tạo mới hiện thẻ mẫu có icon; không có mẫu thì ẩn', () => {
+    const props = {
+      specs,
+      pending: false,
+      error: null,
+      submitLabel: 'Lưu',
+      onSubmit: () => undefined,
+      onCancel: () => undefined,
+      initial: EMPTY_FORM,
+    }
+    const html = render(
+      <ProtocolEditor
+        {...props}
+        templates={[
+          {
+            key: 'weather',
+            title: 'Thời tiết',
+            description: 'Sương mù, tuyết',
+            attacks: [],
+            strictness: 'standard',
+            min_slice_size: 50,
+          },
+        ]}
+      />,
+    )
+    expect(html).toContain('Bắt đầu từ mẫu')
+    expect(html).toContain('Thời tiết')
+    expect(html).toContain('Sụt tối đa 30%')
+    expect(html).toContain('<svg')
+    expect(render(<ProtocolEditor {...props} templates={[]} />)).not.toContain('Bắt đầu từ mẫu')
   })
 })
 

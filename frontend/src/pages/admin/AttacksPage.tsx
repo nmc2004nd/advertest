@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router'
 import { ACCESS_LABEL, fixedParamLines, primaryText } from '@/admin/attack-format'
 import { adapterOf } from '@/admin/spec-form'
 import { useAttackCatalog } from '@/admin/useAttackCatalog'
+import { AttackName } from '@/components/AttackTile'
 import { TruncatedId } from '@/components/CopyButton'
 import { SelectField } from '@/components/form/TextField'
 import { LoadError } from '@/components/LoadError'
@@ -36,7 +37,9 @@ function SpecName({ spec }: { spec: AttackSpecAdminView }) {
       to={`/admin/attacks/${spec.id}`}
       className="font-medium text-cta underline-offset-4 hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
     >
-      {spec.metadata?.display_name ?? spec.name}
+      <AttackName name={spec.name} kind={spec.kind}>
+        {spec.metadata?.display_name ?? spec.name}
+      </AttackName>
     </Link>
   )
 }

@@ -4,6 +4,7 @@ import type {
   AttackSpecView,
   CaseBox,
   ModelSummary,
+  PrimaryParam,
   QuickTryLevel,
   QuickTryObject,
 } from '@/contracts/api'
@@ -110,4 +111,46 @@ export function expiryTime(expiresAt: string): string {
   const date = new Date(expiresAt)
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+/**
+ * Level sẽ chạy với một preset, cùng công thức backend (`drafts.level_at`): `min + r·(max − min)`
+ * làm tròn 6 chữ số; tham số rời rạc lấy giá trị gần nhất (hòa thì giá trị nhỏ). Tăng dần, không trùng.
+ */
+export function presetLevels(param: PrimaryParam, ratios: readonly number[]): number[] {
+  const at = (r: number) => {
+    const value = param.min + r * (param.max - param.min)
+    if (param.type === 'discrete' && param.values?.length) {
+      return [...param.values].sort((a, b) => Math.abs(a - value) - Math.abs(b - value) || a - b)[0]
+    }
+    return Number(value.toFixed(6))
+  }
+  return [...new Set(ratios.map(at))].sort((a, b) => a - b)
+}
+
+/** Giá trị level kèm đơn vị ngắn: `8/255` cho eps 1/255, còn lại chỉ số. */
+export function levelValue(value: number, unit: string | null | undefined): string {
+  return unit === '1/255' ? `${value}/255` : String(value)
+}
+
+export type VerdictTone = 'pass' | 'fail' | 'neutral'
+
+/** Một câu kết luận cho level đang xem: model giữ được, bỏ sót và phát hiện nhầm bao nhiêu object. */
+export function verdict(counts: Record<QuickTryObjectStatus, number>): {
+  tone: VerdictTone
+  text: string
+} {
+  const seen = counts.kept + counts.lost
+  if (seen === 0 && counts.new === 0)
+    return {
+      tone: 'neutral',
+      text: 'Model không thấy vật thể nào trên ảnh sạch lẫn ảnh bị tấn công.',
+    }
+  if (counts.lost === 0 && counts.new === 0)
+    return { tone: 'pass', text: `Model vẫn nhận ra đủ ${seen} vật thể, không phát hiện nhầm.` }
+  const parts: string[] = []
+  if (counts.lost > 0) parts.push(`không detect được ${counts.lost}/${seen} vật thể`)
+  if (counts.new > 0) parts.push(`detect nhầm ${counts.new} vật thể không có trên ảnh sạch`)
+  const text = parts.join(', ')
+  return { tone: 'fail', text: `Model ${text}.` }
 }

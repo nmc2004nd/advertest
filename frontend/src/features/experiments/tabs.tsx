@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router'
 
 import { middleTruncate } from '@/admin/format'
+import { AttackName } from '@/components/AttackTile'
 import { AttackRanking } from '@/components/charts/AttackRanking'
 import { gridAttackIds } from '@/components/charts/breakpoints'
 import { MetricCurves } from '@/components/charts/MetricCurves'
@@ -42,7 +43,9 @@ export function RunsTable({ runs }: { runs: RunView[] }) {
         <tbody>
           {runs.map((run) => (
             <tr key={run.run_id} className="border-t border-border align-top">
-              <td className="px-3 py-2">{run.attack_spec.name}</td>
+              <td className="px-3 py-2">
+                <AttackName name={run.attack_spec.name} />
+              </td>
               <td className="px-3 py-2 tabular-nums">
                 {run.level} {run.attack_spec.param_unit}
               </td>

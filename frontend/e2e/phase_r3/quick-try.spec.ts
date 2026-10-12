@@ -10,7 +10,7 @@ import { expect, test } from '@playwright/test'
 import { expectNoHorizontalScroll } from '../phase_04/helpers'
 import { visibleButton } from '../phase_05/helpers'
 import { userPage } from '../phase_08/helpers'
-import { chooseOption, countRequests, optionNames, WORKER_TIMEOUT } from './helpers'
+import { chooseOption, countRequests, WORKER_TIMEOUT } from './helpers'
 
 const IMAGE = fileURLToPath(
   new URL('../../../tests/fixtures/kitti/image_2/000902.png', import.meta.url),
@@ -22,9 +22,14 @@ test('thử nhanh fog, kéo thanh trượt level', async ({ browser }, info) => 
   const { page } = await userPage(browser, info, ['engineer'])
   await page.goto('/quick-try')
   await chooseOption(page, 'Model', 'yolov8n-coco')
-  const attacks = await optionNames(page, 'Attack')
-  expect(attacks.join(' ')).not.toMatch(/adv_patch/)
-  await chooseOption(page, 'Attack', /fog/i)
+  // Kiểu tấn công là lưới thẻ (radio) hiện sẵn, không phải ô chọn.
+  const attackGroup = page.getByRole('radiogroup', { name: 'Attack' })
+  const attacks = await attackGroup
+    .getByRole('radio')
+    .evaluateAll((els) => els.map((el) => el.getAttribute('data-attack') ?? ''))
+  expect(attacks).not.toContain('adv_patch')
+  await attackGroup.locator('[data-attack="fog"]').click()
+  await expect(page.getByTestId('preset-levels').first()).toBeVisible()
   await page.getByLabel('Ảnh', { exact: true }).setInputFiles(IMAGE)
   await visibleButton(page, 'Chạy thử nhanh').click()
 
@@ -33,6 +38,7 @@ test('thử nhanh fog, kéo thanh trượt level', async ({ browser }, info) => 
   await expect(page.getByTestId('not-a-test-result')).toContainText('Không phải kết quả kiểm thử')
   await expect(page.getByTestId('not-a-test-result')).toContainText(/\d{1,2}:\d{2}/)
   await expect(page.getByTestId('object-table')).toBeVisible()
+  await expect(page.getByTestId('quick-try-verdict')).toContainText('Model')
   await expectNoHorizontalScroll(page)
 
   const attacked = page.getByTestId('attacked-image')

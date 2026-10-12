@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { listMocks } from '@/api/mocks'
 import { boxesOf } from '@/components/case-viewer/boxes'
-import type { AttackSpecView, ModelSummary, QuickTryView } from '@/contracts/api'
+import type { AttackSpecView, ModelSummary, PrimaryParam, QuickTryView } from '@/contracts/api'
 
 import {
   attackedBoxes,
@@ -10,9 +10,12 @@ import {
   expiryTime,
   imageError,
   levelText,
+  levelValue,
+  presetLevels,
   QUICK_TRY_MAX_BYTES,
   quickTryAttacks,
   readyModels,
+  verdict,
   statusCounts,
 } from './logic'
 
@@ -94,5 +97,47 @@ describe('nhãn', () => {
 
   it('giờ xóa dạng HH:MM', () => {
     expect(expiryTime('2026-10-10T08:05:00Z')).toMatch(/^\d{2}:05$/)
+  })
+})
+
+describe('mức tấn công và kết luận', () => {
+  const eps: PrimaryParam = {
+    name: 'eps',
+    type: 'continuous',
+    min: 0,
+    max: 32,
+    values: null,
+    unit: '1/255',
+  }
+  const severity: PrimaryParam = {
+    name: 'severity',
+    type: 'discrete',
+    min: 1,
+    max: 5,
+    values: [1, 2, 3, 4, 5],
+    unit: 'severity',
+  }
+
+  it('level của preset theo cùng công thức backend (rời rạc lấy giá trị gần nhất, không trùng)', () => {
+    expect(presetLevels(eps, [0.25, 0.5])).toEqual([8, 16])
+    expect(presetLevels(eps, [0.125, 0.25, 0.5, 0.75, 1])).toEqual([4, 8, 16, 24, 32])
+    expect(presetLevels(severity, [0.5, 0.0625, 0.125, 0.25])).toEqual([1, 2, 3])
+    expect(levelValue(8, '1/255')).toBe('8/255')
+    expect(levelValue(3, 'severity')).toBe('3')
+  })
+
+  it('kết luận: giữ đủ, không detect được, detect nhầm, không có vật thể', () => {
+    expect(verdict({ kept: 3, lost: 0, new: 0 })).toEqual({
+      tone: 'pass',
+      text: 'Model vẫn nhận ra đủ 3 vật thể, không phát hiện nhầm.',
+    })
+    expect(verdict({ kept: 1, lost: 2, new: 1 })).toEqual({
+      tone: 'fail',
+      text: 'Model không detect được 2/3 vật thể, detect nhầm 1 vật thể không có trên ảnh sạch.',
+    })
+    expect(verdict({ kept: 2, lost: 0, new: 1 }).text).toBe(
+      'Model detect nhầm 1 vật thể không có trên ảnh sạch.',
+    )
+    expect(verdict({ kept: 0, lost: 0, new: 0 }).tone).toBe('neutral')
   })
 })

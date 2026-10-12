@@ -1,13 +1,17 @@
-import { Plus, Trash2 } from 'lucide-react'
+import { Crosshair, ListChecks, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 
 import { ApiError } from '@/api/errors'
 import { errorMessage } from '@/api/messages'
 import { THRESHOLD_KIND_LABEL } from '@/components/charts/breakpoints'
+import { AttackRisk, AttackTile } from '@/components/AttackTile'
 import { FormAlert } from '@/components/FormAlert'
 import { SelectField, TextareaField, TextField } from '@/components/form/TextField'
 import { Button } from '@/components/ui/button'
-import type { AttackSpec, ProtocolBody, ThresholdKind } from '@/contracts/api'
+import type { AttackSpec, ProtocolBody, ProtocolTemplate, ThresholdKind } from '@/contracts/api'
+import { ATTACK_EXPLAIN, ATTACK_PLAIN } from '@/lib/attack-kinds'
+
+import { fetchTemplateDraft } from './api'
 
 import {
   type AttackRow,
@@ -15,10 +19,14 @@ import {
   type CriterionRow,
   EMPTY_ATTACK,
   EMPTY_CRITERION,
+  formOf,
   formPath,
   isShownPath,
+  parseLevels,
   type ProtocolForm,
 } from './form'
+import { AttackLevelChips, CriterionLevelChips } from './LevelChips'
+import { TemplatePicker } from './TemplatePicker'
 
 const CRITERION_KIND_LABEL = {
   max_drop_at_level: 'Mức sụt tối đa tại một level (quét lưới)',
@@ -55,16 +63,31 @@ function AttackFields({
   const id = `attack-${index}`
   const err = (field: string) => errors[`attacks.${index}.${field}`] ?? errors[`attacks.${index}`]
   const set = (patch: Partial<AttackRow>) => onChange({ ...row, ...patch })
+  const spec = specs.find((s) => s.name === row.name)
+  const how = spec && (ATTACK_EXPLAIN[spec.name]?.how ?? ATTACK_PLAIN[spec.name])
   return (
     <fieldset className="space-y-3 rounded-lg border p-3">
       <legend className="px-1 text-sm font-medium">Attack {index + 1}</legend>
+      {spec && (
+        <div className="flex items-start gap-3">
+          <AttackTile spec={spec} />
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <p className="font-semibold">
+              {spec.name}{' '}
+              <span className="text-xs font-normal text-muted-foreground">v{spec.version}</span>
+            </p>
+            {how && <p className="text-[13px] leading-5 text-muted-foreground">{how}</p>}
+            <AttackRisk name={spec.name} />
+          </div>
+        </div>
+      )}
       <div className="grid gap-3 md:grid-cols-2">
         <SelectField
           id={`${id}-ten`}
           label="Attack"
           value={row.name}
           error={err('name')}
-          onChange={(e) => set({ name: e.target.value })}
+          onChange={(e) => set({ name: e.target.value, levels: '' })}
         >
           <option value="">Chọn…</option>
           {specs.map((s) => (
@@ -85,14 +108,12 @@ function AttackFields({
         </SelectField>
       </div>
       {row.mode === 'grid' ? (
-        <TextField
-          id={`${id}-level`}
-          label="Level bắt buộc"
-          placeholder="4, 8, 16"
-          hint="Ngăn bởi dấu phẩy, ví dụ 0.01, 0.03"
+        <AttackLevelChips
+          idBase={id}
+          spec={spec}
           value={row.levels}
           error={errors[`attacks.${index}.levels`]}
-          onChange={(e) => set({ levels: e.target.value })}
+          onChange={(levels) => set({ levels })}
         />
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
@@ -208,7 +229,7 @@ function CriterionFields({
           label="Attack"
           value={row.attackName}
           error={err('attackName')}
-          onChange={(e) => set({ attackName: e.target.value })}
+          onChange={(e) => set({ attackName: e.target.value, level: '' })}
         >
           <option value="">Chọn…</option>
           {attacks
@@ -219,15 +240,25 @@ function CriterionFields({
               </option>
             ))}
         </SelectField>
-        <TextField
-          id={`${id}-level`}
-          label={grid ? 'Level' : 'Điểm gãy tối thiểu'}
-          placeholder={grid ? 'Ví dụ: 8' : 'Ví dụ: 4'}
-          inputMode="decimal"
-          value={row.level}
-          error={err('level')}
-          onChange={(e) => set({ level: e.target.value })}
-        />
+        {grid ? (
+          <CriterionLevelChips
+            idBase={id}
+            levels={parseLevels(attacks.find((a) => a.name === row.attackName)?.levels ?? '')}
+            value={row.level}
+            error={err('level')}
+            onChange={(level) => set({ level })}
+          />
+        ) : (
+          <TextField
+            id={`${id}-level`}
+            label="Điểm gãy tối thiểu"
+            placeholder="Ví dụ: 4"
+            inputMode="decimal"
+            value={row.level}
+            error={err('level')}
+            onChange={(e) => set({ level: e.target.value })}
+          />
+        )}
         {grid && (
           <>
             <SelectField
@@ -281,6 +312,7 @@ export function ProtocolEditor({
   pending,
   error,
   submitLabel,
+  templates,
   onSubmit,
   onCancel,
 }: {
@@ -290,6 +322,8 @@ export function ProtocolEditor({
   pending: boolean
   error: unknown
   submitLabel: string
+  /** Khi tạo protocol mới: thẻ mẫu điền sẵn form (`GET /protocol-templates/{key}/draft`). */
+  templates?: ProtocolTemplate[]
   onSubmit: (name: string, body: ProtocolBody) => void
   onCancel: () => void
 }) {
@@ -301,6 +335,24 @@ export function ProtocolEditor({
   )
   const unplaced = fields.filter((f) => !isShownPath(formPath(f.path))).map((f) => f.message)
   const errors = { ...server, ...local }
+  const [template, setTemplate] = useState<ProtocolTemplate['key'] | null>(null)
+  const [loadingTemplate, setLoadingTemplate] = useState<ProtocolTemplate['key'] | null>(null)
+  const [templateError, setTemplateError] = useState<string | null>(null)
+  const pickTemplate = async (key: ProtocolTemplate['key']) => {
+    setLoadingTemplate(key)
+    setTemplateError(null)
+    try {
+      const draft = await fetchTemplateDraft(key)
+      // Tên protocol không được trùng: thêm ngày tạo vào tên gợi ý của mẫu.
+      setForm(formOf(`${draft.name} ${new Date().toISOString().slice(0, 10)}`, draft.body))
+      setLocal({})
+      setTemplate(key)
+    } catch (e) {
+      setTemplateError(errorMessage(e))
+    } finally {
+      setLoadingTemplate(null)
+    }
+  }
   const set = (patch: Partial<ProtocolForm>) => setForm((f) => ({ ...f, ...patch }))
   const setAttack = (i: number, row: AttackRow) =>
     set({ attacks: form.attacks.map((a, j) => (j === i ? row : a)) })
@@ -331,6 +383,15 @@ export function ProtocolEditor({
             ))}
           </ul>
         </FormAlert>
+      )}
+      {templates && (
+        <TemplatePicker
+          templates={templates}
+          selected={template}
+          loading={loadingTemplate}
+          error={templateError}
+          onPick={(key) => void pickTemplate(key)}
+        />
       )}
       {Object.keys(local).length > 0 && (
         <FormAlert>Còn {Object.keys(local).length} trường chưa hợp lệ.</FormAlert>
@@ -386,7 +447,10 @@ export function ProtocolEditor({
       </label>
 
       <section className="space-y-2" aria-label="Attack bắt buộc">
-        <h3 className="font-medium">Attack bắt buộc</h3>
+        <h3 className="flex items-center gap-2 font-medium">
+          <Crosshair aria-hidden="true" className="size-4 text-muted-foreground" />
+          Attack bắt buộc
+        </h3>
         {errors.attacks && <FormAlert>{errors.attacks}</FormAlert>}
         {form.attacks.map((row, i) => (
           <AttackFields
@@ -410,7 +474,10 @@ export function ProtocolEditor({
       </section>
 
       <section className="space-y-2" aria-label="Tiêu chí đạt">
-        <h3 className="font-medium">Tiêu chí đạt</h3>
+        <h3 className="flex items-center gap-2 font-medium">
+          <ListChecks aria-hidden="true" className="size-4 text-muted-foreground" />
+          Tiêu chí đạt
+        </h3>
         {errors.criteria && <FormAlert>{errors.criteria}</FormAlert>}
         {form.criteria.map((row, i) => (
           <CriterionFields

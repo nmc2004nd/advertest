@@ -6,6 +6,7 @@ import { errorMessage } from '@/api/messages'
 import { can } from '@/auth/permissions'
 import { useMe } from '@/auth/useMe'
 import { THRESHOLD_KIND_LABEL } from '@/components/charts/breakpoints'
+import { AttackName } from '@/components/AttackTile'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { TruncatedId } from '@/components/CopyButton'
 import { FormAlert } from '@/components/FormAlert'
@@ -16,7 +17,13 @@ import type { AttackSpec, ProtocolStatus, ProtocolSummary, ProtocolView } from '
 import { criterionText } from '@/features/reviews/decision'
 import { useAttackSpecs, useProtocol } from '@/features/wizard/api'
 
-import { useAllProtocols, useCreateProtocol, useNewVersion, useRetireProtocol } from './api'
+import {
+  useAllProtocols,
+  useCreateProtocol,
+  useNewVersion,
+  useProtocolTemplates,
+  useRetireProtocol,
+} from './api'
 import { EMPTY_FORM, formOf } from './form'
 import { ProtocolEditor } from './ProtocolEditor'
 import { PageHero } from '@/layout/PageHero'
@@ -56,10 +63,10 @@ export function ProtocolBodyView({ protocol }: { protocol: ProtocolView }) {
       </p>
       <div>
         <p className="font-medium">Attack bắt buộc</p>
-        <ul className="list-disc pl-5">
+        <ul className="mt-1 space-y-1.5">
           {body.required_attacks.map((a) => (
             <li key={a.attack_spec_name}>
-              {a.attack_spec_name}:{' '}
+              <AttackName name={a.attack_spec_name} className="font-medium" />:{' '}
               {a.grid
                 ? `quét lưới, level ${a.grid.levels.join(', ')}`
                 : a.search
@@ -85,10 +92,12 @@ type Editing = { mode: 'create' } | { mode: 'version'; summary: ProtocolSummary 
 
 function CreatePanel({ specs, onDone }: { specs: AttackSpec[]; onDone: () => void }) {
   const create = useCreateProtocol()
+  const templates = useProtocolTemplates()
   return (
     <ProtocolEditor
       initial={EMPTY_FORM}
       specs={specs}
+      templates={templates.data ?? []}
       pending={create.isPending}
       error={create.error}
       submitLabel="Tạo protocol"

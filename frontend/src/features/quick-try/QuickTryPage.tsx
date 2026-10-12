@@ -1,11 +1,21 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { Clock, ImageUp, SearchX, TriangleAlert } from 'lucide-react'
+import {
+  CircleAlert,
+  CircleCheck,
+  Clock,
+  ImageUp,
+  Play,
+  ScanSearch,
+  SearchX,
+  TriangleAlert,
+} from 'lucide-react'
 import { type DragEvent, type FormEvent, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 
 import { ApiError } from '@/api/errors'
 import { errorMessage } from '@/api/messages'
 import { useMe } from '@/auth/useMe'
+import { AttackRisk, AttackTile } from '@/components/AttackTile'
 import { BoxCanvas } from '@/components/case-viewer/BoxCanvas'
 import type { BoxSet } from '@/components/case-viewer/boxes'
 import { BoxSwatch } from '@/components/case-viewer/BoxSwatch'
@@ -22,8 +32,10 @@ import { quickTryObjectStatusValues } from '@/contracts/schemas'
 import { QUICK_TRY_COPY as COPY } from '@/copy/quick-try'
 import { artifactSrc } from '@/features/experiments/api'
 import { useAttackSpecs, useModels, usePresets } from '@/features/wizard/api'
-import { specTitle } from '@/features/wizard/levels'
-import { ChoiceCard } from '@/features/wizard/steps'
+import { rangeText, specTitle } from '@/features/wizard/levels'
+import { CardTitle, ChoiceCard } from '@/features/wizard/steps'
+import { ATTACK_EXPLAIN, ATTACK_PLAIN } from '@/lib/attack-kinds'
+import { PRESET_ICON } from '@/lib/card-looks'
 import { PageHero } from '@/layout/PageHero'
 import { cn } from '@/lib/utils'
 
@@ -42,11 +54,14 @@ import {
   expiryTime,
   imageError,
   levelText,
+  levelValue,
+  presetLevels,
   QUICK_TRY_LAYERS,
   type QuickTryLayer,
   quickTryAttacks,
   readyModels,
   statusCounts,
+  verdict,
 } from './logic'
 
 const ID_PARAM = 'id'
@@ -59,8 +74,16 @@ export function QuickTryPage() {
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-5 p-4 md:p-8">
       <PageHero compact title={COPY.title} description={COPY.description} />
-      <QuickTryForm onCreated={show} />
-      {id && <QuickTryStatus key={id} id={id} onReset={() => show(null)} />}
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)]">
+        <QuickTryForm onCreated={show} />
+        {id ? (
+          <QuickTryStatus key={id} id={id} onReset={() => show(null)} />
+        ) : (
+          <EmptyState icon={ScanSearch} title={COPY.emptyTitle}>
+            {COPY.emptyDetail}
+          </EmptyState>
+        )}
+      </div>
     </div>
   )
 }
@@ -135,53 +158,110 @@ function QuickTryForm({ onCreated }: { onCreated: (id: string) => void }) {
       noValidate
     >
       <h2 className="text-base font-semibold">{COPY.formTitle}</h2>
-      <div className="grid gap-4 md:grid-cols-2">
-        <SelectField
-          label="Model"
-          value={model?.id ?? ''}
-          onChange={(e) => setModelId(e.target.value)}
-          disabled={ready.length === 0}
-        >
-          {ready.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.name}
-              {m.supports_gradients ? '' : ' · không hỗ trợ gradient'}
-            </option>
-          ))}
-        </SelectField>
-        <SelectField
-          label="Attack"
-          hint={
-            <>
-              {COPY.attackHint.noPatch} <Term term="patch" />.{' '}
-              <Term term="white_box">{COPY.attackHint.gradient}</Term>{' '}
-              {COPY.attackHint.gradientRest}
-            </>
-          }
-          value={attack?.id ?? ''}
-          onChange={(e) => setAttackId(e.target.value)}
-          disabled={attacks.length === 0}
-        >
-          {attacks.map((s) => (
-            <option key={s.id} value={s.id}>
-              {specTitle(s)} ({s.name})
-            </option>
-          ))}
-        </SelectField>
-      </div>
-      {presets.data && (
-        <div role="radiogroup" aria-label="Preset" className="grid gap-2 md:grid-cols-3">
-          {presets.data.map((p) => (
-            <ChoiceCard
-              key={p.key}
-              selected={presetKey === p.key}
-              onSelect={() => setPreset(p.key)}
-            >
-              <span className="font-medium">{p.title}</span>
-              <span className="text-sm text-muted-foreground">{p.description}</span>
-            </ChoiceCard>
-          ))}
+      <SelectField
+        label="Model"
+        value={model?.id ?? ''}
+        onChange={(e) => setModelId(e.target.value)}
+        disabled={ready.length === 0}
+      >
+        {ready.map((m) => (
+          <option key={m.id} value={m.id}>
+            {m.name}
+            {m.supports_gradients ? '' : ' · không hỗ trợ gradient'}
+          </option>
+        ))}
+      </SelectField>
+      <section className="flex flex-col gap-2" aria-labelledby="qt-attack">
+        <h3 id="qt-attack" className="text-[14px] font-semibold">
+          {COPY.attackTitle}
+        </h3>
+        <div role="radiogroup" aria-label="Attack" className="grid grid-cols-2 gap-2">
+          {attacks.map((s) => {
+            const on = s.id === attack?.id
+            return (
+              <button
+                key={s.id}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                data-attack={s.name}
+                onClick={() => setAttackId(s.id)}
+                className={cn(
+                  'flex min-h-11 items-center gap-2 rounded-xl border bg-surface-solid px-2.5 py-2 text-left text-sm transition-[border-color,box-shadow] duration-150 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
+                  on
+                    ? 'border-navy shadow-[0_0_0_1px_var(--navy)]'
+                    : 'border-line hover:border-input',
+                )}
+              >
+                <AttackTile spec={s} size="sm" />
+                <span className="min-w-0 flex-1 leading-5 font-medium">{specTitle(s)}</span>
+                <span
+                  aria-hidden
+                  className={cn(
+                    'flex size-4 shrink-0 items-center justify-center rounded-full border-2',
+                    on ? 'border-navy bg-navy' : 'border-input',
+                  )}
+                >
+                  {on && <span className="size-1.5 rounded-full bg-primary-foreground" />}
+                </span>
+              </button>
+            )
+          })}
         </div>
+        <p className="text-[13px] leading-5 text-muted-foreground">
+          {COPY.attackHint.noPatch} <Term term="patch" />.{' '}
+          <Term term="white_box">{COPY.attackHint.gradient}</Term> {COPY.attackHint.gradientRest}
+        </p>
+        {attack && (
+          <div className="flex items-start gap-3 rounded-xl border border-line bg-surface-solid p-3">
+            <AttackTile spec={attack} />
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <p className="font-semibold">{specTitle(attack)}</p>
+              <p className="text-[13px] leading-5 text-muted-foreground">
+                {attack.metadata?.description ??
+                  ATTACK_EXPLAIN[attack.name]?.how ??
+                  ATTACK_PLAIN[attack.name]}
+              </p>
+              <AttackRisk name={attack.name} />
+            </div>
+          </div>
+        )}
+      </section>
+      {presets.data && (
+        <section className="flex flex-col gap-2" aria-labelledby="qt-level">
+          <h3 id="qt-level" className="text-[14px] font-semibold">
+            {COPY.levelTitle}
+          </h3>
+          {attack && (
+            <p className="text-[13px] leading-5 text-muted-foreground">
+              {attack.primary_param.name} ({rangeText(attack.primary_param)}). {COPY.levelHint}
+            </p>
+          )}
+          <div role="radiogroup" aria-label="Preset" className="grid gap-2">
+            {presets.data.map((p) => (
+              <ChoiceCard
+                key={p.key}
+                selected={presetKey === p.key}
+                onSelect={() => setPreset(p.key)}
+              >
+                <CardTitle look={PRESET_ICON[p.key]}>{p.title}</CardTitle>
+                <span className="text-sm text-muted-foreground">{p.description}</span>
+                {attack && (
+                  <span className="mt-1 flex flex-wrap gap-1.5" data-testid="preset-levels">
+                    {presetLevels(attack.primary_param, p.level_ratios).map((v) => (
+                      <span
+                        key={v}
+                        className="rounded-full border border-line bg-muted px-2.5 py-0.5 text-xs font-semibold tabular-nums"
+                      >
+                        {levelValue(v, attack.primary_param.unit)}
+                      </span>
+                    ))}
+                  </span>
+                )}
+              </ChoiceCard>
+            ))}
+          </div>
+        </section>
       )}
       <div
         onDragOver={(e) => {
@@ -209,15 +289,15 @@ function QuickTryForm({ onCreated }: { onCreated: (id: string) => void }) {
         />
       </div>
       {create.isError && <CreateError error={create.error} userId={me.data?.id} />}
-      <div className="flex justify-end">
-        <Button
-          type="submit"
-          size="lg"
-          disabled={create.isPending || !model || !attack || (file !== null && !!imageError(file))}
-        >
-          {create.isPending ? COPY.submitting : COPY.submit}
-        </Button>
-      </div>
+      <Button
+        type="submit"
+        size="lg"
+        className="w-full"
+        disabled={create.isPending || !model || !attack || (file !== null && !!imageError(file))}
+      >
+        <Play aria-hidden="true" />
+        {create.isPending ? COPY.submitting : COPY.submit}
+      </Button>
     </form>
   )
 }
@@ -423,6 +503,76 @@ function ObjectTable({ level }: { level: QuickTryLevel }) {
   )
 }
 
+const VERDICT_TONE = {
+  pass: { icon: CircleCheck, box: 'border-approved/40 bg-approved/8', text: 'text-approved' },
+  fail: { icon: CircleAlert, box: 'border-fail/40 bg-fail/8', text: 'text-fail' },
+  neutral: { icon: ScanSearch, box: 'border-line bg-muted', text: 'text-foreground' },
+} as const
+
+/** Kết luận của level đang xem: model không detect được / detect nhầm bao nhiêu vật thể. */
+function Verdict({ level, label }: { level: QuickTryLevel; label: string }) {
+  const { tone, text } = verdict(statusCounts(level))
+  const look = VERDICT_TONE[tone]
+  const Icon = look.icon
+  return (
+    <div
+      data-testid="quick-try-verdict"
+      data-tone={tone}
+      className={cn('flex items-start gap-3 rounded-xl border p-3.5', look.box)}
+    >
+      <Icon aria-hidden="true" className={cn('mt-0.5 size-5 shrink-0', look.text)} />
+      <div className="min-w-0">
+        <p className="text-sm text-muted-foreground">{label}</p>
+        <p className={cn('font-semibold', look.text)}>{text}</p>
+      </div>
+    </div>
+  )
+}
+
+/** Mỗi level một thẻ: số object bị mất và phát hiện nhầm; bấm để xem level đó (không gọi API). */
+function LevelOverview({
+  levels,
+  index,
+  param,
+  onPick,
+}: {
+  levels: QuickTryLevel[]
+  index: number
+  param: string | undefined
+  onPick: (index: number) => void
+}) {
+  return (
+    <div role="group" aria-label={COPY.overview} className="flex flex-wrap gap-2">
+      {levels.map((l, i) => {
+        const c = statusCounts(l)
+        const on = i === index
+        return (
+          <button
+            key={l.level}
+            type="button"
+            aria-pressed={on}
+            data-level={l.level}
+            onClick={() => onPick(i)}
+            className={cn(
+              'flex min-h-11 flex-col items-start rounded-xl border px-3 py-1.5 text-left text-xs transition-colors duration-150 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
+              on
+                ? 'border-navy bg-navy text-primary-foreground'
+                : 'border-line bg-surface-solid hover:border-input',
+            )}
+          >
+            <span className="text-sm font-semibold tabular-nums">
+              {l.label ?? (param ? `${param} ${l.level}` : l.level)}
+            </span>
+            <span className={cn('tabular-nums', on ? 'opacity-80' : 'text-muted-foreground')}>
+              {c.lost > 0 || c.new > 0 ? `mất ${c.lost} · nhầm ${c.new}` : 'giữ đủ'}
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 /**
  * Kết quả: ảnh sạch và ảnh tấn công cạnh nhau (điện thoại xếp dọc), thanh trượt level đổi ảnh và
  * bảng ngay trên dữ liệu đã tải, không gọi lại API.
@@ -444,6 +594,13 @@ export function QuickTryResult({
       <NotATestResult expiresAt={view.expires_at} />
       {level && (
         <>
+          <Verdict level={level} label={levelText(level, param)} />
+          <LevelOverview
+            levels={view.levels}
+            index={Math.min(index, view.levels.length - 1)}
+            param={param}
+            onPick={setIndex}
+          />
           <div className="flex flex-col gap-2">
             {/* Không dùng <label>: chạm vào Term trong label sẽ chuyển focus sang thanh trượt và
                 đóng tooltip; thanh trượt có tên qua aria-label. */}

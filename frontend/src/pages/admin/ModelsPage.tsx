@@ -1,10 +1,21 @@
-import { Boxes, Plus } from 'lucide-react'
+import { Boxes, FileCheck2, Plus } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 
 import { ApiError } from '@/api/errors'
 import { errorMessage } from '@/api/messages'
 import { formatDateTime } from '@/admin/format'
+import {
+  CLASS_PRESETS,
+  type ClassPreset,
+  DEFAULT_INPUT_SIZE,
+  frameworkFromFile,
+  INPUT_SIZES,
+  nameFromFile,
+  ONNX_ARCHITECTURES,
+  readWeightsMeta,
+  type WeightsMeta,
+} from '@/admin/model-defaults'
 import { parseClassNames, TORCHVISION_ARCHITECTURES, weightsFileError } from '@/admin/model-file'
 import { useModelList, useRegisterModel } from '@/admin/useModelAdmin'
 import { EmptyState } from '@/components/EmptyState'
@@ -17,6 +28,7 @@ import { Button } from '@/components/ui/button'
 import type { ModelSummary } from '@/contracts/api'
 import { CATALOG_COPY } from '@/copy/catalog'
 import { PageHero } from '@/layout/PageHero'
+import { cn } from '@/lib/utils'
 
 type Framework = 'torchvision' | 'onnx'
 
@@ -43,21 +55,42 @@ function failureText(error: unknown): string {
     : errorMessage(error)
 }
 
+const CHIP =
+  'inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border px-3.5 text-sm tabular-nums transition-colors duration-150 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none'
+const OTHER = '__khac__'
+
+/** Bộ class mặc định khi file không có metadata: torchvision COCO 91, ONNX (YOLO) COCO 80. */
+const defaultPreset = (framework: Framework): ClassPreset =>
+  framework === 'torchvision' ? 'coco91' : 'coco80'
+
 export function RegisterModelForm({ onCancel }: { onCancel: () => void }) {
   const navigate = useNavigate()
   const [progress, setProgress] = useState<number | null>(null)
   const register = useRegisterModel(setProgress)
   const [name, setName] = useState('')
+  const [nameTouched, setNameTouched] = useState(false)
   const [framework, setFramework] = useState<Framework>('torchvision')
   const [architecture, setArchitecture] = useState<string>(TORCHVISION_ARCHITECTURES[0])
-  const [classes, setClasses] = useState('')
-  const [inputSize, setInputSize] = useState('640')
+  const [otherArchitecture, setOtherArchitecture] = useState(false)
+  const [classPreset, setClassPreset] = useState<ClassPreset>(defaultPreset('torchvision'))
+  const [customClasses, setCustomClasses] = useState('')
+  const [inputSize, setInputSize] = useState(String(DEFAULT_INPUT_SIZE))
   const [file, setFile] = useState<File | null>(null)
+  const [meta, setMeta] = useState<WeightsMeta>({})
   const [submitted, setSubmitted] = useState(false)
 
   const fileError = file ? weightsFileError(file) : null
-  const classNames = parseClassNames(classes)
+  const presetNames =
+    classPreset === 'file'
+      ? (meta.classNames ?? [])
+      : classPreset === 'custom'
+        ? null
+        : CLASS_PRESETS[classPreset].names
+  const classNames = presetNames ?? parseClassNames(customClasses)
   const size = Number(inputSize)
+  const sizes = [...new Set([...INPUT_SIZES, ...(meta.inputSize ? [meta.inputSize] : [])])].sort(
+    (a, b) => a - b,
+  )
   const errors = {
     name: name.trim() === '' ? 'Bắt buộc.' : undefined,
     architecture: architecture.trim() === '' ? 'Bắt buộc.' : undefined,
@@ -67,9 +100,30 @@ export function RegisterModelForm({ onCancel }: { onCancel: () => void }) {
   }
   const invalid = Object.values(errors).some(Boolean)
 
-  function chooseFramework(value: Framework) {
+  function chooseFramework(value: Framework, detected: WeightsMeta = meta) {
     setFramework(value)
-    setArchitecture(value === 'torchvision' ? TORCHVISION_ARCHITECTURES[0] : '')
+    const known =
+      value === 'torchvision'
+        ? TORCHVISION_ARCHITECTURES.find((a) => a === detected.architecture)
+        : undefined
+    setArchitecture(
+      value === 'torchvision' ? (known ?? TORCHVISION_ARCHITECTURES[0]) : ONNX_ARCHITECTURES[0],
+    )
+    setOtherArchitecture(false)
+    if (!detected.classNames) setClassPreset(defaultPreset(value))
+  }
+
+  async function chooseFile(next: File | null) {
+    setFile(next)
+    setMeta({})
+    if (!next || weightsFileError(next)) return
+    if (!nameTouched) setName(nameFromFile(next.name))
+    const detected = await readWeightsMeta(next)
+    setMeta(detected)
+    const detectedFramework = frameworkFromFile(next.name)
+    if (detectedFramework) chooseFramework(detectedFramework, detected)
+    if (detected.classNames?.length) setClassPreset('file')
+    if (detected.inputSize) setInputSize(String(detected.inputSize))
   }
 
   function submit(event: FormEvent) {
@@ -90,6 +144,11 @@ export function RegisterModelForm({ onCancel }: { onCancel: () => void }) {
   }
 
   const shown = (message: string | undefined) => (submitted ? message : undefined)
+  const detectedText = [
+    meta.architecture && `kiến trúc ${meta.architecture}`,
+    meta.classNames && `${meta.classNames.length} class`,
+    meta.inputSize && `kích thước ${meta.inputSize}`,
+  ].filter(Boolean)
   return (
     <form
       className="panel flex flex-col gap-4 p-5 md:p-6"
@@ -98,13 +157,54 @@ export function RegisterModelForm({ onCancel }: { onCancel: () => void }) {
       noValidate
     >
       <h2 className="text-base font-semibold">Đăng ký model</h2>
+      <div className="flex flex-col gap-2">
+        <TextField
+          label="File weights"
+          type="file"
+          accept=".onnx,.safetensors"
+          className="py-2"
+          hint="Chọn file trước: framework, tên, kiến trúc, class và kích thước được điền sẵn từ file. Chỉ .onnx hoặc .safetensors, tối đa 500 MB."
+          error={fileError ?? shown(errors.file)}
+          onChange={(e) => void chooseFile(e.target.files?.[0] ?? null)}
+        />
+        {detectedText.length > 0 && (
+          <p data-testid="weights-meta" className="flex items-center gap-2 text-sm text-approved">
+            <FileCheck2 aria-hidden="true" className="size-4 shrink-0" />
+            Đọc được từ file: {detectedText.join(', ')}.
+          </p>
+        )}
+        {progress !== null && register.isPending && (
+          <div className="flex flex-col gap-1">
+            <div
+              role="progressbar"
+              aria-label="Tiến độ tải lên"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(progress * 100)}
+              className="h-2 overflow-hidden rounded-full bg-surface-raised"
+            >
+              <div
+                className="h-full bg-detect transition-[width] duration-200 ease-out"
+                style={{ width: `${Math.round(progress * 100)}%` }}
+              />
+            </div>
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {progress < 1 ? `Đang tải lên ${Math.round(progress * 100)}%` : 'Đang đăng ký…'}
+            </span>
+          </div>
+        )}
+      </div>
       <div className="grid gap-4 md:grid-cols-2">
         <TextField
           label="Tên model"
           autoComplete="off"
+          hint="Mặc định lấy theo tên file; sửa nếu muốn."
           error={shown(errors.name)}
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => {
+            setName(e.target.value)
+            setNameTouched(true)
+          }}
         />
         <SelectField
           label="Framework"
@@ -127,63 +227,114 @@ export function RegisterModelForm({ onCancel }: { onCancel: () => void }) {
             ))}
           </SelectField>
         ) : (
-          <TextField
-            label="Kiến trúc"
-            hint="Mô tả ngắn, ví dụ YOLOv8n xuất ONNX opset 17."
-            error={shown(errors.architecture)}
-            value={architecture}
-            onChange={(e) => setArchitecture(e.target.value)}
+          <div className="flex flex-col gap-2">
+            <SelectField
+              label="Kiến trúc"
+              value={otherArchitecture ? OTHER : architecture}
+              onChange={(e) => {
+                const other = e.target.value === OTHER
+                setOtherArchitecture(other)
+                setArchitecture(other ? '' : e.target.value)
+              }}
+            >
+              {ONNX_ARCHITECTURES.map((a) => (
+                <option key={a} value={a}>
+                  {a}
+                </option>
+              ))}
+              <option value={OTHER}>Khác (tự mô tả)…</option>
+            </SelectField>
+            {otherArchitecture && (
+              <TextField
+                label="Mô tả kiến trúc"
+                hint="Ví dụ: DETR ResNet-50 xuất ONNX opset 17."
+                error={shown(errors.architecture)}
+                value={architecture}
+                onChange={(e) => setArchitecture(e.target.value)}
+              />
+            )}
+          </div>
+        )}
+        <div className="flex flex-col gap-1.5">
+          <p id="kich-thuoc" className="text-[14px] font-semibold">
+            Kích thước đầu vào
+          </p>
+          <div role="radiogroup" aria-labelledby="kich-thuoc" className="flex flex-wrap gap-2">
+            {sizes.map((v) => {
+              const on = size === v
+              return (
+                <button
+                  key={v}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  onClick={() => setInputSize(String(v))}
+                  className={cn(
+                    CHIP,
+                    on
+                      ? 'border-navy bg-navy text-primary-foreground'
+                      : 'border-line bg-surface-solid hover:border-input',
+                  )}
+                >
+                  {v}
+                </button>
+              )
+            })}
+          </div>
+          <p className="text-[13px] leading-5 text-muted-foreground">
+            Cạnh ảnh vuông sau letterbox, mặc định 640.
+          </p>
+        </div>
+      </div>
+      <div className="flex flex-col gap-2">
+        <SelectField
+          label="Danh sách class"
+          hint="Theo thứ tự index của model; số class phải khớp đầu ra của weights."
+          error={shown(errors.classes)}
+          value={classPreset}
+          onChange={(e) => setClassPreset(e.target.value as ClassPreset)}
+        >
+          {meta.classNames?.length ? (
+            <option value="file">Đọc từ file weights ({meta.classNames.length} class)</option>
+          ) : null}
+          {(Object.keys(CLASS_PRESETS) as Exclude<ClassPreset, 'file'>[]).map((k) => (
+            <option key={k} value={k}>
+              {CLASS_PRESETS[k].label}
+            </option>
+          ))}
+        </SelectField>
+        {presetNames ? (
+          <details className="rounded-lg border border-line px-3 py-1 text-sm">
+            <summary className="flex min-h-11 cursor-pointer items-center">
+              {presetNames.length} class: {presetNames.slice(0, 6).join(', ')}
+              {presetNames.length > 6 ? ', …' : ''}
+            </summary>
+            <div className="flex flex-col gap-2 pb-3">
+              <p className="max-h-40 overflow-y-auto text-muted-foreground">
+                {presetNames.join(', ')}
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                className="self-start"
+                onClick={() => {
+                  setCustomClasses(presetNames.join('\n'))
+                  setClassPreset('custom')
+                }}
+              >
+                Sửa danh sách này
+              </Button>
+            </div>
+          </details>
+        ) : (
+          <TextareaField
+            label="Class (mỗi dòng một class)"
+            hint="Hoặc ngăn bởi dấu phẩy."
+            error={shown(errors.classes)}
+            value={customClasses}
+            onChange={(e) => setCustomClasses(e.target.value)}
           />
         )}
-        <TextField
-          label="Kích thước đầu vào"
-          type="number"
-          inputMode="numeric"
-          min={1}
-          step={1}
-          hint="Cạnh ảnh vuông sau letterbox, thường là 640."
-          error={shown(errors.inputSize)}
-          value={inputSize}
-          onChange={(e) => setInputSize(e.target.value)}
-        />
-        <TextareaField
-          label="Danh sách class"
-          hint="Theo thứ tự index của model; mỗi dòng một class, hoặc ngăn bởi dấu phẩy."
-          error={shown(errors.classes)}
-          value={classes}
-          onChange={(e) => setClasses(e.target.value)}
-        />
-        <div className="flex flex-col gap-3">
-          <TextField
-            label="File weights"
-            type="file"
-            accept=".onnx,.safetensors"
-            className="py-2"
-            hint="Chỉ .onnx hoặc .safetensors, tối đa 500 MB."
-            error={fileError ?? shown(errors.file)}
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          />
-          {progress !== null && register.isPending && (
-            <div className="flex flex-col gap-1">
-              <div
-                role="progressbar"
-                aria-label="Tiến độ tải lên"
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={Math.round(progress * 100)}
-                className="h-2 overflow-hidden rounded-full bg-surface-raised"
-              >
-                <div
-                  className="h-full bg-detect transition-[width] duration-200 ease-out"
-                  style={{ width: `${Math.round(progress * 100)}%` }}
-                />
-              </div>
-              <span className="text-xs text-muted-foreground tabular-nums">
-                {progress < 1 ? `Đang tải lên ${Math.round(progress * 100)}%` : 'Đang đăng ký…'}
-              </span>
-            </div>
-          )}
-        </div>
       </div>
       {framework === 'onnx' && <OnnxLayouts />}
       {register.isError && <FormAlert>{failureText(register.error)}</FormAlert>}

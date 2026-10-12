@@ -20,9 +20,11 @@ describe('xếp hạng attack (Phase 6, task 32)', () => {
   it('bảng giữ thứ tự của backend, đủ cột, null ghi "không đủ dữ liệu"', () => {
     const html = render(<AttackRanking ranking={ranking} />)
     const table = html.slice(html.indexOf('<table'), html.indexOf('</table>'))
-    const names = [...table.matchAll(/<td class="px-3 py-2 font-medium">([^<]+)</g)].map(
-      (m) => m[1],
-    )
+    const names = [
+      ...table.matchAll(
+        /<td class="px-3 py-2 font-medium">(?:(?!<\/td>).)*?<span class="min-w-0">([^<]+)</g,
+      ),
+    ].map((m) => m[1])
     expect(names).toEqual(ranking.map((e) => e.name))
     for (const header of ['auc_drop', 'Mức sụt lớn nhất', 'Số level', 'Độ phủ']) {
       expect(table).toContain(header)

@@ -9,6 +9,7 @@ import { apiGet, apiSend } from '@/api/client'
 import type {
   ProtocolCreate,
   ProtocolSummary,
+  ProtocolTemplate,
   ProtocolVersionCreate,
   ProtocolView,
 } from '@/contracts/api'
@@ -21,6 +22,18 @@ export function useAllProtocols() {
     queryFn: () => apiGet<ProtocolSummary[]>('/protocols?include_retired=true'),
   })
 }
+
+/** Mẫu protocol (Phase R2, seed): chỉ điền sẵn form, không tự tạo protocol. */
+export const useProtocolTemplates = () =>
+  useQuery({
+    queryKey: ['protocol-templates'],
+    queryFn: () => apiGet<ProtocolTemplate[]>('/protocol-templates'),
+    staleTime: Infinity,
+  })
+
+/** Bản nháp `ProtocolCreate` của một mẫu: spec active, level và tiêu chí gợi ý. */
+export const fetchTemplateDraft = (key: ProtocolTemplate['key']) =>
+  apiGet<ProtocolCreate>(`/protocol-templates/${key}/draft`)
 
 function useProtocolMutation<Body>(send: (body: Body) => Promise<ProtocolView>) {
   const queryClient = useQueryClient()

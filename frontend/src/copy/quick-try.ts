@@ -4,6 +4,13 @@ export const QUICK_TRY_COPY = {
   description:
     'Áp một attack lên một ảnh để xem model giữ được và mất những object nào. Chỉ để minh họa, không phải kiểm thử.',
   formTitle: 'Chọn model, attack và ảnh',
+  attackTitle: 'Kiểu tấn công',
+  levelTitle: 'Mức tấn công',
+  levelHint: 'Mỗi mức chạy các level dưới đây; xem từng level ở kết quả.',
+  emptyTitle: 'Chọn ảnh, kiểu tấn công và mức, rồi bấm "Chạy thử nhanh"',
+  emptyDetail:
+    'Kết quả hiện ảnh sạch và ảnh bị tấn công cạnh nhau, kèm kết luận model không detect được hay detect nhầm vật thể nào.',
+  overview: 'Kết quả theo từng level',
   // Gợi ý attack ghép quanh hai thuật ngữ `patch` và `white_box` (bọc bằng `Term` ở trang).
   attackHint: {
     noPatch: 'Không có attack',

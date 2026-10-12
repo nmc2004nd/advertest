@@ -2,6 +2,7 @@ import { ChevronRight } from 'lucide-react'
 import { type ReactNode, useId } from 'react'
 import { useSearchParams } from 'react-router'
 
+import { AttackTile } from '@/components/AttackTile'
 import { RobustnessMatrix } from '@/components/charts/RobustnessMatrix'
 import { percent } from '@/components/charts/sentences'
 import { formatNumber } from '@/components/charts/breakpoints'
@@ -43,6 +44,7 @@ function WeaknessRow({
         onClick={onOpen}
         className="group flex min-h-11 w-full items-center gap-3 rounded-xl border border-line bg-surface-solid px-4 py-3 text-left transition-colors duration-150 hover:border-input hover:bg-surface-raised focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
       >
+        <AttackTile spec={{ name: weakness.attack_name }} />
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="font-medium">
             {title} · {levelText(weakness, param)}

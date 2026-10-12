@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router'
 
 import { ApiError } from '@/api/errors'
 import { errorMessage } from '@/api/messages'
+import { AttackTile } from '@/components/AttackTile'
 import { FormAlert } from '@/components/FormAlert'
 import { Button } from '@/components/ui/button'
 import type { EstimateResponse, ExperimentClone } from '@/contracts/api'
@@ -202,13 +203,19 @@ function Summary({
         {draft.attacks.length === 0 ? (
           <p>—</p>
         ) : (
-          <ul>
-            {draft.attacks.map((a) => (
-              <li key={a.attackSpecId}>
-                {specTitle(specs.data?.find((spec) => spec.id === a.attackSpecId))}:{' '}
-                {a.mode === 'search' ? 'tự tìm ngưỡng' : a.levels.join(', ') || 'chưa có level'}
-              </li>
-            ))}
+          <ul className="space-y-1.5">
+            {draft.attacks.map((a) => {
+              const spec = specs.data?.find((s) => s.id === a.attackSpecId)
+              return (
+                <li key={a.attackSpecId} className="flex items-start gap-2">
+                  {spec && <AttackTile spec={spec} size="sm" />}
+                  <span className="min-w-0">
+                    {specTitle(spec)}:{' '}
+                    {a.mode === 'search' ? 'tự tìm ngưỡng' : a.levels.join(', ') || 'chưa có level'}
+                  </span>
+                </li>
+              )
+            })}
           </ul>
         )}
       </div>

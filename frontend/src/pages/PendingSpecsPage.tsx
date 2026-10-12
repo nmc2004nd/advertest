@@ -13,6 +13,7 @@ import {
   useRejectSpec,
 } from '@/admin/useSpecAdmin'
 import { useMe } from '@/auth/useMe'
+import { AttackTile } from '@/components/AttackTile'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { EmptyState } from '@/components/EmptyState'
 import { FormAlert } from '@/components/FormAlert'
@@ -155,7 +156,10 @@ export function PendingSpecCard({
     <li data-testid="pending-spec" className="panel flex flex-col gap-4 p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-1">
-          <h2 className="text-base font-semibold">{spec.metadata?.display_name ?? spec.name}</h2>
+          <h2 className="flex items-center gap-2.5 text-base font-semibold">
+            <AttackTile spec={spec} />
+            {spec.metadata?.display_name ?? spec.name}
+          </h2>
           <p className="text-sm text-muted-foreground">
             <span className="font-mono">{specLabel(spec)}</span> · {ATTACK_KIND_LABEL[spec.kind]} ·{' '}
             <span className="font-mono">{adapterOf(spec)}</span> · {primaryText(spec)}

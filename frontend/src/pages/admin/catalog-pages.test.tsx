@@ -220,6 +220,17 @@ describe('/admin/models: đăng ký và kiểm tra model', () => {
     expect(html).not.toContain('data-testid="onnx-layouts"')
   })
 
+  it('form: trường bắt buộc có mặc định để chọn (kích thước 640, class COCO 91 cho torchvision)', () => {
+    const html = render(<RegisterModelForm onCancel={() => undefined} />, '/admin/models', 'admin')
+    // File chọn trước tiên: các trường sau điền sẵn từ metadata của file.
+    expect(html.indexOf('>File weights</label>')).toBeLessThan(html.indexOf('>Tên model</label>'))
+    expect(html).toMatch(/role="radio" aria-checked="true"[^>]*>640</)
+    expect(html).toContain('<option value="coco91" selected="">COCO 91 class (torchvision COCO_V1)')
+    expect(html).toContain('91 class: __background__, person')
+    expect(html).not.toContain('type="number"')
+    expect(html).not.toContain('<textarea')
+  })
+
   it('ghi chú hai layout ONNX', () => {
     const html = render(<OnnxLayouts />)
     expect(html).toContain('data-testid="onnx-layouts"')

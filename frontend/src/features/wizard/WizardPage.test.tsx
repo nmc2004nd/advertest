@@ -17,6 +17,7 @@ import type {
 } from '@/contracts/api'
 import { render } from '@/test-utils'
 
+import { specTitle } from './levels'
 import { defaultSearch, type SearchDraft, targetClassesOf, THRESHOLD_KINDS } from './search'
 import { PATCH_SEARCH_LOCKED } from './SearchFields'
 import { AttackStep, DataStep, EARLY_STOP_LABEL, PurposeStep } from './steps'
@@ -93,8 +94,11 @@ describe('WizardPage', () => {
     expect(html).toContain('role="radiogroup" aria-label="Mode"')
     expect(html).toContain('role="radiogroup" aria-label="Preset"')
     // Mặc định Khám phá và Tiêu chuẩn: chỉ chọn thêm model và slice là đủ.
-    expect(html).toMatch(/aria-checked="true"[^>]*><span[^>]*><span class="font-medium">Khám phá/)
-    expect(html).toMatch(/aria-checked="true"[^>]*><span[^>]*><span class="font-medium">Tiêu chuẩn/)
+    // Thẻ đang chọn (có ô icon trước tiêu đề) mang đúng tiêu đề, không lẫn sang thẻ kế tiếp.
+    const checked = (title: string) =>
+      new RegExp(`aria-checked="true"(?:(?!aria-checked).)*?<span class="font-medium">${title}<`)
+    expect(html).toMatch(checked('Khám phá'))
+    expect(html).toMatch(checked('Tiêu chuẩn'))
     expect(html).toContain('data-term="exploration"')
     expect(html).toContain('data-testid="uoc-luong-thanh-duoi"')
     expect(html).toContain('env(safe-area-inset-bottom)')
@@ -385,6 +389,18 @@ describe('bước 3', () => {
     expect(html).toContain('data-term="level"')
   })
 
+  it('ô gõ thêm level chỉ nằm trong "Tùy chỉnh nâng cao", chỉ cho tham số liên tục', () => {
+    const continuous = specs.find(
+      (s) => s.primary_param.type === 'continuous' && !s.requires_training,
+    )
+    const discrete = specs.find((s) => s.primary_param.type === 'discrete')
+    if (!continuous || !discrete) throw new Error('thiếu mock')
+    const html = render3({ ...draft, attacks: [grid(continuous, [4])] })
+    expect(html).toMatch(/<details[^>]*>(?:(?!<\/details>).)*Thêm level khác/)
+    expect(html.split('<details')[0]).not.toContain('Thêm level khác')
+    expect(render3({ ...draft, attacks: [grid(discrete, [1])] })).not.toContain('Thêm level khác')
+  })
+
   it('Phase 6: chip severity bật/tắt, công tắc dừng sớm bật trong phần nâng cao', () => {
     const fog = specs.find((s) => s.name === 'fog')
     if (!fog) throw new Error('Thiếu mock fog')
@@ -404,11 +420,13 @@ describe('bước 3', () => {
     ])
   })
 
-  it('Khám phá thêm attack bằng chip; Chính thức thì không', () => {
+  it('Khám phá thêm attack bằng thẻ có icon và mô tả; Chính thức thì không', () => {
     const [first, ...rest] = specs
     const exploration = render3({ ...draft, attacks: [grid(first, [4])] })
     expect(exploration).toContain('Thêm attack')
-    for (const spec of rest) expect(exploration).toMatch(new RegExp(`</svg>${spec.name}</button>`))
+    for (const spec of rest) expect(exploration).toContain(`aria-label="Thêm ${specTitle(spec)}"`)
+    expect(exploration).toContain('Mô phỏng: </span>')
+    expect(exploration).toContain('Tấn công')
     const official = render3({ ...draft, mode: 'official', attacks: [grid(first, [4])] })
     expect(official).not.toContain('Thêm attack')
   })

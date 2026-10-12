@@ -1,5 +1,6 @@
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
+import { AttackName } from '@/components/AttackTile'
 import type { AttackRankingEntry } from '@/contracts/api'
 import { READING } from '@/copy/charts'
 import { ATTACK_KIND_LABEL } from '@/lib/attack-kinds'
@@ -80,7 +81,9 @@ function RankingTable({ ranking }: { ranking: AttackRankingEntry[] }) {
               data-partial={entry.partial || undefined}
             >
               <td className="px-3 py-2 tabular-nums">{i + 1}</td>
-              <td className="px-3 py-2 font-medium">{entry.name}</td>
+              <td className="px-3 py-2 font-medium">
+                <AttackName name={entry.name} kind={entry.kind} />
+              </td>
               <td className="px-3 py-2">{ATTACK_KIND_LABEL[entry.kind]}</td>
               <td className="px-3 py-2 tabular-nums">{formatAuc(entry.auc_drop)}</td>
               <td className="px-3 py-2 tabular-nums">{formatPercent(entry.max_relative_drop)}</td>
@@ -107,9 +110,9 @@ function RankingCards({ ranking }: { ranking: AttackRankingEntry[] }) {
           className="flex flex-col gap-1 rounded-xl border p-3 text-sm"
         >
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <span className="font-medium">
+            <AttackName name={entry.name} kind={entry.kind} className="font-medium">
               {i + 1}. {entry.name}
-            </span>
+            </AttackName>
             <span className="text-muted-foreground">{ATTACK_KIND_LABEL[entry.kind]}</span>
           </div>
           <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5">

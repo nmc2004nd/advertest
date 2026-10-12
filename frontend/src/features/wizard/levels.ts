@@ -14,6 +14,22 @@ export function rangeText(param: PrimaryParam): string {
   return `${format(param.min)}–${format(param.max)}${unit}`
 }
 
+/** Lỗi khi gõ thêm một level cho attack quét lưới; null nếu thêm được. */
+export function levelInputError(param: PrimaryParam, levels: number[], raw: string): string | null {
+  const text = raw.trim().replace(',', '.')
+  if (text === '') return 'Nhập một giá trị'
+  const value = Number(text)
+  if (!Number.isFinite(value)) return 'Level phải là số'
+  const inRange =
+    param.type === 'discrete' && param.values
+      ? param.values.includes(value)
+      : value >= param.min && value <= param.max
+  if (!inRange) return `Ngoài dải ${rangeText(param)}`
+  if (levels.includes(value)) return 'Level đã có'
+  if (levels.length >= MAX_LEVELS) return `Tối đa ${MAX_LEVELS} level`
+  return null
+}
+
 /** Thêm level và giữ thứ tự tăng dần. */
 export function addLevel(levels: number[], value: number): number[] {
   return [...levels, value].sort((a, b) => a - b)

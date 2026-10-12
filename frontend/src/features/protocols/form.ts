@@ -77,6 +77,20 @@ export const EMPTY_FORM: ProtocolForm = {
   criteria: [{ ...EMPTY_CRITERION }],
 }
 
+/** Level hợp lệ trong chuỗi ngăn bởi dấu phẩy (giá trị không phải số bị bỏ qua). */
+export function parseLevels(raw: string): number[] {
+  return raw
+    .split(/[,\s]+/)
+    .filter(Boolean)
+    .map(Number)
+    .filter(Number.isFinite)
+}
+
+/** Chuỗi level tăng dần, không trùng, như form lưu. */
+export function formatLevels(levels: number[]): string {
+  return [...new Set(levels)].sort((a, b) => a - b).join(', ')
+}
+
 const num = (raw: string) => (raw.trim() === '' ? Number.NaN : Number(raw))
 const pct = (raw: string) => num(raw) / 100
 const round = (value: number) => Number(value.toFixed(6))

@@ -1,7 +1,9 @@
-import { Lock, Plus, TriangleAlert, X } from 'lucide-react'
+import { Gauge, Lock, Plus, TriangleAlert, X } from 'lucide-react'
 import { useState } from 'react'
 import type { Dispatch, ReactNode } from 'react'
 
+import { AttackRisk, AttackTile } from '@/components/AttackTile'
+import { type CardLook, MODE_ICON, PRESET_ICON } from '@/lib/card-looks'
 import { SelectField } from '@/components/form/TextField'
 import { LoadError } from '@/components/LoadError'
 import { PageLoading } from '@/components/PageLoading'
@@ -18,7 +20,7 @@ import {
   SEARCH_ROW,
   SUGGESTED_LIMIT,
 } from '@/copy/wizard'
-import { ATTACK_KIND_LABEL, ATTACK_PLAIN } from '@/lib/attack-kinds'
+import { ATTACK_EXPLAIN, ATTACK_KIND_LABEL, ATTACK_KINDS, ATTACK_PLAIN } from '@/lib/attack-kinds'
 import { cn } from '@/lib/utils'
 
 import {
@@ -34,6 +36,7 @@ import {
   useSlices,
   useTrainingSlices,
 } from './api'
+import { CustomLevel } from './CustomLevel'
 import { levelCandidates, levelLabel, rangeText, specTitle } from './levels'
 import { requiredLocks } from './protocol'
 import { targetClassesOf } from './search'
@@ -132,6 +135,19 @@ function Badge({ tone = 'muted', children }: { tone?: 'muted' | 'warning'; child
 
 // ---------------------------------------------------------------- bước 1: mục đích
 
+/** Tiêu đề thẻ kèm ô icon nhỏ phía trước. */
+export function CardTitle({ look, children }: { look?: CardLook; children: ReactNode }) {
+  const Icon = look?.icon ?? Gauge
+  return (
+    <span className="flex items-center gap-2.5">
+      <span className={cn('tile size-8', look?.tile)} aria-hidden="true">
+        <Icon className="size-4" />
+      </span>
+      <span className="font-medium">{children}</span>
+    </span>
+  )
+}
+
 export function PurposeStep({ draft, dispatch, errors }: StepProps) {
   const protocols = useProtocols()
   const presets = usePresets()
@@ -149,7 +165,7 @@ export function PurposeStep({ draft, dispatch, errors }: StepProps) {
             selected={draft.mode === mode}
             onSelect={() => dispatch({ type: 'experimentMode', mode })}
           >
-            <span className="font-medium">{MODE_CARD[mode].title}</span>
+            <CardTitle look={MODE_ICON[mode]}>{MODE_CARD[mode].title}</CardTitle>
             <span className="text-sm text-muted-foreground">{MODE_CARD[mode].description}</span>
           </ChoiceCard>
         ))}
@@ -194,7 +210,7 @@ export function PurposeStep({ draft, dispatch, errors }: StepProps) {
                 selected={draft.preset === preset.key}
                 onSelect={() => dispatch({ type: 'preset', key: preset.key })}
               >
-                <span className="font-medium">{preset.title}</span>
+                <CardTitle look={PRESET_ICON[preset.key]}>{preset.title}</CardTitle>
                 <span className="text-sm text-muted-foreground">{preset.description}</span>
               </ChoiceCard>
             ))}
@@ -637,7 +653,12 @@ function AttackRow({
   const lock = lockOf(draft, spec.id)
   const meta = spec.metadata
   const title = specTitle(spec)
-  const description = meta?.description ?? ATTACK_PLAIN[spec.name]
+  const description = meta?.description ?? ATTACK_EXPLAIN[spec.name]?.how ?? ATTACK_PLAIN[spec.name]
+  const param = spec.primary_param
+  const canType =
+    chosen.mode === 'grid' &&
+    !spec.requires_training &&
+    !(param.type === 'discrete' && param.values)
   const incompatible = spec.requires_gradients && model?.supports_gradients === false
   const serverError =
     [
@@ -656,6 +677,7 @@ function AttackRow({
       className="space-y-3 rounded-xl border border-line bg-surface-solid p-4 shadow-[0_1px_2px_rgba(16,24,40,0.05)]"
     >
       <div className="flex items-start gap-3">
+        <AttackTile spec={spec} />
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <p className="font-medium">
             {title}{' '}
@@ -664,6 +686,7 @@ function AttackRow({
             </span>
           </p>
           {description && <p className="text-sm leading-5 text-muted-foreground">{description}</p>}
+          <AttackRisk name={spec.name} />
           <div className="flex flex-wrap gap-1.5">
             <Badge>{ATTACK_KIND_LABEL[spec.kind]}</Badge>
             {meta && <Badge>{REALISM_LABEL[meta.realism]}</Badge>}
@@ -721,6 +744,13 @@ function AttackRow({
           {ADVANCED}
         </summary>
         <div className="space-y-3 pb-3">
+          {canType && (
+            <CustomLevel
+              param={param}
+              levels={chosen.levels}
+              onChange={(levels) => dispatch({ type: 'levels', attackSpecId: spec.id, levels })}
+            />
+          )}
           <ModeSwitch
             spec={spec}
             chosen={chosen}
@@ -807,23 +837,52 @@ export function AttackStep({
         {draft.mode === 'exploration' && addable.length > 0 && (
           <section className="space-y-2">
             <h3 className="font-medium">{ADD_ATTACK}</h3>
-            <div className="flex flex-wrap gap-2">
-              {addable.map((spec) => (
-                <button
-                  key={spec.id}
-                  type="button"
-                  disabled={adding}
-                  onClick={() => {
-                    if (spec.requires_training && !draft.trainingSliceId) setPending(spec.id)
-                    else onAdd(spec.id)
-                  }}
-                  className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-dashed border-input px-3.5 text-sm hover:border-navy disabled:opacity-60 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
-                >
-                  <Plus aria-hidden="true" className="size-3.5" />
-                  {specTitle(spec)}
-                </button>
-              ))}
-            </div>
+            <p className="text-sm text-muted-foreground">
+              Bấm thẻ để thêm. Mỗi thẻ nói attack làm gì với ảnh và mô phỏng rủi ro nào ngoài đời.
+            </p>
+            {ATTACK_KINDS.map((kind) => {
+              const group = addable.filter((spec) => spec.kind === kind)
+              if (group.length === 0) return null
+              return (
+                <div key={kind} className="space-y-2">
+                  <p className="text-sm font-medium text-muted-foreground">
+                    {ATTACK_KIND_LABEL[kind]}
+                  </p>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {group.map((spec) => (
+                      <button
+                        key={spec.id}
+                        type="button"
+                        disabled={adding}
+                        aria-label={`Thêm ${specTitle(spec)}`}
+                        onClick={() => {
+                          if (spec.requires_training && !draft.trainingSliceId) setPending(spec.id)
+                          else onAdd(spec.id)
+                        }}
+                        className="flex min-h-11 items-start gap-3 rounded-xl border border-dashed border-input bg-surface-solid p-3 text-left transition-colors hover:border-navy disabled:opacity-60 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+                      >
+                        <AttackTile spec={spec} />
+                        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                          <span className="font-semibold">
+                            {specTitle(spec)}{' '}
+                            <span className="text-xs font-normal text-muted-foreground">
+                              v{spec.version}
+                            </span>
+                          </span>
+                          <span className="text-[13px] leading-5 text-muted-foreground">
+                            {spec.metadata?.description ??
+                              ATTACK_EXPLAIN[spec.name]?.how ??
+                              ATTACK_PLAIN[spec.name]}
+                          </span>
+                          <AttackRisk name={spec.name} />
+                        </span>
+                        <Plus aria-hidden="true" className="mt-1 size-4 shrink-0" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
             {pending && (
               <div className="max-w-md">
                 <DraftTrainingSlice

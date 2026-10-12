@@ -6,6 +6,7 @@ import { formatDateTime } from '@/admin/format'
 import { errorMessage } from '@/api/messages'
 import { can } from '@/auth/permissions'
 import { useMe } from '@/auth/useMe'
+import { AttackName } from '@/components/AttackTile'
 import { AttackRanking } from '@/components/charts/AttackRanking'
 import { THRESHOLD_KIND_LABEL } from '@/components/charts/breakpoints'
 import { DecisionMeaning } from '@/components/DecisionMeaning'
@@ -277,7 +278,9 @@ export function SnapshotView({ snapshot }: { snapshot: ReportSnapshot }) {
         >
           {snapshot.runs.map((run) => (
             <tr key={run.run_id}>
-              <td className={td}>{run.attack_spec_name}</td>
+              <td className={td}>
+                <AttackName name={run.attack_spec_name} />
+              </td>
               <td className={td}>{run.level}</td>
               <td className={td}>{SCOPE_LABEL[run.scope]}</td>
               <td className={td}>

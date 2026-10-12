@@ -43,19 +43,26 @@ function renderWithError(node: ReactNode, id: string, error: ApiError): string {
 }
 
 describe('/quick-try: form', () => {
-  it('ô chọn Model, Attack, radiogroup Preset, ô file Ảnh và nút Chạy thử nhanh', () => {
+  it('ô chọn Model, thẻ Attack có icon, radiogroup Preset có level, ô file Ảnh và nút Chạy thử nhanh', () => {
     const html = render(<QuickTryPage />, '/quick-try', 'engineer', data)
-    for (const label of ['Model', 'Attack', 'Ảnh']) expect(html).toContain(`>${label}</label>`)
+    for (const label of ['Model', 'Ảnh']) expect(html).toContain(`>${label}</label>`)
+    expect(html).toContain('role="radiogroup" aria-label="Attack"')
+    expect(html).toMatch(/role="radio" aria-checked="true" data-attack="[^"]+"/)
+    expect(html).toContain('class="tile size-6')
     expect(html).toContain('role="radiogroup" aria-label="Preset"')
+    expect(html).toContain('data-testid="preset-levels"')
+    expect(html).toContain('Chọn ảnh, kiểu tấn công và mức')
     expect(html).toContain('accept="image/jpeg,image/png"')
-    expect(html).toMatch(/<button[^>]*type="submit"[^>]*>Chạy thử nhanh<\/button>/)
+    expect(html).toMatch(/<button[^>]*type="submit"[^>]*>.*Chạy thử nhanh<\/button>/)
   })
 
   it('danh sách attack không có patch', () => {
     const patch = specs.find((s) => s.requires_training)
     if (!patch) throw new Error('Thiếu mock spec patch')
     const html = render(<QuickTryPage />, '/quick-try', 'engineer', data)
-    expect(html).not.toContain(`(${patch.name})</option>`)
+    expect(html).not.toContain(`data-attack="${patch.name}"`)
+    const other = specs.find((s) => !s.requires_training && !s.requires_gradients)
+    if (other) expect(html).toContain(`data-attack="${other.name}"`)
   })
 
   it('gợi ý attack dùng Term cho patch và attack white-box (M4)', () => {
@@ -85,6 +92,15 @@ describe('kết quả', () => {
     expect(label).toBeLessThan(html.indexOf('data-testid="attacked-image"'))
     expect(html).toContain('Không phải kết quả kiểm thử')
     expect(html).toMatch(/Ảnh tự xóa sau 24 giờ, lúc \d{2}:\d{2}/)
+  })
+
+  it('kết luận detect nhầm / không detect được và thẻ theo từng level', () => {
+    const html = render(<QuickTryResult view={completed} />, '/quick-try', 'engineer', data)
+    const verdictAt = html.indexOf('data-testid="quick-try-verdict"')
+    expect(verdictAt).toBeGreaterThan(0)
+    expect(verdictAt).toBeLessThan(html.indexOf('data-testid="attacked-image"'))
+    expect(html).toContain('aria-label="Kết quả theo từng level"')
+    for (const l of completed.levels) expect(html).toContain(`data-level="${l.level}"`)
   })
 
   it('thanh trượt Level, ảnh sạch và ảnh tấn công cạnh nhau, bảng object và số đếm', () => {

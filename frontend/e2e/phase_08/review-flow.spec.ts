@@ -41,9 +41,16 @@ async function createProtocolUi(page: Page, name: string, levels: [number, numbe
   // Worker E2E chạy từ working tree của máy dev (có thể có thay đổi chưa commit).
   await page.getByLabel('Không chấp nhận run chạy từ code chưa commit').uncheck()
   await page.locator('#attack-0-ten').selectOption('fgsm')
-  await page.locator('#attack-0-level').fill(levels.join(', '))
+  // Level ngoài bộ gợi ý: gõ rồi Enter; tiêu chí chọn bằng chip trong các level bắt buộc.
+  for (const level of levels) {
+    await page.locator('#attack-0-level-them').fill(String(level))
+    await page.locator('#attack-0-level-them').press('Enter')
+  }
   await page.locator('#tieu-chi-0-attack').selectOption('fgsm')
-  await page.locator('#tieu-chi-0-level').fill(String(levels[1]))
+  await page
+    .locator('[aria-labelledby="tieu-chi-0-level-nhan"]')
+    .getByRole('radio', { name: String(levels[1]), exact: true })
+    .click()
   await page.locator('#tieu-chi-0-nguong').fill('95')
   await expectNoHorizontalScroll(page)
   await page.locator('form').getByRole('button', { name: 'Tạo protocol' }).click()
