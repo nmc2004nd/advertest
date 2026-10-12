@@ -16,11 +16,11 @@ from pathlib import Path
 from typing import Annotated, Protocol
 
 import boto3
-from botocore.config import Config
 from fastapi import APIRouter, Depends
 from sqlalchemy import create_engine, text
 
 from advertest_contracts.models import DependencyStatus, HealthResponse
+from backend.app.storage import s3_config, single_bucket
 
 TIMEOUT_S = 2
 logger = logging.getLogger(__name__)
@@ -63,12 +63,16 @@ class LiveChecks:
             endpoint_url=endpoint,
             aws_access_key_id=os.environ.get("MINIO_ACCESS_KEY"),
             aws_secret_access_key=os.environ.get("MINIO_SECRET_KEY"),
-            config=Config(
+            config=s3_config(
                 connect_timeout=TIMEOUT_S, read_timeout=TIMEOUT_S, retries={"max_attempts": 0}
             ),
         )
         try:
-            client.list_buckets()
+            # Credential của bucket Railway chỉ dùng được trên bucket đó, không liệt kê bucket.
+            if physical := single_bucket():
+                client.head_bucket(Bucket=physical)
+            else:
+                client.list_buckets()
         except Exception:
             logger.warning("Health check MinIO thất bại", exc_info=True)
             return DependencyStatus(ok=False, detail="Không kết nối được MinIO")

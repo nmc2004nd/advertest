@@ -3,7 +3,7 @@ nhập MinIO; presigned URL giới hạn trong thư mục của run, hết hạn
 
 Ký bằng client trỏ vào endpoint MinIO mà worker nhìn thấy (`MINIO_PUBLIC_ENDPOINT`, mặc định
 `MINIO_ENDPOINT`): chữ ký S3 gồm host, nên URL chỉ dùng được đúng qua host đó. Ký URL không
-cần kết nối mạng.
+cần kết nối mạng. Region, kiểu địa chỉ và bucket vật lý theo `backend.app.storage`.
 """
 
 from __future__ import annotations
@@ -14,7 +14,8 @@ from datetime import datetime, timedelta
 from typing import Any, Literal
 
 import boto3
-from botocore.config import Config
+
+from backend.app import storage
 
 Method = Literal["PUT", "GET", "DELETE"]
 EXPIRES_S = 15 * 60
@@ -54,15 +55,15 @@ class Presigner:
             endpoint_url=endpoint,
             aws_access_key_id=access_key,
             aws_secret_access_key=secret_key,
-            region_name="us-east-1",
-            config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
+            config=storage.s3_config(),
         )
         return cls(client, expires_s)
 
     def url(self, bucket: str, key: str, method: Method, now: datetime) -> PresignedUrl:
+        physical, physical_key = storage.s3_location(bucket, key)
         url: str = self.client.generate_presigned_url(
             ClientMethod=_CLIENT_METHOD[method],
-            Params={"Bucket": bucket, "Key": key},
+            Params={"Bucket": physical, "Key": physical_key},
             ExpiresIn=self.expires_s,
         )
         return PresignedUrl(url=url, expires_at=now + timedelta(seconds=self.expires_s))

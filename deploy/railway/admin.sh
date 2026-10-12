@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Chạy lệnh quản trị trên PC, trỏ vào Postgres và MinIO của Railway (biến lấy từ .env.pc).
+# Chạy lệnh quản trị trên PC, trỏ vào Postgres và bucket của Railway (biến lấy từ .env.pc).
 #   deploy/railway/admin.sh python -m backend.admin_cli.seed
 #   deploy/railway/admin.sh advertest-admin compute-target create --name pc --as <email admin>
 #   deploy/railway/admin.sh advertest-admin import-local --store <thư mục LocalStore> --as <email admin>
