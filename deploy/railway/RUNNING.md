@@ -46,6 +46,8 @@ service `api` trên Railway (mục 3), để worker và API cùng phiên bản.
 
 ### Chạy worker trên máy khác
 
+Hướng dẫn đầy đủ cho Ubuntu và Windows (cài Docker, GPU, chép image không build lại): [WORKER.md](WORKER.md).
+
 1. Máy cần Docker, repo (cùng nhánh) và fixture: `make fixtures`.
 2. Tạo compute target riêng cho máy đó; mỗi token chỉ dùng trên một máy:
    ```bash

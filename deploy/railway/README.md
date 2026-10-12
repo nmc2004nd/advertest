@@ -17,6 +17,7 @@ dev (`make up`, MinIO) không đổi.
 
 | File | Dùng để |
 |---|---|
+| `WORKER.md` | Cài máy chạy worker trên Ubuntu và Windows |
 | `RUNNING.md` | Vận hành hằng ngày: chạy worker, cập nhật, sao lưu, xử lý sự cố |
 | `railway.env.example` | Biến môi trường của từng service trên Railway |
 | `pc.env.example` | Biến môi trường trên PC (chép thành `.env.pc` ở gốc repo) |
