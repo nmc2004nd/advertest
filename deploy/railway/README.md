@@ -89,8 +89,7 @@ deploy/railway/admin.sh advertest-admin compute-target create --name pc-tools --
 ```
 
 Token in ra (một lần) điền vào `WORKER_TOKEN` và `WORKER_TOOLS_TOKEN` trong `.env.pc`.
-`import-local` đọc thư mục trên PC nên không chạy qua `admin.sh`: cần mở tạm TCP proxy của Postgres
-và chạy `uv run --extra cpu advertest-admin import-local ...` với `DATABASE_URL` trỏ vào proxy.
+Đưa model, dataset, slice từ LocalStore lên (ví dụ KITTI): [RUNNING.md](RUNNING.md) mục 3b.
 
 ## 4. Chạy worker trên PC
 

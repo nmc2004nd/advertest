@@ -90,6 +90,31 @@ bản cũ: deploy đúng commit bằng
 Migration DB chạy tự động khi `api` khởi động. Dữ liệu không mất khi deploy lại: Postgres nằm trên
 volume, file nằm trong bucket; `api` và `frontend` không lưu gì.
 
+## 3b. Đưa dữ liệu từ LocalStore lên (model, dataset, slice, mapping)
+
+Web chưa có upload dataset. `advertest-admin import-local` đọc LocalStore trên PC, đăng ký vào Postgres
+(giữ nguyên id) và chỉ upload ảnh thuộc slice lên bucket. Lệnh chạy trên PC nên cần **tạm mở TCP
+proxy** của Postgres; xóa ngay khi xong.
+
+LocalStore của môi trường dev ghi đường dẫn ảnh theo container (`/data/...`, tức `$ADVERTEST_DATA_DIR`
+mount vào `/data`), nên chạy lệnh trong image worker với cùng cách mount:
+
+```bash
+railway tcp-proxy create -s Postgres --port 5432 --json      # ghi lại id, domain, proxyPort
+set -a; . ./.env.pc; set +a
+export DATABASE_URL="postgresql+psycopg://advertest_app:${ADVERTEST_APP_PASSWORD}@<domain>:<proxyPort>/advertest"
+docker run --rm -u "$(id -u):$(id -g)" -v "$ADVERTEST_DATA_DIR":/data:ro \
+  -e HOME=/tmp -e YOLO_CONFIG_DIR=/tmp -e DATABASE_URL \
+  -e MINIO_ENDPOINT -e MINIO_BUCKET -e MINIO_REGION -e MINIO_ADDRESSING_STYLE -e MINIO_ACCESS_KEY -e MINIO_SECRET_KEY \
+  --entrypoint advertest-admin advertest-worker:cpu import-local --store /data/store --as <email admin>
+railway tcp-proxy delete <id> -s Postgres -y
+```
+
+Chạy lại không sao: thứ đã có thì bỏ qua (cùng sha256). Lỗi "Không tìm thấy ảnh ... trong: [...]"
+nghĩa là thư mục gốc ghi trong `datasets/<sha>/sources/*.json` của LocalStore không chứa ảnh đó. Khi
+đó làm trên một bản sao của LocalStore, thêm file nguồn `sources/<sha256 của đường dẫn>.json` với
+`{"root": "/data/<thư mục chứa image_2/>"}`, rồi mount bản sao vào `/store` và dùng `--store /store`.
+
 ## 4. Sao lưu
 
 ```bash
