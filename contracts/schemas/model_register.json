@@ -9,15 +9,17 @@
       "type": "string"
     },
     "framework": {
+      "description": "torchvision và ultralytics: file .safetensors; onnx: file .onnx",
       "enum": [
         "torchvision",
-        "onnx"
+        "onnx",
+        "ultralytics"
       ],
       "title": "Framework",
       "type": "string"
     },
     "architecture": {
-      "description": "torchvision: một trong TORCHVISION_ARCHITECTURES; onnx: mô tả tự do",
+      "description": "torchvision: một trong TORCHVISION_ARCHITECTURES; ultralytics: một trong ULTRALYTICS_ARCHITECTURES; onnx: mô tả tự do",
       "maxLength": 200,
       "minLength": 1,
       "title": "Architecture",

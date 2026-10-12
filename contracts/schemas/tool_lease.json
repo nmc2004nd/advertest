@@ -1,11 +1,12 @@
 {
   "$defs": {
     "ToolJobKind": {
-      "description": "Job công cụ của worker `--tools`; thứ tự lease: quick_try, rồi model_check và spec_check\ntheo thứ tự tạo.",
+      "description": "Job công cụ của worker `--tools`; thứ tự lease: quick_try, rồi các loại khác theo thứ tự\ntạo.",
       "enum": [
         "spec_check",
         "model_check",
-        "quick_try"
+        "quick_try",
+        "model_convert"
       ],
       "title": "ToolJobKind",
       "type": "string"

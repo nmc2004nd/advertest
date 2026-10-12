@@ -30,7 +30,7 @@ ADVERTEST_OWNER_PASSWORD=$(rnd)
 ADVERTEST_APP_PASSWORD=$(rnd)
 MINIO_ACCESS_KEY=advertest
 MINIO_SECRET_KEY=$(rnd 32)
-MINIO_PUBLIC_ENDPOINT=http://minio:9000
+MINIO_PUBLIC_ENDPOINT=http://127.0.0.1:9000
 ARTIFACT_TOKEN_SECRET=$(rnd 40)
 DEV_ALLOW_UNBLURRED=false
 COOKIE_SECURE=false
@@ -70,16 +70,23 @@ say "Nạp attack catalog, máy chạy local-dev và tài khoản admin"
 say "Nạp model YOLOv8n, dataset và slice 5 ảnh"
 "${DC[@]}" exec -T api advertest-admin import-local --store /data/store --as "$ADVERTEST_ADMIN_EMAIL"
 
-# 5. Worker: token mới mỗi lần chạy (token cũ hết hiệu lực), lưu vào .env.
-say "Khởi động worker CPU"
+# 5. Worker: token mới mỗi lần chạy (token cũ hết hiệu lực), lưu vào .env. worker-local chạy
+# experiment; worker-tools chạy thử nhanh, kiểm tra model và attack spec. Hai worker dùng chung
+# token của máy local-dev.
+say "Khởi động worker CPU (experiment và thử nhanh)"
 WORKER_TOKEN=$("${DC[@]}" exec -T api advertest-admin compute-target rotate-token local-dev --as "$ADVERTEST_ADMIN_EMAIL" | tail -n 1 | tr -d '\r')
-export WORKER_TOKEN
-if grep -q '^WORKER_TOKEN=' "$ENV_FILE"; then
-  sed -i.bak "s#^WORKER_TOKEN=.*#WORKER_TOKEN=$WORKER_TOKEN#" "$ENV_FILE" && rm -f "$ENV_FILE.bak"
-else
-  echo "WORKER_TOKEN=$WORKER_TOKEN" >>"$ENV_FILE"
-fi
-"${DC[@]}" --profile worker up -d --build worker-local
+WORKER_TOOLS_TOKEN=$WORKER_TOKEN
+export WORKER_TOKEN WORKER_TOOLS_TOKEN
+set_env() {
+  if grep -q "^$1=" "$ENV_FILE"; then
+    sed -i.bak "s#^$1=.*#$1=$2#" "$ENV_FILE" && rm -f "$ENV_FILE.bak"
+  else
+    echo "$1=$2" >>"$ENV_FILE"
+  fi
+}
+set_env WORKER_TOKEN "$WORKER_TOKEN"
+set_env WORKER_TOOLS_TOKEN "$WORKER_TOOLS_TOKEN"
+"${DC[@]}" --profile worker up -d --build worker-local worker-tools
 
 cat <<DONE
 
@@ -93,6 +100,6 @@ $(printf '\033[1;32m')AdverTest đã chạy.$(printf '\033[0m')
 Tiếp theo: mở web → "Yêu cầu truy cập" tạo 1 tài khoản kỹ sư và 1 reviewer, rồi đăng nhập admin
 → Người dùng → Chờ duyệt → Duyệt (chọn role). Kịch bản demo: docs/demo-mvp.md mục 7.
 
-Xem log worker:   docker compose -f docker/compose.yaml -f deploy/compose.local.yaml --env-file .env logs -f worker-local
+Xem log worker:   docker compose -f docker/compose.yaml -f deploy/compose.local.yaml --env-file .env logs -f worker-local worker-tools
 Dừng:             bash deploy/stop.sh
 DONE

@@ -30,9 +30,12 @@ bash deploy/stop.sh --xoa    # dừng và xóa sạch dữ liệu
 ## Sự cố thường gặp
 
 - **Cổng đã bị dùng** (5173, 8000, 9000, 9001, 8025): tắt ứng dụng đang dùng cổng đó, hoặc đặt
-  `FRONTEND_PORT=5174` (hoặc `API_PORT`, `MINIO_PORT`...) trong `.env` rồi chạy lại.
-- **Đã có `.env` cũ**: script không ghi đè. Cần có `MINIO_PUBLIC_ENDPOINT=http://minio:9000` để
-  worker trong Docker tải được ảnh; giá trị có dấu cách hoặc `<`, `>` phải đặt trong nháy kép.
+  `FRONTEND_PORT=5174` (hoặc `API_PORT`...) trong `.env` rồi chạy lại. Riêng cổng 9000 của MinIO
+  phải để trống (xem mục dưới).
+- **Đã có `.env` cũ**: script không ghi đè. Cần có `MINIO_PUBLIC_ENDPOINT=http://127.0.0.1:9000`
+  để trình duyệt upload được file (model, dataset) và worker tải được ảnh; `http://minio:9000`
+  (bản cũ) làm trình duyệt báo "Mất kết nối khi tải file lên". Giữ `MINIO_PORT=9000`: worker gọi
+  MinIO qua cổng trong container, luôn là 9000. Giá trị có dấu cách hoặc `<`, `>` phải đặt trong nháy kép.
   Muốn làm lại từ đầu: `bash deploy/stop.sh --xoa`, xóa `.env`, rồi chạy lại `start.sh`.
 - **Experiment đứng ở "Đang chờ"**: xem log worker bằng lệnh mà `start.sh` in ra ở cuối. Lần chạy
   đầu, worker tự đo chi phí (calibration) nên chậm hơn.

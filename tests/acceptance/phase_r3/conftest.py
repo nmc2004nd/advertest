@@ -56,6 +56,7 @@ create_protocol = R2.create_protocol
 required_grid = R2.required_grid
 max_drop = R2.max_drop
 register_onnx = R2.register_onnx
+upload = R2.upload
 finish_model_check = R2.finish_model_check
 spec_check_report = R2.spec_check_report
 KITTI_IMAGE = R2.KITTI_IMAGE

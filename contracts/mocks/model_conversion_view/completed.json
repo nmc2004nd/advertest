@@ -1,0 +1,20 @@
+{
+  "id": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
+  "status": "completed",
+  "framework": "ultralytics",
+  "result_upload_id": "6c1d2e3f-4051-4b62-8c73-8d94ea5f1022",
+  "metadata": {
+    "framework": "ultralytics",
+    "architecture": "yolo11n",
+    "class_names": [
+      "person",
+      "bicycle",
+      "car",
+      "truck"
+    ],
+    "input_size": 640,
+    "num_classes": null
+  },
+  "error": null,
+  "created_at": "2026-10-12T08:00:00Z"
+}

@@ -1270,6 +1270,97 @@
           }
         },
         "x-permission": "model.read"
+      },
+      "delete": {
+        "tags": [
+          "models"
+        ],
+        "summary": "Delete Model",
+        "description": "Xóa model chưa dùng (cùng class mapping, cost profile, weights). 409 khi model đã có\nexperiment hoặc lượt thử nhanh (dùng lưu trữ) hoặc đang `checking`.",
+        "operationId": "delete_model_models__model_id__delete",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "model_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Model Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "forbidden: không phải người đăng ký model hoặc admin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sai trạng thái hoặc trùng",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-permission": "model.manage"
       }
     },
     "/datasets": {
@@ -1646,6 +1737,102 @@
           }
         },
         "x-permission": "dataset.read"
+      },
+      "post": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Create Class Mapping",
+        "description": "Class mapping cho model của mình (422 khi class không thuộc dataset hoặc model; 409 khi\ntrùng hoặc model đã lưu trữ).",
+        "operationId": "create_class_mapping_class_mappings_post",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassMappingCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClassMappingSummary"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "forbidden: không phải người đăng ký model hoặc admin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sai trạng thái hoặc trùng",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-permission": "model.manage"
       }
     },
     "/attack-specs": {
@@ -5413,6 +5600,244 @@
         "x-permission": "experiment.read"
       }
     },
+    "/experiments/{experiment_id}/narrative": {
+      "get": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Get Narrative",
+        "description": "Nhận xét chi tiết do LLM viết (bản mới nhất), có cũ so với insight hiện tại không, và có\ntạo được không. Không gọi LLM.",
+        "operationId": "get_narrative_experiments__experiment_id__narrative_get",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NarrativeState"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Experiment chưa kết thúc hoặc chưa có run có metric",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "LLM lỗi, quá thời gian hoặc trả sai định dạng (`llm_failed`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Máy chủ chưa cấu hình LLM (`llm_unavailable`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-permission": "experiment.read"
+      },
+      "post": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Create Narrative",
+        "description": "Gọi LLM viết nhận xét từ số liệu insight hiện tại rồi lưu; cùng số liệu thì trả bản đã\nlưu, không gọi lại. Chỉ khi experiment đã kết thúc và có run có metric.",
+        "operationId": "create_narrative_experiments__experiment_id__narrative_post",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Experiment Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExperimentNarrative"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Experiment chưa kết thúc hoặc chưa có run có metric",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "LLM lỗi, quá thời gian hoặc trả sai định dạng (`llm_failed`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Máy chủ chưa cấu hình LLM (`llm_unavailable`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-permission": "experiment.read"
+      }
+    },
     "/experiments/{experiment_id}/promote": {
       "post": {
         "tags": [
@@ -6584,6 +7009,394 @@
           },
           "403": {
             "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sai trạng thái hoặc trùng",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-permission": "model.manage"
+      }
+    },
+    "/models/conversions": {
+      "post": {
+        "tags": [
+          "models"
+        ],
+        "summary": "Create Model Conversion",
+        "description": "Phase R3 (đề xuất contract 003): đổi `.pt`/`.pth` đã upload sang `.safetensors` trong\nsandbox chuyển đổi; API không mở file. 409 khi đang có lượt chưa xong.",
+        "operationId": "create_model_conversion_models_conversions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModelConversionCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelConversionView"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sai trạng thái hoặc trùng",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "x-permission": "model.manage"
+      }
+    },
+    "/models/conversions/{conversion_id}": {
+      "get": {
+        "tags": [
+          "models"
+        ],
+        "summary": "Get Model Conversion",
+        "description": "Lượt chuyển đổi của chính người gọi (của người khác: 404).",
+        "operationId": "get_model_conversion_models_conversions__conversion_id__get",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Conversion Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelConversionView"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Thiếu permission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-permission": "model.manage"
+      }
+    },
+    "/models/{model_id}/archive": {
+      "post": {
+        "tags": [
+          "models"
+        ],
+        "summary": "Archive Model",
+        "description": "Lưu trữ model: không chọn được cho experiment, thử nhanh, mapping mới (409 khi đã lưu\ntrữ).",
+        "operationId": "archive_model_models__model_id__archive_post",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "model_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Model Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelSummary"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "forbidden: không phải người đăng ký model hoặc admin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tìm thấy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Sai trạng thái hoặc trùng",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-permission": "model.manage"
+      }
+    },
+    "/models/{model_id}/restore": {
+      "post": {
+        "tags": [
+          "models"
+        ],
+        "summary": "Restore Model",
+        "description": "Bỏ lưu trữ model (409 khi model chưa lưu trữ).",
+        "operationId": "restore_model_models__model_id__restore_post",
+        "security": [
+          {
+            "userSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "model_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Model Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelSummary"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Chưa cài đặt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Thiếu phiên hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "forbidden: không phải người đăng ký model hoặc admin",
             "content": {
               "application/json": {
                 "schema": {
@@ -9503,6 +10316,34 @@
             },
             "type": "array",
             "title": "Ignore Regions"
+          },
+          "content_box": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 4,
+                "minItems": 4
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Box",
+            "description": "Vùng ảnh thật trong ảnh letterbox (xyxy pixel, không gian letterbox), phần còn lại là pad 114. null với dữ liệu tạo trước Phase R3: giao diện hiển thị cả khung vuông (đề xuất contract 001, Phase R3)"
           }
         },
         "additionalProperties": false,
@@ -9772,6 +10613,57 @@
           "mapping_sha256"
         ],
         "title": "ClassMapping"
+      },
+      "ClassMappingCreate": {
+        "properties": {
+          "dataset_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Dataset Version Id"
+          },
+          "model_version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Model Version Id"
+          },
+          "classes": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "minProperties": 1,
+            "title": "Classes",
+            "description": "Class gốc → class model; null thành ignore region unmapped:<class>"
+          },
+          "difficulty": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DifficultyFilter"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null là không lọc theo độ khó"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "dataset_version_id",
+          "model_version_id",
+          "classes",
+          "difficulty"
+        ],
+        "title": "ClassMappingCreate",
+        "description": "`POST /class-mappings` (Phase R3, đề xuất contract 002): tạo mapping cho model đăng ký qua\nweb. Backend kiểm tra class gốc thuộc dataset version, class đích thuộc model; `preset` được\nsuy ra khi nội dung trùng một preset (ví dụ `kitti-coco`); trùng hash → 409."
       },
       "ClassMappingSummary": {
         "properties": {
@@ -10646,7 +11538,9 @@
           "experiment_locked",
           "checklist_incomplete",
           "quick_try_busy",
-          "gone"
+          "gone",
+          "llm_unavailable",
+          "llm_failed"
         ],
         "title": "ErrorCode"
       },
@@ -11512,6 +12406,88 @@
         ],
         "title": "ExperimentMode",
         "description": "Suy ra từ protocol: status dev → exploration (mission.md nguyên tắc 11)."
+      },
+      "ExperimentNarrative": {
+        "properties": {
+          "experiment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Experiment Id"
+          },
+          "input_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Input Sha256",
+            "description": "sha256 canonical_json của dữ liệu gửi LLM"
+          },
+          "prompt_version": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Prompt Version"
+          },
+          "llm_model": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Llm Model",
+            "description": "Model LLM đã viết, ví dụ deepseek-chat"
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Summary"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/NarrativeFinding"
+            },
+            "type": "array",
+            "maxItems": 5,
+            "title": "Findings"
+          },
+          "next_steps": {
+            "items": {
+              "type": "string",
+              "maxLength": 500,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 5,
+            "title": "Next Steps",
+            "description": "Gợi ý; con người quyết định"
+          },
+          "partial": {
+            "type": "boolean",
+            "title": "Partial",
+            "description": "Insight lúc viết là kết quả một phần"
+          },
+          "created_by": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Created By"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "experiment_id",
+          "input_sha256",
+          "prompt_version",
+          "llm_model",
+          "summary",
+          "findings",
+          "next_steps",
+          "partial",
+          "created_by",
+          "created_at"
+        ],
+        "title": "ExperimentNarrative",
+        "description": "Nhận xét chi tiết do LLM viết từ số liệu insight của experiment. Chỉ để tham khảo, không\nthay câu kết luận theo luật và không vào report. Lưu theo `input_sha256` (hash dữ liệu gửi\nLLM): cùng dữ liệu thì dùng lại bản đã lưu, không gọi LLM lần nữa."
       },
       "ExperimentPage": {
         "properties": {
@@ -12690,6 +13666,242 @@
         "title": "ModelCheckResult",
         "description": "Kết quả job model_check: nạp model, so sha256, inference trên fixture, số class, kiểm\ngradient (chỉ torchvision)."
       },
+      "ModelConversionCreate": {
+        "properties": {
+          "upload_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Upload Id"
+          },
+          "framework": {
+            "type": "string",
+            "enum": [
+              "torchvision",
+              "ultralytics"
+            ],
+            "title": "Framework",
+            "description": "ultralytics: checkpoint YOLO; torchvision: state dict detection"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "upload_id",
+          "framework"
+        ],
+        "title": "ModelConversionCreate",
+        "description": "`POST /models/conversions`: đổi file `.pt`/`.pth` đã upload (`POST /models/uploads`) sang\n`.safetensors` trong sandbox chuyển đổi (mission.md nguyên tắc 10)."
+      },
+      "ModelConversionView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ToolJobStatus"
+          },
+          "framework": {
+            "type": "string",
+            "enum": [
+              "torchvision",
+              "ultralytics"
+            ],
+            "title": "Framework"
+          },
+          "result_upload_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result Upload Id",
+            "description": "upload_id của file `.safetensors` kết quả, dùng cho `POST /models`; có khi và chỉ khi completed"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelConvertMetadata"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Có khi và chỉ khi completed"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "Có khi và chỉ khi failed"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "framework",
+          "result_upload_id",
+          "metadata",
+          "error",
+          "created_at"
+        ],
+        "title": "ModelConversionView",
+        "description": "`POST /models/conversions` (202) và `GET /models/conversions/{id}`; `id` là id của job."
+      },
+      "ModelConvertMetadata": {
+        "properties": {
+          "framework": {
+            "type": "string",
+            "enum": [
+              "torchvision",
+              "ultralytics"
+            ],
+            "title": "Framework"
+          },
+          "architecture": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Architecture"
+          },
+          "class_names": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "minItems": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Class Names"
+          },
+          "input_size": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Size"
+          },
+          "num_classes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Num Classes",
+            "description": "Số đầu ra class của state dict (torchvision, có nền)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "framework"
+        ],
+        "title": "ModelConvertMetadata",
+        "description": "Metadata đọc được từ checkpoint `.pt` trong sandbox (đề xuất contract 003); form đăng ký tự\nđiền từ đây. Trường null là không đọc được, người dùng tự chọn."
+      },
+      "ModelConvertPayload": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "model_convert",
+            "title": "Kind",
+            "default": "model_convert"
+          },
+          "conversion_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Conversion Id"
+          },
+          "framework": {
+            "type": "string",
+            "enum": [
+              "torchvision",
+              "ultralytics"
+            ],
+            "title": "Framework"
+          },
+          "source_url": {
+            "type": "string",
+            "pattern": "^https?://\\S+$",
+            "title": "Source Url",
+            "description": "GET file `.pt`/`.pth` đã upload"
+          },
+          "result_upload_url": {
+            "type": "string",
+            "pattern": "^https?://\\S+$",
+            "title": "Result Upload Url",
+            "description": "PUT file `.safetensors` kết quả"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "conversion_id",
+          "framework",
+          "source_url",
+          "result_upload_url"
+        ],
+        "title": "ModelConvertPayload",
+        "description": "Worker công cụ không mở file: tải `source_url`, chuyển byte cho sandbox chuyển đổi, PUT kết\nquả lên `result_upload_url` (đề xuất contract 003)."
+      },
+      "ModelConvertReport": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "model_convert",
+            "title": "Kind",
+            "default": "model_convert"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/ModelConvertMetadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "metadata"
+        ],
+        "title": "ModelConvertReport",
+        "description": "File `.safetensors` đã PUT lên `result_upload_url` trước khi gửi report."
+      },
       "ModelRef": {
         "properties": {
           "id": {
@@ -12723,16 +13935,18 @@
             "type": "string",
             "enum": [
               "torchvision",
-              "onnx"
+              "onnx",
+              "ultralytics"
             ],
-            "title": "Framework"
+            "title": "Framework",
+            "description": "torchvision và ultralytics: file .safetensors; onnx: file .onnx"
           },
           "architecture": {
             "type": "string",
             "maxLength": 200,
             "minLength": 1,
             "title": "Architecture",
-            "description": "torchvision: một trong TORCHVISION_ARCHITECTURES; onnx: mô tả tự do"
+            "description": "torchvision: một trong TORCHVISION_ARCHITECTURES; ultralytics: một trong ULTRALYTICS_ARCHITECTURES; onnx: mô tả tự do"
           },
           "upload_id": {
             "type": "string",
@@ -12835,6 +14049,44 @@
               }
             ],
             "description": "Kết quả job model_check gần nhất; null với model đăng ký qua CLI"
+          },
+          "archived_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archived At",
+            "description": "Phase R3 (đề xuất contract 002): model đã lưu trữ không chọn được cho experiment, thử nhanh hay mapping mới; experiment và report cũ vẫn tra được"
+          },
+          "owner_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Id",
+            "description": "Phase R3 (đề xuất contract 002): người đăng ký model; chỉ người này hoặc admin được xóa, lưu trữ, thêm class mapping"
+          },
+          "owner_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Name",
+            "description": "Họ tên người đăng ký model"
           }
         },
         "additionalProperties": false,
@@ -12885,8 +14137,9 @@
             "type": "string",
             "maxLength": 255,
             "minLength": 1,
-            "pattern": "^[^/\\\\]+\\.(onnx|safetensors)$",
-            "title": "Filename"
+            "pattern": "^[^/\\\\]+\\.(onnx|safetensors|pt|pth)$",
+            "title": "Filename",
+            "description": "`.pt`/`.pth` chỉ dùng cho `POST /models/conversions` (đề xuất contract 003); `POST /models` từ chối"
           },
           "size_bytes": {
             "type": "integer",
@@ -12902,7 +14155,7 @@
           "size_bytes"
         ],
         "title": "ModelUploadCreate",
-        "description": "`POST /models/uploads`: chỉ `.onnx` hoặc `.safetensors`, tối đa 500 MB (mission.md nguyên\ntắc 10). Nội dung được kiểm tra lại khi `POST /models`."
+        "description": "`POST /models/uploads`: `.onnx`, `.safetensors`, hoặc `.pt`/`.pth` để chuyển đổi trong\nsandbox; tối đa 500 MB (mission.md nguyên tắc 10). Nội dung được kiểm tra lại khi\n`POST /models`."
       },
       "ModelVerdict": {
         "type": "string",
@@ -12913,6 +14166,70 @@
         ],
         "title": "ModelVerdict",
         "description": "Kết luận của reviewer về model; tách khỏi quyết định chấp nhận bài test (Phase 8)."
+      },
+      "NarrativeFinding": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "detail": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Detail"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "title",
+          "detail"
+        ],
+        "title": "NarrativeFinding",
+        "description": "Một nhận xét: tiêu đề ngắn và phần giải thích dựa trên số liệu."
+      },
+      "NarrativeState": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "false khi máy chủ chưa cấu hình LLM"
+          },
+          "narrative": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExperimentNarrative"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Bản mới nhất; null khi chưa có"
+          },
+          "stale": {
+            "type": "boolean",
+            "title": "Stale",
+            "description": "Dữ liệu insight đã đổi so với bản đã lưu"
+          },
+          "can_generate": {
+            "type": "boolean",
+            "title": "Can Generate",
+            "description": "Experiment đã kết thúc và có run có metric (điều kiện của POST)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "enabled",
+          "narrative",
+          "stale",
+          "can_generate"
+        ],
+        "title": "NarrativeState",
+        "description": "`GET /experiments/{id}/narrative`."
       },
       "PassCriterion": {
         "properties": {
@@ -13920,6 +15237,34 @@
             "type": "array",
             "minItems": 1,
             "title": "Levels"
+          },
+          "content_box": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 4,
+                "minItems": 4
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Box",
+            "description": "Vùng ảnh thật trong ảnh letterbox (xyxy pixel, không gian letterbox), phần còn lại là pad 114. null với dữ liệu tạo trước Phase R3: giao diện hiển thị cả khung vuông (đề xuất contract 001, Phase R3)"
           }
         },
         "additionalProperties": false,
@@ -13978,6 +15323,34 @@
             ],
             "title": "Clean Image Url",
             "description": "Ảnh sạch đã letterbox và làm mờ; có khi và chỉ khi completed. Ảnh gốc chưa làm mờ không bao giờ được phục vụ qua API"
+          },
+          "content_box": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 4,
+                "minItems": 4
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Box",
+            "description": "Vùng ảnh thật trong ảnh letterbox (xyxy pixel, không gian letterbox), phần còn lại là pad 114. null với dữ liệu tạo trước Phase R3: giao diện hiển thị cả khung vuông (đề xuất contract 001, Phase R3); chỉ có khi completed"
           },
           "levels": {
             "items": {
@@ -17814,6 +19187,9 @@
               },
               {
                 "$ref": "#/components/schemas/QuickTryPayload"
+              },
+              {
+                "$ref": "#/components/schemas/ModelConvertPayload"
               }
             ],
             "title": "Payload",
@@ -17821,6 +19197,7 @@
               "propertyName": "kind",
               "mapping": {
                 "model_check": "#/components/schemas/ModelCheckPayload",
+                "model_convert": "#/components/schemas/ModelConvertPayload",
                 "quick_try": "#/components/schemas/QuickTryPayload",
                 "spec_check": "#/components/schemas/SpecCheckPayload"
               }
@@ -17847,10 +19224,11 @@
         "enum": [
           "spec_check",
           "model_check",
-          "quick_try"
+          "quick_try",
+          "model_convert"
         ],
         "title": "ToolJobKind",
-        "description": "Job công cụ của worker `--tools`; thứ tự lease: quick_try, rồi model_check và spec_check\ntheo thứ tự tạo."
+        "description": "Job công cụ của worker `--tools`; thứ tự lease: quick_try, rồi các loại khác theo thứ tự\ntạo."
       },
       "ToolJobResult": {
         "properties": {
@@ -17871,12 +19249,16 @@
                   },
                   {
                     "$ref": "#/components/schemas/QuickTryReport"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ModelConvertReport"
                   }
                 ],
                 "discriminator": {
                   "propertyName": "kind",
                   "mapping": {
                     "model_check": "#/components/schemas/ModelCheckReport",
+                    "model_convert": "#/components/schemas/ModelConvertReport",
                     "quick_try": "#/components/schemas/QuickTryReport",
                     "spec_check": "#/components/schemas/SpecCheckReport"
                   }

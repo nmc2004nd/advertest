@@ -51,4 +51,11 @@ export const CATALOG_COPY = {
     nms: 'Ba tensor boxes/scores/labels, đã qua NMS.',
     outro: 'Model theo layout khác sẽ kiểm tra không đạt.',
   },
+  ultralyticsHint: {
+    intro:
+      'Có file .pt? Chọn thẳng file đó: máy chủ chuyển sang safetensors trong sandbox. Hoặc tự đổi checkpoint YOLO (v8, v9, 11, 12) trên máy bạn:',
+    command: 'uv run --extra cpu advertest model export-safetensors yolo11n.pt',
+    outro:
+      'File .safetensors ghi sẵn kiến trúc, class và kích thước 640 để form tự điền. Model đạt bài kiểm tra gradient thì chạy được cả attack cần gradient.',
+  },
 } as const

@@ -5,6 +5,7 @@
   chỉ nạp khi gọi `predict` hoặc `estimator` lần đầu (runner không nạp model khi mọi run đã có
   cache).
 - Phase R2 thêm `TorchvisionAdapter` (safetensors, estimator ART) và `OnnxAdapter` (chỉ inference);
+  model Ultralytics đăng ký qua web là safetensors, dựng lại từ config (`ultralytics_safetensors`);
   `open_adapter` chọn adapter theo `ModelCard.framework` (requirements.md Phase R2, mục Model qua
   web).
 - `ModelProvider` cache adapter theo `(weights_sha256, InferenceParams, device)`, LRU tối đa
@@ -30,7 +31,7 @@ from advertest_contracts.perturbation import ImageBatch
 from ml_core.models import onnx_model, torchvision_detection
 from ml_core.models.estimator import build_estimator
 from ml_core.models.register import weights_key
-from ml_core.models.wrapper import load_detection_model
+from ml_core.models.ultralytics_safetensors import load_ultralytics
 from ml_core.store import ArtifactStore
 
 Prediction = dict[str, NDArray[Any]]  # {"boxes": (K, 4), "labels": (K,), "scores": (K,)}
@@ -72,6 +73,10 @@ class UltralyticsAdapter:
         self.capabilities = Capabilities(gradients=card.supports_gradients)
         self._load = load
         self._estimator: PyTorchYolo | None = None
+
+    def detector(self) -> PyTorchYolo:
+        """Estimator đã nạp model, không xét `supports_gradients` (bài kiểm tra gradient dùng)."""
+        return self._yolo()
 
     def _yolo(self) -> PyTorchYolo:
         if self._estimator is None:
@@ -182,18 +187,19 @@ def open_adapter(
 ) -> ModelAdapter:
     """Adapter cho file weights `weights` theo `card.framework`; model nạp lười."""
     return _make_adapter(
-        card, params, device, lambda _card: load_detection_model(weights), lambda: weights
+        card, params, device, lambda card: load_ultralytics(card, weights), lambda: weights
     )
 
 
 def store_loader(store: ArtifactStore) -> ModelLoader:
-    """Nạp weights đã đăng ký (`models/<sha>/weights.pt`) từ store."""
+    """Nạp weights Ultralytics đã đăng ký (`models/<sha>/weights.pt`) từ store: `.pt` của CLI
+    hoặc safetensors của web (`load_ultralytics`)."""
 
     def load(card: ModelCard) -> DetectionModel:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "weights.pt"
             path.write_bytes(store.get(weights_key(card.weights_sha256)))
-            return load_detection_model(path)
+            return load_ultralytics(card, path)
 
     return load
 

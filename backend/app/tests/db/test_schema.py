@@ -31,9 +31,12 @@ EXPECTED_TABLES = {
     "run_explanations", "review_comments",
     # Phase R2
     "tool_jobs", "quick_tries",
+    # Nhận xét chi tiết bằng LLM
+    "experiment_narratives",
 }  # fmt: skip
 APPEND_ONLY = [
     "audit_log", "case_verdicts", "reviews", "reports", "ledger_entries", "auth_events",
+    "experiment_narratives",
 ]  # fmt: skip
 # Phase 4: thu hồi phiên, đánh dấu token đã dùng bằng UPDATE; không bao giờ xóa.
 # Phase 5: email trong outbox chỉ được đánh dấu đã gửi hoặc lỗi.

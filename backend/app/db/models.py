@@ -226,6 +226,8 @@ class ModelVersion(Base):
         pg_enum(ModelStatus, "model_status"), server_default=ModelStatus.READY.value
     )
     check: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    # Phase R3 (đề xuất contract 002): model đã lưu trữ không chọn được cho việc mới.
+    archived_at: Mapped[datetime | None]
 
 
 class CostProfile(Base):
@@ -562,6 +564,28 @@ class RunExplanation(Base):
     run_id: Mapped[UUID] = mapped_column(ForeignKey("runs.id"), unique=True)
     author_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
     text: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = _created_at()
+
+
+class ExperimentNarrativeRow(Base):
+    """Nhận xét chi tiết do LLM viết; chỉ thêm. Mỗi experiment một bản cho mỗi dữ liệu đầu vào
+    (`input_sha256`) và phiên bản prompt."""
+
+    __tablename__ = "experiment_narratives"
+    __table_args__ = (
+        UniqueConstraint("experiment_id", "input_sha256", "prompt_version"),
+        Index("ix_experiment_narratives_experiment_id", "experiment_id", "created_at"),
+    )
+
+    id: Mapped[UUID] = _uuid_pk()
+    experiment_id: Mapped[UUID] = mapped_column(ForeignKey("experiments.id"))
+    input_sha256: Mapped[str] = mapped_column(Sha256)
+    prompt_version: Mapped[str] = mapped_column(Text)
+    llm_model: Mapped[str] = mapped_column(Text)
+    # summary, findings, next_steps của ExperimentNarrative.
+    content: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    partial: Mapped[bool]
+    created_by: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = _created_at()
 
 

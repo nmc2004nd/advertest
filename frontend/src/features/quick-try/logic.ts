@@ -14,9 +14,9 @@ import type { QuickTryObjectStatus } from '@/contracts/schemas'
 export const QUICK_TRY_MAX_BYTES = 10 * 1024 * 1024
 export const QUICK_TRY_TYPES = ['image/jpeg', 'image/png'] as const
 
-/** Model chọn được: chỉ `ready`. */
+/** Model chọn được: chỉ `ready` và chưa lưu trữ. */
 export function readyModels(models: readonly ModelSummary[]): ModelSummary[] {
-  return models.filter((m) => m.status === 'ready')
+  return models.filter((m) => m.status === 'ready' && !m.archived_at)
 }
 
 /**

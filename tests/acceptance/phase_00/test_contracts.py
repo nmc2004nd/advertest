@@ -61,6 +61,8 @@ ENUMS = {
         "not_compliant", "experiment_locked", "checklist_incomplete",
         # Phase R2 (requirements.md Phase R2, Chốt ở Group 0).
         "quick_try_busy", "gone",
+        # Nhận xét chi tiết bằng LLM (người dùng cho phép sửa, 2026-10-12).
+        "llm_unavailable", "llm_failed",
     },
     "ProtocolStatus": {"active", "retired", "dev"},
     # Phase 5: cách hiển thị ảnh failure case.

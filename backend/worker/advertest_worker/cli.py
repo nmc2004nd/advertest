@@ -23,6 +23,7 @@ import typer
 from advertest_worker.cache import JobCache
 from advertest_worker.client import WorkerClient
 from advertest_worker.config import WorkerSettings
+from advertest_worker.converter import SpoolClient
 from advertest_worker.job import JobRunner
 from advertest_worker.tools import ToolRunner
 from ml_core.runner.env import default_device
@@ -119,6 +120,7 @@ def main(
         JobCache(settings.cache_dir),
         settings.device or default_device(),
         heartbeat_interval_s=settings.heartbeat_interval_s,
+        converter=SpoolClient(settings.convert_spool) if settings.convert_spool else None,
     )
     serve_tools(runner, once=once, poll_interval_s=settings.poll_interval_s)
 

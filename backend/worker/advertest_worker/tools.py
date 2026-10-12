@@ -6,6 +6,9 @@ job. Heartbeat chạy ở luồng riêng (lease 60 giây); mất lease (`409`) t
 
 - `spec_check`: `spec_check.run_spec_check` (tiến trình con, cắt cứng khi quá giờ).
 - `model_check`: tải weights vào file tạm, `ml_core.models.check.check_model`.
+- `model_convert` (Phase R3, đề xuất contract 003): tải `.pt`, chuyển byte sang sandbox chuyển
+  đổi qua spool (`converter.SpoolClient`), PUT `.safetensors` kết quả. Worker không mở pickle:
+  metadata đọc từ header JSON của safetensors.
 - `quick_try`: weights vào cache (kiểm sha256), adapter qua `ModelProvider` (LRU), tính mọi level
   (`quick_try.run_quick_try`), PUT ảnh đã làm mờ lên presigned URL, rồi gửi report.
 
@@ -23,7 +26,8 @@ import tempfile
 import threading
 from collections.abc import Callable
 from datetime import UTC, datetime
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+from urllib.parse import unquote, urlparse
 from uuid import UUID
 
 import httpx
@@ -34,6 +38,9 @@ from advertest_contracts.models import (
     ModelCard,
     ModelCheckPayload,
     ModelCheckReport,
+    ModelConvertMetadata,
+    ModelConvertPayload,
+    ModelConvertReport,
     QuickTryPayload,
     QuickTryReport,
     SpecCheckPayload,
@@ -47,6 +54,7 @@ from advertest_contracts.models import (
 from advertest_worker.cache import JobCache
 from advertest_worker.client import LeaseLost, WorkerClient
 from advertest_worker.config import HEARTBEAT_INTERVAL_S
+from advertest_worker.converter import SpoolClient, metadata_report, safetensors_metadata
 from advertest_worker.quick_try import run_quick_try
 from advertest_worker.spec_check import run_spec_check
 from attacks.builders import DEFAULT_REGISTRY, PerturbationRegistry
@@ -138,6 +146,7 @@ class ToolRunner:
         registry: PerturbationRegistry = DEFAULT_REGISTRY,
         model_provider: ModelSource | None = None,
         selfcheck_timeout_s: float = DEFAULT_TIMEOUT_S,
+        converter: SpoolClient | None = None,
     ) -> None:
         self.client = client
         self.cache = cache
@@ -148,6 +157,7 @@ class ToolRunner:
         self.registry = registry
         self.models = model_provider or ModelProvider(cache.store)
         self.selfcheck_timeout_s = selfcheck_timeout_s
+        self.converter = converter
 
     def run_next(self) -> bool:
         """Lease và chạy một job công cụ; `False` khi không còn job."""
@@ -189,6 +199,8 @@ class ToolRunner:
             return self._spec_check(payload)
         if isinstance(payload, ModelCheckPayload):
             return self._model_check(payload)
+        if isinstance(payload, ModelConvertPayload):
+            return self._model_convert(payload)
         return self._quick_try(payload)
 
     # ------------------------------------------------------------------ từng loại job
@@ -230,4 +242,18 @@ class ToolRunner:
         ]
         for url, data in uploads:
             self.url_http.put(url, content=data).raise_for_status()
-        return QuickTryReport(levels=output.levels)
+        return QuickTryReport(levels=output.levels, content_box=output.content_box)
+
+    def _model_convert(self, payload: ModelConvertPayload) -> ModelConvertReport:
+        if self.converter is None:
+            raise RuntimeError("Worker chưa nối sandbox chuyển đổi (đặt CONVERT_SPOOL)")
+        source = self.url_http.get(payload.source_url).raise_for_status().content
+        filename = PurePosixPath(unquote(urlparse(payload.source_url).path)).name
+        result = self.converter.convert(
+            str(payload.conversion_id), source, filename, payload.framework
+        )
+        metadata = ModelConvertMetadata.model_validate(
+            metadata_report(safetensors_metadata(result), payload.framework)
+        )
+        self.url_http.put(payload.result_upload_url, content=result).raise_for_status()
+        return ModelConvertReport(metadata=metadata)

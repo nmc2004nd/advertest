@@ -4,19 +4,21 @@
  * Polling 2 giây khi experiment còn `queued`/`running`, dừng khi đã ở trạng thái cuối; TanStack
  * Query tự tạm dừng polling khi tab bị ẩn (`refetchIntervalInBackground` mặc định là false).
  */
-import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef } from 'react'
 
-import { apiGet } from '@/api/client'
+import { apiGet, apiSend } from '@/api/client'
 import { POLL_INTERVAL_MS } from '@/api/queries'
 import type {
   AttackSpec,
   ExperimentDetail,
   ExperimentInsight,
+  ExperimentNarrative,
   ExperimentPage,
   ExperimentStatus,
   FailureCaseView,
   Manifest,
+  NarrativeState,
   RunStatus,
   RunView,
 } from '@/contracts/api'
@@ -59,6 +61,29 @@ export function useInsight(id: string, status: ExperimentStatus | undefined) {
     queryKey: [...experimentKey(id), 'insight'],
     queryFn: () => apiGet<ExperimentInsight>(`/experiments/${id}/insight`),
     refetchInterval: experimentPollInterval(status),
+  })
+}
+
+/** Nhận xét chi tiết do LLM viết: bản đã lưu, có cũ không, có tạo được không (không gọi LLM). */
+export function useNarrative(id: string, status: ExperimentStatus | undefined) {
+  return useQuery({
+    queryKey: [...experimentKey(id), 'narrative'],
+    queryFn: () => apiGet<NarrativeState>(`/experiments/${id}/narrative`),
+    refetchInterval: experimentPollInterval(status),
+  })
+}
+
+/** Gọi LLM viết nhận xét cho số liệu hiện tại (cùng số liệu thì server trả lại bản đã lưu). */
+export function useCreateNarrative(id: string) {
+  const queryClient = useQueryClient()
+  const key = [...experimentKey(id), 'narrative']
+  return useMutation({
+    mutationFn: () => apiSend<ExperimentNarrative>('POST', `/experiments/${id}/narrative`),
+    onSuccess: (narrative) => {
+      queryClient.setQueryData<NarrativeState>(key, (state) =>
+        state ? { ...state, narrative, stale: false } : state,
+      )
+    },
   })
 }
 

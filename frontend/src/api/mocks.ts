@@ -10,10 +10,12 @@ import type {
   ExperimentClone,
   ExperimentDetail,
   ExperimentInsight,
+  ExperimentNarrative,
   ExperimentPage,
   FailureCaseView,
   HealthResponse,
   Manifest,
+  NarrativeState,
   Me,
   ModelSummary,
   ProtocolSummary,
@@ -167,6 +169,12 @@ function mockPhase5(pathname: string, query: URLSearchParams): unknown {
       first(insights, pathname)
     )
   }
+  m = match(`/experiments/${id}/narrative`)
+  if (m) {
+    // Chưa có nhận xét, tạo được: trang dev bấm "Tạo nhận xét" để xem bản mock.
+    const states = listMocks<NarrativeState>('narrative_state')
+    return states.find((s) => s.enabled && s.narrative === null) ?? first(states, pathname)
+  }
   m = match(`/experiments/${id}/clone`)
   if (m) {
     const clones = listMocks<ExperimentClone>('experiment_clone')
@@ -241,6 +249,9 @@ export function mockSend<T>(method: string, path: string): T {
       (c) => c.config.promoted_from,
     )
     if (promoted) return promoted as T
+  }
+  if (method === 'POST' && /^\/experiments\/[^/]+\/narrative$/.test(path)) {
+    return first(listMocks<ExperimentNarrative>('experiment_narrative'), path) as T
   }
   throw new Error(`Chế độ mock không hỗ trợ ${method} ${path}`)
 }

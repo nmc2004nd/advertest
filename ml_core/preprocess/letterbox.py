@@ -36,6 +36,11 @@ class LetterboxInfo:
     orig_size: tuple[int, int]  # (rộng, cao) của ảnh gốc
     size: int = INPUT_SIZE
 
+    def content_box(self) -> list[float]:
+        """Vùng ảnh thật trong ảnh letterbox, xyxy pixel (phần còn lại là pad)."""
+        _, new_w, new_h, left, top = _geometry(*self.orig_size, self.size)
+        return [float(left), float(top), float(left + new_w), float(top + new_h)]
+
     def as_dict(self) -> dict[str, object]:
         """Thông tin letterbox riêng của một ảnh, dạng JSON.
 

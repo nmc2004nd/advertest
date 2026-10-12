@@ -49,8 +49,9 @@ def test_new_permissions_by_role() -> None:
     approve, quick = Permission.ATTACK_CATALOG_APPROVE, Permission.QUICK_TRY_USE
     assert {r for r in Role if approve in ROLE_PERMISSIONS[r]} == {Role.REVIEWER}
     assert {r for r in Role if quick in ROLE_PERMISSIONS[r]} == {Role.ENGINEER, Role.REVIEWER}
-    # Đăng ký model vẫn dùng model.manage (admin) như hiện tại.
-    assert {r for r in Role if Permission.MODEL_MANAGE in ROLE_PERMISSIONS[r]} == {Role.ADMIN}
+    # Engineer đăng ký model của mình; admin giữ quyền để hỗ trợ.
+    holders = {r for r in Role if Permission.MODEL_MANAGE in ROLE_PERMISSIONS[r]}
+    assert holders == {Role.ENGINEER, Role.ADMIN}
 
 
 def test_tool_worker_endpoints_use_worker_token() -> None:

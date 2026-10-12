@@ -20,6 +20,7 @@ from advertest_contracts.models import (
     ExperimentInsight,
     ExperimentPreset,
     ModelCard,
+    ModelConversionView,
     ModelRegister,
     ModelUploadCreate,
     ProtocolTemplate,
@@ -124,10 +125,17 @@ def test_model_card_onnx_never_supports_gradients() -> None:
         ModelCard.model_validate(card | {"framework": "onnx"})
 
 
-@pytest.mark.parametrize("filename", ["m.pt", "m.pkl", "m.zip", "m.onnx.pt", "a/m.onnx", "m"])
+@pytest.mark.parametrize("filename", ["m.pkl", "m.zip", "m.ckpt", "a/m.onnx", "a/m.pt", "m"])
 def test_upload_rejects_other_extensions(filename: str) -> None:
     with pytest.raises(ValidationError):
         ModelUploadCreate.model_validate({"filename": filename, "size_bytes": 10})
+
+
+@pytest.mark.parametrize("filename", ["best.pt", "frcnn.pth", "m.onnx", "m.safetensors"])
+def test_upload_accepts_weights_and_pickle_for_sandbox(filename: str) -> None:
+    """Đề xuất contract 003: `.pt`/`.pth` được upload để chuyển đổi trong sandbox; `POST /models`
+    vẫn chỉ nhận `.onnx`/`.safetensors` (kiểm ở backend)."""
+    ModelUploadCreate.model_validate({"filename": filename, "size_bytes": 10})
 
 
 def test_upload_size_limit() -> None:
@@ -147,6 +155,18 @@ def test_register_torchvision_architecture_allowlist() -> None:
         ModelRegister.model_validate(onnx | {"framework": "ultralytics"})
     with pytest.raises(ValidationError):
         ModelRegister.model_validate(onnx | {"class_names": ["car", "car"]})
+
+
+def test_register_ultralytics_architecture_and_size() -> None:
+    data = _mock("model_register", "ultralytics")
+    ModelRegister.model_validate(data)
+    for arch in ("yolov8x", "yolov9t", "yolo11s", "yolo12n"):
+        ModelRegister.model_validate(data | {"architecture": arch})
+    for arch in ("yolov5s", "yolov10n", "rtdetr-l", "YOLO11n"):
+        with pytest.raises(ValidationError, match="architecture"):
+            ModelRegister.model_validate(data | {"architecture": arch})
+    with pytest.raises(ValidationError, match="input_size"):
+        ModelRegister.model_validate(data | {"input_size": 320})
 
 
 # ---------------------------------------------------------------- Insight
@@ -241,6 +261,13 @@ def test_quick_try_view_rules() -> None:
     queued = _mock("quick_try_view", "queued")
     with pytest.raises(ValidationError):
         QuickTryView.model_validate(queued | {"error": "x"})
+    # Đề xuất contract 001 (Phase R3): content_box chỉ có khi completed; null là dữ liệu cũ.
+    assert QuickTryView.model_validate(done).content_box == (0.0, 80.0, 640.0, 560.0)
+    assert QuickTryView.model_validate(done | {"content_box": None}).content_box is None
+    with pytest.raises(ValidationError):
+        QuickTryView.model_validate(queued | {"content_box": [0, 80, 640, 560]})
+    with pytest.raises(ValidationError):
+        QuickTryView.model_validate(done | {"content_box": [640, 80, 0, 560]})
 
 
 def test_tool_job_result_needs_exactly_one() -> None:
@@ -251,3 +278,18 @@ def test_tool_job_result_needs_exactly_one() -> None:
     report = _mock("tool_job_result", "spec_check")["report"]
     with pytest.raises(ValidationError):
         ToolJobResult.model_validate(data | {"report": report})
+
+
+def test_model_conversion_view_rules() -> None:
+    """Đề xuất contract 003: kết quả có khi và chỉ khi completed, lỗi khi và chỉ khi failed."""
+    done = _mock("model_conversion_view", "completed")
+    view = ModelConversionView.model_validate(done)
+    assert view.metadata is not None and view.metadata.architecture == "yolo11n"
+    with pytest.raises(ValidationError):
+        ModelConversionView.model_validate(done | {"result_upload_id": None})
+    running = _mock("model_conversion_view", "running")
+    with pytest.raises(ValidationError):
+        ModelConversionView.model_validate(running | {"error": "x"})
+    failed = _mock("model_conversion_view", "failed")
+    with pytest.raises(ValidationError):
+        ModelConversionView.model_validate(failed | {"error": None})

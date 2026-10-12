@@ -1,6 +1,8 @@
 // Giá trị mặc định khi đăng ký model qua web: đọc metadata ngay trong file weights (không upload
 // trước), cộng các bộ class và kích thước đầu vào hay dùng để người dùng chọn thay vì gõ.
 
+import { ULTRALYTICS_ARCHITECTURES } from '@/admin/model-file'
+
 /** COCO 80 class theo thứ tự index của YOLO / Ultralytics (như fixture `yolov8n.onnx`). */
 export const COCO80 = [
   'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat',
@@ -55,12 +57,17 @@ export const CLASS_PRESETS: Record<
 export const INPUT_SIZES = [320, 416, 512, 640, 800, 1024] as const
 export const DEFAULT_INPUT_SIZE = 640
 
-/** Mô tả kiến trúc ONNX hay gặp; người dùng vẫn chọn "Khác" để tự nhập. */
+/**
+ * Mô tả kiến trúc ONNX chạy được (layout của `ml_core/models/onnx_model.py`): YOLO Ultralytics
+ * detect xuất mặc định (một đầu ra (1, 4 + C, N), chưa NMS), hoặc ba đầu ra boxes/scores/labels.
+ * Không gợi ý YOLOv5 (1, N, 5 + C), RT-DETR và bản end-to-end (1, 300, 6): sai layout. Người dùng
+ * vẫn chọn "Khác" để tự nhập.
+ */
 export const ONNX_ARCHITECTURES = [
   'YOLOv8 (Ultralytics) xuất ONNX',
+  'YOLOv9 (Ultralytics) xuất ONNX',
   'YOLO11 (Ultralytics) xuất ONNX',
-  'YOLOv5 xuất ONNX',
-  'RT-DETR xuất ONNX',
+  'YOLO12 (Ultralytics) xuất ONNX',
   'Model có đầu ra boxes/scores/labels (đã NMS)',
 ] as const
 
@@ -69,15 +76,24 @@ export function nameFromFile(fileName: string): string {
   return fileName.replace(/\.[^.]+$/, '').trim()
 }
 
-/** Framework suy từ đuôi file: `.onnx` → onnx, `.safetensors` → torchvision. */
-export function frameworkFromFile(fileName: string): 'onnx' | 'torchvision' | null {
+/**
+ * Framework suy từ file: `.onnx` → onnx; `.safetensors` → ultralytics khi metadata ghi
+ * `framework: ultralytics` (file của `advertest model export-safetensors`) hoặc kiến trúc là YOLO
+ * Ultralytics, còn lại torchvision.
+ */
+export function frameworkFromFile(
+  fileName: string,
+  meta: WeightsMeta = {},
+): 'onnx' | 'torchvision' | 'ultralytics' | null {
   if (/\.onnx$/i.test(fileName)) return 'onnx'
-  if (/\.safetensors$/i.test(fileName)) return 'torchvision'
-  return null
+  if (!/\.safetensors$/i.test(fileName)) return null
+  const yolo = (ULTRALYTICS_ARCHITECTURES as readonly string[]).includes(meta.architecture ?? '')
+  return meta.framework === 'ultralytics' || yolo ? 'ultralytics' : 'torchvision'
 }
 
 /** Thông tin đọc được trong file weights; trường không có thì `undefined`. */
 export interface WeightsMeta {
+  framework?: string
   architecture?: string
   classNames?: string[]
   inputSize?: number
@@ -114,6 +130,7 @@ function fromProps(props: Record<string, string>): WeightsMeta {
   const names = props.class_names ?? props.names
   const parsed = names ? parseNames(names) : undefined
   return {
+    framework: props.framework,
     architecture: props.architecture,
     classNames: parsed && uniqueNames(parsed),
     inputSize: parseSize(props.imgsz ?? props.input_size),

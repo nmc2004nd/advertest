@@ -1,0 +1,85 @@
+{
+  "$defs": {
+    "DifficultyFilter": {
+      "additionalProperties": false,
+      "description": "Ngưỡng độ khó (mức Moderate của KITTI: 25, 1, 0.30). Ngưỡng tính cả biên: GT được giữ khi\nđạt cả ba điều kiện, không đạt thì thành ignore region `difficulty:<class>`.",
+      "properties": {
+        "min_height_px": {
+          "description": "Giữ khi chiều cao bbox (y2 - y1, pixel ảnh gốc) >= min_height_px",
+          "minimum": 0,
+          "title": "Min Height Px",
+          "type": "number"
+        },
+        "max_occluded": {
+          "description": "Giữ khi occluded <= max_occluded",
+          "minimum": 0,
+          "title": "Max Occluded",
+          "type": "integer"
+        },
+        "max_truncated": {
+          "description": "Giữ khi truncated <= max_truncated",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Max Truncated",
+          "type": "number"
+        }
+      },
+      "required": [
+        "min_height_px",
+        "max_occluded",
+        "max_truncated"
+      ],
+      "title": "DifficultyFilter",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "`POST /class-mappings` (Phase R3, đề xuất contract 002): tạo mapping cho model đăng ký qua\nweb. Backend kiểm tra class gốc thuộc dataset version, class đích thuộc model; `preset` được\nsuy ra khi nội dung trùng một preset (ví dụ `kitti-coco`); trùng hash → 409.",
+  "properties": {
+    "dataset_version_id": {
+      "format": "uuid",
+      "title": "Dataset Version Id",
+      "type": "string"
+    },
+    "model_version_id": {
+      "format": "uuid",
+      "title": "Model Version Id",
+      "type": "string"
+    },
+    "classes": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "description": "Class gốc → class model; null thành ignore region unmapped:<class>",
+      "minProperties": 1,
+      "title": "Classes",
+      "type": "object"
+    },
+    "difficulty": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DifficultyFilter"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "null là không lọc theo độ khó"
+    }
+  },
+  "required": [
+    "dataset_version_id",
+    "model_version_id",
+    "classes",
+    "difficulty"
+  ],
+  "title": "ClassMappingCreate",
+  "type": "object"
+}

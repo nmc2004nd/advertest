@@ -100,6 +100,11 @@ services:
       SMTP_USERNAME: ${SMTP_USERNAME:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_STARTTLS: ${SMTP_STARTTLS:-false}
+      # Nhận xét chi tiết bằng LLM (API chuẩn OpenAI, mặc định DeepSeek); trống LLM_API_KEY thì tắt.
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.deepseek.com}
+      LLM_MODEL: ${LLM_MODEL:-deepseek-chat}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_TIMEOUT_S: ${LLM_TIMEOUT_S:-90}
     volumes:
       # `advertest-admin import-local` đọc ảnh theo đường dẫn tuyệt đối ghi lúc import vào
       # LocalStore: mount thư mục dữ liệu vào đúng đường dẫn đó, chỉ đọc.
@@ -225,11 +230,46 @@ services:
       WORKER_TOKEN: ${WORKER_TOOLS_TOKEN:-}
       CACHE_DIR: /app/cache
       DEVICE: cpu
+      CONVERT_SPOOL: /app/convert
     volumes:
       - worker_tools_cache:/app/cache
+      - convert_spool:/app/convert
+    restart: unless-stopped
+
+  # Phase R3 (đề xuất contract 003, mission.md nguyên tắc 10): sandbox chuyển `.pt`/`.pth` upload
+  # qua web sang safetensors. Nơi duy nhất mở pickle từ web: không mạng, rootfs chỉ đọc, không
+  # capability, không biến môi trường bí mật (không env_file), giới hạn RAM/CPU/số process. Chỉ
+  # trao đổi file với worker-tools qua volume convert_spool. Triển khai thật nên thêm
+  # `runtime: runsc` (gVisor) hoặc chạy trên máy riêng.
+  converter:
+    image: advertest-worker:cpu
+    build:
+      context: ..
+      dockerfile: docker/api/Dockerfile
+      target: worker
+      args:
+        TORCH: cpu
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+    entrypoint: ["python", "-m", "advertest_worker.converter", "serve", "--spool", "/app/convert"]
+    network_mode: none
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 4g
+    cpus: 2
+    environment:
+      HOME: /tmp
+      YOLO_CONFIG_DIR: /tmp
+    volumes:
+      - convert_spool:/app/convert
     restart: unless-stopped
 
 volumes:
+  convert_spool:
   worker_cache:
   worker_tools_cache:
   pgdata:

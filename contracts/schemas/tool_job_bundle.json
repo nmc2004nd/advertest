@@ -177,6 +177,51 @@
       "title": "ModelCheckPayload",
       "type": "object"
     },
+    "ModelConvertPayload": {
+      "additionalProperties": false,
+      "description": "Worker công cụ không mở file: tải `source_url`, chuyển byte cho sandbox chuyển đổi, PUT kết\nquả lên `result_upload_url` (đề xuất contract 003).",
+      "properties": {
+        "kind": {
+          "const": "model_convert",
+          "default": "model_convert",
+          "title": "Kind",
+          "type": "string"
+        },
+        "conversion_id": {
+          "format": "uuid",
+          "title": "Conversion Id",
+          "type": "string"
+        },
+        "framework": {
+          "enum": [
+            "torchvision",
+            "ultralytics"
+          ],
+          "title": "Framework",
+          "type": "string"
+        },
+        "source_url": {
+          "description": "GET file `.pt`/`.pth` đã upload",
+          "pattern": "^https?://\\S+$",
+          "title": "Source Url",
+          "type": "string"
+        },
+        "result_upload_url": {
+          "description": "PUT file `.safetensors` kết quả",
+          "pattern": "^https?://\\S+$",
+          "title": "Result Upload Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "conversion_id",
+        "framework",
+        "source_url",
+        "result_upload_url"
+      ],
+      "title": "ModelConvertPayload",
+      "type": "object"
+    },
     "PrimaryParam": {
       "additionalProperties": false,
       "properties": {
@@ -444,6 +489,7 @@
       "discriminator": {
         "mapping": {
           "model_check": "#/$defs/ModelCheckPayload",
+          "model_convert": "#/$defs/ModelConvertPayload",
           "quick_try": "#/$defs/QuickTryPayload",
           "spec_check": "#/$defs/SpecCheckPayload"
         },
@@ -458,6 +504,9 @@
         },
         {
           "$ref": "#/$defs/QuickTryPayload"
+        },
+        {
+          "$ref": "#/$defs/ModelConvertPayload"
         }
       ],
       "title": "Payload"

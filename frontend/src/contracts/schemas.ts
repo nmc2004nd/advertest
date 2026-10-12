@@ -721,6 +721,17 @@ export interface components {
             attacked: components["schemas"]["CaseBox"][];
             /** Ignore Regions */
             ignore_regions: components["schemas"]["CaseIgnoreRegion"][];
+            /**
+             * Content Box
+             * @description Vùng ảnh thật trong ảnh letterbox (xyxy pixel, không gian letterbox), phần còn lại là pad 114. null với dữ liệu tạo trước Phase R3: giao diện hiển thị cả khung vuông (đề xuất contract 001, Phase R3)
+             * @default null
+             */
+            content_box: [
+                number,
+                number,
+                number,
+                number
+            ] | null;
         };
         /** CaseIgnoreRegion */
         CaseIgnoreRegion: {
@@ -858,6 +869,33 @@ export interface components {
              * @description Hash của mọi trường trừ id và chính nó
              */
             mapping_sha256: string;
+        };
+        /**
+         * ClassMappingCreate
+         * @description `POST /class-mappings` (Phase R3, đề xuất contract 002): tạo mapping cho model đăng ký qua
+         *     web. Backend kiểm tra class gốc thuộc dataset version, class đích thuộc model; `preset` được
+         *     suy ra khi nội dung trùng một preset (ví dụ `kitti-coco`); trùng hash → 409.
+         */
+        ClassMappingCreate: {
+            /**
+             * Dataset Version Id
+             * Format: uuid
+             */
+            dataset_version_id: string;
+            /**
+             * Model Version Id
+             * Format: uuid
+             */
+            model_version_id: string;
+            /**
+             * Classes
+             * @description Class gốc → class model; null thành ignore region unmapped:<class>
+             */
+            classes: {
+                [key: string]: string | null;
+            };
+            /** @description null là không lọc theo độ khó */
+            difficulty: components["schemas"]["DifficultyFilter"] | null;
         };
         /** ClassMappingSummary */
         ClassMappingSummary: {
@@ -1314,7 +1352,7 @@ export interface components {
          * ErrorCode
          * @enum {string}
          */
-        ErrorCode: "not_implemented" | "unauthenticated" | "forbidden" | "not_found" | "conflict" | "invalid_request" | "invalid_credentials" | "account_pending" | "account_rejected" | "account_disabled" | "rate_limited" | "csrf_failed" | "validation_error" | "not_supported_yet" | "queue_limit_reached" | "internal_error" | "not_compliant" | "experiment_locked" | "checklist_incomplete" | "quick_try_busy" | "gone";
+        ErrorCode: "not_implemented" | "unauthenticated" | "forbidden" | "not_found" | "conflict" | "invalid_request" | "invalid_credentials" | "account_pending" | "account_rejected" | "account_disabled" | "rate_limited" | "csrf_failed" | "validation_error" | "not_supported_yet" | "queue_limit_reached" | "internal_error" | "not_compliant" | "experiment_locked" | "checklist_incomplete" | "quick_try_busy" | "gone" | "llm_unavailable" | "llm_failed";
         /**
          * ErrorResponse
          * @description Body lỗi thống nhất của mọi endpoint: {"error": {"code", "message"}}.
@@ -1745,6 +1783,55 @@ export interface components {
          * @enum {string}
          */
         ExperimentMode: "exploration" | "official";
+        /**
+         * ExperimentNarrative
+         * @description Nhận xét chi tiết do LLM viết từ số liệu insight của experiment. Chỉ để tham khảo, không
+         *     thay câu kết luận theo luật và không vào report. Lưu theo `input_sha256` (hash dữ liệu gửi
+         *     LLM): cùng dữ liệu thì dùng lại bản đã lưu, không gọi LLM lần nữa.
+         */
+        ExperimentNarrative: {
+            /**
+             * Experiment Id
+             * Format: uuid
+             */
+            experiment_id: string;
+            /**
+             * Input Sha256
+             * @description sha256 canonical_json của dữ liệu gửi LLM
+             */
+            input_sha256: string;
+            /** Prompt Version */
+            prompt_version: string;
+            /**
+             * Llm Model
+             * @description Model LLM đã viết, ví dụ deepseek-chat
+             */
+            llm_model: string;
+            /** Summary */
+            summary: string;
+            /** Findings */
+            findings: components["schemas"]["NarrativeFinding"][];
+            /**
+             * Next Steps
+             * @description Gợi ý; con người quyết định
+             */
+            next_steps: string[];
+            /**
+             * Partial
+             * @description Insight lúc viết là kết quả một phần
+             */
+            partial: boolean;
+            /**
+             * Created By
+             * Format: uuid
+             */
+            created_by: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
         /** ExperimentPage */
         ExperimentPage: {
             /** Items */
@@ -2339,6 +2426,135 @@ export interface components {
              */
             worker_target_id: string;
         };
+        /**
+         * ModelConversionCreate
+         * @description `POST /models/conversions`: đổi file `.pt`/`.pth` đã upload (`POST /models/uploads`) sang
+         *     `.safetensors` trong sandbox chuyển đổi (mission.md nguyên tắc 10).
+         */
+        ModelConversionCreate: {
+            /**
+             * Upload Id
+             * Format: uuid
+             */
+            upload_id: string;
+            /**
+             * Framework
+             * @description ultralytics: checkpoint YOLO; torchvision: state dict detection
+             * @enum {string}
+             */
+            framework: "torchvision" | "ultralytics";
+        };
+        /**
+         * ModelConversionView
+         * @description `POST /models/conversions` (202) và `GET /models/conversions/{id}`; `id` là id của job.
+         */
+        ModelConversionView: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            status: components["schemas"]["ToolJobStatus"];
+            /**
+             * Framework
+             * @enum {string}
+             */
+            framework: "torchvision" | "ultralytics";
+            /**
+             * Result Upload Id
+             * @description upload_id của file `.safetensors` kết quả, dùng cho `POST /models`; có khi và chỉ khi completed
+             */
+            result_upload_id: string | null;
+            /** @description Có khi và chỉ khi completed */
+            metadata: components["schemas"]["ModelConvertMetadata"] | null;
+            /**
+             * Error
+             * @description Có khi và chỉ khi failed
+             */
+            error: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * ModelConvertMetadata
+         * @description Metadata đọc được từ checkpoint `.pt` trong sandbox (đề xuất contract 003); form đăng ký tự
+         *     điền từ đây. Trường null là không đọc được, người dùng tự chọn.
+         */
+        ModelConvertMetadata: {
+            /**
+             * Framework
+             * @enum {string}
+             */
+            framework: "torchvision" | "ultralytics";
+            /**
+             * Architecture
+             * @default null
+             */
+            architecture: string | null;
+            /**
+             * Class Names
+             * @default null
+             */
+            class_names: string[] | null;
+            /**
+             * Input Size
+             * @default null
+             */
+            input_size: number | null;
+            /**
+             * Num Classes
+             * @description Số đầu ra class của state dict (torchvision, có nền)
+             * @default null
+             */
+            num_classes: number | null;
+        };
+        /**
+         * ModelConvertPayload
+         * @description Worker công cụ không mở file: tải `source_url`, chuyển byte cho sandbox chuyển đổi, PUT kết
+         *     quả lên `result_upload_url` (đề xuất contract 003).
+         */
+        ModelConvertPayload: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "model_convert";
+            /**
+             * Conversion Id
+             * Format: uuid
+             */
+            conversion_id: string;
+            /**
+             * Framework
+             * @enum {string}
+             */
+            framework: "torchvision" | "ultralytics";
+            /**
+             * Source Url
+             * @description GET file `.pt`/`.pth` đã upload
+             */
+            source_url: string;
+            /**
+             * Result Upload Url
+             * @description PUT file `.safetensors` kết quả
+             */
+            result_upload_url: string;
+        };
+        /**
+         * ModelConvertReport
+         * @description File `.safetensors` đã PUT lên `result_upload_url` trước khi gửi report.
+         */
+        ModelConvertReport: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "model_convert";
+            metadata: components["schemas"]["ModelConvertMetadata"];
+        };
         /** ModelRef */
         ModelRef: {
             /**
@@ -2360,12 +2576,13 @@ export interface components {
             name: string;
             /**
              * Framework
+             * @description torchvision và ultralytics: file .safetensors; onnx: file .onnx
              * @enum {string}
              */
-            framework: "torchvision" | "onnx";
+            framework: "torchvision" | "onnx" | "ultralytics";
             /**
              * Architecture
-             * @description torchvision: một trong TORCHVISION_ARCHITECTURES; onnx: mô tả tự do
+             * @description torchvision: một trong TORCHVISION_ARCHITECTURES; ultralytics: một trong ULTRALYTICS_ARCHITECTURES; onnx: mô tả tự do
              */
             architecture: string;
             /**
@@ -2424,6 +2641,24 @@ export interface components {
              * @default null
              */
             check: components["schemas"]["ModelCheckResult"] | null;
+            /**
+             * Archived At
+             * @description Phase R3 (đề xuất contract 002): model đã lưu trữ không chọn được cho experiment, thử nhanh hay mapping mới; experiment và report cũ vẫn tra được
+             * @default null
+             */
+            archived_at: string | null;
+            /**
+             * Owner Id
+             * @description Phase R3 (đề xuất contract 002): người đăng ký model; chỉ người này hoặc admin được xóa, lưu trữ, thêm class mapping
+             * @default null
+             */
+            owner_id: string | null;
+            /**
+             * Owner Name
+             * @description Họ tên người đăng ký model
+             * @default null
+             */
+            owner_name: string | null;
         };
         /** ModelUpload */
         ModelUpload: {
@@ -2445,11 +2680,15 @@ export interface components {
         };
         /**
          * ModelUploadCreate
-         * @description `POST /models/uploads`: chỉ `.onnx` hoặc `.safetensors`, tối đa 500 MB (mission.md nguyên
-         *     tắc 10). Nội dung được kiểm tra lại khi `POST /models`.
+         * @description `POST /models/uploads`: `.onnx`, `.safetensors`, hoặc `.pt`/`.pth` để chuyển đổi trong
+         *     sandbox; tối đa 500 MB (mission.md nguyên tắc 10). Nội dung được kiểm tra lại khi
+         *     `POST /models`.
          */
         ModelUploadCreate: {
-            /** Filename */
+            /**
+             * Filename
+             * @description `.pt`/`.pth` chỉ dùng cho `POST /models/conversions` (đề xuất contract 003); `POST /models` từ chối
+             */
             filename: string;
             /** Size Bytes */
             size_bytes: number;
@@ -2460,6 +2699,39 @@ export interface components {
          * @enum {string}
          */
         ModelVerdict: "meets_criteria" | "does_not_meet" | "conditional";
+        /**
+         * NarrativeFinding
+         * @description Một nhận xét: tiêu đề ngắn và phần giải thích dựa trên số liệu.
+         */
+        NarrativeFinding: {
+            /** Title */
+            title: string;
+            /** Detail */
+            detail: string;
+        };
+        /**
+         * NarrativeState
+         * @description `GET /experiments/{id}/narrative`.
+         */
+        NarrativeState: {
+            /**
+             * Enabled
+             * @description false khi máy chủ chưa cấu hình LLM
+             */
+            enabled: boolean;
+            /** @description Bản mới nhất; null khi chưa có */
+            narrative: components["schemas"]["ExperimentNarrative"] | null;
+            /**
+             * Stale
+             * @description Dữ liệu insight đã đổi so với bản đã lưu
+             */
+            stale: boolean;
+            /**
+             * Can Generate
+             * @description Experiment đã kết thúc và có run có metric (điều kiện của POST)
+             */
+            can_generate: boolean;
+        };
         /**
          * PassCriterion
          * @description Tiêu chí đạt (requirements.md Phase 8, bảng Đánh giá tiêu chí).
@@ -2970,6 +3242,17 @@ export interface components {
             kind: "quick_try";
             /** Levels */
             levels: components["schemas"]["QuickTryLevelReport"][];
+            /**
+             * Content Box
+             * @description Vùng ảnh thật trong ảnh letterbox (xyxy pixel, không gian letterbox), phần còn lại là pad 114. null với dữ liệu tạo trước Phase R3: giao diện hiển thị cả khung vuông (đề xuất contract 001, Phase R3)
+             * @default null
+             */
+            content_box: [
+                number,
+                number,
+                number,
+                number
+            ] | null;
         };
         /**
          * QuickTryView
@@ -3009,6 +3292,17 @@ export interface components {
              * @description Ảnh sạch đã letterbox và làm mờ; có khi và chỉ khi completed. Ảnh gốc chưa làm mờ không bao giờ được phục vụ qua API
              */
             clean_image_url: string | null;
+            /**
+             * Content Box
+             * @description Vùng ảnh thật trong ảnh letterbox (xyxy pixel, không gian letterbox), phần còn lại là pad 114. null với dữ liệu tạo trước Phase R3: giao diện hiển thị cả khung vuông (đề xuất contract 001, Phase R3); chỉ có khi completed
+             * @default null
+             */
+            content_box: [
+                number,
+                number,
+                number,
+                number
+            ] | null;
             /**
              * Levels
              * @description Rỗng khi chưa completed
@@ -4651,7 +4945,7 @@ export interface components {
              */
             job_id: string;
             /** Payload */
-            payload: components["schemas"]["SpecCheckPayload"] | components["schemas"]["ModelCheckPayload"] | components["schemas"]["QuickTryPayload"];
+            payload: components["schemas"]["SpecCheckPayload"] | components["schemas"]["ModelCheckPayload"] | components["schemas"]["QuickTryPayload"] | components["schemas"]["ModelConvertPayload"];
             /**
              * Expires At
              * Format: date-time
@@ -4660,11 +4954,11 @@ export interface components {
         };
         /**
          * ToolJobKind
-         * @description Job công cụ của worker `--tools`; thứ tự lease: quick_try, rồi model_check và spec_check
-         *     theo thứ tự tạo.
+         * @description Job công cụ của worker `--tools`; thứ tự lease: quick_try, rồi các loại khác theo thứ tự
+         *     tạo.
          * @enum {string}
          */
-        ToolJobKind: "spec_check" | "model_check" | "quick_try";
+        ToolJobKind: "spec_check" | "model_check" | "quick_try" | "model_convert";
         /**
          * ToolJobResult
          * @description `POST /internal/worker/tool-jobs/{id}/result`: đúng một trong `report` hoặc `error`.
@@ -4682,7 +4976,7 @@ export interface components {
              * Report
              * @default null
              */
-            report: (components["schemas"]["SpecCheckReport"] | components["schemas"]["ModelCheckReport"] | components["schemas"]["QuickTryReport"]) | null;
+            report: (components["schemas"]["SpecCheckReport"] | components["schemas"]["ModelCheckReport"] | components["schemas"]["QuickTryReport"] | components["schemas"]["ModelConvertReport"]) | null;
             /**
              * Error
              * @default null
@@ -5095,6 +5389,7 @@ export type ChecklistCode = components['schemas']['ChecklistCode'];
 export type ChecklistItem = components['schemas']['ChecklistItem'];
 export type ClassEvalMetrics = components['schemas']['ClassEvalMetrics'];
 export type ClassMapping = components['schemas']['ClassMapping'];
+export type ClassMappingCreate = components['schemas']['ClassMappingCreate'];
 export type ClassMappingSummary = components['schemas']['ClassMappingSummary'];
 export type ClassRunMetrics = components['schemas']['ClassRunMetrics'];
 export type CleanEvalResult = components['schemas']['CleanEvalResult'];
@@ -5139,6 +5434,7 @@ export type ExperimentDetail = components['schemas']['ExperimentDetail'];
 export type ExperimentDraftRequest = components['schemas']['ExperimentDraftRequest'];
 export type ExperimentInsight = components['schemas']['ExperimentInsight'];
 export type ExperimentMode = components['schemas']['ExperimentMode'];
+export type ExperimentNarrative = components['schemas']['ExperimentNarrative'];
 export type ExperimentPage = components['schemas']['ExperimentPage'];
 export type ExperimentPreset = components['schemas']['ExperimentPreset'];
 export type ExperimentStatus = components['schemas']['ExperimentStatus'];
@@ -5170,6 +5466,11 @@ export type ModelCard = components['schemas']['ModelCard'];
 export type ModelCheckPayload = components['schemas']['ModelCheckPayload'];
 export type ModelCheckReport = components['schemas']['ModelCheckReport'];
 export type ModelCheckResult = components['schemas']['ModelCheckResult'];
+export type ModelConversionCreate = components['schemas']['ModelConversionCreate'];
+export type ModelConversionView = components['schemas']['ModelConversionView'];
+export type ModelConvertMetadata = components['schemas']['ModelConvertMetadata'];
+export type ModelConvertPayload = components['schemas']['ModelConvertPayload'];
+export type ModelConvertReport = components['schemas']['ModelConvertReport'];
 export type ModelRef = components['schemas']['ModelRef'];
 export type ModelRegister = components['schemas']['ModelRegister'];
 export type ModelStatus = components['schemas']['ModelStatus'];
@@ -5177,6 +5478,8 @@ export type ModelSummary = components['schemas']['ModelSummary'];
 export type ModelUpload = components['schemas']['ModelUpload'];
 export type ModelUploadCreate = components['schemas']['ModelUploadCreate'];
 export type ModelVerdict = components['schemas']['ModelVerdict'];
+export type NarrativeFinding = components['schemas']['NarrativeFinding'];
+export type NarrativeState = components['schemas']['NarrativeState'];
 export type PassCriterion = components['schemas']['PassCriterion'];
 export type PasswordChange = components['schemas']['PasswordChange'];
 export type PasswordResetConsume = components['schemas']['PasswordResetConsume'];
@@ -5334,7 +5637,7 @@ export const conclusionCodeValues: ReadonlyArray<FlattenedDeepRequired<component
 export const criterionKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["CriterionKind"]> = ["max_drop_at_level", "min_breaking_point"];
 export const criterionStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["CriterionStatus"]> = ["pass", "fail", "inconclusive"];
 export const displayModeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["DisplayMode"]> = ["normal", "hidden_unanonymized", "dev_unblurred"];
-export const errorCodeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ErrorCode"]> = ["not_implemented", "unauthenticated", "forbidden", "not_found", "conflict", "invalid_request", "invalid_credentials", "account_pending", "account_rejected", "account_disabled", "rate_limited", "csrf_failed", "validation_error", "not_supported_yet", "queue_limit_reached", "internal_error", "not_compliant", "experiment_locked", "checklist_incomplete", "quick_try_busy", "gone"];
+export const errorCodeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ErrorCode"]> = ["not_implemented", "unauthenticated", "forbidden", "not_found", "conflict", "invalid_request", "invalid_credentials", "account_pending", "account_rejected", "account_disabled", "rate_limited", "csrf_failed", "validation_error", "not_supported_yet", "queue_limit_reached", "internal_error", "not_compliant", "experiment_locked", "checklist_incomplete", "quick_try_busy", "gone", "llm_unavailable", "llm_failed"];
 export const evalScopeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["EvalScope"]> = ["full", "subset"];
 export const experimentDraftRequestPresetValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ExperimentDraftRequest"]["preset"]> = ["fast", "standard", "deep"];
 export const experimentModeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ExperimentMode"]> = ["exploration", "official"];
@@ -5346,7 +5649,13 @@ export const manifestSourceFormatValues: ReadonlyArray<FlattenedDeepRequired<com
 export const modelCardFrameworkValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ModelCard"]["framework"]> = ["ultralytics", "torchvision", "onnx"];
 export const modelCheckPayloadKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ModelCheckPayload"]["kind"]> = ["model_check"];
 export const modelCheckReportKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ModelCheckReport"]["kind"]> = ["model_check"];
-export const modelRegisterFrameworkValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ModelRegister"]["framework"]> = ["torchvision", "onnx"];
+export const modelConversionCreateFrameworkValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ModelConversionCreate"]["framework"]> = ["torchvision", "ultralytics"];
+export const modelConversionViewFrameworkValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ModelConversionView"]["framework"]> = ["torchvision", "ultralytics"];
+export const modelConvertMetadataFrameworkValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ModelConvertMetadata"]["framework"]> = ["torchvision", "ultralytics"];
+export const modelConvertPayloadKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ModelConvertPayload"]["kind"]> = ["model_convert"];
+export const modelConvertPayloadFrameworkValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ModelConvertPayload"]["framework"]> = ["torchvision", "ultralytics"];
+export const modelConvertReportKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ModelConvertReport"]["kind"]> = ["model_convert"];
+export const modelRegisterFrameworkValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ModelRegister"]["framework"]> = ["torchvision", "onnx", "ultralytics"];
 export const modelStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ModelStatus"]> = ["checking", "check_failed", "ready"];
 export const modelVerdictValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ModelVerdict"]> = ["meets_criteria", "does_not_meet", "conditional"];
 export const permissionValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["Permission"]> = ["experiment.read", "experiment.create", "experiment.cancel_own", "experiment.submit_review", "dataset.read", "dataset.upload", "slice.create", "model.read", "model.manage", "attack_catalog.read", "attack_catalog.manage", "attack_catalog.approve", "protocol.read", "protocol.manage", "review.decide", "review.comment", "report.export", "report.read", "user.manage", "compute_target.read", "compute_target.manage", "budget.manage", "audit.read", "quick_try.use"];
@@ -5382,7 +5691,7 @@ export const statusReasonCodeAnyOf2Values: ReadonlyArray<FlattenedDeepRequired<c
 export const stopReasonValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["StopReason"]> = ["budget", "time"];
 export const submitCheckCodeValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["SubmitCheckCode"]> = ["experiment_completed", "protocol_not_dev", "runs_final", "no_dirty_runs", "required_cases_visible"];
 export const thresholdKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ThresholdKind"]> = ["relative_drop", "absolute_drop", "attack_success_rate"];
-export const toolJobKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ToolJobKind"]> = ["spec_check", "model_check", "quick_try"];
+export const toolJobKindValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ToolJobKind"]> = ["spec_check", "model_check", "quick_try", "model_convert"];
 export const toolJobStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ToolJobStatus"]> = ["queued", "running", "completed", "failed"];
 export const toolModelFrameworkValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["ToolModel"]["framework"]> = ["ultralytics", "torchvision", "onnx"];
 export const userStatusValues: ReadonlyArray<FlattenedDeepRequired<components>["schemas"]["UserStatus"]> = ["pending", "active", "rejected", "disabled"];

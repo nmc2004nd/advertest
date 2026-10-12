@@ -179,7 +179,9 @@
         "experiment_locked",
         "checklist_incomplete",
         "quick_try_busy",
-        "gone"
+        "gone",
+        "llm_unavailable",
+        "llm_failed"
       ],
       "title": "ErrorCode",
       "type": "string"

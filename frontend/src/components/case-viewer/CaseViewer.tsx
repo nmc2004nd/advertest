@@ -13,7 +13,16 @@ import { artifactSrc } from '@/features/experiments/api'
 import { BoxCanvas } from './BoxCanvas'
 import { type BoxSet, LOST_MARK } from './boxes'
 import { BoxSwatch } from './BoxSwatch'
-import { ALL_LAYERS, type Layer, LAYERS, lostObjects } from './geometry'
+import {
+  ALL_LAYERS,
+  aspectOf,
+  type Bbox,
+  cropStyle,
+  type Layer,
+  LAYERS,
+  lostObjects,
+  viewOf,
+} from './geometry'
 import { THIRD_IMAGE_LABEL } from './labels'
 
 export const WATERMARK = 'BẢN NHÁP – CHƯA DUYỆT'
@@ -52,31 +61,31 @@ function Frame({
   alt,
   hidden,
   boxes,
+  view,
   onImageError,
 }: {
   src: string | null
   alt: string
   hidden: boolean
   boxes: BoxSet | null
+  /** Vùng ảnh thật (tọa độ letterbox): khung theo tỉ lệ vùng này, pad bị cắt. */
+  view: Bbox
   onImageError?: () => void
 }) {
   return (
-    <div className="relative aspect-square w-full overflow-hidden bg-muted">
+    <div
+      className="relative w-full overflow-hidden bg-muted"
+      style={{ aspectRatio: aspectOf(view) }}
+    >
       {hidden || !src ? (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 text-center text-sm text-muted-foreground">
           <EyeOff aria-hidden="true" className="size-6" />
           {HIDDEN_TEXT}
         </div>
       ) : (
-        <img
-          src={src}
-          alt={alt}
-          draggable={false}
-          onError={onImageError}
-          className="absolute inset-0 size-full object-contain"
-        />
+        <img src={src} alt={alt} draggable={false} onError={onImageError} style={cropStyle(view)} />
       )}
-      {boxes && <BoxCanvas set={boxes} />}
+      {boxes && <BoxCanvas set={boxes} view={view} />}
       <Watermark />
     </div>
   )
@@ -118,6 +127,7 @@ function SideBySide({
   onImageError,
   cleanBoxes,
   attackedBoxes,
+  view,
 }: {
   clean: string | null
   adversarial: string | null
@@ -125,6 +135,7 @@ function SideBySide({
   onImageError?: () => void
   cleanBoxes: BoxSet
   attackedBoxes: BoxSet
+  view: Bbox
 }) {
   const refs = [
     useRef<ReactZoomPanPinchContentRef>(null),
@@ -160,6 +171,7 @@ function SideBySide({
                 alt={pane.title}
                 hidden={hidden}
                 boxes={pane.boxes}
+                view={view}
                 onImageError={onImageError}
               />
             </TransformComponent>
@@ -178,6 +190,7 @@ function Slider({
   onImageError,
   cleanBoxes,
   attackedBoxes,
+  view,
   onPrev,
   onNext,
 }: {
@@ -187,6 +200,7 @@ function Slider({
   onImageError?: () => void
   cleanBoxes: BoxSet
   attackedBoxes: BoxSet
+  view: Bbox
   onPrev?: () => void
   onNext?: () => void
 }) {
@@ -227,6 +241,7 @@ function Slider({
                 alt="Sau tấn công"
                 hidden={hidden}
                 boxes={attackedBoxes}
+                view={view}
                 onImageError={onImageError}
               />
               <div
@@ -238,6 +253,7 @@ function Slider({
                   alt="Ảnh sạch"
                   hidden={hidden}
                   boxes={cleanBoxes}
+                  view={view}
                   onImageError={onImageError}
                 />
               </div>
@@ -276,6 +292,7 @@ export function CaseViewer({ caseView, onPrev, onNext, onImageError, aside }: Ca
   const hidden = caseView.display_mode === 'hidden_unanonymized'
   const third = THIRD_IMAGE_LABEL[caseView.perturbation_kind ?? 'amplified_noise']
   const { detections, urls } = caseView
+  const view = viewOf(detections.content_box)
   const lost = layers.ground_truth ? lostObjects(detections) : []
   const common = {
     groundTruth: layers.ground_truth ? detections.ground_truth : [],
@@ -301,6 +318,7 @@ export function CaseViewer({ caseView, onPrev, onNext, onImageError, aside }: Ca
     onImageError,
     cleanBoxes,
     attackedBoxes,
+    view,
   }
 
   return (
@@ -343,6 +361,7 @@ export function CaseViewer({ caseView, onPrev, onNext, onImageError, aside }: Ca
             alt={third}
             hidden={hidden}
             boxes={null}
+            view={view}
             onImageError={onImageError}
           />
         </figure>

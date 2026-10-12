@@ -1,11 +1,12 @@
 {
   "additionalProperties": false,
-  "description": "`POST /models/uploads`: chỉ `.onnx` hoặc `.safetensors`, tối đa 500 MB (mission.md nguyên\ntắc 10). Nội dung được kiểm tra lại khi `POST /models`.",
+  "description": "`POST /models/uploads`: `.onnx`, `.safetensors`, hoặc `.pt`/`.pth` để chuyển đổi trong\nsandbox; tối đa 500 MB (mission.md nguyên tắc 10). Nội dung được kiểm tra lại khi\n`POST /models`.",
   "properties": {
     "filename": {
+      "description": "`.pt`/`.pth` chỉ dùng cho `POST /models/conversions` (đề xuất contract 003); `POST /models` từ chối",
       "maxLength": 255,
       "minLength": 1,
-      "pattern": "^[^/\\\\]+\\.(onnx|safetensors)$",
+      "pattern": "^[^/\\\\]+\\.(onnx|safetensors|pt|pth)$",
       "title": "Filename",
       "type": "string"
     },

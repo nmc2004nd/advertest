@@ -16,6 +16,7 @@
     "experiment.create",
     "experiment.read",
     "experiment.submit_review",
+    "model.manage",
     "model.read",
     "protocol.manage",
     "protocol.read",

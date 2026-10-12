@@ -1,11 +1,32 @@
-import { CircleCheck, CircleX, RotateCw, SearchX } from 'lucide-react'
-import type { ReactNode } from 'react'
-import { useParams } from 'react-router'
+import {
+  Archive,
+  ArchiveRestore,
+  CircleCheck,
+  CircleX,
+  Plus,
+  RotateCw,
+  SearchX,
+  Trash2,
+} from 'lucide-react'
+import { type ReactNode, useState } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router'
 
 import { ApiError } from '@/api/errors'
 import { errorMessage } from '@/api/messages'
 import { formatDateTime } from '@/admin/format'
-import { useModel, useRecheckModel } from '@/admin/useModelAdmin'
+import { mappedCount } from '@/admin/class-mapping'
+import { canManageModel } from '@/admin/model-owner'
+import { ClassMappingFields } from '@/admin/ClassMappingFields'
+import { useMappingDraft } from '@/admin/mapping-draft'
+import {
+  useArchiveModel,
+  useCreateMapping,
+  useDeleteModel,
+  useModel,
+  useModelMappings,
+  useRecheckModel,
+} from '@/admin/useModelAdmin'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { TruncatedId } from '@/components/CopyButton'
 import { EmptyState } from '@/components/EmptyState'
 import { FormAlert } from '@/components/FormAlert'
@@ -13,8 +34,11 @@ import { LoadError } from '@/components/LoadError'
 import { PageLoading } from '@/components/PageLoading'
 import { StatusBadge } from '@/components/status/StatusBadge'
 import { Button } from '@/components/ui/button'
-import type { ModelSummary } from '@/contracts/api'
+import type { ClassMappingSummary, DatasetSummary, ModelSummary } from '@/contracts/api'
 import { CATALOG_COPY } from '@/copy/catalog'
+import { MODEL_ADMIN_COPY } from '@/copy/model-admin'
+import { useDatasets } from '@/features/wizard/api'
+import { useMe } from '@/auth/useMe'
 import { PageHeader } from '@/layout/PageHeader'
 
 import { OnnxLayouts } from './ModelsPage'
@@ -79,32 +103,221 @@ function CheckResult({ model }: { model: ModelSummary }) {
   )
 }
 
-function ModelDetail({ model }: { model: ModelSummary }) {
+function datasetName(datasets: readonly DatasetSummary[], versionId: string): string {
+  const dataset = datasets.find((d) => d.versions.some((v) => v.id === versionId))
+  return dataset?.name ?? 'Dataset'
+}
+
+function MappingItem({
+  mapping,
+  datasets,
+}: {
+  mapping: ClassMappingSummary
+  datasets: readonly DatasetSummary[]
+}) {
+  const pairs = Object.entries(mapping.classes)
+  return (
+    <li className="flex flex-col gap-1 py-3">
+      <p className="text-sm font-medium">
+        {datasetName(datasets, mapping.dataset_version_id)} ·{' '}
+        {mapping.preset ? `preset ${mapping.preset}` : 'tự chọn'} · {mappedCount(mapping.classes)}/
+        {pairs.length} class được tính
+      </p>
+      <p className="text-sm break-words text-muted-foreground">
+        {pairs.map(([source, target]) => `${source} → ${target ?? 'bỏ qua'}`).join(', ')}
+      </p>
+    </li>
+  )
+}
+
+/** Class mapping của model (đề xuất contract 002): danh sách và form thêm mapping mới. */
+function MappingSection({
+  model,
+  canManage,
+  initialError,
+}: {
+  model: ModelSummary
+  canManage: boolean
+  initialError?: string
+}) {
+  const copy = MODEL_ADMIN_COPY
+  const mappings = useModelMappings(model.id)
+  const datasets = useDatasets()
+  const create = useCreateMapping()
+  const draft = useMappingDraft(datasets.data ?? [], model.class_names)
+  const [adding, setAdding] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const archived = model.archived_at != null
+  const list = mappings.data ?? []
+
+  function save() {
+    setSubmitted(true)
+    const body = draft.body(model.id)
+    if (!body) return
+    create.mutate(body, {
+      onSuccess: () => {
+        setAdding(false)
+        setSubmitted(false)
+      },
+    })
+  }
+
+  return (
+    <section
+      className="panel flex flex-col gap-3 p-5"
+      aria-label={copy.mappingTitle}
+      data-testid="model-mappings"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-base font-semibold">{copy.mappingTitle}</h2>
+        {!adding && !archived && canManage && (
+          <Button variant="outline" onClick={() => setAdding(true)}>
+            <Plus aria-hidden />
+            {copy.addMapping}
+          </Button>
+        )}
+      </div>
+      {initialError && !create.isSuccess && <FormAlert>{initialError}</FormAlert>}
+      {mappings.isPending ? (
+        <PageLoading />
+      ) : mappings.isError ? (
+        <LoadError onRetry={() => void mappings.refetch()} retrying={mappings.isFetching} />
+      ) : list.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{copy.noMapping}</p>
+      ) : (
+        <ul className="divide-y divide-border">
+          {list.map((mapping) => (
+            <MappingItem key={mapping.id} mapping={mapping} datasets={datasets.data ?? []} />
+          ))}
+        </ul>
+      )}
+      {adding && (
+        <div className="flex flex-col gap-3 border-t border-border pt-3">
+          <ClassMappingFields
+            draft={draft}
+            modelClasses={model.class_names}
+            showError={submitted}
+          />
+          {create.isError && <FormAlert>{errorMessage(create.error)}</FormAlert>}
+          <div className="flex flex-col-reverse gap-2 md:flex-row md:justify-end">
+            <Button variant="outline" onClick={() => setAdding(false)} disabled={create.isPending}>
+              Hủy
+            </Button>
+            <Button onClick={save} disabled={create.isPending || draft.options.length === 0}>
+              {create.isPending ? 'Đang lưu…' : copy.saveMapping}
+            </Button>
+          </div>
+        </div>
+      )}
+    </section>
+  )
+}
+
+function ModelActions({ model }: { model: ModelSummary }) {
+  const copy = MODEL_ADMIN_COPY
+  const navigate = useNavigate()
   const recheck = useRecheckModel()
+  const archive = useArchiveModel()
+  const remove = useDeleteModel()
+  const [dialog, setDialog] = useState<'archive' | 'delete' | null>(null)
+  const archived = model.archived_at != null
+  return (
+    <>
+      <div className="flex flex-wrap gap-2">
+        {model.status === 'check_failed' && (
+          <Button disabled={recheck.isPending} onClick={() => recheck.mutate(model.id)}>
+            <RotateCw aria-hidden />
+            Kiểm tra lại
+          </Button>
+        )}
+        {archived ? (
+          <Button
+            variant="outline"
+            disabled={archive.isPending}
+            onClick={() => archive.mutate({ id: model.id, archived: false })}
+          >
+            <ArchiveRestore aria-hidden />
+            {copy.restore}
+          </Button>
+        ) : (
+          <Button variant="outline" onClick={() => setDialog('archive')}>
+            <Archive aria-hidden />
+            {copy.archive}
+          </Button>
+        )}
+        <Button
+          variant="outline"
+          className="text-fail"
+          disabled={model.status === 'checking'}
+          onClick={() => setDialog('delete')}
+        >
+          <Trash2 aria-hidden />
+          {copy.delete}
+        </Button>
+      </div>
+      <ConfirmDialog
+        open={dialog === 'archive'}
+        onOpenChange={(open) => setDialog(open ? 'archive' : null)}
+        title={copy.archiveTitle}
+        description={copy.archiveConsequence}
+        confirmLabel={copy.archive}
+        pending={archive.isPending}
+        onConfirm={() =>
+          archive.mutate({ id: model.id, archived: true }, { onSuccess: () => setDialog(null) })
+        }
+      />
+      <ConfirmDialog
+        open={dialog === 'delete'}
+        onOpenChange={(open) => setDialog(open ? 'delete' : null)}
+        title={copy.deleteTitle}
+        description={copy.deleteConsequence}
+        confirmLabel={copy.delete}
+        destructive
+        pending={remove.isPending}
+        onConfirm={() =>
+          remove.mutate(model.id, {
+            onSuccess: () => void navigate('/models'),
+            onError: () => setDialog(null),
+          })
+        }
+      />
+      {[recheck, archive, remove].map((mutation, i) =>
+        mutation.isError ? <FormAlert key={i}>{errorMessage(mutation.error)}</FormAlert> : null,
+      )}
+    </>
+  )
+}
+
+function ModelDetail({ model }: { model: ModelSummary }) {
+  const location = useLocation()
+  const state = location.state as { mappingError?: string } | null
+  const archived = model.archived_at != null
+  const canManage = canManageModel(model, useMe().data)
   return (
     <>
       <PageHeader
-        back={{ to: '/admin/models', label: 'Model' }}
+        back={{ to: '/models', label: 'Model' }}
         eyebrow={model.framework}
         title={model.name}
-        actions={
-          model.status === 'check_failed' ? (
-            <Button disabled={recheck.isPending} onClick={() => recheck.mutate(model.id)}>
-              <RotateCw aria-hidden />
-              Kiểm tra lại
-            </Button>
-          ) : undefined
-        }
       />
       <div className="flex flex-wrap items-center gap-3">
         <span data-testid="model-status">
-          <StatusBadge kind="model" status={model.status} />
+          <StatusBadge kind="model" status={archived ? 'archived' : model.status} />
         </span>
         {model.status === 'checking' && (
           <span className="text-sm text-muted-foreground">{CATALOG_COPY.checkingNote}</span>
         )}
+        {archived && (
+          <span className="text-sm text-muted-foreground">{MODEL_ADMIN_COPY.archivedNote}</span>
+        )}
       </div>
-      {recheck.isError && <FormAlert>{errorMessage(recheck.error)}</FormAlert>}
+      {canManage ? (
+        <ModelActions model={model} />
+      ) : (
+        <p className="text-sm text-muted-foreground" data-testid="model-owner-note">
+          {MODEL_ADMIN_COPY.notOwner(model.owner_name)}
+        </p>
+      )}
       <div className="grid gap-5 lg:grid-cols-2">
         <section
           className="panel flex flex-col gap-2 p-5"
@@ -131,11 +344,20 @@ function ModelDetail({ model }: { model: ModelSummary }) {
           </dl>
         </section>
       </div>
+      <MappingSection
+        model={model}
+        canManage={canManage}
+        initialError={
+          state?.mappingError
+            ? MODEL_ADMIN_COPY.mappingFailedAfterRegister(state.mappingError)
+            : undefined
+        }
+      />
     </>
   )
 }
 
-/** `/admin/models/:id`: trạng thái, `ModelCheckResult`, "Kiểm tra lại" khi `check_failed`. */
+/** `/models/:id`: trạng thái, `ModelCheckResult`, "Kiểm tra lại" khi `check_failed`. */
 export function ModelDetailPage() {
   const { id = '' } = useParams()
   const model = useModel(id)

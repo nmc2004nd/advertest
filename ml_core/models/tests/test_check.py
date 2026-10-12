@@ -67,10 +67,30 @@ def test_pickle_fails_to_load(tmp_path: Path, images: NDArray[np.float32]) -> No
     assert not result.passed and (result.details or "").startswith("Nạp model thất bại")
 
 
-def test_ultralytics_not_checked(random_weights: Path) -> None:
-    card = make_card(random_weights, "ultralytics", "yolov8n", ["a"])
-    with pytest.raises(ValueError, match="torchvision hoặc onnx"):
-        check_model(card, random_weights, worker_target_id=TARGET)
+def test_ultralytics_pt_is_not_loaded(random_weights: Path, images: NDArray[np.float32]) -> None:
+    # Web chỉ nhận safetensors: `.pt` (pickle) không bao giờ được nạp ở bước kiểm tra.
+    card = make_card(random_weights, "ultralytics", "yolov8n", [f"c{i}" for i in range(80)])
+    result = check_model(card, random_weights, worker_target_id=TARGET, images=images[:1])
+    assert not result.passed and "safetensors" in (result.details or "")
+
+
+def test_ultralytics_safetensors_passes_with_gradient_check(
+    yolo_safetensors: Path, images: NDArray[np.float32]
+) -> None:
+    card = make_card(yolo_safetensors, "ultralytics", "yolov8n", [f"c{i}" for i in range(80)])
+    result = check_model(
+        card, yolo_safetensors, worker_target_id=TARGET, params=LOW_PARAMS, images=images[:1]
+    )
+    assert result.passed and result.details is None
+    assert result.gradient_check is not None
+
+
+def test_ultralytics_class_count_mismatch(
+    yolo_safetensors: Path, images: NDArray[np.float32]
+) -> None:
+    card = make_card(yolo_safetensors, "ultralytics", "yolov8n", ["a", "b"])
+    result = check_model(card, yolo_safetensors, worker_target_id=TARGET, images=images[:1])
+    assert not result.passed and "2 class" in (result.details or "")
 
 
 def _onnx(

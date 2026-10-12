@@ -1,0 +1,19 @@
+{
+  "lease_id": "8d3a4f5e-6b7c-4d8e-9fa0-1b2c3d4e5f60",
+  "report": {
+    "kind": "model_convert",
+    "metadata": {
+      "framework": "ultralytics",
+      "architecture": "yolo11n",
+      "class_names": [
+        "person",
+        "bicycle",
+        "car",
+        "truck"
+      ],
+      "input_size": 640,
+      "num_classes": null
+    }
+  },
+  "error": null
+}

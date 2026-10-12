@@ -179,10 +179,10 @@ function build(kind: TodoKind, me: Me, s: TodoSources): TodoItem | null {
       return item(
         kind,
         'Model kiểm tra không đạt',
-        '/admin/models',
+        '/models',
         uniqueById(s.models ?? [], (m) => m.id)
           .filter((m) => m.status === 'check_failed')
-          .map((m) => ({ to: '/admin/models', label: m.name })),
+          .map((m) => ({ to: '/models', label: m.name })),
       )
   }
 }

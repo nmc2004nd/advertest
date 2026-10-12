@@ -58,6 +58,7 @@ ROLE_PERMISSIONS: Final[dict[Role, frozenset[Permission]]] = {
             _P.DATASET_UPLOAD,
             _P.SLICE_CREATE,
             _P.MODEL_READ,
+            _P.MODEL_MANAGE,  # đăng ký model của chính mình (luật sở hữu ở tầng service)
             _P.ATTACK_CATALOG_READ,
             _P.PROTOCOL_READ,
             _P.REPORT_READ,

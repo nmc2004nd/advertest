@@ -1,6 +1,7 @@
 // validation.md Phase R3, Group 6 — Đăng ký model qua web (M7), worker công cụ thật:
 // - form ONNX nêu hai layout đầu ra được hỗ trợ;
-// - file `.pt` bị chặn ở client, không gọi API upload;
+// - file pickle khác (.pkl) bị chặn ở client, không gọi API upload; file `.pt` hiện panel chuyển
+//   sang safetensors trong sandbox (đề xuất contract 003) và chưa upload cho tới khi bấm chuyển;
 // - model `check_failed` có nút "Kiểm tra lại", bấm thì về "Đang kiểm tra".
 import { expect, test } from '@playwright/test'
 
@@ -10,22 +11,32 @@ import { chooseOption, countRequests, getJson, postJson, WORKER_TIMEOUT } from '
 
 test.setTimeout(WORKER_TIMEOUT + 60_000)
 
-test('form đăng ký: layout ONNX và chặn file .pt', async ({ browser }, info) => {
+test('form đăng ký: layout ONNX, chặn file pickle, .pt đi qua sandbox', async ({
+  browser,
+}, info) => {
   const { page } = await userPage(browser, info, ['admin'])
   const uploads = countRequests(page, /\/api\/models\/uploads$/)
-  await page.goto('/admin/models')
+  await page.goto('/models')
   await visibleButton(page, 'Đăng ký model').click()
   await chooseOption(page, 'Framework', /onnx/i)
   await expect(page.getByTestId('onnx-layouts')).toContainText('boxes/scores/labels')
   await expect(page.getByTestId('onnx-layouts')).toContainText('(1, 4+C, N)')
 
   await page.getByLabel('File weights', { exact: true }).setInputFiles({
-    name: 'model.pt',
+    name: 'model.pkl',
     mimeType: 'application/octet-stream',
     buffer: Buffer.from('khong phai onnx'),
   })
   await expect(page.getByRole('alert')).toContainText('.onnx')
   await expect(page.getByRole('button', { name: 'Đăng ký', exact: true })).toBeDisabled()
+
+  await page.getByLabel('File weights', { exact: true }).setInputFiles({
+    name: 'best.pt',
+    mimeType: 'application/octet-stream',
+    buffer: Buffer.from('pickle gia'),
+  })
+  await expect(page.getByTestId('convert-panel')).toContainText('sandbox')
+  await expect(page.getByRole('button', { name: 'Chuyển sang safetensors' })).toBeEnabled()
   expect(uploads()).toBe(0)
 })
 
@@ -53,7 +64,7 @@ test('model kiểm tra không đạt có nút kiểm tra lại', async ({ browse
     })
     .toBe('check_failed')
 
-  await page.goto(`/admin/models/${model.id}`)
+  await page.goto(`/models/${model.id}`)
   await expect(page.getByTestId('model-status')).toHaveText(/Kiểm tra không đạt/)
   await expect(page.getByTestId('model-check')).not.toBeEmpty()
   await visibleButton(page, 'Kiểm tra lại').click()

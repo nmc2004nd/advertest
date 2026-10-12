@@ -9,12 +9,13 @@ import base64
 import binascii
 import json
 from datetime import datetime, timedelta
+from typing import Any
 from uuid import UUID
 
-from sqlalchemy import ARRAY, Text, cast, func, select, tuple_
+from sqlalchemy import ARRAY, Text, cast, func, or_, select, tuple_
 from sqlalchemy.orm import Session
 
-from advertest_contracts.enums import AttackSpecStatus, ExperimentStatus, ProtocolStatus
+from advertest_contracts.enums import AttackSpecStatus, ExperimentStatus, ProtocolStatus, Role
 from advertest_contracts.models import (
     AttackSpecAdminPage,
     AttackSpecView,
@@ -36,7 +37,9 @@ ONLINE_WINDOW = timedelta(seconds=60)
 LISTED_PROTOCOLS = (ProtocolStatus.ACTIVE, ProtocolStatus.DEV)
 
 
-def _model_summary(version: m.ModelVersion, model: m.Model) -> ModelSummary:
+def _model_summary(
+    version: m.ModelVersion, model: m.Model, owner: m.User | None = None
+) -> ModelSummary:
     return ModelSummary(
         id=version.id,
         name=model.name,
@@ -48,28 +51,67 @@ def _model_summary(version: m.ModelVersion, model: m.Model) -> ModelSummary:
         created_at=version.created_at,
         status=version.status,
         check=ModelCheckResult.model_validate(version.check) if version.check else None,
+        archived_at=version.archived_at,
+        owner_id=model.created_by,
+        owner_name=owner.full_name if owner is not None else None,
     )
 
 
-def list_models(session: Session) -> list[ModelSummary]:
-    rows = session.execute(
-        select(m.ModelVersion, m.Model)
+def model_visibility(session: Session, actor: m.User) -> Any | None:
+    """Điều kiện SQL trên `m.Model` cho model `actor` thấy (Phase R3, người dùng chốt
+    2026-10-12); `None` là thấy hết. Admin và reviewer thấy mọi model; engineer thấy model mình
+    đăng ký và model của người có vai trò admin (dùng chung)."""
+    roles = set(session.scalars(select(m.UserRole.role).where(m.UserRole.user_id == actor.id)))
+    if roles & {Role.ADMIN, Role.REVIEWER}:
+        return None
+    admins = select(m.UserRole.user_id).where(m.UserRole.role == Role.ADMIN)
+    return or_(m.Model.created_by == actor.id, m.Model.created_by.in_(admins))
+
+
+def can_see_model(session: Session, actor: m.User, model_version_id: UUID) -> bool:
+    query = (
+        select(m.ModelVersion.id)
         .join(m.Model, m.Model.id == m.ModelVersion.model_id)
+        .where(m.ModelVersion.id == model_version_id)
+    )
+    condition = model_visibility(session, actor)
+    if condition is not None:
+        query = query.where(condition)
+    return session.scalar(query) is not None
+
+
+def list_models(session: Session, actor: m.User | None = None) -> list[ModelSummary]:
+    """Mọi model, hoặc chỉ model `actor` thấy được (`model_visibility`)."""
+    query = (
+        select(m.ModelVersion, m.Model, m.User)
+        .join(m.Model, m.Model.id == m.ModelVersion.model_id)
+        .outerjoin(m.User, m.User.id == m.Model.created_by)
         .order_by(m.Model.name, m.ModelVersion.created_at.desc(), m.ModelVersion.id)
     )
-    return [_model_summary(version, model) for version, model in rows]
+    condition = model_visibility(session, actor) if actor is not None else None
+    if condition is not None:
+        query = query.where(condition)
+    return [
+        _model_summary(version, model, owner) for version, model, owner in session.execute(query)
+    ]
 
 
-def get_model(session: Session, model_version_id: UUID) -> ModelSummary:
+def get_model(
+    session: Session, model_version_id: UUID, actor: m.User | None = None
+) -> ModelSummary:
+    """Model không thấy được với `actor` cũng là 404 (không lộ sự tồn tại)."""
+    if actor is not None and not can_see_model(session, actor, model_version_id):
+        raise NotFound("Không có model này")
     row = session.execute(
-        select(m.ModelVersion, m.Model)
+        select(m.ModelVersion, m.Model, m.User)
         .join(m.Model, m.Model.id == m.ModelVersion.model_id)
+        .outerjoin(m.User, m.User.id == m.Model.created_by)
         .where(m.ModelVersion.id == model_version_id)
     ).one_or_none()
     if row is None:
         raise NotFound("Không có model này")
-    version, model = row
-    return _model_summary(version, model)
+    version, model, owner = row
+    return _model_summary(version, model, owner)
 
 
 def _version_summary(version: m.DatasetVersion) -> DatasetVersionSummary:

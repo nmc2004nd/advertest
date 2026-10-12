@@ -114,3 +114,20 @@ def test_letterbox_config_has_no_per_image_info() -> None:
 def test_letterbox_info_matches_letterbox(size: tuple[int, int]) -> None:
     _, info = letterbox(_image(*size))
     assert letterbox_info(*size) == info
+
+
+@pytest.mark.parametrize("size", [(KITTI_W, KITTI_H), (300, 900), (640, 640), (17, 5)])
+def test_content_box_is_unpadded_region(size: tuple[int, int]) -> None:
+    image, info = letterbox(_image(*size))
+    x1, y1, x2, y2 = (int(v) for v in info.content_box())
+    pad = np.asarray(np.isclose(image, PAD_VALUE).all(axis=0), dtype=bool)
+    assert x2 - x1 >= 1 and y2 - y1 >= 1
+    assert not pad[y1:y2, x1:x2].all()
+    # Vùng ngoài content_box toàn pad.
+    inside = np.zeros(pad.shape, dtype=bool)
+    inside[y1:y2, x1:x2] = True
+    assert pad[~inside].all()
+
+
+def test_content_box_kitti() -> None:
+    assert letterbox_info(KITTI_W, KITTI_H).content_box() == [0.0, 223.0, 640.0, 416.0]

@@ -10,6 +10,7 @@ import { MetricCurves } from '@/components/charts/MetricCurves'
 import { CopyButton } from '@/components/CopyButton'
 import { EmptyState } from '@/components/EmptyState'
 import { WATERMARK } from '@/components/case-viewer/CaseViewer'
+import { aspectOf, cropStyle, viewOf } from '@/components/case-viewer/geometry'
 import { LoadError } from '@/components/LoadError'
 import { PageLoading } from '@/components/PageLoading'
 import { StatusBadge } from '@/components/status/StatusBadge'
@@ -20,6 +21,7 @@ import { artifactSrc, useAttackCatalog, useFailureCases, useInsight, useManifest
 import { BreakingPoints } from './BreakingPoints'
 import { downloadJson, formatDuration, reasonText, runLabel } from './format'
 import { InsightSection } from './Insight'
+import { NarrativeSection } from './Narrative'
 import { filterRuns } from './results'
 import { ProgressBar } from './ProgressBar'
 import { RunProgress } from './RunProgress'
@@ -71,7 +73,8 @@ export function RunsTable({ runs }: { runs: RunView[] }) {
 
 /**
  * Tab Kết quả: Phase R3 mở đầu bằng insight (kết luận, điểm yếu, ma trận, `action` nâng lên chính
- * thức), rồi tới các biểu đồ có sẵn; chưa có run nào có metric thì chỉ hiện trạng thái trống.
+ * thức), nhận xét chi tiết do LLM viết, rồi tới các biểu đồ có sẵn; chưa có run nào có metric thì
+ * chỉ hiện trạng thái trống.
  */
 export function ResultsTab({
   experiment,
@@ -102,6 +105,7 @@ export function ResultsTab({
   return (
     <div className="space-y-8">
       <InsightSection insight={insight.data} catalog={catalog.data ?? []} action={action} />
+      <NarrativeSection experiment={experiment} />
       <BreakingPoints experiment={experiment} runs={runs} />
       <AttackRanking ranking={experiment.attack_ranking ?? []} />
       {grid.size > 0 && (
@@ -115,19 +119,19 @@ export function ResultsTab({
 
 function CaseTile({ view, runId }: { view: FailureCaseView; runId: string }) {
   const src = artifactSrc(view.urls.adversarial_thumb ?? view.urls.clean_thumb)
+  // Cắt pad letterbox như trình xem (đề xuất contract 001, Phase R3); case cũ giữ khung vuông.
+  const crop = viewOf(view.detections.content_box)
   return (
     <Link
       to={`/failure-cases/${view.id}?run=${runId}`}
       className="group flex flex-col gap-1 rounded-lg focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
     >
-      <div className="relative aspect-square overflow-hidden rounded-lg bg-muted">
+      <div
+        className="relative overflow-hidden rounded-lg bg-muted"
+        style={{ aspectRatio: aspectOf(crop) }}
+      >
         {src ? (
-          <img
-            src={src}
-            alt={`Ảnh ${view.image_id}`}
-            loading="lazy"
-            className="size-full object-cover"
-          />
+          <img src={src} alt={`Ảnh ${view.image_id}`} loading="lazy" style={cropStyle(crop)} />
         ) : (
           <div className="flex size-full flex-col items-center justify-center gap-1 p-2 text-center text-xs text-muted-foreground">
             <EyeOff aria-hidden="true" className="size-5" />
@@ -162,7 +166,7 @@ function RunCases({ run }: { run: RunView }) {
           {cases.data[0]?.display_mode === 'dev_unblurred' && (
             <p className="text-sm text-threshold">Chưa làm mờ – chỉ dùng cho phát triển</p>
           )}
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {cases.data.map((view) => (
               <li key={view.id}>
                 <CaseTile view={view} runId={run.run_id} />

@@ -26,6 +26,9 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
   checklist_incomplete: 'Chưa đủ điều kiện để chấp nhận.',
   quick_try_busy: 'Bạn đang có một lượt thử nhanh chưa xong. Vui lòng chờ lượt đó kết thúc.',
   gone: 'Kết quả thử nhanh đã hết hạn và bị xóa.',
+  llm_unavailable: 'Máy chủ chưa cấu hình AI để viết nhận xét. Liên hệ admin để bật tính năng này.',
+  llm_failed:
+    'AI chưa viết được nhận xét (lỗi kết nối hoặc trả sai định dạng). Bấm tạo lại sau ít phút.',
 }
 
 export const UNKNOWN_ERROR_MESSAGE = 'Đã có lỗi xảy ra. Vui lòng thử lại.'

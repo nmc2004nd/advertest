@@ -94,6 +94,12 @@
         ],
         "source": "difficulty:Car"
       }
+    ],
+    "content_box": [
+      0.0,
+      223.0,
+      640.0,
+      416.0
     ]
   },
   "artifacts": {

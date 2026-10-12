@@ -343,6 +343,7 @@ class RunExecutor:
                 "ignore_boxes": np.asarray(ignore["boxes"]).reshape(-1, 4).tolist(),
                 "ignore_sources": list(ignore["sources"]),
                 "blur_regions": len(regions),
+                "content_box": batch.infos[index].content_box(),
             }
         for evicted in [k for k in self.top if k not in new_top]:
             self.candidates.evict(evicted)
@@ -418,6 +419,8 @@ class RunExecutor:
                 CaseIgnoreRegion(bbox=bbox(box), source=source)
                 for box, source in zip(ignore_boxes, inputs["ignore_sources"], strict=True)
             ],
+            # Checkpoint tạo trước Phase R3 không có khóa này.
+            content_box=inputs.get("content_box"),
         )
         return FailureCaseRecord(
             id=case_id,

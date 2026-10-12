@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { MODEL_UPLOAD_MAX_BYTES, parseClassNames, weightsFileError } from './model-file'
+import {
+  guessConvertFramework,
+  MODEL_UPLOAD_MAX_BYTES,
+  needsConversion,
+  parseClassNames,
+  weightsFileError,
+} from './model-file'
 
 describe('weightsFileError (validation.md Group 6: chặn ở client)', () => {
   it('nhận .onnx và .safetensors tới 500 MB', () => {
@@ -8,10 +14,20 @@ describe('weightsFileError (validation.md Group 6: chặn ở client)', () => {
     expect(weightsFileError({ name: 'frcnn.SAFETENSORS', size: MODEL_UPLOAD_MAX_BYTES })).toBeNull()
   })
 
-  it('chặn .pt, pickle, đuôi khác; lời nhắn nêu .onnx', () => {
-    for (const name of ['model.pt', 'model.pth', 'model.pkl', 'model.onnx.pt', 'onnx']) {
+  it('chặn pickle và đuôi khác; lời nhắn nêu .onnx', () => {
+    for (const name of ['model.pkl', 'model.ckpt', 'model.pt.zip', 'onnx']) {
       expect(weightsFileError({ name, size: 10 })).toContain('.onnx')
     }
+  })
+
+  it('.pt/.pth nhận được nhưng phải chuyển đổi (đề xuất contract 003)', () => {
+    for (const name of ['best.pt', 'frcnn.PTH']) {
+      expect(weightsFileError({ name, size: 10 })).toBeNull()
+      expect(needsConversion(name)).toBe(true)
+    }
+    expect(needsConversion('m.safetensors')).toBe(false)
+    expect(guessConvertFramework('frcnn.pth')).toBe('torchvision')
+    expect(guessConvertFramework('best.pt')).toBe('ultralytics')
   })
 
   it('chặn file lớn hơn 500 MB và file rỗng', () => {

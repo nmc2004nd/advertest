@@ -155,6 +155,47 @@
       ],
       "default": null,
       "description": "Kết quả job model_check gần nhất; null với model đăng ký qua CLI"
+    },
+    "archived_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Phase R3 (đề xuất contract 002): model đã lưu trữ không chọn được cho experiment, thử nhanh hay mapping mới; experiment và report cũ vẫn tra được",
+      "title": "Archived At"
+    },
+    "owner_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Phase R3 (đề xuất contract 002): người đăng ký model; chỉ người này hoặc admin được xóa, lưu trữ, thêm class mapping",
+      "title": "Owner Id"
+    },
+    "owner_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Họ tên người đăng ký model",
+      "title": "Owner Name"
     }
   },
   "required": [

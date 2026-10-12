@@ -41,6 +41,7 @@ from .conftest import (
     ONNX_WEIGHTS,
     P5,
     TORCHVISION_WEIGHTS,
+    YOLO_WEIGHTS,
     ToolWorker,
     coco80,
     csrf,
@@ -101,10 +102,15 @@ def _spec_status(admin: TestClient, spec_id: str) -> AttackSpecAdminView:
         ).json()
 
 
-def _quick_try(client: TestClient, api: Any, spec: str = "fgsm") -> str:
+def _quick_try(
+    client: TestClient, api: Any, spec: str = "fgsm", model_id: str | None = None
+) -> str:
     response = client.post(
         "/quick-tries",
-        data={"model_version_id": api.world.model_id, "attack_spec_id": str(spec_of(spec).id)},
+        data={
+            "model_version_id": model_id or api.world.model_id,
+            "attack_spec_id": str(spec_of(spec).id),
+        },
         files={"image": ("anh.png", KITTI_IMAGE.read_bytes(), "image/png")},
         headers=csrf(client),
     )
@@ -170,6 +176,30 @@ def test_model_check_onnx_and_torchvision(setup: dict[str, Any]) -> None:
     assert tv.status == "ready", tv.check
     assert tv.check is not None and tv.check.gradient_check is not None
     assert tv.supports_gradients is tv.check.gradient_check.passed
+
+
+def test_model_check_ultralytics_safetensors(
+    api: Any, setup: dict[str, Any], tmp_path: Path
+) -> None:
+    """YOLOv8n `.pt` đổi sang safetensors (`advertest model export-safetensors`), đăng ký qua web
+    bởi engineer: `ready` có gradient, rồi thử nhanh FGSM (cần gradient) trên chính model đó."""
+    from ml_core.models.ultralytics_safetensors import export_safetensors
+
+    engineer, runner = setup["engineer"], setup["runner"]
+    weights = tmp_path / "yolov8n.safetensors"
+    arch, names = export_safetensors(YOLO_WEIGHTS, weights)
+    assert arch == "yolov8n" and names == coco80()
+    model_id = _register(engineer, weights, "ultralytics", arch, names)
+    assert runner.run_next()
+    model = _model(engineer, model_id)
+    assert model.status == "ready", model.check
+    assert model.check is not None and model.check.gradient_check is not None
+    assert model.supports_gradients is True, model.check.gradient_check
+
+    quick_try_id = _quick_try(engineer, api, "fgsm", model_id)
+    assert runner.run_next()
+    view = QuickTryView.model_validate(engineer.get(f"/quick-tries/{quick_try_id}").json())
+    assert view.status == "completed", view.error
 
 
 def test_model_check_failures(setup: dict[str, Any]) -> None:

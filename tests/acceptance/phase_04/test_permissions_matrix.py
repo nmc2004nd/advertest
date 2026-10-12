@@ -9,7 +9,8 @@ from advertest_contracts.permissions import ROLE_PERMISSIONS, Permission
 
 # Bảng "Ma trận quyền" của specs/2026-09-27-phase-04-auth-rbac/requirements.md (E, R, A); Phase 8
 # thêm review.comment (requirements.md Phase 8, Ma trận quyền); Phase R2 thêm attack_catalog.approve
-# và quick_try.use (requirements.md Phase R2, Quyền).
+# và quick_try.use (requirements.md Phase R2, Quyền); engineer có model.manage để đăng ký model
+# của mình.
 TABLE = """
 experiment.read           E R A
 experiment.create         E . .
@@ -19,7 +20,7 @@ dataset.read              E R A
 dataset.upload            E . .
 slice.create              E . .
 model.read                E R A
-model.manage              . . A
+model.manage              E . A
 attack_catalog.read       E R A
 attack_catalog.manage     . . A
 attack_catalog.approve    . R .

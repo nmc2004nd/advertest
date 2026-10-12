@@ -28,3 +28,6 @@ tests/fixtures/*
 !tests/fixtures/LICENSE.md
 !tests/fixtures/manifest.json
 !tests/fixtures/golden/
+
+# Model tải về để thử đăng ký qua web (không commit)
+/models/

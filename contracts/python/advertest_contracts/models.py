@@ -1020,11 +1020,19 @@ class CaseIgnoreRegion(_Model):
     source: str = Field(pattern=r"^(dont_care|unmapped:.+|difficulty:.+)$")
 
 
+_CONTENT_BOX = (
+    "Vùng ảnh thật trong ảnh letterbox (xyxy pixel, không gian letterbox), phần còn lại là pad"
+    " 114. null với dữ liệu tạo trước Phase R3: giao diện hiển thị cả khung vuông (đề xuất"
+    " contract 001, Phase R3)"
+)
+
+
 class CaseDetections(_Model):
     ground_truth: list[CaseBox]
     clean: list[CaseBox]
     attacked: list[CaseBox]
     ignore_regions: list[CaseIgnoreRegion]
+    content_box: PixelBBox | None = Field(default=None, description=_CONTENT_BOX)
 
     @model_validator(mode="after")
     def _check_scores(self) -> CaseDetections:
@@ -2476,6 +2484,17 @@ class ModelSummary(_Model):
     check: ModelCheckResult | None = Field(
         default=None, description="Kết quả job model_check gần nhất; null với model đăng ký qua CLI"
     )
+    archived_at: UtcDatetime | None = Field(
+        default=None,
+        description="Phase R3 (đề xuất contract 002): model đã lưu trữ không chọn được cho"
+        " experiment, thử nhanh hay mapping mới; experiment và report cũ vẫn tra được",
+    )
+    owner_id: UUID | None = Field(
+        default=None,
+        description="Phase R3 (đề xuất contract 002): người đăng ký model; chỉ người này hoặc"
+        " admin được xóa, lưu trữ, thêm class mapping",
+    )
+    owner_name: str | None = Field(default=None, description="Họ tên người đăng ký model")
 
 
 class DatasetVersionSummary(_Model):
@@ -2517,6 +2536,26 @@ class ClassMappingSummary(_Model):
     mapping_sha256: Sha256Hex
     preset: str | None
     classes: dict[str, str | None] = Field(description="Class gốc → class model; null là bỏ")
+
+
+class ClassMappingCreate(_Model):
+    """`POST /class-mappings` (Phase R3, đề xuất contract 002): tạo mapping cho model đăng ký qua
+    web. Backend kiểm tra class gốc thuộc dataset version, class đích thuộc model; `preset` được
+    suy ra khi nội dung trùng một preset (ví dụ `kitti-coco`); trùng hash → 409."""
+
+    dataset_version_id: UUID
+    model_version_id: UUID
+    classes: dict[str, str | None] = Field(
+        min_length=1,
+        description="Class gốc → class model; null thành ignore region unmapped:<class>",
+    )
+    difficulty: DifficultyFilter | None = Field(description="null là không lọc theo độ khó")
+
+    @model_validator(mode="after")
+    def _check(self) -> ClassMappingCreate:
+        if all(target is None for target in self.classes.values()):
+            raise ValueError("cần ít nhất một class gốc map sang class của model")
+        return self
 
 
 class ProtocolSummary(_Model):
@@ -3227,6 +3266,17 @@ TORCHVISION_ARCHITECTURES: tuple[str, ...] = (
     "retinanet_resnet50_fpn_v2",
     "fcos_resnet50_fpn",
 )
+# Kiến trúc Ultralytics detect đăng ký qua web bằng safetensors (state_dict): mạng dựng lại từ
+# config `<architecture>.yaml` của Ultralytics, nên có gradient như model nạp qua CLI. Cùng đầu
+# Detect anchor-free (DFL) với loss v8; YOLOv5 (anchor), YOLOv10 (end-to-end) không thuộc nhóm này.
+ULTRALYTICS_ARCHITECTURES: tuple[str, ...] = (
+    *(f"yolov8{s}" for s in "nsmlx"),
+    *(f"yolov9{s}" for s in "tsmce"),
+    *(f"yolo11{s}" for s in "nsmlx"),
+    *(f"yolo12{s}" for s in "nsmlx"),
+)
+# Estimator Ultralytics cố định đầu vào letterbox 640.
+ULTRALYTICS_INPUT_SIZE = 640
 # Giới hạn upload model qua web (Decisions): 500 MB.
 MODEL_UPLOAD_MAX_BYTES = 500 * 1024 * 1024
 
@@ -3276,10 +3326,17 @@ class ModelCheckResult(_Model):
 
 
 class ModelUploadCreate(_Model):
-    """`POST /models/uploads`: chỉ `.onnx` hoặc `.safetensors`, tối đa 500 MB (mission.md nguyên
-    tắc 10). Nội dung được kiểm tra lại khi `POST /models`."""
+    """`POST /models/uploads`: `.onnx`, `.safetensors`, hoặc `.pt`/`.pth` để chuyển đổi trong
+    sandbox; tối đa 500 MB (mission.md nguyên tắc 10). Nội dung được kiểm tra lại khi
+    `POST /models`."""
 
-    filename: str = Field(min_length=1, max_length=255, pattern=r"^[^/\\]+\.(onnx|safetensors)$")
+    filename: str = Field(
+        min_length=1,
+        max_length=255,
+        pattern=r"^[^/\\]+\.(onnx|safetensors|pt|pth)$",
+        description="`.pt`/`.pth` chỉ dùng cho `POST /models/conversions` (đề xuất contract 003);"
+        " `POST /models` từ chối",
+    )
     size_bytes: PositiveInt = Field(le=MODEL_UPLOAD_MAX_BYTES)
 
 
@@ -3294,11 +3351,16 @@ class ModelRegister(_Model):
     409; xếp job model_check."""
 
     name: Name
-    framework: Literal["torchvision", "onnx"]
+    framework: Literal["torchvision", "onnx", "ultralytics"] = Field(
+        description="torchvision và ultralytics: file .safetensors; onnx: file .onnx"
+    )
     architecture: str = Field(
         min_length=1,
         max_length=200,
-        description="torchvision: một trong TORCHVISION_ARCHITECTURES; onnx: mô tả tự do",
+        description=(
+            "torchvision: một trong TORCHVISION_ARCHITECTURES; ultralytics: một trong "
+            "ULTRALYTICS_ARCHITECTURES; onnx: mô tả tự do"
+        ),
     )
     upload_id: UUID
     class_names: list[str] = Field(min_length=1, description="Theo thứ tự index của model")
@@ -3310,6 +3372,14 @@ class ModelRegister(_Model):
             raise ValueError(
                 "architecture torchvision phải là một trong " + ", ".join(TORCHVISION_ARCHITECTURES)
             )
+        if self.framework == "ultralytics":
+            if self.architecture not in ULTRALYTICS_ARCHITECTURES:
+                raise ValueError(
+                    "architecture ultralytics phải là một trong "
+                    + ", ".join(ULTRALYTICS_ARCHITECTURES)
+                )
+            if self.input_size != ULTRALYTICS_INPUT_SIZE:
+                raise ValueError(f"model ultralytics có input_size {ULTRALYTICS_INPUT_SIZE}")
         if len(set(self.class_names)) != len(self.class_names):
             raise ValueError("class_names không được trùng")
         if any(not name for name in self.class_names):
@@ -3416,6 +3486,54 @@ class ExperimentInsight(_Model):
             not self.weaknesses
         ):
             raise ValueError("code weak, weak_class cần ít nhất một điểm yếu")
+        return self
+
+
+# ------------------------------------------------- Nhận xét chi tiết bằng LLM (sau Phase R3)
+
+MAX_NARRATIVE_ITEMS = 5
+
+
+class NarrativeFinding(_Model):
+    """Một nhận xét: tiêu đề ngắn và phần giải thích dựa trên số liệu."""
+
+    title: str = Field(min_length=1, max_length=200)
+    detail: str = Field(min_length=1, max_length=2000)
+
+
+class ExperimentNarrative(_Model):
+    """Nhận xét chi tiết do LLM viết từ số liệu insight của experiment. Chỉ để tham khảo, không
+    thay câu kết luận theo luật và không vào report. Lưu theo `input_sha256` (hash dữ liệu gửi
+    LLM): cùng dữ liệu thì dùng lại bản đã lưu, không gọi LLM lần nữa."""
+
+    experiment_id: UUID
+    input_sha256: Sha256Hex = Field(description="sha256 canonical_json của dữ liệu gửi LLM")
+    prompt_version: str = Field(min_length=1)
+    llm_model: str = Field(min_length=1, description="Model LLM đã viết, ví dụ deepseek-chat")
+    summary: str = Field(min_length=1, max_length=2000)
+    findings: list[NarrativeFinding] = Field(max_length=MAX_NARRATIVE_ITEMS)
+    next_steps: list[Annotated[str, StringConstraints(min_length=1, max_length=500)]] = Field(
+        max_length=MAX_NARRATIVE_ITEMS, description="Gợi ý; con người quyết định"
+    )
+    partial: bool = Field(description="Insight lúc viết là kết quả một phần")
+    created_by: UUID
+    created_at: AwareDatetime
+
+
+class NarrativeState(_Model):
+    """`GET /experiments/{id}/narrative`."""
+
+    enabled: bool = Field(description="false khi máy chủ chưa cấu hình LLM")
+    narrative: ExperimentNarrative | None = Field(description="Bản mới nhất; null khi chưa có")
+    stale: bool = Field(description="Dữ liệu insight đã đổi so với bản đã lưu")
+    can_generate: bool = Field(
+        description="Experiment đã kết thúc và có run có metric (điều kiện của POST)"
+    )
+
+    @model_validator(mode="after")
+    def _check(self) -> NarrativeState:
+        if self.stale and self.narrative is None:
+            raise ValueError("stale cần có narrative")
         return self
 
 
@@ -3609,6 +3727,9 @@ class QuickTryView(_Model):
         description="Ảnh sạch đã letterbox và làm mờ; có khi và chỉ khi completed. Ảnh gốc chưa"
         " làm mờ không bao giờ được phục vụ qua API"
     )
+    content_box: PixelBBox | None = Field(
+        default=None, description=_CONTENT_BOX + "; chỉ có khi completed"
+    )
     levels: list[QuickTryLevel] = Field(description="Rỗng khi chưa completed")
     created_at: UtcDatetime
     expires_at: UtcDatetime
@@ -3621,10 +3742,62 @@ class QuickTryView(_Model):
             raise ValueError("clean_image_url có khi và chỉ khi completed")
         if done != bool(self.levels):
             raise ValueError("levels không rỗng khi và chỉ khi completed")
+        if self.content_box is not None and not done:
+            raise ValueError("content_box chỉ có khi completed")
         if (self.error is not None) != (self.status == ToolJobStatus.FAILED):
             raise ValueError("error có khi và chỉ khi failed")
         if self.expires_at <= self.created_at:
             raise ValueError("expires_at phải sau created_at")
+        return self
+
+
+# ---------------------------------------------------------------- Phase R3: chuyển .pt (sandbox)
+
+
+class ModelConvertMetadata(_Model):
+    """Metadata đọc được từ checkpoint `.pt` trong sandbox (đề xuất contract 003); form đăng ký tự
+    điền từ đây. Trường null là không đọc được, người dùng tự chọn."""
+
+    framework: Literal["torchvision", "ultralytics"]
+    architecture: str | None = Field(default=None, max_length=200)
+    class_names: list[str] | None = Field(default=None, min_length=1)
+    input_size: PositiveInt | None = None
+    num_classes: PositiveInt | None = Field(
+        default=None, description="Số đầu ra class của state dict (torchvision, có nền)"
+    )
+
+
+class ModelConversionCreate(_Model):
+    """`POST /models/conversions`: đổi file `.pt`/`.pth` đã upload (`POST /models/uploads`) sang
+    `.safetensors` trong sandbox chuyển đổi (mission.md nguyên tắc 10)."""
+
+    upload_id: UUID
+    framework: Literal["torchvision", "ultralytics"] = Field(
+        description="ultralytics: checkpoint YOLO; torchvision: state dict detection"
+    )
+
+
+class ModelConversionView(_Model):
+    """`POST /models/conversions` (202) và `GET /models/conversions/{id}`; `id` là id của job."""
+
+    id: UUID
+    status: ToolJobStatus
+    framework: Literal["torchvision", "ultralytics"]
+    result_upload_id: UUID | None = Field(
+        description="upload_id của file `.safetensors` kết quả, dùng cho `POST /models`; có khi và"
+        " chỉ khi completed"
+    )
+    metadata: ModelConvertMetadata | None = Field(description="Có khi và chỉ khi completed")
+    error: str | None = Field(description="Có khi và chỉ khi failed")
+    created_at: UtcDatetime
+
+    @model_validator(mode="after")
+    def _check(self) -> ModelConversionView:
+        done = self.status == ToolJobStatus.COMPLETED
+        if (self.result_upload_id is not None) != done or (self.metadata is not None) != done:
+            raise ValueError("result_upload_id và metadata có khi và chỉ khi completed")
+        if (self.error is not None) != (self.status == ToolJobStatus.FAILED):
+            raise ValueError("error có khi và chỉ khi failed")
         return self
 
 
@@ -3682,8 +3855,20 @@ class QuickTryPayload(_Model):
         return self
 
 
+class ModelConvertPayload(_Model):
+    """Worker công cụ không mở file: tải `source_url`, chuyển byte cho sandbox chuyển đổi, PUT kết
+    quả lên `result_upload_url` (đề xuất contract 003)."""
+
+    kind: Literal[ToolJobKind.MODEL_CONVERT] = ToolJobKind.MODEL_CONVERT
+    conversion_id: UUID
+    framework: Literal["torchvision", "ultralytics"]
+    source_url: PresignedUrl = Field(description="GET file `.pt`/`.pth` đã upload")
+    result_upload_url: PresignedUrl = Field(description="PUT file `.safetensors` kết quả")
+
+
 ToolPayload = Annotated[
-    SpecCheckPayload | ModelCheckPayload | QuickTryPayload, Field(discriminator="kind")
+    SpecCheckPayload | ModelCheckPayload | QuickTryPayload | ModelConvertPayload,
+    Field(discriminator="kind"),
 ]
 
 
@@ -3720,10 +3905,19 @@ class QuickTryReport(_Model):
 
     kind: Literal[ToolJobKind.QUICK_TRY] = ToolJobKind.QUICK_TRY
     levels: list[QuickTryLevelReport] = Field(min_length=1)
+    content_box: PixelBBox | None = Field(default=None, description=_CONTENT_BOX)
+
+
+class ModelConvertReport(_Model):
+    """File `.safetensors` đã PUT lên `result_upload_url` trước khi gửi report."""
+
+    kind: Literal[ToolJobKind.MODEL_CONVERT] = ToolJobKind.MODEL_CONVERT
+    metadata: ModelConvertMetadata
 
 
 ToolReport = Annotated[
-    SpecCheckReport | ModelCheckReport | QuickTryReport, Field(discriminator="kind")
+    SpecCheckReport | ModelCheckReport | QuickTryReport | ModelConvertReport,
+    Field(discriminator="kind"),
 ]
 
 

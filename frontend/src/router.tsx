@@ -177,7 +177,7 @@ const routes: RouteObject[] = [
         ),
       },
       {
-        path: '/admin/models',
+        path: '/models',
         element: (
           <RequirePermission requirement="model.manage">
             <ModelsPage />
@@ -185,7 +185,7 @@ const routes: RouteObject[] = [
         ),
       },
       {
-        path: '/admin/models/:id',
+        path: '/models/:id',
         element: (
           <RequirePermission requirement="model.manage">
             <ModelDetailPage />

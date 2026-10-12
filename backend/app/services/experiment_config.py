@@ -37,6 +37,7 @@ from advertest_contracts.models import (
 )
 from backend.app.db import models as m
 from backend.app.protocols import compliance
+from backend.app.services import catalog
 from backend.app.services.errors import InvalidConfig
 from ml_core.search.bounds import search_bounds
 
@@ -110,7 +111,11 @@ def level_errors(param: PrimaryParam, levels: list[float], path: str) -> list[Fi
 
 
 def check(
-    session: Session, body: ExperimentCreate, *, enforce_compliance: bool = True
+    session: Session,
+    body: ExperimentCreate,
+    *,
+    enforce_compliance: bool = True,
+    actor: m.User | None = None,
 ) -> CheckedConfig:
     """Trả cấu hình đã kiểm tra, hoặc ném `InvalidConfig` với mọi lỗi tìm được.
 
@@ -185,11 +190,20 @@ def check(
             error(path, f"{spec.name} không cần slice huấn luyện")
     # ------------------------------------------------------------ model, slice, mapping
     model = session.get(m.ModelVersion, body.model_version_id)
+    # Phase R3: model của engineer khác coi như không có (`catalog.model_visibility`).
+    if (
+        model is not None
+        and actor is not None
+        and not catalog.can_see_model(session, actor, model.id)
+    ):
+        model = None
     if model is None:
         error("model_version_id", "Không có model này")
     elif model.status != ModelStatus.READY:
         # Phase R2: model đăng ký qua web chỉ dùng được sau khi job model_check pass.
         error("model_version_id", f"Model chưa sẵn sàng ({model.status})")
+    elif model.archived_at is not None:
+        error("model_version_id", "Model đã lưu trữ")
     slice_row = session.get(m.Slice, body.slice_id)
     if slice_row is None:
         error("slice_id", "Không có slice này")

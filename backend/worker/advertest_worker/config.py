@@ -4,6 +4,8 @@
 - `WORKER_TOKEN`: token của compute target (in ra một lần khi tạo hoặc xoay).
 - `CACHE_DIR`: cache weights, ảnh, manifest theo sha256 (mặc định `~/.cache/advertest-worker`).
 - `DEVICE`: ví dụ `cpu`, `cuda:0`; mặc định GPU nếu có.
+- `CONVERT_SPOOL`: thư mục spool dùng chung với sandbox chuyển đổi `.pt` (service `converter`,
+  Phase R3); trống thì job `model_convert` báo lỗi.
 
 Worker không có thông tin đăng nhập Postgres hay MinIO (requirements.md Phase 3, Decisions).
 """
@@ -25,6 +27,7 @@ class WorkerSettings:
     token: str
     cache_dir: Path = DEFAULT_CACHE_DIR
     device: str | None = None
+    convert_spool: Path | None = None
     poll_interval_s: float = POLL_INTERVAL_S
     heartbeat_interval_s: float = HEARTBEAT_INTERVAL_S
 
@@ -40,4 +43,7 @@ class WorkerSettings:
             token=token,
             cache_dir=Path(cache) if cache else DEFAULT_CACHE_DIR,
             device=os.environ.get("DEVICE", "").strip() or None,
+            convert_spool=Path(spool)
+            if (spool := os.environ.get("CONVERT_SPOOL", "").strip())
+            else None,
         )

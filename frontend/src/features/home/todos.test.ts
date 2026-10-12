@@ -125,6 +125,6 @@ describe('link của việc cần làm', () => {
   it('review và việc của admin tới đúng trang xử lý', () => {
     expect(todo('review_pending', ['reviewer']).to).toBe('/reviews?status=waiting')
     expect(todo('user_pending', ['admin']).to).toBe('/admin/users')
-    expect(todo('model_check_failed', ['admin']).to).toBe('/admin/models')
+    expect(todo('model_check_failed', ['admin']).to).toBe('/models')
   })
 })

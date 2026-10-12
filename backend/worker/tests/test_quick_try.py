@@ -123,6 +123,7 @@ def test_run_quick_try_all_levels() -> None:
             ("person", "lost"),
             ("car", "new"),  # box score 0.1 < operating_conf bị bỏ
         ]
+    assert out.content_box == [0.0, 80.0, 640.0, 560.0]  # ảnh 320x240: pad trên và dưới 80
     assert len(out.level_pngs) == 2
     for data in [out.clean_png, *out.level_pngs]:
         assert Image.open(io.BytesIO(data)).size == (640, 640)

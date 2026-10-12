@@ -52,6 +52,7 @@ from advertest_contracts.models import (
     AuditLogPage,
     CaseVerdictInput,
     CaseVerdictView,
+    ClassMappingCreate,
     ClassMappingSummary,
     ComputeTargetPublic,
     DatasetSummary,
@@ -63,16 +64,20 @@ from advertest_contracts.models import (
     ExperimentDetail,
     ExperimentDraftRequest,
     ExperimentInsight,
+    ExperimentNarrative,
     ExperimentPage,
     ExperimentPreset,
     FailureCaseView,
     LoginRequest,
     Manifest,
     Me,
+    ModelConversionCreate,
+    ModelConversionView,
     ModelRegister,
     ModelSummary,
     ModelUpload,
     ModelUploadCreate,
+    NarrativeState,
     PasswordChange,
     PasswordResetConsume,
     PasswordResetLink,
@@ -127,7 +132,9 @@ from backend.app.auth import sessions
 from backend.app.auth.deps import CurrentUser, Principal
 from backend.app.auth.permissions import guard
 from backend.app.db import models as m
+from backend.app.insight import narrative as narrative_service
 from backend.app.insight import service as insight_service
+from backend.app.insight.llm import LlmClient, client_from_env
 from backend.app.protocols import service as protocol_service
 from backend.app.reports import service as report_service
 from backend.app.reviews import service as review_service
@@ -140,6 +147,8 @@ from backend.app.services import (
     experiment_config,
     experiment_views,
     experiments,
+    model_admin,
+    model_conversions,
     model_uploads,
     quick_tries,
 )
@@ -347,17 +356,20 @@ NOT_FOUND_RESPONSE: dict[int | str, dict[str, Any]] = {
 
 
 @router.get("/models", tags=["models"], **guard(P.MODEL_READ))
-def list_models(factory: Sessions) -> list[ModelSummary]:
+def list_models(user: CurrentUser, factory: Sessions) -> list[ModelSummary]:
+    """Phase R3: admin, reviewer thấy mọi model; engineer thấy model mình đăng ký và model do
+    admin đăng ký."""
     with transaction(factory) as session:
-        return catalog.list_models(session)
+        return catalog.list_models(session, _actor(session, user))
 
 
 @router.get(
     "/models/{model_id}", tags=["models"], responses=NOT_FOUND_RESPONSE, **guard(P.MODEL_READ)
 )
-def get_model(model_id: UUID, factory: Sessions) -> ModelSummary:
+def get_model(model_id: UUID, user: CurrentUser, factory: Sessions) -> ModelSummary:
+    """Model không thấy được (của engineer khác) → 404."""
     with transaction(factory) as session:
-        return catalog.get_model(session, model_id)
+        return catalog.get_model(session, model_id, _actor(session, user))
 
 
 @router.get("/datasets", tags=["datasets"], **guard(P.DATASET_READ))
@@ -570,10 +582,14 @@ def create_experiment(
 
 
 @router.post("/experiments/estimate", tags=["experiments"], **guard(P.EXPERIMENT_CREATE))
-def estimate_experiment(body: ExperimentCreate, factory: Sessions) -> EstimateResponse:
+def estimate_experiment(
+    body: ExperimentCreate, user: CurrentUser, factory: Sessions
+) -> EstimateResponse:
     """Kiểm tra cấu hình như khi tạo; không tạo gì."""
     with transaction(factory) as session:
-        checked = experiment_config.check(session, body, enforce_compliance=False)
+        checked = experiment_config.check(
+            session, body, enforce_compliance=False, actor=_actor(session, user)
+        )
         return estimate.estimate_config(session, checked)
 
 
@@ -1004,6 +1020,58 @@ def get_insight(experiment_id: UUID, factory: Sessions) -> ExperimentInsight:
         return insight_service.insight(session, experiment_id)
 
 
+def get_llm() -> LlmClient | None:
+    """Client LLM theo biến môi trường; None khi chưa cấu hình (test thay bằng dependency)."""
+    return client_from_env()
+
+
+Llm = Annotated[LlmClient | None, Depends(get_llm)]
+
+NARRATIVE_RESPONSES: dict[int | str, dict[str, Any]] = {
+    status.HTTP_404_NOT_FOUND: {"model": ErrorResponse, "description": "Không tìm thấy"},
+    status.HTTP_409_CONFLICT: {
+        "model": ErrorResponse,
+        "description": "Experiment chưa kết thúc hoặc chưa có run có metric",
+    },
+    status.HTTP_502_BAD_GATEWAY: {
+        "model": ErrorResponse,
+        "description": "LLM lỗi, quá thời gian hoặc trả sai định dạng (`llm_failed`)",
+    },
+    status.HTTP_503_SERVICE_UNAVAILABLE: {
+        "model": ErrorResponse,
+        "description": "Máy chủ chưa cấu hình LLM (`llm_unavailable`)",
+    },
+}
+
+
+@router.get(
+    "/experiments/{experiment_id}/narrative",
+    tags=["experiments"],
+    responses=NARRATIVE_RESPONSES,
+    **guard(P.EXPERIMENT_READ),
+)
+def get_narrative(experiment_id: UUID, factory: Sessions, llm: Llm) -> NarrativeState:
+    """Nhận xét chi tiết do LLM viết (bản mới nhất), có cũ so với insight hiện tại không, và có
+    tạo được không. Không gọi LLM."""
+    with transaction(factory) as session:
+        return narrative_service.state(session, experiment_id, enabled=llm is not None)
+
+
+@router.post(
+    "/experiments/{experiment_id}/narrative",
+    tags=["experiments"],
+    status_code=status.HTTP_201_CREATED,
+    responses=NARRATIVE_RESPONSES,
+    **guard(P.EXPERIMENT_READ),
+)
+def create_narrative(
+    experiment_id: UUID, user: CurrentUser, factory: Sessions, llm: Llm
+) -> ExperimentNarrative:
+    """Gọi LLM viết nhận xét từ số liệu insight hiện tại rồi lưu; cùng số liệu thì trả bản đã
+    lưu, không gọi lại. Chỉ khi experiment đã kết thúc và có run có metric."""
+    return narrative_service.generate(factory, experiment_id, user_id=user.user_id, client=llm)
+
+
 @router.post(
     "/experiments/{experiment_id}/promote",
     tags=["experiments"],
@@ -1190,6 +1258,110 @@ def recheck_model(
             buckets=stores.buckets,
             now=clock(),
         )
+
+
+@router.post(
+    "/models/conversions",
+    tags=["models"],
+    status_code=status.HTTP_202_ACCEPTED,
+    responses=R2_RESPONSES,
+    **guard(P.MODEL_MANAGE),
+)
+def create_model_conversion(
+    body: ModelConversionCreate, user: CurrentUser, factory: Sessions, stores: Stores, clock: Now
+) -> ModelConversionView:
+    """Phase R3 (đề xuất contract 003): đổi `.pt`/`.pth` đã upload sang `.safetensors` trong
+    sandbox chuyển đổi; API không mở file. 409 khi đang có lượt chưa xong."""
+    with transaction(factory) as session:
+        return model_conversions.create(
+            session, actor=_actor(session, user), body=body, buckets=stores.buckets, now=clock()
+        )
+
+
+@router.get(
+    "/models/conversions/{conversion_id}",
+    tags=["models"],
+    responses=NOT_FOUND_RESPONSE,
+    **guard(P.MODEL_MANAGE),
+)
+def get_model_conversion(
+    conversion_id: UUID, user: CurrentUser, factory: Sessions
+) -> ModelConversionView:
+    """Lượt chuyển đổi của chính người gọi (của người khác: 404)."""
+    with transaction(factory) as session:
+        return model_conversions.get(
+            session, actor=_actor(session, user), conversion_id=conversion_id
+        )
+
+
+# Phase R3 (đề xuất contract 002): gỡ model và tạo class mapping qua web.
+MODEL_ADMIN_RESPONSES: dict[int | str, dict[str, Any]] = R2_RESPONSES | {
+    status.HTTP_403_FORBIDDEN: {
+        "model": ErrorResponse,
+        "description": "forbidden: không phải người đăng ký model hoặc admin",
+    },
+}
+
+
+@router.delete(
+    "/models/{model_id}",
+    tags=["models"],
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses=MODEL_ADMIN_RESPONSES,
+    **guard(P.MODEL_MANAGE),
+)
+def delete_model(model_id: UUID, user: CurrentUser, factory: Sessions, stores: Stores) -> None:
+    """Xóa model chưa dùng (cùng class mapping, cost profile, weights). 409 khi model đã có
+    experiment hoặc lượt thử nhanh (dùng lưu trữ) hoặc đang `checking`."""
+    with transaction(factory) as session:
+        model_admin.delete_model(
+            session, actor=_actor(session, user), model_id=model_id, buckets=stores.buckets
+        )
+
+
+@router.post(
+    "/models/{model_id}/archive",
+    tags=["models"],
+    responses=MODEL_ADMIN_RESPONSES,
+    **guard(P.MODEL_MANAGE),
+)
+def archive_model(model_id: UUID, user: CurrentUser, factory: Sessions, clock: Now) -> ModelSummary:
+    """Lưu trữ model: không chọn được cho experiment, thử nhanh, mapping mới (409 khi đã lưu
+    trữ)."""
+    with transaction(factory) as session:
+        return model_admin.set_archived(
+            session, actor=_actor(session, user), model_id=model_id, archived=True, now=clock()
+        )
+
+
+@router.post(
+    "/models/{model_id}/restore",
+    tags=["models"],
+    responses=MODEL_ADMIN_RESPONSES,
+    **guard(P.MODEL_MANAGE),
+)
+def restore_model(model_id: UUID, user: CurrentUser, factory: Sessions, clock: Now) -> ModelSummary:
+    """Bỏ lưu trữ model (409 khi model chưa lưu trữ)."""
+    with transaction(factory) as session:
+        return model_admin.set_archived(
+            session, actor=_actor(session, user), model_id=model_id, archived=False, now=clock()
+        )
+
+
+@router.post(
+    "/class-mappings",
+    tags=["datasets"],
+    status_code=status.HTTP_201_CREATED,
+    responses=MODEL_ADMIN_RESPONSES,
+    **guard(P.MODEL_MANAGE),
+)
+def create_class_mapping(
+    body: ClassMappingCreate, user: CurrentUser, factory: Sessions
+) -> ClassMappingSummary:
+    """Class mapping cho model của mình (422 khi class không thuộc dataset hoặc model; 409 khi
+    trùng hoặc model đã lưu trữ)."""
+    with transaction(factory) as session:
+        return model_admin.create_mapping(session, actor=_actor(session, user), body=body)
 
 
 QUICK_TRY_RESPONSES: dict[int | str, dict[str, Any]] = R2_RESPONSES | {

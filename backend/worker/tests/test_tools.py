@@ -89,3 +89,62 @@ def test_lost_lease_drops_result(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     monkeypatch.setattr(runner, "_run", slow)
     assert runner.run_next() is True
     assert api.results == []
+
+
+class _FakeSandbox:
+    """Thay `SpoolClient`: ghi lại file nhận được, trả safetensors do `save` tạo."""
+
+    def __init__(self, result: bytes) -> None:
+        self.result = result
+        self.calls: list[tuple[str, bytes, str, str]] = []
+
+    def convert(self, job_id: str, data: bytes, filename: str, framework: str) -> bytes:
+        self.calls.append((job_id, data, filename, framework))
+        return self.result
+
+
+def test_model_convert_forwards_bytes_and_reads_header(tmp_path: Path) -> None:
+    """Đề xuất contract 003: worker không mở `.pt`; chuyển byte cho sandbox, PUT kết quả, đọc
+    metadata từ header safetensors."""
+    import torch
+    from safetensors.torch import save
+
+    from advertest_contracts.models import ModelConvertPayload
+
+    result = save(
+        {"w": torch.zeros(2)},
+        metadata={"framework": "ultralytics", "architecture": "yolo11n", "names": '["a", "b"]',
+                  "imgsz": "640"},
+    )  # fmt: skip
+    puts: list[bytes] = []
+
+    def storage(request: httpx.Request) -> httpx.Response:
+        if request.method == "PUT":
+            puts.append(request.content)
+            return httpx.Response(200)
+        return httpx.Response(200, content=b"\x80\x04pickle")
+
+    payload = ModelConvertPayload.model_validate(
+        json.loads((MOCKS / "tool_job_bundle" / "model_convert.json").read_text())["payload"]
+    )
+    sandbox = _FakeSandbox(result)
+    runner = _runner(_Api(), tmp_path, converter=sandbox)
+    runner.url_http = httpx.Client(transport=httpx.MockTransport(storage))
+    report = runner._run(payload)
+    assert sandbox.calls == [
+        (str(payload.conversion_id), b"\x80\x04pickle", "best.pt", "ultralytics")
+    ]
+    assert puts == [result]
+    assert report.kind == "model_convert"
+    assert report.metadata.architecture == "yolo11n"  # type: ignore[union-attr]
+    assert report.metadata.class_names == ["a", "b"]  # type: ignore[union-attr]
+
+
+def test_model_convert_without_sandbox_is_error(tmp_path: Path) -> None:
+    from advertest_contracts.models import ModelConvertPayload
+
+    payload = ModelConvertPayload.model_validate(
+        json.loads((MOCKS / "tool_job_bundle" / "model_convert.json").read_text())["payload"]
+    )
+    with pytest.raises(RuntimeError, match="CONVERT_SPOOL"):
+        _runner(_Api(), tmp_path)._run(payload)

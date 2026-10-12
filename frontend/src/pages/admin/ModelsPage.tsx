@@ -1,5 +1,5 @@
 import { Boxes, FileCheck2, Plus } from 'lucide-react'
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useCallback, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 
 import { ApiError } from '@/api/errors'
@@ -16,8 +16,17 @@ import {
   readWeightsMeta,
   type WeightsMeta,
 } from '@/admin/model-defaults'
-import { parseClassNames, TORCHVISION_ARCHITECTURES, weightsFileError } from '@/admin/model-file'
-import { useModelList, useRegisterModel } from '@/admin/useModelAdmin'
+import {
+  needsConversion,
+  parseClassNames,
+  TORCHVISION_ARCHITECTURES,
+  ULTRALYTICS_ARCHITECTURES,
+  ULTRALYTICS_INPUT_SIZE,
+  weightsFileError,
+} from '@/admin/model-file'
+import { ClassMappingFields } from '@/admin/ClassMappingFields'
+import { useMappingDraft } from '@/admin/mapping-draft'
+import { useCreateMapping, useModelList, useRegisterModel } from '@/admin/useModelAdmin'
 import { EmptyState } from '@/components/EmptyState'
 import { FormAlert } from '@/components/FormAlert'
 import { SelectField, TextareaField, TextField } from '@/components/form/TextField'
@@ -25,12 +34,31 @@ import { LoadError } from '@/components/LoadError'
 import { PageLoading } from '@/components/PageLoading'
 import { StatusBadge } from '@/components/status/StatusBadge'
 import { Button } from '@/components/ui/button'
-import type { ModelSummary } from '@/contracts/api'
+import type { ModelConversionView, ModelSummary } from '@/contracts/api'
 import { CATALOG_COPY } from '@/copy/catalog'
+import { MODEL_ADMIN_COPY } from '@/copy/model-admin'
+import { useDatasets } from '@/features/wizard/api'
 import { PageHero } from '@/layout/PageHero'
 import { cn } from '@/lib/utils'
 
-type Framework = 'torchvision' | 'onnx'
+import { ConvertPanel } from './ConvertPanel'
+
+type Framework = 'torchvision' | 'onnx' | 'ultralytics'
+
+/** Cách đổi `.pt` của Ultralytics sang safetensors (có gradient). */
+export function UltralyticsHint() {
+  const copy = CATALOG_COPY.ultralyticsHint
+  return (
+    <div
+      data-testid="ultralytics-hint"
+      className="rounded-lg border border-border bg-surface-raised p-3 text-sm"
+    >
+      <p className="font-semibold">{copy.intro}</p>
+      <code className="mt-1 block overflow-x-auto font-mono text-[13px]">{copy.command}</code>
+      <p className="mt-1 text-muted-foreground">{copy.outro}</p>
+    </div>
+  )
+}
 
 export function OnnxLayouts() {
   const copy = CATALOG_COPY.onnxLayouts
@@ -59,7 +87,8 @@ const CHIP =
   'inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border px-3.5 text-sm tabular-nums transition-colors duration-150 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none'
 const OTHER = '__khac__'
 
-/** Bộ class mặc định khi file không có metadata: torchvision COCO 91, ONNX (YOLO) COCO 80. */
+/** Bộ class mặc định khi file không có metadata: torchvision COCO 91, YOLO (ONNX, Ultralytics)
+ * COCO 80. */
 const defaultPreset = (framework: Framework): ClassPreset =>
   framework === 'torchvision' ? 'coco91' : 'coco80'
 
@@ -78,6 +107,11 @@ export function RegisterModelForm({ onCancel }: { onCancel: () => void }) {
   const [file, setFile] = useState<File | null>(null)
   const [meta, setMeta] = useState<WeightsMeta>({})
   const [submitted, setSubmitted] = useState(false)
+  const datasets = useDatasets()
+  const createMapping = useCreateMapping()
+  const [withMapping, setWithMapping] = useState(true)
+  // Kết quả chuyển `.pt` trong sandbox (đề xuất contract 003): đăng ký bằng upload_id này.
+  const [convertedUploadId, setConvertedUploadId] = useState<string | null>(null)
 
   const fileError = file ? weightsFileError(file) : null
   const presetNames =
@@ -87,44 +121,84 @@ export function RegisterModelForm({ onCancel }: { onCancel: () => void }) {
         ? null
         : CLASS_PRESETS[classPreset].names
   const classNames = presetNames ?? parseClassNames(customClasses)
+  const modelClasses = classNames instanceof Error ? [] : classNames
+  const mapping = useMappingDraft(datasets.data ?? [], modelClasses)
+  const mappingOn = withMapping && mapping.options.length > 0
   const size = Number(inputSize)
-  const sizes = [...new Set([...INPUT_SIZES, ...(meta.inputSize ? [meta.inputSize] : [])])].sort(
-    (a, b) => a - b,
-  )
+  const sizes =
+    framework === 'ultralytics'
+      ? [ULTRALYTICS_INPUT_SIZE]
+      : [...new Set([...INPUT_SIZES, ...(meta.inputSize ? [meta.inputSize] : [])])].sort(
+          (a, b) => a - b,
+        )
   const errors = {
     name: name.trim() === '' ? 'Bắt buộc.' : undefined,
     architecture: architecture.trim() === '' ? 'Bắt buộc.' : undefined,
     classes: classNames instanceof Error ? classNames.message : undefined,
     inputSize: Number.isInteger(size) && size > 0 ? undefined : 'Nhập số nguyên dương, ví dụ 640.',
-    file: file ? undefined : 'Chọn file weights.',
+    file: !file
+      ? 'Chọn file weights.'
+      : needsConversion(file.name) && !convertedUploadId
+        ? MODEL_ADMIN_COPY.convertFirst
+        : convertedUploadId && framework === 'onnx'
+          ? MODEL_ADMIN_COPY.convertedNotOnnx
+          : undefined,
+    mapping: mappingOn ? (mapping.error ?? undefined) : undefined,
   }
   const invalid = Object.values(errors).some(Boolean)
 
   function chooseFramework(value: Framework, detected: WeightsMeta = meta) {
     setFramework(value)
-    const known =
+    const allowed: readonly string[] =
       value === 'torchvision'
-        ? TORCHVISION_ARCHITECTURES.find((a) => a === detected.architecture)
-        : undefined
-    setArchitecture(
-      value === 'torchvision' ? (known ?? TORCHVISION_ARCHITECTURES[0]) : ONNX_ARCHITECTURES[0],
-    )
+        ? TORCHVISION_ARCHITECTURES
+        : value === 'ultralytics'
+          ? ULTRALYTICS_ARCHITECTURES
+          : ONNX_ARCHITECTURES
+    setArchitecture(allowed.find((a) => a === detected.architecture) ?? allowed[0])
     setOtherArchitecture(false)
+    if (value === 'ultralytics') setInputSize(String(ULTRALYTICS_INPUT_SIZE))
     if (!detected.classNames) setClassPreset(defaultPreset(value))
   }
 
   async function chooseFile(next: File | null) {
     setFile(next)
     setMeta({})
+    setConvertedUploadId(null)
     if (!next || weightsFileError(next)) return
     if (!nameTouched) setName(nameFromFile(next.name))
+    if (needsConversion(next.name)) return // metadata có sau khi sandbox chuyển xong
     const detected = await readWeightsMeta(next)
     setMeta(detected)
-    const detectedFramework = frameworkFromFile(next.name)
+    const detectedFramework = frameworkFromFile(next.name, detected)
     if (detectedFramework) chooseFramework(detectedFramework, detected)
     if (detected.classNames?.length) setClassPreset('file')
-    if (detected.inputSize) setInputSize(String(detected.inputSize))
+    if (detected.inputSize && detectedFramework !== 'ultralytics') {
+      setInputSize(String(detected.inputSize))
+    }
   }
+
+  const onConverted = useCallback(
+    (view: ModelConversionView) => {
+      const m = view.metadata
+      if (!m || !view.result_upload_id) return
+      const detected: WeightsMeta = {
+        framework: m.framework,
+        architecture: m.architecture ?? undefined,
+        classNames: m.class_names ?? undefined,
+        inputSize: m.input_size ?? undefined,
+      }
+      setMeta(detected)
+      chooseFramework(m.framework, detected)
+      if (detected.classNames?.length) setClassPreset('file')
+      if (detected.inputSize && m.framework !== 'ultralytics') {
+        setInputSize(String(detected.inputSize))
+      }
+      setConvertedUploadId(view.result_upload_id)
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chooseFramework chỉ đặt state
+    [],
+  )
 
   function submit(event: FormEvent) {
     event.preventDefault()
@@ -137,9 +211,24 @@ export function RegisterModelForm({ onCancel }: { onCancel: () => void }) {
         architecture: architecture.trim(),
         class_names: classNames,
         input_size: size,
-        file,
+        ...(convertedUploadId ? { upload_id: convertedUploadId } : { file }),
       },
-      { onSuccess: (model) => void navigate(`/admin/models/${model.id}`) },
+      {
+        onSuccess: (model) => {
+          const body = mappingOn ? mapping.body(model.id) : null
+          if (!body) {
+            void navigate(`/models/${model.id}`)
+            return
+          }
+          // Mapping lỗi thì model vẫn đã đăng ký: sang trang model, báo lỗi để thêm lại ở đó.
+          createMapping.mutate(body, {
+            onSettled: (_, error) =>
+              void navigate(`/models/${model.id}`, {
+                state: error ? { mappingError: failureText(error) } : null,
+              }),
+          })
+        },
+      },
     )
   }
 
@@ -161,12 +250,19 @@ export function RegisterModelForm({ onCancel }: { onCancel: () => void }) {
         <TextField
           label="File weights"
           type="file"
-          accept=".onnx,.safetensors"
+          accept=".onnx,.safetensors,.pt,.pth"
           className="py-2"
-          hint="Chọn file trước: framework, tên, kiến trúc, class và kích thước được điền sẵn từ file. Chỉ .onnx hoặc .safetensors, tối đa 500 MB."
+          hint="Chọn file trước: framework, tên, kiến trúc, class và kích thước được điền sẵn từ file. Nhận .onnx, .safetensors, hoặc .pt/.pth (chuyển sang .safetensors trong sandbox); tối đa 500 MB."
           error={fileError ?? shown(errors.file)}
           onChange={(e) => void chooseFile(e.target.files?.[0] ?? null)}
         />
+        {file && !fileError && needsConversion(file.name) && (
+          <ConvertPanel
+            key={`${file.name}:${file.size}:${file.lastModified}`}
+            file={file}
+            onDone={onConverted}
+          />
+        )}
         {detectedText.length > 0 && (
           <p data-testid="weights-meta" className="flex items-center gap-2 text-sm text-approved">
             <FileCheck2 aria-hidden="true" className="size-4 shrink-0" />
@@ -211,16 +307,20 @@ export function RegisterModelForm({ onCancel }: { onCancel: () => void }) {
           value={framework}
           onChange={(e) => chooseFramework(e.target.value as Framework)}
         >
-          <option value="torchvision">torchvision (.safetensors)</option>
-          <option value="onnx">onnx (.onnx)</option>
+          <option value="ultralytics">ultralytics YOLO (.safetensors, có gradient)</option>
+          <option value="torchvision">torchvision (.safetensors, có gradient)</option>
+          <option value="onnx">onnx (.onnx, không có gradient)</option>
         </SelectField>
-        {framework === 'torchvision' ? (
+        {framework !== 'onnx' ? (
           <SelectField
             label="Kiến trúc"
             value={architecture}
             onChange={(e) => setArchitecture(e.target.value)}
           >
-            {TORCHVISION_ARCHITECTURES.map((a) => (
+            {(framework === 'torchvision'
+              ? TORCHVISION_ARCHITECTURES
+              : ULTRALYTICS_ARCHITECTURES
+            ).map((a) => (
               <option key={a} value={a}>
                 {a}
               </option>
@@ -336,14 +436,44 @@ export function RegisterModelForm({ onCancel }: { onCancel: () => void }) {
           />
         )}
       </div>
+      <fieldset className="flex flex-col gap-3 rounded-lg border border-line p-4">
+        <legend className="px-1 text-[14px] font-semibold">{MODEL_ADMIN_COPY.mappingTitle}</legend>
+        <p className="text-[13px] leading-5 text-muted-foreground">
+          {MODEL_ADMIN_COPY.mappingIntro}
+        </p>
+        <label className="flex min-h-11 items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={withMapping}
+            onChange={(e) => setWithMapping(e.target.checked)}
+            className="size-4 accent-[var(--cta)]"
+          />
+          {MODEL_ADMIN_COPY.createMappingNow}
+        </label>
+        {withMapping &&
+          (datasets.isPending ? (
+            <p className="text-sm text-muted-foreground">Đang tải danh sách dataset…</p>
+          ) : (
+            <ClassMappingFields draft={mapping} modelClasses={modelClasses} showError={submitted} />
+          ))}
+      </fieldset>
       {framework === 'onnx' && <OnnxLayouts />}
+      {framework === 'ultralytics' && <UltralyticsHint />}
       {register.isError && <FormAlert>{failureText(register.error)}</FormAlert>}
       <div className="flex flex-col-reverse gap-2 md:flex-row md:justify-end">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={register.isPending}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          disabled={register.isPending || createMapping.isPending}
+        >
           Hủy
         </Button>
-        <Button type="submit" disabled={fileError !== null || register.isPending}>
-          {register.isPending ? 'Đang đăng ký…' : 'Đăng ký'}
+        <Button
+          type="submit"
+          disabled={fileError !== null || register.isPending || createMapping.isPending}
+        >
+          {register.isPending || createMapping.isPending ? 'Đang đăng ký…' : 'Đăng ký'}
         </Button>
       </div>
       <p className="text-xs text-muted-foreground">
@@ -357,7 +487,7 @@ export function RegisterModelForm({ onCancel }: { onCancel: () => void }) {
 function ModelName({ model }: { model: ModelSummary }) {
   return (
     <Link
-      to={`/admin/models/${model.id}`}
+      to={`/models/${model.id}`}
       className="font-medium text-cta underline-offset-4 hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
     >
       {model.name}
@@ -365,7 +495,16 @@ function ModelName({ model }: { model: ModelSummary }) {
   )
 }
 
-const HEADERS = ['Tên', 'Framework', 'Class', 'Đầu vào', 'Gradient', 'Đăng ký lúc', 'Trạng thái']
+const HEADERS = [
+  'Tên',
+  'Framework',
+  'Class',
+  'Đầu vào',
+  'Gradient',
+  'Người đăng ký',
+  'Đăng ký lúc',
+  'Trạng thái',
+]
 
 function ModelTable({ models }: { models: ModelSummary[] }) {
   return (
@@ -391,9 +530,10 @@ function ModelTable({ models }: { models: ModelSummary[] }) {
               <td className="px-3 py-3 text-right tabular-nums">{m.class_names.length}</td>
               <td className="px-3 py-3 text-right tabular-nums">{m.input_size}</td>
               <td className="px-3 py-3">{m.supports_gradients ? 'Có' : 'Không'}</td>
+              <td className="px-3 py-3">{m.owner_name ?? '—'}</td>
               <td className="px-3 py-3 tabular-nums">{formatDateTime(m.created_at)}</td>
               <td className="px-3 py-3">
-                <StatusBadge kind="model" status={m.status} />
+                <StatusBadge kind="model" status={m.archived_at ? 'archived' : m.status} />
               </td>
             </tr>
           ))}
@@ -410,11 +550,12 @@ function ModelCards({ models }: { models: ModelSummary[] }) {
         <li key={m.id} className="panel flex flex-col gap-2 p-4">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <ModelName model={m} />
-            <StatusBadge kind="model" status={m.status} />
+            <StatusBadge kind="model" status={m.archived_at ? 'archived' : m.status} />
           </div>
           <p className="text-sm text-muted-foreground tabular-nums">
             {m.framework} · {m.class_names.length} class · đầu vào {m.input_size} · gradient:{' '}
             {m.supports_gradients ? 'có' : 'không'}
+            {m.owner_name ? ` · ${m.owner_name}` : ''}
           </p>
         </li>
       ))}
@@ -422,7 +563,7 @@ function ModelCards({ models }: { models: ModelSummary[] }) {
   )
 }
 
-/** `/admin/models` (requirements.md Phase R3, mục Đăng ký model; permission `model.manage`). */
+/** `/models` (requirements.md Phase R3, mục Đăng ký model; permission `model.manage`). */
 export function ModelsPage() {
   const models = useModelList()
   const [registering, setRegistering] = useState(false)
@@ -431,7 +572,7 @@ export function ModelsPage() {
       <PageHero
         compact
         title="Model"
-        description="Model đăng ký qua web được worker kiểm tra trước khi dùng. Chỉ nhận weights .onnx và .safetensors; .pt và pickle không được tải lên."
+        description="Bạn thấy model mình đăng ký và model dùng chung do admin đăng ký. Model đăng ký qua web được worker kiểm tra trước khi dùng; file .pt/.pth được chuyển sang .safetensors trong sandbox trước."
         actions={
           registering ? undefined : (
             <Button size="lg" onClick={() => setRegistering(true)}>

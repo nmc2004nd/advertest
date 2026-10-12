@@ -104,6 +104,101 @@
       "title": "ModelCheckResult",
       "type": "object"
     },
+    "ModelConvertMetadata": {
+      "additionalProperties": false,
+      "description": "Metadata đọc được từ checkpoint `.pt` trong sandbox (đề xuất contract 003); form đăng ký tự\nđiền từ đây. Trường null là không đọc được, người dùng tự chọn.",
+      "properties": {
+        "framework": {
+          "enum": [
+            "torchvision",
+            "ultralytics"
+          ],
+          "title": "Framework",
+          "type": "string"
+        },
+        "architecture": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Architecture"
+        },
+        "class_names": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Class Names"
+        },
+        "input_size": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Input Size"
+        },
+        "num_classes": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Số đầu ra class của state dict (torchvision, có nền)",
+          "title": "Num Classes"
+        }
+      },
+      "required": [
+        "framework"
+      ],
+      "title": "ModelConvertMetadata",
+      "type": "object"
+    },
+    "ModelConvertReport": {
+      "additionalProperties": false,
+      "description": "File `.safetensors` đã PUT lên `result_upload_url` trước khi gửi report.",
+      "properties": {
+        "kind": {
+          "const": "model_convert",
+          "default": "model_convert",
+          "title": "Kind",
+          "type": "string"
+        },
+        "metadata": {
+          "$ref": "#/$defs/ModelConvertMetadata"
+        }
+      },
+      "required": [
+        "metadata"
+      ],
+      "title": "ModelConvertReport",
+      "type": "object"
+    },
     "QuickTryLevelReport": {
       "additionalProperties": false,
       "properties": {
@@ -224,6 +319,35 @@
           "minItems": 1,
           "title": "Levels",
           "type": "array"
+        },
+        "content_box": {
+          "anyOf": [
+            {
+              "maxItems": 4,
+              "minItems": 4,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Vùng ảnh thật trong ảnh letterbox (xyxy pixel, không gian letterbox), phần còn lại là pad 114. null với dữ liệu tạo trước Phase R3: giao diện hiển thị cả khung vuông (đề xuất contract 001, Phase R3)",
+          "title": "Content Box"
         }
       },
       "required": [
@@ -366,6 +490,7 @@
           "discriminator": {
             "mapping": {
               "model_check": "#/$defs/ModelCheckReport",
+              "model_convert": "#/$defs/ModelConvertReport",
               "quick_try": "#/$defs/QuickTryReport",
               "spec_check": "#/$defs/SpecCheckReport"
             },
@@ -380,6 +505,9 @@
             },
             {
               "$ref": "#/$defs/QuickTryReport"
+            },
+            {
+              "$ref": "#/$defs/ModelConvertReport"
             }
           ]
         },

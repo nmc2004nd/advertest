@@ -4,11 +4,18 @@ import { Route, Routes } from 'react-router'
 import { describe, expect, it } from 'vitest'
 
 import { listMocks, mockMe, modelMocks } from '@/api/mocks'
-import type { AttackAdapterInfo, AttackSpecAdminPage, AttackSpecAdminView } from '@/contracts/api'
+import type {
+  AttackAdapterInfo,
+  AttackSpecAdminPage,
+  AttackSpecAdminView,
+  ClassMappingSummary,
+  DatasetSummary,
+} from '@/contracts/api'
 import { visibleNav } from '@/nav/config'
 import { PendingSpecsPage } from '@/pages/PendingSpecsPage'
 import { render } from '@/test-utils'
 
+import { ConvertPanel } from './ConvertPanel'
 import { ModelDetailPage } from './ModelDetailPage'
 import { ModelsPage, OnnxLayouts, RegisterModelForm } from './ModelsPage'
 import { SpecCreatePage } from './SpecCreatePage'
@@ -19,6 +26,8 @@ const catalog = listMocks<AttackSpecAdminPage>('attack_spec_admin_page')[0].item
 const views = listMocks<AttackSpecAdminView>('attack_spec_admin_view')
 const adapters = listMocks<AttackAdapterInfo>('attack_adapter_info')
 const models = modelMocks()
+const datasets = listMocks<DatasetSummary>('dataset_summary')
+const mappings = listMocks<ClassMappingSummary>('class_mapping_summary')
 
 function view(status: AttackSpecAdminView['status']): AttackSpecAdminView {
   const found = views.find((v) => v.status === status && v.name === 'snow_light')
@@ -203,25 +212,25 @@ describe('/attack-specs/pending: reviewer kích hoạt hoặc từ chối', () =
   })
 })
 
-describe('/admin/models: đăng ký và kiểm tra model', () => {
+describe('/models: đăng ký và kiểm tra model', () => {
   it('danh sách có trạng thái và nút "Đăng ký model"', () => {
-    const html = render(<ModelsPage />, '/admin/models', 'admin', [[['models'], models]])
+    const html = render(<ModelsPage />, '/models', 'admin', [[['models'], models]])
     expect(html).toMatch(/<button[^>]*>.*Đăng ký model<\/button>/)
-    for (const m of models) expect(html).toContain(`href="/admin/models/${m.id}"`)
+    for (const m of models) expect(html).toContain(`href="/models/${m.id}"`)
     expect(html).toContain('data-status="check_failed"')
   })
 
-  it('form: ô "Framework", "File weights" chỉ nhận .onnx/.safetensors; mặc định torchvision', () => {
-    const html = render(<RegisterModelForm onCancel={() => undefined} />, '/admin/models', 'admin')
+  it('form: ô "Framework", "File weights" nhận .onnx/.safetensors/.pt/.pth; mặc định torchvision', () => {
+    const html = render(<RegisterModelForm onCancel={() => undefined} />, '/models', 'admin')
     expect(html).toContain('>Framework</label>')
     expect(html).toContain('>File weights</label>')
-    expect(html).toContain('accept=".onnx,.safetensors"')
+    expect(html).toContain('accept=".onnx,.safetensors,.pt,.pth"')
     expect(html).toContain('fasterrcnn_resnet50_fpn_v2')
     expect(html).not.toContain('data-testid="onnx-layouts"')
   })
 
   it('form: trường bắt buộc có mặc định để chọn (kích thước 640, class COCO 91 cho torchvision)', () => {
-    const html = render(<RegisterModelForm onCancel={() => undefined} />, '/admin/models', 'admin')
+    const html = render(<RegisterModelForm onCancel={() => undefined} />, '/models', 'admin')
     // File chọn trước tiên: các trường sau điền sẵn từ metadata của file.
     expect(html.indexOf('>File weights</label>')).toBeLessThan(html.indexOf('>Tên model</label>'))
     expect(html).toMatch(/role="radio" aria-checked="true"[^>]*>640</)
@@ -229,6 +238,24 @@ describe('/admin/models: đăng ký và kiểm tra model', () => {
     expect(html).toContain('91 class: __background__, person')
     expect(html).not.toContain('type="number"')
     expect(html).not.toContain('<textarea')
+  })
+
+  it('file .pt: panel chuyển sang safetensors trong sandbox (đề xuất contract 003)', () => {
+    const html = render(
+      <ConvertPanel file={new File(['x'], 'best.pt')} onDone={() => undefined} />,
+      '/models',
+      'engineer',
+    )
+    expect(html).toContain('data-testid="convert-panel"')
+    expect(html).toContain('sandbox')
+    expect(html).toContain('<option value="ultralytics" selected="">')
+    expect(html).toMatch(/<button[^>]*>Chuyển sang safetensors<\/button>/)
+    const pth = render(
+      <ConvertPanel file={new File(['x'], 'frcnn.pth')} onDone={() => undefined} />,
+      '/models',
+      'engineer',
+    )
+    expect(pth).toContain('<option value="torchvision" selected="">')
   })
 
   it('ghi chú hai layout ONNX', () => {
@@ -241,12 +268,9 @@ describe('/admin/models: đăng ký và kiểm tra model', () => {
   it('chi tiết model kiểm tra không đạt: trạng thái, kết quả kiểm tra, "Kiểm tra lại"', () => {
     const failed = models.find((m) => m.status === 'check_failed')
     if (!failed?.check) throw new Error('Thiếu mock model check_failed')
-    const html = render(
-      at('/admin/models/:id', <ModelDetailPage />),
-      `/admin/models/${failed.id}`,
-      'admin',
-      [[['models', failed.id], failed]],
-    )
+    const html = render(at('/models/:id', <ModelDetailPage />), `/models/${failed.id}`, 'admin', [
+      [['models', failed.id], failed],
+    ])
     expect(html).toContain('data-testid="model-status"')
     expect(html).toContain('Kiểm tra không đạt')
     expect(html).toContain('data-testid="model-check"')
@@ -257,25 +281,94 @@ describe('/admin/models: đăng ký và kiểm tra model', () => {
   it('model sẵn sàng không có "Kiểm tra lại"', () => {
     const ready = models.find((m) => m.status === 'ready')
     if (!ready) throw new Error('Thiếu mock model ready')
-    const html = render(
-      at('/admin/models/:id', <ModelDetailPage />),
-      `/admin/models/${ready.id}`,
-      'admin',
-      [[['models', ready.id], ready]],
-    )
+    const html = render(at('/models/:id', <ModelDetailPage />), `/models/${ready.id}`, 'admin', [
+      [['models', ready.id], ready],
+    ])
     expect(html).toContain('Sẵn sàng')
     expect(html).not.toContain('Kiểm tra lại')
+  })
+
+  it('form: bước class mapping gợi ý sẵn theo preset KITTI → COCO', () => {
+    const html = render(<RegisterModelForm onCancel={() => undefined} />, '/models', 'admin', [
+      [['datasets'], datasets],
+    ])
+    expect(html).toContain('Tạo class mapping ngay')
+    expect(html).toContain('data-testid="mapping"')
+    const car = html.slice(
+      html.indexOf('id="map-Car"'),
+      html.indexOf('</select>', html.indexOf('id="map-Car"')),
+    )
+    expect(car).toContain('<option value="car" selected="">')
+    const tram = html.slice(
+      html.indexOf('id="map-Tram"'),
+      html.indexOf('</select>', html.indexOf('id="map-Tram"')),
+    )
+    expect(tram).toContain('<option value="__bo__" selected="">')
+  })
+
+  it('chi tiết model: mục Class mapping, nút Lưu trữ và Xóa model', () => {
+    const ready = models.find((m) => m.status === 'ready' && !m.archived_at)
+    if (!ready) throw new Error('Thiếu mock model ready')
+    const html = render(at('/models/:id', <ModelDetailPage />), `/models/${ready.id}`, 'admin', [
+      [['models', ready.id], ready],
+      [['class-mappings', 'model', ready.id], mappings],
+      [['datasets'], datasets],
+    ])
+    expect(html).toContain('data-testid="model-mappings"')
+    expect(html).toContain('preset kitti-coco')
+    expect(html).toContain('Car → car')
+    expect(html).toContain('Thêm class mapping')
+    expect(html).toContain('>Lưu trữ<')
+    expect(html).toContain('Xóa model')
+    expect(html).not.toContain('Khôi phục')
+  })
+
+  it('engineer xem model người khác đăng ký: không có nút xóa, lưu trữ, thêm mapping', () => {
+    const ready = models.find((m) => m.status === 'ready' && !m.archived_at)
+    if (!ready) throw new Error('Thiếu mock model ready')
+    const theirs = { ...ready, owner_id: mockMe('admin').id, owner_name: 'Quản trị viên' }
+    const html = render(at('/models/:id', <ModelDetailPage />), `/models/${ready.id}`, 'engineer', [
+      [['models', ready.id], theirs],
+      [['class-mappings', 'model', ready.id], mappings],
+      [['datasets'], datasets],
+    ])
+    expect(html).toContain('data-testid="model-owner-note"')
+    expect(html).toContain('Model do Quản trị viên đăng ký')
+    expect(html).not.toContain('Xóa model')
+    expect(html).not.toContain('Thêm class mapping')
+    const mine = { ...theirs, owner_id: mockMe('engineer').id }
+    const own = render(at('/models/:id', <ModelDetailPage />), `/models/${ready.id}`, 'engineer', [
+      [['models', ready.id], mine],
+      [['class-mappings', 'model', ready.id], mappings],
+      [['datasets'], datasets],
+    ])
+    expect(own).toContain('Xóa model')
+    expect(own).toContain('Thêm class mapping')
+  })
+
+  it('model đã lưu trữ: nhãn "Đã lưu trữ", nút "Khôi phục", không thêm mapping được', () => {
+    const archived = models.find((m) => m.archived_at)
+    if (!archived) throw new Error('Thiếu mock model lưu trữ')
+    const html = render(at('/models/:id', <ModelDetailPage />), `/models/${archived.id}`, 'admin', [
+      [['models', archived.id], archived],
+      [['class-mappings', 'model', archived.id], []],
+      [['datasets'], datasets],
+    ])
+    expect(html).toContain('Đã lưu trữ')
+    expect(html).toContain('Khôi phục')
+    expect(html).not.toContain('Thêm class mapping')
+    expect(html).toContain('Model chưa có class mapping')
   })
 })
 
 describe('điều hướng theo quyền (task 27)', () => {
-  it('reviewer có "Spec chờ duyệt"; admin có "Model"; engineer không có cả hai', () => {
+  it('reviewer có "Spec chờ duyệt"; engineer và admin có "Model"', () => {
     const paths = (me: string) => visibleNav(mockMe(me)).map((i) => i.path)
     expect(paths('reviewer')).toContain('/attack-specs/pending')
-    expect(paths('reviewer')).not.toContain('/admin/models')
-    expect(paths('admin')).toContain('/admin/models')
+    expect(paths('reviewer')).not.toContain('/models')
+    expect(paths('admin')).toContain('/models')
     expect(paths('admin')).not.toContain('/attack-specs/pending')
     expect(paths('engineer')).not.toContain('/attack-specs/pending')
-    expect(paths('engineer')).not.toContain('/admin/models')
+    expect(paths('engineer')).toContain('/models')
   })
 })

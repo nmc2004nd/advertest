@@ -2,10 +2,12 @@
 
 - `POST /models/uploads`: presigned PUT vào `uploads/<upload_id>/<filename>` của bucket models.
   Schema đã chặn phần mở rộng khác `.onnx`/`.safetensors` và file quá 500 MB.
-- `POST /models`: phần mở rộng phải khớp framework (torchvision ↔ safetensors, onnx ↔ onnx).
-  Safetensors được kiểm header JSON ngay ở API (pickle, zip, rác → 422); onnx chỉ kiểm được ở
-  worker (protobuf `ModelProto`). Weights chép sang `<sha>/weights.pt` (khóa chung cho mọi
-  định dạng, nội dung opaque), model version ở `checking`, xếp job `model_check`.
+- `POST /models`: phần mở rộng phải khớp framework (torchvision, ultralytics ↔ safetensors,
+  onnx ↔ onnx). Safetensors được kiểm header JSON ngay ở API (pickle, zip, rác → 422); onnx chỉ
+  kiểm được ở worker (protobuf `ModelProto`). Weights chép sang `<sha>/weights.pt` (khóa chung
+  cho mọi định dạng, nội dung opaque), model version ở `checking`, xếp job `model_check`.
+- Engineer chỉ thêm version vào model mình tạo (tên trùng model của người khác → 409) và chỉ kiểm
+  lại model của mình (403); admin không bị giới hạn.
 - Kết quả pass: `ready`, ghi `card.json` để bundle của experiment dùng được; fail: `check_failed`.
   Web không bao giờ nhận pickle, nên không có đường nào nạp `.pt` từ upload.
 """
@@ -21,7 +23,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from advertest_contracts.enums import ModelStatus, ToolJobKind
+from advertest_contracts.enums import ModelStatus, Role, ToolJobKind
 from advertest_contracts.ids import content_id
 from advertest_contracts.models import (
     MODEL_UPLOAD_MAX_BYTES,
@@ -39,10 +41,10 @@ from backend.app import storage
 from backend.app.db import models as m
 from backend.app.presign import Presigner
 from backend.app.services import audit, catalog, tool_jobs
-from backend.app.services.errors import Conflict, Invalid, NotFound
+from backend.app.services.errors import Conflict, Forbidden, Invalid, NotFound
 from ml_core.models.register import lib_versions
 
-EXTENSION = {"torchvision": ".safetensors", "onnx": ".onnx"}
+EXTENSION = {"torchvision": ".safetensors", "ultralytics": ".safetensors", "onnx": ".onnx"}
 # Header safetensors: 8 byte độ dài (little-endian) rồi JSON; giới hạn như thư viện safetensors.
 SAFETENSORS_MAX_HEADER = 100 * 1024 * 1024
 ONNX_NO_GRADIENT = "Model ONNX chỉ chạy inference, không hỗ trợ gradient"
@@ -99,6 +101,17 @@ def _uploaded(buckets: storage.Buckets, upload_id: UUID) -> tuple[str, bytes]:
     return keys[0], buckets.models.get(keys[0])
 
 
+def _is_admin(session: Session, user: m.User) -> bool:
+    role = select(m.UserRole.user_id).where(
+        m.UserRole.user_id == user.id, m.UserRole.role == Role.ADMIN
+    )
+    return session.scalar(role) is not None
+
+
+def _owns(session: Session, actor: m.User, model: m.Model) -> bool:
+    return model.created_by == actor.id or _is_admin(session, actor)
+
+
 def register(
     session: Session,
     *,
@@ -112,15 +125,17 @@ def register(
         raise Invalid(f"Model {body.framework} phải là file {EXTENSION[body.framework]}")
     if len(data) > MODEL_UPLOAD_MAX_BYTES:
         raise Invalid("File model vượt 500 MB")
-    if body.framework == "torchvision" and not is_safetensors(data):
+    if EXTENSION[body.framework] == ".safetensors" and not is_safetensors(data):
         raise Invalid("File không phải safetensors hợp lệ (pickle, zip, .pt không được nhận)")
     sha = hashlib.sha256(data).hexdigest()
     if session.scalar(select(m.ModelVersion.id).where(m.ModelVersion.weights_sha256 == sha)):
         raise Conflict("Đã có model cùng weights (trùng sha256)")
+    model = session.scalar(select(m.Model).where(m.Model.name == body.name))
+    if model is not None and not _owns(session, actor, model):
+        raise Conflict(f"Tên model {body.name!r} đã thuộc người khác; chọn tên khác")
     buckets.models.put(storage.weights_key(sha), data)
     buckets.models.delete(key)
 
-    model = session.scalar(select(m.Model).where(m.Model.name == body.name))
     if model is None:
         model = m.Model(name=body.name, created_by=actor.id)
         session.add(model)
@@ -170,6 +185,8 @@ def recheck(
     version = session.get(m.ModelVersion, model_id, with_for_update=True)
     if version is None:
         raise NotFound("Không có model này")
+    if not _owns(session, actor, session.get_one(m.Model, version.model_id)):
+        raise Forbidden("Chỉ kiểm lại được model do bạn đăng ký")
     if version.status != ModelStatus.CHECK_FAILED:
         raise Conflict(f"Chỉ kiểm lại model check_failed (model đang ở {version.status})")
     if not buckets.models.exists(storage.weights_key(version.weights_sha256)):

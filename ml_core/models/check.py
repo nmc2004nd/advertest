@@ -3,13 +3,15 @@ web).
 
 Các bước, dừng ở bước đầu tiên fail (`passed = false` kèm `details`):
 1. sha256 của file bằng `card.weights_sha256`;
-2. nạp model (safetensors hoặc ONNX; pickle bị từ chối khi đọc, không chạy code);
-3. số class của model bằng `len(card.class_names)` (torchvision: lớp phân loại cuối; ONNX layout
-   YOLO: `4 + C`; layout boxes/scores/labels: label trả về phải < số class);
+2. nạp model (safetensors hoặc ONNX; pickle bị từ chối khi đọc, không chạy code; ultralytics
+   phải là safetensors, không bao giờ rơi về nạp `.pt`);
+3. số class của model bằng `len(card.class_names)` (torchvision: lớp phân loại cuối; ultralytics:
+   state dict khớp mạng dựng với `nc` class; ONNX layout YOLO: `4 + C`; layout
+   boxes/scores/labels: label trả về phải < số class);
 4. inference trên ảnh fixture: box (K, 4) hữu hạn, label trong `[0, số class)`.
-5. Chỉ torchvision: bài kiểm tra gradient (`run_gradient_check`). Kết quả không đạt **không** làm
-   kiểm tra fail: model vẫn `ready`, `supports_gradients = gradient_check.passed` (người duyệt chốt
-   2026-10-09, như đăng ký CLI ở Phase 1).
+5. Chỉ torchvision và ultralytics: bài kiểm tra gradient (`run_gradient_check`). Kết quả không
+   đạt **không** làm kiểm tra fail: model vẫn `ready`, `supports_gradients =
+   gradient_check.passed` (người duyệt chốt 2026-10-09, như đăng ký CLI ở Phase 1).
 """
 
 from __future__ import annotations
@@ -23,9 +25,16 @@ import numpy as np
 from numpy.typing import NDArray
 
 from advertest_contracts.models import GradientCheck, InferenceParams, ModelCard, ModelCheckResult
-from ml_core.models.adapter import OnnxAdapter, Prediction, TorchvisionAdapter, open_adapter
+from ml_core.models.adapter import (
+    OnnxAdapter,
+    Prediction,
+    TorchvisionAdapter,
+    UltralyticsAdapter,
+    open_adapter,
+)
 from ml_core.models.gradient_check import run_gradient_check
 from ml_core.models.register import load_check_images
+from ml_core.models.ultralytics_safetensors import looks_like_safetensors
 from ml_core.models.wrapper import DEFAULT_INFERENCE_PARAMS
 
 # Số ảnh fixture dùng khi không truyền `images` (FCOS trên CPU khoảng 1 giây mỗi ảnh).
@@ -68,12 +77,11 @@ def check_model(
     params: InferenceParams = DEFAULT_INFERENCE_PARAMS,
     images: NDArray[np.float32] | None = None,
 ) -> ModelCheckResult:
-    """Kiểm tra model torchvision hoặc onnx; lỗi của model trả về trong kết quả, không ném ra.
+    """Kiểm tra model đăng ký qua web (torchvision, ultralytics, onnx); lỗi của model trả về
+    trong kết quả, không ném ra.
 
     `images`: ảnh letterbox (N, 3, S, S) float32 [0, 1]; mặc định `CHECK_IMAGES` ảnh fixture KITTI.
     """
-    if card.framework not in ("torchvision", "onnx"):
-        raise ValueError(f"check_model chỉ cho model torchvision hoặc onnx, nhận {card.framework}")
     if images is None:
         images = load_check_images()[:CHECK_IMAGES]
     num_classes = len(card.class_names)
@@ -84,9 +92,13 @@ def check_model(
         if sha != card.weights_sha256:
             raise _CheckFailed(f"sha256 của file ({sha}) khác model card ({card.weights_sha256})")
 
+        if card.framework == "ultralytics":
+            with weights_path.open("rb") as f:
+                if not looks_like_safetensors(f.read(9)):
+                    raise _CheckFailed("Model ultralytics qua web phải là safetensors")
         adapter = open_adapter(card, weights_path, params, device)
         try:
-            if isinstance(adapter, TorchvisionAdapter):
+            if isinstance(adapter, TorchvisionAdapter | UltralyticsAdapter):
                 adapter.detector()  # đã kiểm số class với weights
             elif isinstance(adapter, OnnxAdapter):
                 found = adapter.model().num_classes
@@ -103,7 +115,7 @@ def check_model(
             raise _CheckFailed(f"Inference thất bại: {type(exc).__name__}: {exc}") from exc
         _validate(predictions, len(images), num_classes)
 
-        if isinstance(adapter, TorchvisionAdapter):
+        if isinstance(adapter, TorchvisionAdapter | UltralyticsAdapter):
             try:
                 gradient_check = run_gradient_check(
                     adapter.detector(), images, params.operating_conf

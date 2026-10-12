@@ -19,6 +19,7 @@ import { AttackRisk, AttackTile } from '@/components/AttackTile'
 import { BoxCanvas } from '@/components/case-viewer/BoxCanvas'
 import type { BoxSet } from '@/components/case-viewer/boxes'
 import { BoxSwatch } from '@/components/case-viewer/BoxSwatch'
+import { aspectOf, type Bbox, cropStyle, viewOf } from '@/components/case-viewer/geometry'
 import { EmptyState } from '@/components/EmptyState'
 import { FormAlert } from '@/components/FormAlert'
 import { SelectField, TextField } from '@/components/form/TextField'
@@ -388,27 +389,33 @@ function Pane({
   title,
   src,
   boxes,
+  view,
   testId,
 }: {
   title: string
   src: string | null
   boxes: BoxSet
+  /** Vùng ảnh thật (tọa độ letterbox): khung theo tỉ lệ vùng này, pad bị cắt. */
+  view: Bbox
   testId: string
 }) {
   return (
     <figure className="flex min-w-0 flex-col gap-2">
       <figcaption className="text-sm font-semibold">{title}</figcaption>
-      <div className="relative aspect-square w-full overflow-hidden bg-viewer-canvas">
+      <div
+        className="relative w-full overflow-hidden bg-viewer-canvas"
+        style={{ aspectRatio: aspectOf(view) }}
+      >
         {src && (
           <img
             src={src}
             alt={title}
             data-testid={testId}
             draggable={false}
-            className="absolute inset-0 size-full object-contain"
+            style={cropStyle(view)}
           />
         )}
-        <BoxCanvas set={boxes} />
+        <BoxCanvas set={boxes} view={view} />
       </div>
     </figure>
   )
@@ -627,12 +634,14 @@ export function QuickTryResult({
               title={COPY.clean}
               src={artifactSrc(view.clean_image_url)}
               boxes={cleanBoxes(level, layers)}
+              view={viewOf(view.content_box)}
               testId="clean-image"
             />
             <Pane
               title={`${COPY.attacked} · ${levelText(level, param)}`}
               src={artifactSrc(level.image_url)}
               boxes={attackedBoxes(level, layers)}
+              view={viewOf(view.content_box)}
               testId="attacked-image"
             />
           </div>

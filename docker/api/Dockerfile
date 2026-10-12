@@ -39,8 +39,9 @@ COPY backend ./backend
 RUN uv sync --frozen --no-dev --extra "$TORCH"
 
 COPY docker/api/entrypoint.sh /usr/local/bin/entrypoint.sh
+# /app/convert: spool dùng chung giữa worker-tools và sandbox chuyển đổi `.pt` (Phase R3).
 RUN useradd --system --uid 10001 --home-dir /app advertest \
-    && mkdir -p /app/cache && chown advertest /app/cache
+    && mkdir -p /app/cache /app/convert && chown advertest /app/cache /app/convert
 USER advertest
 
 # Image không có .git: commit được truyền lúc build để /health báo đúng.

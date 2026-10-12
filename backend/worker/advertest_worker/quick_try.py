@@ -62,6 +62,7 @@ class QuickTryOutput:
     clean_png: bytes  # đã làm mờ
     level_pngs: list[bytes]  # đã làm mờ, cùng thứ tự levels
     levels: list[QuickTryLevelReport]
+    content_box: list[float]  # vùng ảnh thật trong ảnh letterbox, xyxy
 
 
 def detections(pred: Prediction, class_names: Sequence[str], min_score: float) -> list[Box]:
@@ -200,4 +201,5 @@ def run_quick_try(
         clean_png=blurred_png(image, regions),
         level_pngs=[blurred_png(adversarial, regions) for adversarial in adversarials],
         levels=reports,
+        content_box=info.content_box(),
     )

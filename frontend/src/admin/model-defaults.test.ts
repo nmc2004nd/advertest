@@ -75,6 +75,23 @@ describe('đọc metadata file weights', () => {
     })
   })
 
+  it('safetensors Ultralytics (export-safetensors): framework, kiến trúc, names JSON, imgsz', async () => {
+    const bytes = safetensors({
+      framework: 'ultralytics',
+      architecture: 'yolo11n',
+      names: JSON.stringify(['person', 'car']),
+      imgsz: '640',
+    })
+    const meta = await readSafetensorsMeta(reader(bytes))
+    expect(meta).toEqual({
+      framework: 'ultralytics',
+      architecture: 'yolo11n',
+      classNames: ['person', 'car'],
+      inputSize: 640,
+    })
+    expect(frameworkFromFile('yolo11n.safetensors', meta)).toBe('ultralytics')
+  })
+
   it('file không có metadata hoặc hỏng → không có gì', async () => {
     const empty = onnx({})
     expect((await readOnnxMeta(reader(empty), empty.length)).classNames).toBeUndefined()
@@ -88,6 +105,11 @@ describe('giá trị mặc định', () => {
     expect(frameworkFromFile('m.SAFETENSORS')).toBe('torchvision')
     expect(frameworkFromFile('m.onnx')).toBe('onnx')
     expect(frameworkFromFile('m.pt')).toBeNull()
+    // Kiến trúc YOLO Ultralytics trong metadata cũng đủ để nhận ra.
+    expect(frameworkFromFile('m.safetensors', { architecture: 'yolov9t' })).toBe('ultralytics')
+    expect(frameworkFromFile('m.safetensors', { architecture: 'fcos_resnet50_fpn' })).toBe(
+      'torchvision',
+    )
   })
 
   it('bộ class COCO: 80 cho YOLO, 91 cho torchvision, không trùng tên (contract)', () => {

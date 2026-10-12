@@ -275,7 +275,12 @@ export interface paths {
         get: operations["get_model_models__model_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Model
+         * @description Xóa model chưa dùng (cùng class mapping, cost profile, weights). 409 khi model đã có
+         *     experiment hoặc lượt thử nhanh (dùng lưu trữ) hoặc đang `checking`.
+         */
+        delete: operations["delete_model_models__model_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -342,7 +347,12 @@ export interface paths {
         /** List Class Mappings */
         get: operations["list_class_mappings_class_mappings_get"];
         put?: never;
-        post?: never;
+        /**
+         * Create Class Mapping
+         * @description Class mapping cho model của mình (422 khi class không thuộc dataset hoặc model; 409 khi
+         *     trùng hoặc model đã lưu trữ).
+         */
+        post: operations["create_class_mapping_class_mappings_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1026,6 +1036,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/experiments/{experiment_id}/narrative": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Narrative
+         * @description Nhận xét chi tiết do LLM viết (bản mới nhất), có cũ so với insight hiện tại không, và có
+         *     tạo được không. Không gọi LLM.
+         */
+        get: operations["get_narrative_experiments__experiment_id__narrative_get"];
+        put?: never;
+        /**
+         * Create Narrative
+         * @description Gọi LLM viết nhận xét từ số liệu insight hiện tại rồi lưu; cùng số liệu thì trả bản đã
+         *     lưu, không gọi lại. Chỉ khi experiment đã kết thúc và có run có metric.
+         */
+        post: operations["create_narrative_experiments__experiment_id__narrative_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/experiments/{experiment_id}/promote": {
         parameters: {
             query?: never;
@@ -1283,6 +1319,88 @@ export interface paths {
          *     status khác hoặc weights không còn trong storage).
          */
         post: operations["recheck_model_models__model_id__check_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/models/conversions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Model Conversion
+         * @description Phase R3 (đề xuất contract 003): đổi `.pt`/`.pth` đã upload sang `.safetensors` trong
+         *     sandbox chuyển đổi; API không mở file. 409 khi đang có lượt chưa xong.
+         */
+        post: operations["create_model_conversion_models_conversions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/models/conversions/{conversion_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Model Conversion
+         * @description Lượt chuyển đổi của chính người gọi (của người khác: 404).
+         */
+        get: operations["get_model_conversion_models_conversions__conversion_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/models/{model_id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Archive Model
+         * @description Lưu trữ model: không chọn được cho experiment, thử nhanh, mapping mới (409 khi đã lưu
+         *     trữ).
+         */
+        post: operations["archive_model_models__model_id__archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/models/{model_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore Model
+         * @description Bỏ lưu trữ model (409 khi model chưa lưu trữ).
+         */
+        post: operations["restore_model_models__model_id__restore_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2388,6 +2506,16 @@ export interface components {
             attacked: components["schemas"]["CaseBox"][];
             /** Ignore Regions */
             ignore_regions: components["schemas"]["CaseIgnoreRegion"][];
+            /**
+             * Content Box
+             * @description Vùng ảnh thật trong ảnh letterbox (xyxy pixel, không gian letterbox), phần còn lại là pad 114. null với dữ liệu tạo trước Phase R3: giao diện hiển thị cả khung vuông (đề xuất contract 001, Phase R3)
+             */
+            content_box?: [
+                number,
+                number,
+                number,
+                number
+            ] | null;
         };
         /** CaseIgnoreRegion */
         CaseIgnoreRegion: {
@@ -2508,6 +2636,33 @@ export interface components {
              * @description Hash của mọi trường trừ id và chính nó
              */
             mapping_sha256: string;
+        };
+        /**
+         * ClassMappingCreate
+         * @description `POST /class-mappings` (Phase R3, đề xuất contract 002): tạo mapping cho model đăng ký qua
+         *     web. Backend kiểm tra class gốc thuộc dataset version, class đích thuộc model; `preset` được
+         *     suy ra khi nội dung trùng một preset (ví dụ `kitti-coco`); trùng hash → 409.
+         */
+        ClassMappingCreate: {
+            /**
+             * Dataset Version Id
+             * Format: uuid
+             */
+            dataset_version_id: string;
+            /**
+             * Model Version Id
+             * Format: uuid
+             */
+            model_version_id: string;
+            /**
+             * Classes
+             * @description Class gốc → class model; null thành ignore region unmapped:<class>
+             */
+            classes: {
+                [key: string]: string | null;
+            };
+            /** @description null là không lọc theo độ khó */
+            difficulty: components["schemas"]["DifficultyFilter"] | null;
         };
         /** ClassMappingSummary */
         ClassMappingSummary: {
@@ -2907,7 +3062,7 @@ export interface components {
          * ErrorCode
          * @enum {string}
          */
-        ErrorCode: "not_implemented" | "unauthenticated" | "forbidden" | "not_found" | "conflict" | "invalid_request" | "invalid_credentials" | "account_pending" | "account_rejected" | "account_disabled" | "rate_limited" | "csrf_failed" | "validation_error" | "not_supported_yet" | "queue_limit_reached" | "internal_error" | "not_compliant" | "experiment_locked" | "checklist_incomplete" | "quick_try_busy" | "gone";
+        ErrorCode: "not_implemented" | "unauthenticated" | "forbidden" | "not_found" | "conflict" | "invalid_request" | "invalid_credentials" | "account_pending" | "account_rejected" | "account_disabled" | "rate_limited" | "csrf_failed" | "validation_error" | "not_supported_yet" | "queue_limit_reached" | "internal_error" | "not_compliant" | "experiment_locked" | "checklist_incomplete" | "quick_try_busy" | "gone" | "llm_unavailable" | "llm_failed";
         /**
          * ErrorResponse
          * @description Body lỗi thống nhất của mọi endpoint: {"error": {"code", "message"}}.
@@ -3332,6 +3487,55 @@ export interface components {
          * @enum {string}
          */
         ExperimentMode: "exploration" | "official";
+        /**
+         * ExperimentNarrative
+         * @description Nhận xét chi tiết do LLM viết từ số liệu insight của experiment. Chỉ để tham khảo, không
+         *     thay câu kết luận theo luật và không vào report. Lưu theo `input_sha256` (hash dữ liệu gửi
+         *     LLM): cùng dữ liệu thì dùng lại bản đã lưu, không gọi LLM lần nữa.
+         */
+        ExperimentNarrative: {
+            /**
+             * Experiment Id
+             * Format: uuid
+             */
+            experiment_id: string;
+            /**
+             * Input Sha256
+             * @description sha256 canonical_json của dữ liệu gửi LLM
+             */
+            input_sha256: string;
+            /** Prompt Version */
+            prompt_version: string;
+            /**
+             * Llm Model
+             * @description Model LLM đã viết, ví dụ deepseek-chat
+             */
+            llm_model: string;
+            /** Summary */
+            summary: string;
+            /** Findings */
+            findings: components["schemas"]["NarrativeFinding"][];
+            /**
+             * Next Steps
+             * @description Gợi ý; con người quyết định
+             */
+            next_steps: string[];
+            /**
+             * Partial
+             * @description Insight lúc viết là kết quả một phần
+             */
+            partial: boolean;
+            /**
+             * Created By
+             * Format: uuid
+             */
+            created_by: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
         /** ExperimentPage */
         ExperimentPage: {
             /** Items */
@@ -3855,6 +4059,125 @@ export interface components {
              */
             worker_target_id: string;
         };
+        /**
+         * ModelConversionCreate
+         * @description `POST /models/conversions`: đổi file `.pt`/`.pth` đã upload (`POST /models/uploads`) sang
+         *     `.safetensors` trong sandbox chuyển đổi (mission.md nguyên tắc 10).
+         */
+        ModelConversionCreate: {
+            /**
+             * Upload Id
+             * Format: uuid
+             */
+            upload_id: string;
+            /**
+             * Framework
+             * @description ultralytics: checkpoint YOLO; torchvision: state dict detection
+             * @enum {string}
+             */
+            framework: "torchvision" | "ultralytics";
+        };
+        /**
+         * ModelConversionView
+         * @description `POST /models/conversions` (202) và `GET /models/conversions/{id}`; `id` là id của job.
+         */
+        ModelConversionView: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            status: components["schemas"]["ToolJobStatus"];
+            /**
+             * Framework
+             * @enum {string}
+             */
+            framework: "torchvision" | "ultralytics";
+            /**
+             * Result Upload Id
+             * @description upload_id của file `.safetensors` kết quả, dùng cho `POST /models`; có khi và chỉ khi completed
+             */
+            result_upload_id: string | null;
+            /** @description Có khi và chỉ khi completed */
+            metadata: components["schemas"]["ModelConvertMetadata"] | null;
+            /**
+             * Error
+             * @description Có khi và chỉ khi failed
+             */
+            error: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * ModelConvertMetadata
+         * @description Metadata đọc được từ checkpoint `.pt` trong sandbox (đề xuất contract 003); form đăng ký tự
+         *     điền từ đây. Trường null là không đọc được, người dùng tự chọn.
+         */
+        ModelConvertMetadata: {
+            /**
+             * Framework
+             * @enum {string}
+             */
+            framework: "torchvision" | "ultralytics";
+            /** Architecture */
+            architecture?: string | null;
+            /** Class Names */
+            class_names?: string[] | null;
+            /** Input Size */
+            input_size?: number | null;
+            /**
+             * Num Classes
+             * @description Số đầu ra class của state dict (torchvision, có nền)
+             */
+            num_classes?: number | null;
+        };
+        /**
+         * ModelConvertPayload
+         * @description Worker công cụ không mở file: tải `source_url`, chuyển byte cho sandbox chuyển đổi, PUT kết
+         *     quả lên `result_upload_url` (đề xuất contract 003).
+         */
+        ModelConvertPayload: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "model_convert";
+            /**
+             * Conversion Id
+             * Format: uuid
+             */
+            conversion_id: string;
+            /**
+             * Framework
+             * @enum {string}
+             */
+            framework: "torchvision" | "ultralytics";
+            /**
+             * Source Url
+             * @description GET file `.pt`/`.pth` đã upload
+             */
+            source_url: string;
+            /**
+             * Result Upload Url
+             * @description PUT file `.safetensors` kết quả
+             */
+            result_upload_url: string;
+        };
+        /**
+         * ModelConvertReport
+         * @description File `.safetensors` đã PUT lên `result_upload_url` trước khi gửi report.
+         */
+        ModelConvertReport: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "model_convert";
+            metadata: components["schemas"]["ModelConvertMetadata"];
+        };
         /** ModelRef */
         ModelRef: {
             /**
@@ -3876,12 +4199,13 @@ export interface components {
             name: string;
             /**
              * Framework
+             * @description torchvision và ultralytics: file .safetensors; onnx: file .onnx
              * @enum {string}
              */
-            framework: "torchvision" | "onnx";
+            framework: "torchvision" | "onnx" | "ultralytics";
             /**
              * Architecture
-             * @description torchvision: một trong TORCHVISION_ARCHITECTURES; onnx: mô tả tự do
+             * @description torchvision: một trong TORCHVISION_ARCHITECTURES; ultralytics: một trong ULTRALYTICS_ARCHITECTURES; onnx: mô tả tự do
              */
             architecture: string;
             /**
@@ -3937,6 +4261,21 @@ export interface components {
             status: components["schemas"]["ModelStatus"];
             /** @description Kết quả job model_check gần nhất; null với model đăng ký qua CLI */
             check?: components["schemas"]["ModelCheckResult"] | null;
+            /**
+             * Archived At
+             * @description Phase R3 (đề xuất contract 002): model đã lưu trữ không chọn được cho experiment, thử nhanh hay mapping mới; experiment và report cũ vẫn tra được
+             */
+            archived_at?: string | null;
+            /**
+             * Owner Id
+             * @description Phase R3 (đề xuất contract 002): người đăng ký model; chỉ người này hoặc admin được xóa, lưu trữ, thêm class mapping
+             */
+            owner_id?: string | null;
+            /**
+             * Owner Name
+             * @description Họ tên người đăng ký model
+             */
+            owner_name?: string | null;
         };
         /** ModelUpload */
         ModelUpload: {
@@ -3958,11 +4297,15 @@ export interface components {
         };
         /**
          * ModelUploadCreate
-         * @description `POST /models/uploads`: chỉ `.onnx` hoặc `.safetensors`, tối đa 500 MB (mission.md nguyên
-         *     tắc 10). Nội dung được kiểm tra lại khi `POST /models`.
+         * @description `POST /models/uploads`: `.onnx`, `.safetensors`, hoặc `.pt`/`.pth` để chuyển đổi trong
+         *     sandbox; tối đa 500 MB (mission.md nguyên tắc 10). Nội dung được kiểm tra lại khi
+         *     `POST /models`.
          */
         ModelUploadCreate: {
-            /** Filename */
+            /**
+             * Filename
+             * @description `.pt`/`.pth` chỉ dùng cho `POST /models/conversions` (đề xuất contract 003); `POST /models` từ chối
+             */
             filename: string;
             /** Size Bytes */
             size_bytes: number;
@@ -3973,6 +4316,39 @@ export interface components {
          * @enum {string}
          */
         ModelVerdict: "meets_criteria" | "does_not_meet" | "conditional";
+        /**
+         * NarrativeFinding
+         * @description Một nhận xét: tiêu đề ngắn và phần giải thích dựa trên số liệu.
+         */
+        NarrativeFinding: {
+            /** Title */
+            title: string;
+            /** Detail */
+            detail: string;
+        };
+        /**
+         * NarrativeState
+         * @description `GET /experiments/{id}/narrative`.
+         */
+        NarrativeState: {
+            /**
+             * Enabled
+             * @description false khi máy chủ chưa cấu hình LLM
+             */
+            enabled: boolean;
+            /** @description Bản mới nhất; null khi chưa có */
+            narrative: components["schemas"]["ExperimentNarrative"] | null;
+            /**
+             * Stale
+             * @description Dữ liệu insight đã đổi so với bản đã lưu
+             */
+            stale: boolean;
+            /**
+             * Can Generate
+             * @description Experiment đã kết thúc và có run có metric (điều kiện của POST)
+             */
+            can_generate: boolean;
+        };
         /**
          * PassCriterion
          * @description Tiêu chí đạt (requirements.md Phase 8, bảng Đánh giá tiêu chí).
@@ -4456,6 +4832,16 @@ export interface components {
             kind: "quick_try";
             /** Levels */
             levels: components["schemas"]["QuickTryLevelReport"][];
+            /**
+             * Content Box
+             * @description Vùng ảnh thật trong ảnh letterbox (xyxy pixel, không gian letterbox), phần còn lại là pad 114. null với dữ liệu tạo trước Phase R3: giao diện hiển thị cả khung vuông (đề xuất contract 001, Phase R3)
+             */
+            content_box?: [
+                number,
+                number,
+                number,
+                number
+            ] | null;
         };
         /**
          * QuickTryView
@@ -4495,6 +4881,16 @@ export interface components {
              * @description Ảnh sạch đã letterbox và làm mờ; có khi và chỉ khi completed. Ảnh gốc chưa làm mờ không bao giờ được phục vụ qua API
              */
             clean_image_url: string | null;
+            /**
+             * Content Box
+             * @description Vùng ảnh thật trong ảnh letterbox (xyxy pixel, không gian letterbox), phần còn lại là pad 114. null với dữ liệu tạo trước Phase R3: giao diện hiển thị cả khung vuông (đề xuất contract 001, Phase R3); chỉ có khi completed
+             */
+            content_box?: [
+                number,
+                number,
+                number,
+                number
+            ] | null;
             /**
              * Levels
              * @description Rỗng khi chưa completed
@@ -6135,7 +6531,7 @@ export interface components {
              */
             job_id: string;
             /** Payload */
-            payload: components["schemas"]["SpecCheckPayload"] | components["schemas"]["ModelCheckPayload"] | components["schemas"]["QuickTryPayload"];
+            payload: components["schemas"]["SpecCheckPayload"] | components["schemas"]["ModelCheckPayload"] | components["schemas"]["QuickTryPayload"] | components["schemas"]["ModelConvertPayload"];
             /**
              * Expires At
              * Format: date-time
@@ -6144,11 +6540,11 @@ export interface components {
         };
         /**
          * ToolJobKind
-         * @description Job công cụ của worker `--tools`; thứ tự lease: quick_try, rồi model_check và spec_check
-         *     theo thứ tự tạo.
+         * @description Job công cụ của worker `--tools`; thứ tự lease: quick_try, rồi các loại khác theo thứ tự
+         *     tạo.
          * @enum {string}
          */
-        ToolJobKind: "spec_check" | "model_check" | "quick_try";
+        ToolJobKind: "spec_check" | "model_check" | "quick_try" | "model_convert";
         /**
          * ToolJobResult
          * @description `POST /internal/worker/tool-jobs/{id}/result`: đúng một trong `report` hoặc `error`.
@@ -6163,7 +6559,7 @@ export interface components {
              */
             lease_id: string;
             /** Report */
-            report?: (components["schemas"]["SpecCheckReport"] | components["schemas"]["ModelCheckReport"] | components["schemas"]["QuickTryReport"]) | null;
+            report?: (components["schemas"]["SpecCheckReport"] | components["schemas"]["ModelCheckReport"] | components["schemas"]["QuickTryReport"] | components["schemas"]["ModelConvertReport"]) | null;
             /** Error */
             error?: string | null;
         };
@@ -6565,6 +6961,7 @@ export type CaseVerdictView = components['schemas']['CaseVerdictView'];
 export type ChecklistCode = components['schemas']['ChecklistCode'];
 export type ChecklistItem = components['schemas']['ChecklistItem'];
 export type ClassMapping = components['schemas']['ClassMapping'];
+export type ClassMappingCreate = components['schemas']['ClassMappingCreate'];
 export type ClassMappingSummary = components['schemas']['ClassMappingSummary'];
 export type ClassRunMetrics = components['schemas']['ClassRunMetrics'];
 export type CloneWarning = components['schemas']['CloneWarning'];
@@ -6604,6 +7001,7 @@ export type ExperimentDetail = components['schemas']['ExperimentDetail'];
 export type ExperimentDraftRequest = components['schemas']['ExperimentDraftRequest'];
 export type ExperimentInsight = components['schemas']['ExperimentInsight'];
 export type ExperimentMode = components['schemas']['ExperimentMode'];
+export type ExperimentNarrative = components['schemas']['ExperimentNarrative'];
 export type ExperimentPage = components['schemas']['ExperimentPage'];
 export type ExperimentPreset = components['schemas']['ExperimentPreset'];
 export type ExperimentStatus = components['schemas']['ExperimentStatus'];
@@ -6632,6 +7030,11 @@ export type ModelCard = components['schemas']['ModelCard'];
 export type ModelCheckPayload = components['schemas']['ModelCheckPayload'];
 export type ModelCheckReport = components['schemas']['ModelCheckReport'];
 export type ModelCheckResult = components['schemas']['ModelCheckResult'];
+export type ModelConversionCreate = components['schemas']['ModelConversionCreate'];
+export type ModelConversionView = components['schemas']['ModelConversionView'];
+export type ModelConvertMetadata = components['schemas']['ModelConvertMetadata'];
+export type ModelConvertPayload = components['schemas']['ModelConvertPayload'];
+export type ModelConvertReport = components['schemas']['ModelConvertReport'];
 export type ModelRef = components['schemas']['ModelRef'];
 export type ModelRegister = components['schemas']['ModelRegister'];
 export type ModelStatus = components['schemas']['ModelStatus'];
@@ -6639,6 +7042,8 @@ export type ModelSummary = components['schemas']['ModelSummary'];
 export type ModelUpload = components['schemas']['ModelUpload'];
 export type ModelUploadCreate = components['schemas']['ModelUploadCreate'];
 export type ModelVerdict = components['schemas']['ModelVerdict'];
+export type NarrativeFinding = components['schemas']['NarrativeFinding'];
+export type NarrativeState = components['schemas']['NarrativeState'];
 export type PassCriterion = components['schemas']['PassCriterion'];
 export type PasswordChange = components['schemas']['PasswordChange'];
 export type PasswordResetConsume = components['schemas']['PasswordResetConsume'];
@@ -7731,6 +8136,80 @@ export interface operations {
             };
         };
     };
+    delete_model_models__model_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                model_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Thiếu phiên hợp lệ */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description forbidden: không phải người đăng ký model hoặc admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Không tìm thấy */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Sai trạng thái hoặc trùng */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Chưa cài đặt */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     list_datasets_datasets_get: {
         parameters: {
             query?: never;
@@ -7946,6 +8425,84 @@ export interface operations {
             };
             /** @description Thiếu permission */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Chưa cài đặt */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_class_mapping_class_mappings_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClassMappingCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassMappingSummary"];
+                };
+            };
+            /** @description Thiếu phiên hợp lệ */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description forbidden: không phải người đăng ký model hoặc admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Không tìm thấy */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Sai trạng thái hoặc trùng */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10635,6 +11192,194 @@ export interface operations {
             };
         };
     };
+    get_narrative_experiments__experiment_id__narrative_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NarrativeState"];
+                };
+            };
+            /** @description Thiếu phiên hợp lệ */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Thiếu permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Không tìm thấy */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Experiment chưa kết thúc hoặc chưa có run có metric */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Chưa cài đặt */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description LLM lỗi, quá thời gian hoặc trả sai định dạng (`llm_failed`) */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Máy chủ chưa cấu hình LLM (`llm_unavailable`) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_narrative_experiments__experiment_id__narrative_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExperimentNarrative"];
+                };
+            };
+            /** @description Thiếu phiên hợp lệ */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Thiếu permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Không tìm thấy */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Experiment chưa kết thúc hoặc chưa có run có metric */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Chưa cài đặt */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description LLM lỗi, quá thời gian hoặc trả sai định dạng (`llm_failed`) */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Máy chủ chưa cấu hình LLM (`llm_unavailable`) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     promote_experiment_experiments__experiment_id__promote_post: {
         parameters: {
             query?: never;
@@ -11513,6 +12258,303 @@ export interface operations {
                 };
             };
             /** @description Thiếu permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Không tìm thấy */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Sai trạng thái hoặc trùng */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Chưa cài đặt */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_model_conversion_models_conversions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModelConversionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelConversionView"];
+                };
+            };
+            /** @description Thiếu phiên hợp lệ */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Thiếu permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Không tìm thấy */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Sai trạng thái hoặc trùng */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Chưa cài đặt */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_model_conversion_models_conversions__conversion_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversion_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelConversionView"];
+                };
+            };
+            /** @description Thiếu phiên hợp lệ */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Thiếu permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Không tồn tại */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Chưa cài đặt */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    archive_model_models__model_id__archive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                model_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelSummary"];
+                };
+            };
+            /** @description Thiếu phiên hợp lệ */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description forbidden: không phải người đăng ký model hoặc admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Không tìm thấy */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Sai trạng thái hoặc trùng */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description validation_error (sai schema) hoặc invalid_request (sai nghiệp vụ) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Chưa cài đặt */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    restore_model_models__model_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                model_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelSummary"];
+                };
+            };
+            /** @description Thiếu phiên hợp lệ */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description forbidden: không phải người đăng ký model hoặc admin */
             403: {
                 headers: {
                     [name: string]: unknown;

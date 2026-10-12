@@ -1,5 +1,6 @@
 """Lỗi nghiệp vụ. Tầng API đổi sang HTTP: NotFound → 404, Forbidden → 403, Conflict → 409,
-Invalid → 422, Gone → 410, QuickTryBusy → 429 (Phase R2); `InvalidConfig` và
+Invalid → 422, Gone → 410, QuickTryBusy → 429 (Phase R2),
+LlmUnavailable → 503, LlmFailed → 502; `InvalidConfig` và
 `QueueLimitReached` mang mã lỗi riêng (Phase 5)."""
 
 from __future__ import annotations
@@ -36,6 +37,14 @@ class Gone(ServiceError):
 
 class QuickTryBusy(ServiceError):
     """Người dùng đã có một lượt thử nhanh chưa xong (429 `quick_try_busy`, Phase R2)."""
+
+
+class LlmUnavailable(ServiceError):
+    """Máy chủ chưa cấu hình LLM (503 `llm_unavailable`)."""
+
+
+class LlmFailed(ServiceError):
+    """LLM lỗi, quá thời gian hoặc trả sai định dạng (502 `llm_failed`)."""
 
 
 class InvalidConfig(Invalid):

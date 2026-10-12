@@ -131,6 +131,9 @@ class ErrorCode(StrEnum):
     # Phase R2: thử nhanh.
     QUICK_TRY_BUSY = "quick_try_busy"  # 429: người gọi đã có một lượt queued/running
     GONE = "gone"  # 410: kết quả thử nhanh đã hết hạn và bị xóa
+    # Nhận xét chi tiết bằng LLM.
+    LLM_UNAVAILABLE = "llm_unavailable"  # 503: máy chủ chưa cấu hình LLM
+    LLM_FAILED = "llm_failed"  # 502: LLM lỗi, quá thời gian hoặc trả sai định dạng
 
 
 class ProtocolStatus(StrEnum):
@@ -319,12 +322,14 @@ class ConclusionCode(StrEnum):
 
 
 class ToolJobKind(StrEnum):
-    """Job công cụ của worker `--tools`; thứ tự lease: quick_try, rồi model_check và spec_check
-    theo thứ tự tạo."""
+    """Job công cụ của worker `--tools`; thứ tự lease: quick_try, rồi các loại khác theo thứ tự
+    tạo."""
 
     SPEC_CHECK = "spec_check"
     MODEL_CHECK = "model_check"
     QUICK_TRY = "quick_try"
+    # Phase R3 (đề xuất contract 003): đổi `.pt` sang safetensors trong sandbox chuyển đổi.
+    MODEL_CONVERT = "model_convert"
 
 
 class ToolJobStatus(StrEnum):

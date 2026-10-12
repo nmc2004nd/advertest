@@ -1,0 +1,161 @@
+{
+  "$defs": {
+    "ModelConvertMetadata": {
+      "additionalProperties": false,
+      "description": "Metadata đọc được từ checkpoint `.pt` trong sandbox (đề xuất contract 003); form đăng ký tự\nđiền từ đây. Trường null là không đọc được, người dùng tự chọn.",
+      "properties": {
+        "framework": {
+          "enum": [
+            "torchvision",
+            "ultralytics"
+          ],
+          "title": "Framework",
+          "type": "string"
+        },
+        "architecture": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Architecture"
+        },
+        "class_names": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Class Names"
+        },
+        "input_size": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Input Size"
+        },
+        "num_classes": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Số đầu ra class của state dict (torchvision, có nền)",
+          "title": "Num Classes"
+        }
+      },
+      "required": [
+        "framework"
+      ],
+      "title": "ModelConvertMetadata",
+      "type": "object"
+    },
+    "ToolJobStatus": {
+      "enum": [
+        "queued",
+        "running",
+        "completed",
+        "failed"
+      ],
+      "title": "ToolJobStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "`POST /models/conversions` (202) và `GET /models/conversions/{id}`; `id` là id của job.",
+  "properties": {
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/$defs/ToolJobStatus"
+    },
+    "framework": {
+      "enum": [
+        "torchvision",
+        "ultralytics"
+      ],
+      "title": "Framework",
+      "type": "string"
+    },
+    "result_upload_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "upload_id của file `.safetensors` kết quả, dùng cho `POST /models`; có khi và chỉ khi completed",
+      "title": "Result Upload Id"
+    },
+    "metadata": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ModelConvertMetadata"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Có khi và chỉ khi completed"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Có khi và chỉ khi failed",
+      "title": "Error"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "status",
+    "framework",
+    "result_upload_id",
+    "metadata",
+    "error",
+    "created_at"
+  ],
+  "title": "ModelConversionView",
+  "type": "object"
+}

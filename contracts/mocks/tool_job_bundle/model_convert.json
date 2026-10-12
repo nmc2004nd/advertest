@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "job_id": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
+  "payload": {
+    "kind": "model_convert",
+    "conversion_id": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
+    "framework": "ultralytics",
+    "source_url": "http://minio:9000/advertest-models/uploads/x/best.pt?X-Amz-Signature=abc",
+    "result_upload_url": "http://minio:9000/advertest-models/uploads/y/best.safetensors?X-Amz-Signature=def"
+  },
+  "expires_at": "2026-10-12T08:15:00Z"
+}

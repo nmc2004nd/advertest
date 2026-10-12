@@ -42,7 +42,15 @@ from advertest_contracts.models import (
 from backend.app import storage
 from backend.app.db import models as m
 from backend.app.presign import Method, Presigner
-from backend.app.services import artifacts, attack_catalog, audit, drafts, model_uploads, tool_jobs
+from backend.app.services import (
+    artifacts,
+    attack_catalog,
+    audit,
+    catalog,
+    drafts,
+    model_uploads,
+    tool_jobs,
+)
 from backend.app.services.clock import Clock, utcnow
 from backend.app.services.errors import Gone, Invalid, NotFound, QuickTryBusy
 
@@ -114,8 +122,12 @@ def create(
     now: datetime,
 ) -> QuickTryView:
     version = session.get(m.ModelVersion, model_version_id)
+    if version is not None and not catalog.can_see_model(session, actor, version.id):
+        version = None  # model của engineer khác coi như không có
     if version is None or version.status != ModelStatus.READY:
         raise Invalid("Model không có hoặc chưa sẵn sàng")
+    if version.archived_at is not None:
+        raise Invalid("Model đã lưu trữ")
     spec_row = session.get(m.AttackSpecRow, attack_spec_id)
     if spec_row is None or spec_row.status != AttackSpecStatus.ACTIVE:
         raise Invalid("Attack spec không có hoặc không hoạt động")
@@ -186,9 +198,11 @@ def _view(session: Session, row: m.QuickTry, job: m.ToolJob, now: datetime) -> Q
     completed = job.status == ToolJobStatus.COMPLETED
     levels: list[QuickTryLevel] = []
     clean_url = None
+    content_box = None
     if completed:
         assert job.result is not None  # completed ⇒ có report
         report = QuickTryReport.model_validate(job.result)
+        content_box = report.content_box
         spec_row = session.get(m.AttackSpecRow, row.attack_spec_id)
         metadata = attack_catalog.metadata_of(spec_row) if spec_row is not None else None
         clean_url = f"/artifacts/{artifacts.issue(clean_key(row.id), now)[0]}"
@@ -209,6 +223,7 @@ def _view(session: Session, row: m.QuickTry, job: m.ToolJob, now: datetime) -> Q
             "attack_spec_id": row.attack_spec_id,
             "preset": row.preset,
             "clean_image_url": clean_url,
+            "content_box": content_box,
             "levels": levels,
             "created_at": row.created_at,
             "expires_at": row.expires_at,

@@ -13,7 +13,7 @@ dataset.read              E R A
 dataset.upload            E
 slice.create              E
 model.read                E R A
-model.manage                  A
+model.manage              E   A
 attack_catalog.read       E R A
 attack_catalog.manage         A
 attack_catalog.approve      R

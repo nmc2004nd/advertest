@@ -26,6 +26,8 @@ from backend.app.services.errors import (
     Gone,
     Invalid,
     InvalidConfig,
+    LlmFailed,
+    LlmUnavailable,
     NotFound,
     QueueLimitReached,
     QuickTryBusy,
@@ -89,6 +91,8 @@ SERVICE_ERRORS: dict[type[ServiceError], tuple[int, ErrorCode]] = {
     Invalid: (status.HTTP_422_UNPROCESSABLE_CONTENT, ErrorCode.INVALID_REQUEST),
     Gone: (status.HTTP_410_GONE, ErrorCode.GONE),
     QuickTryBusy: (status.HTTP_429_TOO_MANY_REQUESTS, ErrorCode.QUICK_TRY_BUSY),
+    LlmUnavailable: (status.HTTP_503_SERVICE_UNAVAILABLE, ErrorCode.LLM_UNAVAILABLE),
+    LlmFailed: (status.HTTP_502_BAD_GATEWAY, ErrorCode.LLM_FAILED),
 }
 
 

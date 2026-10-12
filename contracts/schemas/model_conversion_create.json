@@ -1,0 +1,26 @@
+{
+  "additionalProperties": false,
+  "description": "`POST /models/conversions`: đổi file `.pt`/`.pth` đã upload (`POST /models/uploads`) sang\n`.safetensors` trong sandbox chuyển đổi (mission.md nguyên tắc 10).",
+  "properties": {
+    "upload_id": {
+      "format": "uuid",
+      "title": "Upload Id",
+      "type": "string"
+    },
+    "framework": {
+      "description": "ultralytics: checkpoint YOLO; torchvision: state dict detection",
+      "enum": [
+        "torchvision",
+        "ultralytics"
+      ],
+      "title": "Framework",
+      "type": "string"
+    }
+  },
+  "required": [
+    "upload_id",
+    "framework"
+  ],
+  "title": "ModelConversionCreate",
+  "type": "object"
+}

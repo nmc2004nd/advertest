@@ -65,6 +65,14 @@ export const NAV_ITEMS: readonly NavItem[] = [
     implemented: true,
   },
   {
+    // Engineer đăng ký và kiểm tra model của mình; admin giữ quyền để hỗ trợ.
+    path: '/models',
+    label: 'Model',
+    icon: Boxes,
+    requirement: 'model.manage',
+    implemented: true,
+  },
+  {
     path: '/reviews',
     label: 'Duyệt',
     icon: ClipboardCheck,
@@ -101,14 +109,6 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: 'Attack catalog',
     icon: Library,
     requirement: 'attack_catalog.manage',
-    implemented: true,
-  },
-  {
-    path: '/admin/models',
-    group: 'admin',
-    label: 'Model',
-    icon: Boxes,
-    requirement: 'model.manage',
     implemented: true,
   },
   {

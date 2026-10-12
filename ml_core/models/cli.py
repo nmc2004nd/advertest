@@ -1,4 +1,4 @@
-"""Lệnh CLI của ml-model: `advertest model register`.
+"""Lệnh CLI của ml-model: `advertest model register`, `advertest model export-safetensors`.
 
 Lấy store trong lệnh bằng `ml_core.store.require_store(ctx.obj)`.
 """
@@ -11,6 +11,7 @@ from typing import Annotated
 import typer
 
 from ml_core.models.register import load_check_images, register_model
+from ml_core.models.ultralytics_safetensors import export_safetensors
 from ml_core.store import require_store
 
 app = typer.Typer(help="Đăng ký và xem model.", no_args_is_help=True)
@@ -41,3 +42,23 @@ def register(
             "Attack white-box trên model này sẽ bị skipped.",
             err=True,
         )
+
+
+@app.command("export-safetensors")
+def export_safetensors_cmd(
+    checkpoint: Annotated[
+        Path, typer.Argument(exists=True, dir_okay=False, help="Checkpoint Ultralytics (.pt)")
+    ],
+    output: Annotated[
+        Path | None, typer.Option("--output", "-o", help="Mặc định cạnh file .pt")
+    ] = None,
+    architecture: Annotated[
+        str | None,
+        typer.Option("--architecture", help="Ví dụ yolo11n; mặc định đọc từ checkpoint"),
+    ] = None,
+) -> None:
+    """Đổi `.pt` của Ultralytics sang `.safetensors` để đăng ký qua web (framework ultralytics,
+    có gradient). Chỉ chạy với checkpoint bạn tin: `.pt` là pickle."""
+    target = output or checkpoint.with_suffix(".safetensors")
+    arch, names = export_safetensors(checkpoint, target, architecture)
+    typer.echo(f"{target} — kiến trúc {arch}, {len(names)} class")

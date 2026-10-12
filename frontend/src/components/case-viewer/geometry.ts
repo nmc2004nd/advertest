@@ -1,3 +1,5 @@
+import type { CSSProperties } from 'react'
+
 import type { CaseBox, CaseDetections } from '@/contracts/api'
 
 /** Ảnh và box ở không gian letterbox 640×640 (tech-stack.md mục 2.1); box là xyxy pixel. */
@@ -53,10 +55,56 @@ export function canvasSize(cssWidth: number, cssHeight: number, dpr: number) {
   return { width: Math.round(cssWidth * ratio), height: Math.round(cssHeight * ratio), ratio }
 }
 
-/** Box từ pixel ảnh sang pixel CSS của khung hiển thị. */
-export function toCss(box: Bbox, cssSize: number, imageSize = LETTERBOX): Bbox {
-  const s = cssSize / imageSize
-  return [box[0] * s, box[1] * s, box[2] * s, box[3] * s]
+/** Cả khung letterbox: hiển thị khi không biết vùng ảnh thật. */
+export const FULL_VIEW: Bbox = [0, 0, LETTERBOX, LETTERBOX]
+
+/**
+ * Vùng hiển thị (tọa độ letterbox): `content_box` để cắt bỏ pad 114 (đề xuất contract 001,
+ * Phase R3), hoặc cả khung với dữ liệu cũ (`null`) hay box không hợp lệ.
+ */
+export function viewOf(contentBox: readonly number[] | null | undefined): Bbox {
+  if (!contentBox || contentBox.length !== 4) return FULL_VIEW
+  const [x1, y1, x2, y2] = contentBox
+  return x2 > x1 && y2 > y1 ? [x1, y1, x2, y2] : FULL_VIEW
+}
+
+/** Tỉ lệ CSS `aspect-ratio` của khung hiển thị vùng `view`. */
+export function aspectOf(view: Bbox): string {
+  return `${view[2] - view[0]} / ${view[3] - view[1]}`
+}
+
+/**
+ * Style của `<img>` letterbox để vùng `view` lấp đầy khung (khung có tỉ lệ `aspectOf(view)`):
+ * phóng ảnh và dịch ngược phần pad ra ngoài khung (`overflow-hidden`).
+ */
+export function cropStyle(view: Bbox, imageSize = LETTERBOX): CSSProperties {
+  const w = view[2] - view[0]
+  const h = view[3] - view[1]
+  return {
+    position: 'absolute',
+    maxWidth: 'none',
+    width: `${(imageSize / w) * 100}%`,
+    height: `${(imageSize / h) * 100}%`,
+    left: `${(-view[0] / w) * 100}%`,
+    top: `${(-view[1] / h) * 100}%`,
+  }
+}
+
+/** Box từ pixel ảnh sang pixel CSS của khung hiển thị vùng `view` rộng `cssWidth`. */
+export function toCss(box: Bbox, cssWidth: number, view: Bbox = FULL_VIEW): Bbox {
+  const s = cssWidth / (view[2] - view[0])
+  return [
+    (box[0] - view[0]) * s,
+    (box[1] - view[1]) * s,
+    (box[2] - view[0]) * s,
+    (box[3] - view[1]) * s,
+  ]
+}
+
+/** Điểm CSS trong khung (rộng `cssWidth`) về tọa độ ảnh letterbox. */
+export function fromCss(x: number, y: number, cssWidth: number, view: Bbox = FULL_VIEW) {
+  const s = (view[2] - view[0]) / cssWidth
+  return { x: view[0] + x * s, y: view[1] + y * s }
 }
 
 /** Box nhỏ nhất chứa điểm chạm (tọa độ ảnh); ưu tiên box nhỏ vì box lớn hay bao box nhỏ. */

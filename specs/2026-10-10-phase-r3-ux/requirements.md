@@ -29,6 +29,10 @@ Phase này gồm 4 mảng:
    - `validate` kiểm `art_class`.
 3. **Insight trong report PDF.**
 4. **Bổ sung contract nhỏ** (Group 0): recheck model, `insight` trong snapshot report, `promoted_from` trong `ExperimentDetail`.
+5. **Bổ sung sau Group 0 (người dùng yêu cầu 2026-10-12):**
+   - ảnh failure case và thử nhanh cắt bỏ viền letterbox khi hiển thị (`content_box`, đề xuất contract 001);
+   - chuyển `.pt`/`.pth` upload qua web sang `.safetensors` trong sandbox chuyển đổi (service `converter`, đề xuất contract 003; `mission.md` nguyên tắc 10 sửa theo);
+   - xóa model chưa dùng, lưu trữ / khôi phục model đã dùng, tạo class mapping qua web (bước mapping trong form đăng ký model và mục Class mapping ở trang chi tiết model; đề xuất contract 002). Phần giao diện map class cho model kéo từ Phase 10 lên; giao diện map class cho dataset riêng vẫn ở Phase 10.
 
 Cuối phase, mọi test nghiệm thu Phase 0–8, R1 và R2 vẫn pass, và golden R1 vẫn khớp.
 
@@ -36,7 +40,7 @@ Cuối phase, mọi test nghiệm thu Phase 0–8, R1 và R2 vẫn pass, và gol
 
 - Các mục còn lại của 11b chuyển sang **Phase R3b**, làm cùng landing (11a): gom toàn bộ câu chữ cũ vào `copy/vi.ts`, chuyển E2E sang tìm theo role/nhãn, đăng nhập/xác minh, font report PDF. Từ 2026-10-10, `design.md` đã mô tả đúng app hiện có, nên R3 không đổi token, font hay họa tiết (mục Behaviour "Phong cách giao diện").
 - Landing page (Phase 11a, chuyển sang R3b).
-- Thuật toán attack mới, adapter mới, và upload `.pt` hay pickle qua web (`mission.md` nguyên tắc 10).
+- Thuật toán attack mới, adapter mới, và mở `.pt` hay pickle upload qua web ở bất cứ đâu ngoài sandbox chuyển đổi (`mission.md` nguyên tắc 10, sửa 2026-10-12).
 - Tạo protocol tự động từ template. Template chỉ điền sẵn form cho reviewer (R2).
 - So sánh nhiều experiment (Phase 11c). Dataset riêng và map class (Phase 10).
 - Bản tiếng Anh.
@@ -351,6 +355,12 @@ Quy tắc chung:
 - **Tab Chi phí và Tái lập gộp vào Tổng quan**, để trang chỉ còn 5 tab như roadmap.
 - **`design.md` viết lại theo app hiện có** (màu, font Inter, hero/gradient, tông trạng thái, overlay `BOX_COLORS`); R3 theo đúng file này. *Lý do:* giữ app nhất quán; không có đợt đổi giao diện toàn cục. Người dùng chốt 2026-10-10.
 - **Chuỗi giao diện mới** (thuật ngữ, ý nghĩa quyết định, thử nhanh) nằm ở `frontend/src/copy/`. Chuỗi cũ để R3b gom.
+- **Ảnh case hiển thị theo `content_box`** (vùng ảnh thật trong letterbox), case cũ (`null`) giữ khung vuông; lưới failure case 3 cột. Người dùng duyệt đề xuất contract 001 ngày 2026-10-12.
+- **Model chưa có experiment hay lượt thử nhanh thì xóa hẳn; đã dùng thì chỉ lưu trữ** (`archived_at`, ẩn khỏi wizard và thử nhanh, khôi phục được). *Lý do:* `mission.md` nguyên tắc 3. Người dùng chốt 2026-10-12 (đề xuất contract 002).
+- **`.pt` từ web chỉ được mở trong sandbox chuyển đổi** (container `network_mode: none`, rootfs chỉ đọc, không capability, không bí mật; tiến trình con có timeout và rlimit; torchvision nạp bằng `weights_only=True`). Worker công cụ chỉ chuyển byte qua volume spool và đọc metadata từ header safetensors. Kết quả đăng ký như safetensors thường, vẫn qua `model_check`. Người dùng chọn hướng này và duyệt sửa `mission.md` nguyên tắc 10 ngày 2026-10-12 (đề xuất contract 003).
+- **Ai thấy model nào:** admin và reviewer thấy mọi model; engineer thấy model mình đăng ký và model của người có vai trò admin (catalog dùng chung). Backend chặn: `GET /models` chỉ trả model thấy được, `GET /models/{id}` của engineer khác → 404, ước lượng/tạo experiment và thử nhanh với model đó → 422. Experiment của người khác vẫn hiện tên model. Người dùng chốt 2026-10-12.
+- **Chỉ người đăng ký model hoặc admin thấy nút xóa, lưu trữ, kiểm lại, thêm mapping** (`ModelSummary.owner_id`, `owner_name`); người khác thấy ai đã đăng ký. Người dùng chốt 2026-10-12.
+- **Class mapping tạo trong form đăng ký model, gợi ý theo preset `kitti-coco` hoặc tên trùng, sửa được, bỏ qua được** (thêm sau ở trang chi tiết model). Người dùng chốt 2026-10-12.
 - **Tên nhánh `phaser3-<agent>`; test ở `tests/acceptance/phase_r3/` và `frontend/e2e/phase_r3/`; merge vào `dev`.** *Lý do:* như R1, R2.
 
 ## Context

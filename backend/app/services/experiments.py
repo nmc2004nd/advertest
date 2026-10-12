@@ -187,7 +187,7 @@ def create_from_body(
 ) -> m.Experiment:
     """`POST /experiments`: kiểm tra cấu hình (422 có đường dẫn trường), rồi giới hạn số
     experiment đang chờ của người dùng (409 `queue_limit_reached`)."""
-    checked = experiment_config.check(session, body)
+    checked = experiment_config.check(session, body, actor=actor)
     # Khóa dòng user: hai request đồng thời của cùng người không cùng lọt qua giới hạn.
     session.execute(select(m.User.id).where(m.User.id == actor.id).with_for_update())
     queued = session.scalar(

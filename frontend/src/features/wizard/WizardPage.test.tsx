@@ -252,7 +252,10 @@ describe('bước 2', () => {
     }
     const select = html.slice(html.indexOf('id="wizard-model"'), html.indexOf('</select>'))
     const options = [...select.matchAll(/<option value="([^"]+)"/g)].map((m) => m[1])
-    const usable = models.filter((m) => m.status !== 'checking' && m.status !== 'check_failed')
+    // Model đã lưu trữ (đề xuất contract 002) cũng không chọn được.
+    const usable = models.filter(
+      (m) => m.status !== 'checking' && m.status !== 'check_failed' && !m.archived_at,
+    )
     expect(options).toEqual(usable.map((m) => m.id))
     expect(usable.length).toBeLessThan(models.length)
     expect(html).toContain(`${slices[0].name} (${slices[0].size} ảnh)`)

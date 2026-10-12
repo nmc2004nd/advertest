@@ -92,6 +92,9 @@ export const MODEL_STATUS: Record<ModelStatus, StatusDisplay> = {
   ready: { label: 'Sẵn sàng', icon: CircleCheck, tone: 'success' },
 }
 
+/** Model có `archived_at` (đề xuất contract 002): hiện thay cho trạng thái kiểm tra. */
+export const MODEL_ARCHIVED: StatusDisplay = { label: 'Đã lưu trữ', icon: Archive, tone: 'muted' }
+
 export const TOOL_JOB_STATUS: Record<ToolJobStatus, StatusDisplay> = {
   queued: { label: 'Đang chờ', icon: Clock, tone: 'neutral' },
   running: { label: 'Đang chạy', icon: LoaderCircle, tone: 'info' },
@@ -118,7 +121,7 @@ export type StatusBadgeProps =
   | { kind: 'experiment'; status: ExperimentStatus }
   | { kind: 'search'; status: SearchStatus }
   | { kind: 'attack_spec'; status: AttackSpecStatus }
-  | { kind: 'model'; status: ModelStatus }
+  | { kind: 'model'; status: ModelStatus | 'archived' }
   | { kind: 'tool_job'; status: ToolJobStatus }
   | { kind: 'mode'; status: ExperimentMode }
   | { kind: 'quick_try_object'; status: QuickTryObjectStatus }
@@ -134,7 +137,7 @@ export function statusDisplay(props: StatusBadgeProps): StatusDisplay {
     case 'attack_spec':
       return ATTACK_SPEC_STATUS[props.status]
     case 'model':
-      return MODEL_STATUS[props.status]
+      return props.status === 'archived' ? MODEL_ARCHIVED : MODEL_STATUS[props.status]
     case 'tool_job':
       return TOOL_JOB_STATUS[props.status]
     case 'mode':

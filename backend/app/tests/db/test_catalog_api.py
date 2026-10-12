@@ -89,6 +89,8 @@ def world(app_engine: Engine, owner_engine: Engine) -> World:
         user = m.User(email=f"cat-{tag}@x.test", full_name="U", password_hash="x")
         s.add(user)
         s.flush()
+        # Phase R3: engineer chỉ thấy model của mình và model do admin đăng ký (catalog dùng chung).
+        s.add(m.UserRole(user_id=user.id, role=Role.ADMIN))
         model = m.Model(name=f"yolo-{tag}", created_by=user.id)
         other = m.Model(name=f"rcnn-{tag}", created_by=user.id)
         dataset = m.Dataset(name=f"kitti-{tag}", created_by=user.id, anonymized=False)

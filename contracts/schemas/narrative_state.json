@@ -1,0 +1,148 @@
+{
+  "$defs": {
+    "ExperimentNarrative": {
+      "additionalProperties": false,
+      "description": "Nhận xét chi tiết do LLM viết từ số liệu insight của experiment. Chỉ để tham khảo, không\nthay câu kết luận theo luật và không vào report. Lưu theo `input_sha256` (hash dữ liệu gửi\nLLM): cùng dữ liệu thì dùng lại bản đã lưu, không gọi LLM lần nữa.",
+      "properties": {
+        "experiment_id": {
+          "format": "uuid",
+          "title": "Experiment Id",
+          "type": "string"
+        },
+        "input_sha256": {
+          "description": "sha256 canonical_json của dữ liệu gửi LLM",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Input Sha256",
+          "type": "string"
+        },
+        "prompt_version": {
+          "minLength": 1,
+          "title": "Prompt Version",
+          "type": "string"
+        },
+        "llm_model": {
+          "description": "Model LLM đã viết, ví dụ deepseek-chat",
+          "minLength": 1,
+          "title": "Llm Model",
+          "type": "string"
+        },
+        "summary": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        },
+        "findings": {
+          "items": {
+            "$ref": "#/$defs/NarrativeFinding"
+          },
+          "maxItems": 5,
+          "title": "Findings",
+          "type": "array"
+        },
+        "next_steps": {
+          "description": "Gợi ý; con người quyết định",
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 5,
+          "title": "Next Steps",
+          "type": "array"
+        },
+        "partial": {
+          "description": "Insight lúc viết là kết quả một phần",
+          "title": "Partial",
+          "type": "boolean"
+        },
+        "created_by": {
+          "format": "uuid",
+          "title": "Created By",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "experiment_id",
+        "input_sha256",
+        "prompt_version",
+        "llm_model",
+        "summary",
+        "findings",
+        "next_steps",
+        "partial",
+        "created_by",
+        "created_at"
+      ],
+      "title": "ExperimentNarrative",
+      "type": "object"
+    },
+    "NarrativeFinding": {
+      "additionalProperties": false,
+      "description": "Một nhận xét: tiêu đề ngắn và phần giải thích dựa trên số liệu.",
+      "properties": {
+        "title": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "detail": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Detail",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "detail"
+      ],
+      "title": "NarrativeFinding",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "`GET /experiments/{id}/narrative`.",
+  "properties": {
+    "enabled": {
+      "description": "false khi máy chủ chưa cấu hình LLM",
+      "title": "Enabled",
+      "type": "boolean"
+    },
+    "narrative": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ExperimentNarrative"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Bản mới nhất; null khi chưa có"
+    },
+    "stale": {
+      "description": "Dữ liệu insight đã đổi so với bản đã lưu",
+      "title": "Stale",
+      "type": "boolean"
+    },
+    "can_generate": {
+      "description": "Experiment đã kết thúc và có run có metric (điều kiện của POST)",
+      "title": "Can Generate",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "enabled",
+    "narrative",
+    "stale",
+    "can_generate"
+  ],
+  "title": "NarrativeState",
+  "type": "object"
+}

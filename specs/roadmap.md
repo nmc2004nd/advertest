@@ -297,7 +297,7 @@ Thử nhanh (backend/worker của R3 cũ):
 
 - [ ] Converter YOLO và COCO.
 - [ ] Báo cáo kiểm tra khi import.
-- [ ] Giao diện map class.
+- [ ] Giao diện map class (map class cho model đăng ký qua web đã làm ở Phase R3, đề xuất contract 002; còn map class cho dataset riêng).
 - [ ] Tạo slice theo bộ lọc.
 - [x] ~~Làm mờ mặt và biển số ở tầng hiển thị~~: chuyển sang Phase 6. Dataset riêng dùng lại bước làm mờ của Phase 6.
 - [ ] (Tùy chọn) Pseudo-label cho dữ liệu không có nhãn, gắn nhãn consistency metric.

@@ -1,0 +1,15 @@
+{
+  "id": "3e71a084-f482-58ed-8f31-42f694cb17a4",
+  "name": "fasterrcnn-cu-luu-tru",
+  "framework": "torchvision",
+  "weights_sha256": "b6fe31a1ffd08e46035701f82aff49b494056a8646018b78a85228303b26e684",
+  "class_names": [
+    "person",
+    "car",
+    "truck"
+  ],
+  "input_size": 640,
+  "supports_gradients": false,
+  "created_at": "2026-09-29T08:00:00Z",
+  "archived_at": "2026-10-12T05:00:00Z"
+}

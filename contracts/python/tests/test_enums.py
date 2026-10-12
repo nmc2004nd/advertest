@@ -71,6 +71,9 @@ EXPECTED = {
         "checklist_incomplete",
         "quick_try_busy",
         "gone",
+        # Nhận xét chi tiết bằng LLM.
+        "llm_unavailable",
+        "llm_failed",
     },
     # Phase 3: protocol phát triển dev-open.
     "ProtocolStatus": {"active", "retired", "dev"},
@@ -136,7 +139,7 @@ EXPECTED |= {
     "ModelStatus": {"checking", "check_failed", "ready"},
     "ExperimentMode": {"exploration", "official"},
     "ConclusionCode": {"no_data", "robust", "weak", "weak_class"},
-    "ToolJobKind": {"spec_check", "model_check", "quick_try"},
+    "ToolJobKind": {"spec_check", "model_check", "quick_try", "model_convert"},
     "ToolJobStatus": {"queued", "running", "completed", "failed"},
     "SpecCheckName": {
         "runs",

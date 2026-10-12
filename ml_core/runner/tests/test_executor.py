@@ -28,6 +28,7 @@ from ml_core.cli.evaluate import ground_truth
 from ml_core.data.loader import Batch
 from ml_core.metrics.attack import ImageAttackStats
 from ml_core.metrics.filters import Prediction
+from ml_core.preprocess import letterbox_info
 from ml_core.runner.candidates import CANDIDATE_FILES, StoreCandidates
 from ml_core.runner.executor import (
     CheckpointMismatchError,
@@ -160,6 +161,7 @@ def test_straight_run_has_failure_cases(straight: tuple[FinalizedRun, MemStore])
     assert finalized.failure_cases, "fixture phải có ít nhất một failure case"
     for record in finalized.failure_cases:
         assert record.run_id == RUN_ID and record.fingerprint == FP
+        assert record.detections.content_box is not None
         artifacts = record.artifacts
         assert artifacts.clean_thumb is not None and artifacts.adversarial_thumb is not None
         for key in (
@@ -377,7 +379,7 @@ def _offer_all(
         images=images,
         targets=[{"boxes": np.zeros((0, 4), np.float32), "labels": np.zeros(0, np.int64)}],
         ignore=[{"boxes": np.zeros((0, 4), np.float32), "sources": []}],
-        infos=[],
+        infos=[letterbox_info(8, 8, size=8)],
     )
     for image_id, lost in severities:
         stats = ImageAttackStats(correct=lost, lost=lost, clean_fp=0, attacked_fp=0)

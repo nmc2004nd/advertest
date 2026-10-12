@@ -274,8 +274,11 @@ export function DataStep({
   const mappings = useClassMappings(draft.datasetVersionId, draft.modelId)
   const targets = useComputeTargets()
   // `status` có mặc định `ready` trong contract (model trước R2 không có trường này).
+  // Model đã lưu trữ (đề xuất contract 002) không chọn được cho experiment mới.
   const ready =
-    models.data?.filter((m) => m.status !== 'checking' && m.status !== 'check_failed') ?? []
+    models.data?.filter(
+      (m) => m.status !== 'checking' && m.status !== 'check_failed' && !m.archived_at,
+    ) ?? []
   const datasetName = new Map(
     (datasets.data ?? []).flatMap((d) => d.versions.map((v) => [v.id, d.name] as const)),
   )

@@ -6,6 +6,12 @@
   "attack_spec_id": "8d15422d-f111-5c7e-96eb-e704767e6218",
   "preset": "standard",
   "clean_image_url": "/artifacts/qt-clean.tok",
+  "content_box": [
+    0.0,
+    80.0,
+    640.0,
+    560.0
+  ],
   "levels": [
     {
       "level": 2,

@@ -7,6 +7,7 @@ run `stopped_limit` hoặc experiment chưa kết thúc.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from uuid import UUID
 
 from sqlalchemy import select
@@ -63,7 +64,24 @@ def _insight_run(run: m.Run) -> rules.InsightRun:
     )
 
 
-def insight(session: Session, experiment_id: UUID) -> ExperimentInsight:
+@dataclass(frozen=True)
+class InsightAttackData:
+    """Một attack của experiment kèm dữ liệu insight dùng (nhận xét LLM đọc lại)."""
+
+    row: m.AttackSpecRow
+    target: rules.InsightAttack
+    grid: list[rules.GridRun] | None  # None với attack tìm ngưỡng
+    breaking_point: float | None
+
+
+@dataclass(frozen=True)
+class InsightData:
+    experiment: m.Experiment
+    attacks: list[InsightAttackData]
+    insight: ExperimentInsight
+
+
+def collect(session: Session, experiment_id: UUID) -> InsightData:
     experiment = session.get(m.Experiment, experiment_id)
     if experiment is None:
         raise NotFound("Không có experiment này")
@@ -89,6 +107,7 @@ def insight(session: Session, experiment_id: UUID) -> ExperimentInsight:
         if result.status == SearchStatus.FOUND and result.breaking_point is not None
     }
 
+    attacks: list[InsightAttackData] = []
     weaknesses: list[Weakness] = []
     matrix: list[RobustnessRow] = []
     for attack in config.attacks:  # theo thứ tự cấu hình
@@ -97,22 +116,33 @@ def insight(session: Session, experiment_id: UUID) -> ExperimentInsight:
         target = _attack(row)
         if attack.grid is not None:
             items = grid_runs.get(row.id, [])
+            attacks.append(InsightAttackData(row, target, items, None))
             weakness = rules.grid_weakness(target, items)
             if weakness is not None:
                 weaknesses.append(weakness)
             matrix_row = rules.matrix_row(target, items)
             if matrix_row is not None:
                 matrix.append(matrix_row)
-        elif row.id in found:
-            weaknesses.append(rules.search_weakness(target, found[row.id]))
+        else:
+            attacks.append(InsightAttackData(row, target, None, found.get(row.id)))
+            if row.id in found:
+                weaknesses.append(rules.search_weakness(target, found[row.id]))
 
     ranked = rules.rank(weaknesses)
-    return ExperimentInsight(
-        experiment_id=experiment.id,
-        mode=mode_of(protocol.status),
-        weaknesses=ranked,
-        matrix=matrix,
-        bands=list(ROBUSTNESS_BANDS),
-        conclusion=conclude(ranked, has_data=rules.has_data(runs)),
-        partial=partial,
+    return InsightData(
+        experiment=experiment,
+        attacks=attacks,
+        insight=ExperimentInsight(
+            experiment_id=experiment.id,
+            mode=mode_of(protocol.status),
+            weaknesses=ranked,
+            matrix=matrix,
+            bands=list(ROBUSTNESS_BANDS),
+            conclusion=conclude(ranked, has_data=rules.has_data(runs)),
+            partial=partial,
+        ),
     )
+
+
+def insight(session: Session, experiment_id: UUID) -> ExperimentInsight:
+    return collect(session, experiment_id).insight

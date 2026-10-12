@@ -184,6 +184,35 @@
       "description": "Ảnh sạch đã letterbox và làm mờ; có khi và chỉ khi completed. Ảnh gốc chưa làm mờ không bao giờ được phục vụ qua API",
       "title": "Clean Image Url"
     },
+    "content_box": {
+      "anyOf": [
+        {
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Vùng ảnh thật trong ảnh letterbox (xyxy pixel, không gian letterbox), phần còn lại là pad 114. null với dữ liệu tạo trước Phase R3: giao diện hiển thị cả khung vuông (đề xuất contract 001, Phase R3); chỉ có khi completed",
+      "title": "Content Box"
+    },
     "levels": {
       "description": "Rỗng khi chưa completed",
       "items": {

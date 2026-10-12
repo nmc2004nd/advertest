@@ -19,6 +19,7 @@ from ultralytics.models import YOLO
 from advertest_contracts.ids import content_id
 from advertest_contracts.models import InferenceParams, ModelCard
 from ml_core.models.register import lib_versions
+from ml_core.models.ultralytics_safetensors import export_safetensors
 
 LOW_PARAMS = InferenceParams(conf=1e-4, iou=0.7, max_det=300, operating_conf=1e-4, input_size=640)
 
@@ -28,6 +29,14 @@ def random_weights(tmp_path_factory: pytest.TempPathFactory) -> Path:
     torch.manual_seed(0)
     path = tmp_path_factory.mktemp("weights") / "yolov8n-random.pt"
     YOLO("yolov8n.yaml").save(path)
+    return path
+
+
+@pytest.fixture(scope="session")
+def yolo_safetensors(random_weights: Path, tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """`random_weights` đổi sang safetensors như model Ultralytics đăng ký qua web."""
+    path = tmp_path_factory.mktemp("weights") / "yolov8n-random.safetensors"
+    export_safetensors(random_weights, path, "yolov8n")
     return path
 
 

@@ -3,7 +3,8 @@
 - `POST /models/{id}/check` từ `check_failed` → 202, `checking`, có job `model_check` mới, audit
   `model.rechecked`; job pass thì model `ready`.
 - Từ `ready` hoặc `checking` → 409; weights đã xóa khỏi storage → 409.
-- Engineer, reviewer gọi → 403 (`model.manage` chỉ dành cho admin).
+- Reviewer gọi → 403 (không có `model.manage`); engineer chỉ kiểm lại model mình đăng ký (model
+  của người khác → 403).
 
 Job `model_check` giả lập qua API nội bộ của worker (như R2 `test_model_upload.py`).
 """
@@ -97,9 +98,15 @@ def test_recheck_missing_weights(api: Any, admin: TestClient, tool_worker: ToolW
 
 
 @pytest.mark.parametrize("role", ["engineer", "reviewer"])
-def test_recheck_requires_model_manage(
+def test_recheck_requires_model_manage_and_owner(
     api: Any, admin: TestClient, tool_worker: ToolWorker, role: str
 ) -> None:
-    model = _failed(api, admin, tool_worker)
+    model = _failed(api, admin, tool_worker)  # model của admin
     _, _, client = api.user(role)
     assert error(_recheck(client, str(model.id)))[:2] == (403, "forbidden")
+
+
+def test_engineer_rechecks_own_model(api: Any, tool_worker: ToolWorker) -> None:
+    _, _, engineer = api.user("engineer")
+    model = _failed(api, engineer, tool_worker)
+    assert _recheck(engineer, str(model.id)).status_code == 202
