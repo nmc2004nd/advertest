@@ -1,0 +1,11 @@
+# Config-as-code của service `api` trên Railway (Settings → Config-as-code → /deploy/railway/api.toml).
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "docker/api/Dockerfile"
+watchPatterns = ["backend/**", "ml_core/**", "attacks/**", "contracts/python/**", "contracts/seeds/**", "pyproject.toml", "uv.lock", "docker/api/**"]
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5

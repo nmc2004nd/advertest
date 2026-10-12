@@ -1,0 +1,104 @@
+# Phần chạy trên PC của bản triển khai: worker, worker công cụ và sandbox chuyển đổi, gọi API trên
+# Railway qua HTTPS bằng token của compute target. Không có Postgres, MinIO hay API ở đây.
+# Khởi động bằng deploy/railway/pc-up.sh cpu|gpu (biến lấy từ .env.pc).
+
+name: advertest-pc
+
+x-worker-build: &worker-build
+  context: ../..
+  dockerfile: docker/api/Dockerfile
+  target: worker
+
+services:
+  worker-cpu:
+    profiles: ["cpu"]
+    image: advertest-worker:cpu
+    build:
+      <<: *worker-build
+      args:
+        TORCH: cpu
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+    entrypoint: ["advertest-worker", "run"]
+    environment: &worker-env
+      API_URL: ${API_URL:?Cần API_URL (https://<domain>/api)}
+      WORKER_TOKEN: ${WORKER_TOKEN:?Cần WORKER_TOKEN}
+      CACHE_DIR: /app/cache
+      DEVICE: ${WORKER_DEVICE:-}
+      DOCKER_IMAGE_DIGEST: ${DOCKER_IMAGE_DIGEST:-}
+    volumes:
+      - worker_cache:/app/cache
+    restart: unless-stopped
+
+  worker:
+    profiles: ["gpu"]
+    image: advertest-worker:gpu
+    build:
+      <<: *worker-build
+      args:
+        TORCH: cuda
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+    entrypoint: ["advertest-worker", "run"]
+    environment: *worker-env
+    volumes:
+      - worker_cache:/app/cache
+    # Cần nvidia-container-toolkit trên máy.
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  # Kiểm tra attack spec, kiểm tra model, thử nhanh (token của một compute target riêng).
+  worker-tools:
+    image: advertest-worker:cpu
+    build:
+      <<: *worker-build
+      args:
+        TORCH: cpu
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+    entrypoint: ["advertest-worker", "--tools"]
+    environment:
+      API_URL: ${API_URL:?Cần API_URL (https://<domain>/api)}
+      WORKER_TOKEN: ${WORKER_TOOLS_TOKEN:?Cần WORKER_TOOLS_TOKEN}
+      CACHE_DIR: /app/cache
+      DEVICE: cpu
+      CONVERT_SPOOL: /app/convert
+    volumes:
+      - worker_tools_cache:/app/cache
+      - convert_spool:/app/convert
+    restart: unless-stopped
+
+  # Sandbox chuyển `.pt`/`.pth` upload qua web sang safetensors (mission.md nguyên tắc 10): giống
+  # hệt service converter của docker/compose.yaml. Không mạng, không bí mật.
+  converter:
+    image: advertest-worker:cpu
+    build:
+      <<: *worker-build
+      args:
+        TORCH: cpu
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+    entrypoint: ["python", "-m", "advertest_worker.converter", "serve", "--spool", "/app/convert"]
+    network_mode: none
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 4g
+    cpus: 2
+    environment:
+      HOME: /tmp
+      YOLO_CONFIG_DIR: /tmp
+    volumes:
+      - convert_spool:/app/convert
+    restart: unless-stopped
+
+volumes:
+  worker_cache:
+  worker_tools_cache:
+  convert_spool:

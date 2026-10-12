@@ -1,0 +1,36 @@
+# Bản triển khai: phục vụ frontend tĩnh và proxy /api/* sang API qua mạng riêng.
+#   PORT          cổng nghe (Railway tự đặt)
+#   API_UPSTREAM  địa chỉ API, ví dụ api.railway.internal:8000
+{
+	admin off
+	auto_https off
+	servers {
+		# Container chỉ nhận kết nối qua proxy của Railway: lấy IP thật của client từ X-Real-IP
+		# do proxy đó đặt; thiếu header thì dùng IP kết nối.
+		trusted_proxies static 0.0.0.0/0 ::/0
+		client_ip_headers X-Real-IP
+	}
+}
+
+:{$PORT:8080} {
+	encode zstd gzip
+
+	handle_path /api/* {
+		reverse_proxy {$API_UPSTREAM} {
+			# Chỉ chuyển một IP (của client) cho API (giới hạn đăng nhập sai theo IP, TRUSTED_PROXIES),
+			# bỏ X-Forwarded-For do client tự gửi.
+			header_up X-Forwarded-For {client_ip}
+		}
+	}
+
+	handle {
+		root * /srv
+		# File trong /assets có hash trong tên: cache lâu; còn lại (index.html, route SPA) luôn hỏi lại.
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+		@notAssets not path /assets/*
+		header @notAssets Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
+}
