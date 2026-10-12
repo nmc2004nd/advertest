@@ -75,11 +75,11 @@ conflicts = [[{ extra = "cpu" }, { extra = "cuda" }]]
 [tool.uv.sources]
 torch = [
     { index = "pytorch-cpu", extra = "cpu" },
-    { index = "pytorch-cu126", extra = "cuda" },
+    { index = "pytorch-cu130", extra = "cuda" },
 ]
 torchvision = [
     { index = "pytorch-cpu", extra = "cpu" },
-    { index = "pytorch-cu126", extra = "cuda" },
+    { index = "pytorch-cu130", extra = "cuda" },
 ]
 
 [[tool.uv.index]]
@@ -88,8 +88,8 @@ url = "https://download.pytorch.org/whl/cpu"
 explicit = true
 
 [[tool.uv.index]]
-name = "pytorch-cu126"
-url = "https://download.pytorch.org/whl/cu126"
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
 explicit = true
 
 [tool.ruff]
