@@ -17,12 +17,11 @@ dev (`make up`, MinIO) không đổi.
 
 | File | Dùng để |
 |---|---|
-| `api.toml`, `frontend.toml` | Config-as-code cho từng service trên Railway |
 | `railway.env.example` | Biến môi trường của từng service trên Railway |
 | `pc.env.example` | Biến môi trường trên PC (chép thành `.env.pc` ở gốc repo) |
-| `init-db.sh` | Tạo role và database trên Postgres của Railway (một lần) |
+| `init-db.sh` | Tạo role và database trên Postgres của Railway (một lần, qua `railway ssh`) |
 | `bucket-cors.sh` | Cho phép trình duyệt (domain frontend) PUT lên bucket (một lần) |
-| `admin.sh` | Chạy lệnh quản trị trên PC, trỏ vào Railway |
+| `admin.sh` | Chạy lệnh quản trị trong container `api` (qua `railway ssh`) |
 | `compose.pc.yaml`, `pc-up.sh` | Chạy worker trên PC |
 
 Chi phí ước tính: gói Hobby 5 USD/tháng (đã gồm 5 USD tiền dùng); image `api` có torch dùng khoảng
@@ -30,35 +29,46 @@ Chi phí ước tính: gói Hobby 5 USD/tháng (đã gồm 5 USD tiền dùng); 
 
 ## Chuẩn bị
 
-- Tài khoản Railway (gói Hobby), repo đã đẩy lên GitHub.
+- Tài khoản Railway (gói Hobby), Railway CLI đã đăng nhập (`railway login`), nhánh deploy đã đẩy lên GitHub.
 - PC có Docker, `uv`, và fixture (`make fixtures`; image worker cần chúng).
 - Sinh các mật khẩu (chỉ chữ và số): `openssl rand -hex 24`, mỗi lần cho một biến:
   `ADVERTEST_OWNER_PASSWORD`, `ADVERTEST_APP_PASSWORD`, `ARTIFACT_TOKEN_SECRET`.
 
 ## 1. Tạo project trên Railway
 
-1. **New Project → Deploy from GitHub repo**, chọn repo. Railway tạo một service; tạo thêm một service
-   cũng từ repo đó (**+ New → GitHub Repo**). Đặt tên hai service đúng là `api`, `frontend`
-   (biến tham chiếu trong `railway.env.example` dùng các tên này).
-2. Ở mỗi service: **Settings → Config-as-code**, điền đường dẫn file tương ứng
-   (`/deploy/railway/api.toml`, `/deploy/railway/frontend.toml`).
-   Chọn nhánh deploy ở **Settings → Source**.
-3. **+ New → Database → PostgreSQL**. Giữ tên `Postgres`. Ở **Settings → Networking** bật
-   **TCP Proxy** (để chạy `init-db.sh` và lệnh quản trị từ PC).
-4. **+ New → Bucket**, đặt tên service là `bucket`. Mở tab **Credentials**: xem kiểu địa chỉ
-   (virtual-hosted hay path) để điền `MINIO_ADDRESSING_STYLE`, và chép các giá trị vào `.env.pc` (bước 2).
-5. Service `frontend`: **Generate Domain**, cổng `8080`. Đây là địa chỉ người dùng mở.
-6. Service `api`: **không** tạo domain công khai (`TRUSTED_PROXIES=*` chỉ an toàn khi api chỉ nhận
-   kết nối từ `frontend` trong mạng riêng).
-7. Dán biến môi trường theo `railway.env.example`: phần Shared Variables ở Project Settings, phần
-   còn lại vào tab **Variables → Raw Editor** của từng service.
+Railway đã bỏ config-as-code (`railway.toml`) cho project mới, nên thiết lập của từng service đặt
+trong **Settings** (hoặc qua `railway api`, mutation `serviceInstanceUpdate`).
+
+1. `railway init --name advertest` (hoặc **New Project** trên web), rồi `railway link` ở gốc repo.
+2. Thêm service `api` và `frontend` từ GitHub repo (**+ New → GitHub Repo**, đặt đúng tên này: biến
+   tham chiếu trong `railway.env.example` dùng chúng). Ở **Settings → Source** chọn nhánh deploy;
+   kiểm tra lại, vì `railway add --branch` không đổi nhánh (service vẫn theo `main`).
+3. **Settings** của từng service:
+
+   | | `api` | `frontend` |
+   |---|---|---|
+   | Dockerfile path | `docker/api/Dockerfile` | `docker/frontend/Dockerfile` |
+   | Healthcheck path | `/health`, timeout 300 s | `/` |
+   | Restart policy | On failure, 5 lần | On failure, 5 lần |
+   | Watch paths | `backend/**`, `ml_core/**`, `attacks/**`, `contracts/python/**`, `contracts/seeds/**`, `pyproject.toml`, `uv.lock`, `docker/api/**` | `frontend/**`, `docker/frontend/**` |
+   | Domain công khai | **không** (`TRUSTED_PROXIES=*` chỉ an toàn khi api chỉ nhận kết nối từ `frontend`) | **Generate Domain**, cổng `8080` |
+
+4. `railway add --database postgres` (giữ tên `Postgres`). Không cần TCP proxy.
+5. `railway bucket create bucket --region sin` (đặt tên `bucket`). `railway bucket credentials
+   --bucket bucket` cho endpoint, tên bucket, khóa và kiểu địa chỉ (`urlStyle`).
+6. Đặt biến theo `railway.env.example` (tab **Variables → Raw Editor**, hoặc `railway variable set
+   -s <service> --skip-deploys ...`).
 
 Lần deploy đầu, `api` sẽ fail vì chưa có database `advertest`; làm tiếp bước 2 rồi redeploy.
 
 ## 2. Khởi tạo database và CORS của bucket (từ PC, một lần)
 
+`init-db.sh` và `admin.sh` chạy lệnh bên trong container trên Railway qua `railway ssh`, không mở
+Postgres ra Internet. Cần một SSH key đã đăng ký: `ssh-keygen -t ed25519`, `railway ssh keys add`, và
+host key của `ssh.railway.com` trong `~/.ssh/known_hosts` (`ssh-keyscan ssh.railway.com`).
+
 ```bash
-cp deploy/railway/pc.env.example .env.pc   # điền PGHOST/PGPORT/PGPASSWORD (TCP proxy), mật khẩu, MINIO_*, APP_BASE_URL
+cp deploy/railway/pc.env.example .env.pc   # điền mật khẩu, MINIO_* (credential của bucket), APP_BASE_URL
 deploy/railway/init-db.sh                  # tạo advertest_owner, advertest_app, database advertest
 deploy/railway/bucket-cors.sh              # cho phép https://<frontend> PUT lên bucket (upload model)
 ```
@@ -68,16 +78,17 @@ Không cần tạo bucket con: tiền tố khóa tự xuất hiện khi ghi.
 Redeploy service `api` (migration chạy trong entrypoint). Kiểm tra:
 `curl https://<frontend-domain>/api/health` trả `"status": "ok"`.
 
-## 3. Admin, compute target, dữ liệu (từ PC)
+## 3. Admin và compute target (từ PC)
 
 ```bash
-deploy/railway/admin.sh python -m backend.admin_cli.seed      # admin đầu tiên (ADVERTEST_ADMIN_*)
+deploy/railway/admin.sh python -m backend.admin_cli.seed      # admin đầu tiên (ADVERTEST_ADMIN_* trong .env.pc)
 deploy/railway/admin.sh advertest-admin compute-target create --name pc --as <email admin>
 deploy/railway/admin.sh advertest-admin compute-target create --name pc-tools --as <email admin>
-deploy/railway/admin.sh advertest-admin import-local --store <thư mục LocalStore> --as <email admin>
 ```
 
 Token in ra (một lần) điền vào `WORKER_TOKEN` và `WORKER_TOOLS_TOKEN` trong `.env.pc`.
+`import-local` đọc thư mục trên PC nên không chạy qua `admin.sh`: cần mở tạm TCP proxy của Postgres
+và chạy `uv run --extra cpu advertest-admin import-local ...` với `DATABASE_URL` trỏ vào proxy.
 
 ## 4. Chạy worker trên PC
 
@@ -99,8 +110,8 @@ Worker chỉ build từ working tree sạch (commit trước), giống `docker/w
 
 ## Vận hành
 
-- **Backup Postgres:** `pg_dump` qua TCP proxy, ví dụ
-  `docker run --rm -e PGPASSWORD postgres:17-alpine pg_dump -h $PGHOST -p $PGPORT -U postgres -Fc advertest > backup.dump`.
+- **Backup Postgres:** `pg_dump` trong container qua `railway ssh` (base64 để dữ liệu nhị phân đi
+  nguyên vẹn): `railway ssh -s Postgres -- "pg_dump -U postgres -Fc advertest | base64 -w0" | base64 -d > backup.dump`.
   Bucket không có backup tự động; sao về PC bằng công cụ S3 bất kỳ, ví dụ
   `aws s3 sync s3://$MINIO_BUCKET ./bucket-backup --endpoint-url $MINIO_ENDPOINT`.
   Bucket xóa nhầm còn khôi phục được trong 52 giờ.
