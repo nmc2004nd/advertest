@@ -2,6 +2,8 @@
 
 Tài liệu này dành cho người đã có bản triển khai chạy sẵn (dựng từ đầu: [README.md](README.md)).
 Mọi lệnh chạy ở gốc repo, nơi có `.env.pc` (token worker, mật khẩu; đã gitignore).
+Hướng dẫn chi tiết để bật/tắt tạm, sleep, cập nhật và build worker:
+[PC-OPERATIONS.md](PC-OPERATIONS.md).
 
 ```
 Trình duyệt ──▶ https://<frontend>      (Railway: frontend → api → Postgres, bucket)
@@ -40,6 +42,9 @@ một lần: worker đã kết nối và đang chờ job.
 
 `pc-up.sh` chỉ build từ working tree sạch, để mỗi run ghi đúng commit đã chạy. Commit trước, rồi chạy
 lại `deploy/railway/pc-up.sh cpu` (build lại image, giữ cache).
+
+Với worker GPU hoặc Windows/WSL, dùng checklist cập nhật và kiểm tra hàng đợi trong
+[PC-OPERATIONS.md](PC-OPERATIONS.md).
 
 Nếu thay đổi chạm vào API (`backend/`, `ml_core/`, `attacks/`, `contracts/`) thì cũng deploy lại
 service `api` trên Railway (mục 3), để worker và API cùng phiên bản.

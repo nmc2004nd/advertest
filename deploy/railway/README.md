@@ -98,6 +98,8 @@ deploy/railway/pc-up.sh cpu     # hoặc gpu; dừng: deploy/railway/pc-up.sh do
 ```
 
 Worker chỉ build từ working tree sạch (commit trước), giống `docker/worker/up.sh`.
+Hướng dẫn copy/paste để bật/tắt tạm, sleep, cập nhật code và quản lý build cache:
+[PC-OPERATIONS.md](PC-OPERATIONS.md).
 
 ## Kiểm tra sau khi deploy
 
@@ -111,6 +113,8 @@ Worker chỉ build từ working tree sạch (commit trước), giống `docker/w
 
 ## Vận hành
 
+- **Worker trên PC:** xem runbook [PC-OPERATIONS.md](PC-OPERATIONS.md) trước khi sleep, cập nhật hoặc
+  build lại image.
 - **Backup Postgres:** `pg_dump` trong container qua `railway ssh` (base64 để dữ liệu nhị phân đi
   nguyên vẹn): `railway ssh -s Postgres -- "pg_dump -U postgres -Fc advertest | base64 -w0" | base64 -d > backup.dump`.
   Bucket không có backup tự động; sao về PC bằng công cụ S3 bất kỳ, ví dụ

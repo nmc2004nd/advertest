@@ -233,6 +233,9 @@ experiment chạy xong và có ảnh failure case.
 
 ## 5. Dừng, cập nhật, gỡ
 
+Runbook hằng ngày (phân biệt tắt tạm với `down`, sleep, update và build cache):
+[PC-OPERATIONS.md](PC-OPERATIONS.md).
+
 ```bash
 deploy/railway/pc-up.sh down                          # dừng (giữ image và cache)
 git pull && deploy/railway/pc-up.sh cpu               # cập nhật lên commit mới của nhánh deploy
