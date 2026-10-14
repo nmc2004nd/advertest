@@ -12,22 +12,20 @@ import { useCreateNarrative, useNarrative } from './api'
 function NarrativeBody({ narrative, id }: { narrative: ExperimentNarrative; id: string }) {
   return (
     <div className="space-y-4" data-testid="narrative">
-      <p className="max-w-[72ch] text-[15px] leading-6">{narrative.summary}</p>
+      <p className="text-[15px] leading-6">{narrative.summary}</p>
       {narrative.findings.length > 0 && (
         <div className="space-y-2">
           <h4 id={`${id}-phan-tich`} className="text-sm font-semibold">
             {NARRATIVE.findings}
           </h4>
-          <ul aria-labelledby={`${id}-phan-tich`} className="space-y-2">
+          <ul aria-labelledby={`${id}-phan-tich`} className="grid gap-2 lg:grid-cols-2">
             {narrative.findings.map((finding, i) => (
               <li
                 key={`${i}-${finding.title}`}
                 className="rounded-xl border border-line bg-surface-solid px-4 py-3"
               >
                 <p className="font-medium">{finding.title}</p>
-                <p className="mt-1 max-w-[72ch] text-sm leading-6 text-muted-foreground">
-                  {finding.detail}
-                </p>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">{finding.detail}</p>
               </li>
             ))}
           </ul>
@@ -40,7 +38,7 @@ function NarrativeBody({ narrative, id }: { narrative: ExperimentNarrative; id: 
           </h4>
           <ul aria-labelledby={`${id}-goi-y`} className="space-y-1.5 text-sm leading-6">
             {narrative.next_steps.map((step, i) => (
-              <li key={`${i}-${step}`} className="flex max-w-[72ch] gap-2">
+              <li key={`${i}-${step}`} className="flex gap-2">
                 <span
                   aria-hidden="true"
                   className="mt-2.5 size-1 shrink-0 rounded-full bg-current"
