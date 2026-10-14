@@ -249,7 +249,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Models */
+        /**
+         * List Models
+         * @description Phase R3: admin, reviewer thấy mọi model; engineer thấy model mình đăng ký và model do
+         *     admin đăng ký.
+         */
         get: operations["list_models_models_get"];
         put?: never;
         /**
@@ -271,7 +275,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Model */
+        /**
+         * Get Model
+         * @description Model không thấy được (của engineer khác) → 404.
+         */
         get: operations["get_model_models__model_id__get"];
         put?: never;
         post?: never;
