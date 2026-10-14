@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import type { RunView } from '@/contracts/api'
 import { READING } from '@/copy/charts'
 
+import { displayUnit } from './breakpoints'
 import { ChartReading } from './ChartReading'
 import { curveSentence } from './sentences'
 
@@ -77,7 +78,7 @@ function CurveChart({
   normalized: boolean
 }) {
   const { title, format } = METRICS[metric]
-  const unit = curve.paramUnit ? ` (${curve.paramUnit})` : ''
+  const unit = displayUnit(curve) ? ` (${displayUnit(curve)})` : ''
   const axisLabel = normalized
     ? `% dải ${curve.paramName} (level / ${curve.paramMax})`
     : `${curve.paramName}${unit}`
@@ -158,7 +159,7 @@ export function CurveTable({
           <tr>
             <th scope="col" className="py-1 pr-3 font-medium">
               {curve.paramName}
-              {curve.paramUnit ? ` (${curve.paramUnit})` : ''}
+              {displayUnit(curve) ? ` (${displayUnit(curve)})` : ''}
             </th>
             {normalized && (
               <th scope="col" className="py-1 pr-3 font-medium">

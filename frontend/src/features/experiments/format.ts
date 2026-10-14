@@ -1,4 +1,5 @@
 import { formatDateTime } from '@/admin/format'
+import { displayUnit } from '@/components/charts/breakpoints'
 import type { ExperimentSummary, RunView } from '@/contracts/api'
 
 /** Thời gian hiển thị: kết thúc lúc nào, hoặc tạo lúc nào khi chưa kết thúc. */
@@ -10,9 +11,15 @@ export function timeText(experiment: ExperimentSummary): string {
 
 export { formatDuration } from '@/features/wizard/state'
 
+/** "tên tham số level đơn vị"; bỏ đơn vị khi trùng tên tham số (fog: "severity 2"). */
+function levelText(run: RunView): string {
+  const { param_name: paramName, param_unit: paramUnit } = run.attack_spec
+  const unit = displayUnit({ paramName, paramUnit })
+  return `${paramName} ${run.level}${unit ? ` ${unit}` : ''}`
+}
+
 export function runLabel(run: RunView): string {
-  const unit = run.attack_spec.param_unit ? ` ${run.attack_spec.param_unit}` : ''
-  return `${run.attack_spec.name} · ${run.attack_spec.param_name} ${run.level}${unit}`
+  return `${run.attack_spec.name} · ${levelText(run)}`
 }
 
 /** Nhãn của run bị bỏ do dừng sớm (requirements.md Phase 6, Frontend: bảng run). */
@@ -25,8 +32,7 @@ export function reasonText(run: RunView, runs: RunView[]): string | null {
   if (reason.code !== 'early_stop') return reason.message
   const trigger = runs.find((r) => r.run_id === reason.trigger_run_id)
   if (!trigger) return EARLY_STOP_TEXT
-  const unit = trigger.attack_spec.param_unit ? ` ${trigger.attack_spec.param_unit}` : ''
-  return `${EARLY_STOP_TEXT} (sụp ở ${trigger.attack_spec.param_name} ${trigger.level}${unit})`
+  return `${EARLY_STOP_TEXT} (sụp ở ${levelText(trigger)})`
 }
 
 /** Tải `manifest.json` về máy (tạo file từ JSON đã tải). */

@@ -125,7 +125,7 @@ function formatPercentValue(value: number): string {
 }
 
 /** Đơn vị hiển thị; bỏ khi trùng tên tham số (fog: `severity ≈ 3`, không lặp "severity"). */
-export function displayUnit(spec: SpecInfo | null): string {
+export function displayUnit(spec: Pick<SpecInfo, 'paramName' | 'paramUnit'> | null): string {
   if (!spec || spec.paramUnit === spec.paramName) return ''
   return spec.paramUnit
 }
