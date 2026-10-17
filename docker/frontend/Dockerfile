@@ -11,6 +11,9 @@ RUN pnpm install --frozen-lockfile
 # src/api/mocks.ts glob contracts/mocks lúc build; bản production không chứa mock (verify:build).
 COPY contracts/mocks /app/contracts/mocks
 COPY frontend ./
+# Tài khoản demo ở trang đăng nhập (tùy chọn): Railway truyền biến service vào build qua ARG.
+ARG VITE_DEMO_EMAIL=
+ARG VITE_DEMO_PASSWORD=
 ENV VITE_API_BASE_URL=/api \
     VITE_USE_MOCKS=false
 RUN pnpm verify:build

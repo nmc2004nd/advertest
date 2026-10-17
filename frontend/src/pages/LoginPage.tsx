@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router'
 
 import { safeNext } from '@/api/auth-redirect'
 import { isAccountStatusCode } from '@/auth/account-status'
+import { demoAccount } from '@/auth/demo-account'
 import { apiSend, ApiError } from '@/api/client'
 import { errorMessage } from '@/api/messages'
 import { loginSchema } from '@/auth/schemas'
@@ -11,10 +12,12 @@ import { FormAlert } from '@/components/FormAlert'
 import { TextField } from '@/components/form/TextField'
 import { useZodForm } from '@/components/form/useZodForm'
 import { Button } from '@/components/ui/button'
+import { DEMO_ACCOUNT_COPY } from '@/copy/demo-account'
 import type { LoginRequest, Me } from '@/contracts/schemas'
 import { PublicLayout } from '@/layout/PublicLayout'
 
 export function LoginPage() {
+  const demo = demoAccount()
   const [params] = useSearchParams()
   const next = safeNext(params.get('next'))
   const navigate = useNavigate()
@@ -40,6 +43,26 @@ export function LoginPage() {
       title="Đăng nhập"
       lead="Chào mừng trở lại 👋 Tiếp tục kiểm định model của nhóm bạn."
     >
+      {demo && (
+        <div className="panel flex flex-col gap-3 p-4">
+          <div className="flex flex-col gap-1">
+            <p className="text-sm font-semibold text-foreground">{DEMO_ACCOUNT_COPY.title}</p>
+            <p className="text-sm text-muted-foreground">{DEMO_ACCOUNT_COPY.detail}</p>
+            <p className="text-sm text-muted-foreground">{demo.email}</p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={login.isPending}
+            onClick={() => {
+              form.reset(demo)
+              login.mutate(demo)
+            }}
+          >
+            {DEMO_ACCOUNT_COPY.button}
+          </Button>
+        </div>
+      )}
       <form
         noValidate
         className="flex flex-col gap-4"
