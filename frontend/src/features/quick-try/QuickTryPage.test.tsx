@@ -56,6 +56,14 @@ describe('/quick-try: form', () => {
     expect(html).toMatch(/<button[^>]*type="submit"[^>]*>.*Chạy thử nhanh<\/button>/)
   })
 
+  it('5 ảnh mẫu KITTI bấm được, kèm ghi nguồn giấy phép', () => {
+    const html = render(<QuickTryPage />, '/quick-try', 'engineer', data)
+    expect(html).toContain('Hoặc dùng ảnh mẫu')
+    expect(html.match(/aria-label="Dùng ảnh mẫu KITTI \d+"/g)).toHaveLength(5)
+    expect(html).toContain('src="/quick-try-samples/kitti-000902.jpg"')
+    expect(html).toContain('CC BY-NC-SA 3.0')
+  })
+
   it('danh sách attack không có patch', () => {
     const patch = specs.find((s) => s.requires_training)
     if (!patch) throw new Error('Thiếu mock spec patch')

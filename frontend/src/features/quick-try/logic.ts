@@ -14,6 +14,15 @@ import type { QuickTryObjectStatus } from '@/contracts/schemas'
 export const QUICK_TRY_MAX_BYTES = 10 * 1024 * 1024
 export const QUICK_TRY_TYPES = ['image/jpeg', 'image/png'] as const
 
+/** Ảnh mẫu KITTI để thử ngay không cần upload (file tĩnh trong `public/quick-try-samples/`). */
+export const QUICK_TRY_SAMPLES = ['000902', '002571', '004499', '004965', '005866'].map((id) => ({
+  id,
+  name: `kitti-${id}.jpg`,
+  url: `/quick-try-samples/kitti-${id}.jpg`,
+}))
+
+export type QuickTrySample = (typeof QUICK_TRY_SAMPLES)[number]
+
 /** Model chọn được: chỉ `ready` và chưa lưu trữ. */
 export function readyModels(models: readonly ModelSummary[]): ModelSummary[] {
   return models.filter((m) => m.status === 'ready' && !m.archived_at)

@@ -14,6 +14,14 @@ export interface QuickTryInput {
   image: File
 }
 
+/** Tải ảnh mẫu thành `File` để gửi như ảnh người dùng chọn. */
+export async function sampleFile(sample: { name: string; url: string }): Promise<File> {
+  const res = await fetch(sample.url)
+  if (!res.ok) throw new Error(`Không tải được ảnh mẫu (${res.status})`)
+  const blob = await res.blob()
+  return new File([blob], sample.name, { type: 'image/jpeg' })
+}
+
 const QUICK_TRY_KEY = ['quick-tries'] as const
 
 /** Lượt `queued`/`running` tự cập nhật mỗi 2 giây; xong hoặc thất bại thì dừng. */

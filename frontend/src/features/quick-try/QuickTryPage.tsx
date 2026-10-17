@@ -45,6 +45,7 @@ import {
   lastQuickTry,
   type Preset,
   rememberQuickTry,
+  sampleFile,
   useCreateQuickTry,
   useQuickTry,
 } from './api'
@@ -58,7 +59,9 @@ import {
   levelValue,
   presetLevels,
   QUICK_TRY_LAYERS,
+  QUICK_TRY_SAMPLES,
   type QuickTryLayer,
+  type QuickTrySample,
   quickTryAttacks,
   readyModels,
   statusCounts,
@@ -100,6 +103,8 @@ function QuickTryForm({ onCreated }: { onCreated: (id: string) => void }) {
   const [attackId, setAttackId] = useState('')
   const [preset, setPreset] = useState<Preset>('standard')
   const [file, setFile] = useState<File | null>(null)
+  const [sampleId, setSampleId] = useState<string | null>(null)
+  const [sampleError, setSampleError] = useState(false)
   const [dragging, setDragging] = useState(false)
   const [submitted, setSubmitted] = useState(false)
 
@@ -124,9 +129,22 @@ function QuickTryForm({ onCreated }: { onCreated: (id: string) => void }) {
     : (presets.data?.[0]?.key ?? preset)
   const fileError = file ? imageError(file) : submitted ? COPY.imageMissing : null
 
-  function chooseFile(next: File | null | undefined) {
+  function chooseFile(next: File | null | undefined, sample: string | null = null) {
     setFile(next ?? null)
+    setSampleId(sample)
+    setSampleError(false)
     create.reset()
+  }
+
+  function chooseSample(sample: QuickTrySample) {
+    setSampleId(sample.id)
+    sampleFile(sample).then(
+      (next) => chooseFile(next, sample.id),
+      () => {
+        setSampleId(null)
+        setSampleError(true)
+      },
+    )
   }
 
   function onDrop(event: DragEvent<HTMLDivElement>) {
@@ -289,6 +307,33 @@ function QuickTryForm({ onCreated }: { onCreated: (id: string) => void }) {
           onChange={(e) => chooseFile(e.target.files?.[0])}
         />
       </div>
+      <section className="flex flex-col gap-2">
+        <span className="text-sm font-semibold">{COPY.samplesTitle}</span>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+          {QUICK_TRY_SAMPLES.map((sample) => (
+            <button
+              key={sample.id}
+              type="button"
+              aria-pressed={sampleId === sample.id}
+              aria-label={COPY.sampleLabel(sample.id)}
+              onClick={() => chooseSample(sample)}
+              className={cn(
+                'overflow-hidden rounded-md border-2 transition-colors duration-150 hover:border-detect',
+                sampleId === sample.id ? 'border-detect' : 'border-line',
+              )}
+            >
+              <img
+                src={sample.url}
+                alt=""
+                loading="lazy"
+                className="block aspect-[1242/375] w-full object-cover"
+              />
+            </button>
+          ))}
+        </div>
+        {sampleError && <FormAlert>{COPY.sampleError}</FormAlert>}
+        <span className="text-xs text-muted-foreground">{COPY.samplesCredit}</span>
+      </section>
       {create.isError && <CreateError error={create.error} userId={me.data?.id} />}
       <Button
         type="submit"

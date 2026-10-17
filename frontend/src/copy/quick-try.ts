@@ -19,6 +19,11 @@ export const QUICK_TRY_COPY = {
   },
   imageHint: 'JPEG hoặc PNG, tối đa 10 MB. Kéo ảnh thả vào đây hoặc chọn file.',
   imageMissing: 'Chọn một ảnh.',
+  samplesTitle: 'Hoặc dùng ảnh mẫu',
+  sampleLabel: (id: string) => `Dùng ảnh mẫu KITTI ${id}`,
+  sampleError: 'Không tải được ảnh mẫu. Thử lại hoặc chọn file từ máy.',
+  samplesCredit:
+    'Ảnh KITTI Vision Benchmark (Geiger và cộng sự, CVPR 2012), giấy phép CC BY-NC-SA 3.0.',
   submit: 'Chạy thử nhanh',
   submitting: 'Đang gửi…',
   busy: 'Bạn đang có một lượt thử chưa xong.',

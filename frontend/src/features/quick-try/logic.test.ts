@@ -13,6 +13,7 @@ import {
   levelValue,
   presetLevels,
   QUICK_TRY_MAX_BYTES,
+  QUICK_TRY_SAMPLES,
   quickTryAttacks,
   readyModels,
   verdict,
@@ -139,5 +140,16 @@ describe('mức tấn công và kết luận', () => {
       'Model detect nhầm 1 vật thể không có trên ảnh sạch.',
     )
     expect(verdict({ kept: 0, lost: 0, new: 0 }).tone).toBe('neutral')
+  })
+})
+
+describe('QUICK_TRY_SAMPLES', () => {
+  it('mỗi ảnh mẫu có file JPEG trong public/', () => {
+    const files = Object.keys(import.meta.glob('/public/quick-try-samples/*.jpg'))
+    expect(QUICK_TRY_SAMPLES).toHaveLength(5)
+    for (const s of QUICK_TRY_SAMPLES) {
+      expect(s.url).toBe(`/quick-try-samples/${s.name}`)
+      expect(files).toContain(`/public${s.url}`)
+    }
   })
 })
