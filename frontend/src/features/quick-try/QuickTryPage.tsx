@@ -127,6 +127,7 @@ function QuickTryForm({ onCreated }: { onCreated: (id: string) => void }) {
   const presetKey = presets.data?.some((p) => p.key === preset)
     ? preset
     : (presets.data?.[0]?.key ?? preset)
+  const selectedSample = QUICK_TRY_SAMPLES.find((s) => s.id === sampleId)
   const fileError = file ? imageError(file) : submitted ? COPY.imageMissing : null
 
   function chooseFile(next: File | null | undefined, sample: string | null = null) {
@@ -309,7 +310,14 @@ function QuickTryForm({ onCreated }: { onCreated: (id: string) => void }) {
       </div>
       <section className="flex flex-col gap-2">
         <span className="text-sm font-semibold">{COPY.samplesTitle}</span>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+        {selectedSample && (
+          <img
+            src={selectedSample.url}
+            alt={COPY.samplePreview(selectedSample.id)}
+            className="block aspect-[1242/375] w-full rounded-md border border-line object-cover"
+          />
+        )}
+        <div className="grid grid-cols-2 gap-2">
           {QUICK_TRY_SAMPLES.map((sample) => (
             <button
               key={sample.id}
@@ -326,7 +334,7 @@ function QuickTryForm({ onCreated }: { onCreated: (id: string) => void }) {
                 src={sample.url}
                 alt=""
                 loading="lazy"
-                className="block aspect-[1242/375] w-full object-cover"
+                className="block aspect-[2/1] w-full object-cover"
               />
             </button>
           ))}

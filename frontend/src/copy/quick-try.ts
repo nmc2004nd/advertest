@@ -21,6 +21,7 @@ export const QUICK_TRY_COPY = {
   imageMissing: 'Chọn một ảnh.',
   samplesTitle: 'Hoặc dùng ảnh mẫu',
   sampleLabel: (id: string) => `Dùng ảnh mẫu KITTI ${id}`,
+  samplePreview: (id: string) => `Ảnh mẫu KITTI ${id} đang chọn`,
   sampleError: 'Không tải được ảnh mẫu. Thử lại hoặc chọn file từ máy.',
   samplesCredit:
     'Ảnh KITTI Vision Benchmark (Geiger và cộng sự, CVPR 2012), giấy phép CC BY-NC-SA 3.0.',
