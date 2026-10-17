@@ -25,6 +25,7 @@ import { Avatar } from '@/components/Avatar'
 import { StatusBadge } from '@/components/status/StatusBadge'
 import type { ExperimentSummary } from '@/contracts/api'
 import type { Role, UserAdminPage } from '@/contracts/schemas'
+import { useMyRecentExperiments } from '@/features/experiments/api'
 import { EngineerHome } from '@/features/experiments/EngineerHome'
 import { humanTime } from '@/features/experiments/format'
 import { FlowRail } from '@/features/flow/FlowRail'
@@ -65,7 +66,10 @@ export function HomePage() {
   const { data: me } = useMe()
   const flow = useFlow()
   const todo = useTodos(me)
+  const mine = useMyRecentExperiments()
   if (!me) return null
+  // Người tạo experiment thấy số của chính mình; reviewer/admin không tạo nên thấy số của nhóm.
+  const ownPulse = can(me, 'experiment.create')
   return (
     <div className="enter mx-auto flex max-w-[1180px] flex-col gap-6 px-4 py-7 md:px-8 md:py-9">
       <PageHeader
@@ -88,7 +92,12 @@ export function HomePage() {
             failed={todo.failed}
             canCreate={me.roles.includes('engineer') && can(me, 'experiment.create')}
           />
-          {can(me, 'experiment.read') && <TeamPulse experiments={flow.experiments} />}
+          {can(me, 'experiment.read') && (
+            <TeamPulse
+              experiments={ownPulse ? (mine.data?.items ?? []) : flow.experiments}
+              own={ownPulse}
+            />
+          )}
           <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
             <div className="flex min-w-0 flex-col gap-6">
               <section aria-labelledby="viec-cua-toi" className="flex flex-col gap-3">
@@ -119,8 +128,12 @@ export function HomePage() {
   )
 }
 
-/** Tình hình của nhóm: bốn thẻ số liệu, mỗi thẻ dẫn tới danh sách đã lọc sẵn. */
-function TeamPulse({ experiments }: { experiments: ExperimentSummary[] }) {
+/**
+ * Bốn thẻ số liệu, mỗi thẻ dẫn tới danh sách đã lọc sẵn. `own`: chỉ experiment của tôi (link thêm
+ * `owner=me`); ngược lại là của cả nhóm.
+ */
+function TeamPulse({ experiments, own }: { experiments: ExperimentSummary[]; own: boolean }) {
+  const owner = own ? '&owner=me' : ''
   const by = (...s: ExperimentSummary['status'][]) =>
     experiments.filter((e) => s.includes(e.status)).length
   const running = by('running', 'queued')
@@ -131,32 +144,33 @@ function TeamPulse({ experiments }: { experiments: ExperimentSummary[] }) {
       icon: Activity,
       tile: '[--tile-bg:#e0f2fe] [--tile-fg:#0369a1]',
       live: running > 0,
-      to: '/experiments?status=running',
+      to: `/experiments?status=running${owner}`,
     },
     {
       label: 'Xong, chưa gửi duyệt',
       value: by('completed'),
       icon: Send,
       tile: '[--tile-bg:#ffedd5] [--tile-fg:#c2410c]',
-      to: '/experiments?status=completed',
+      to: `/experiments?status=completed${owner}`,
     },
     {
       label: 'Đang được review',
       value: by('submitted_for_review', 'in_review'),
       icon: Eye,
       tile: '[--tile-bg:#f5f3ff] [--tile-fg:#6d28d9]',
-      to: '/experiments?status=in_review',
+      to: `/experiments?status=in_review${owner}`,
     },
     {
       label: 'Đã chấp nhận',
       value: by('approved'),
       icon: BadgeCheck,
       tile: '[--tile-bg:#dcfce7] [--tile-fg:#15803d]',
-      to: '/experiments?status=approved',
+      to: `/experiments?status=approved${owner}`,
     },
   ]
   return (
-    <section aria-label="Tình hình của nhóm">
+    <section aria-labelledby="the-so-lieu" className="flex flex-col gap-3">
+      <SectionTitle id="the-so-lieu" title={own ? 'Experiment của tôi' : 'Tình hình của nhóm'} />
       <dl className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {items.map((item) => (
           <div key={item.label}>

@@ -54,6 +54,22 @@ describe('/home', () => {
     expect(html).not.toContain('chờ duyệt')
   })
 
+  it('engineer: bốn thẻ số liệu đếm experiment của tôi, link lọc owner=me', () => {
+    const mine = listMocks<ExperimentPage>('experiment_page').find((p) => p.items.length > 0)
+    const html = render(<HomePage />, '/home', 'engineer', [
+      [[...EXPERIMENTS_KEY, 'mine-recent'], mine],
+    ])
+    expect(html).toContain('Experiment của tôi')
+    expect(html).toContain('href="/experiments?status=completed&amp;owner=me"')
+    expect(html).not.toContain('Tình hình của nhóm')
+  })
+
+  it('reviewer: bốn thẻ số liệu là của cả nhóm', () => {
+    const html = render(<HomePage />, '/home', 'reviewer', [])
+    expect(html).toContain('Tình hình của nhóm')
+    expect(html).toContain('href="/experiments?status=in_review"')
+  })
+
   it('Phase R3: engineer chưa có việc thấy "Không có việc cần làm" và gợi ý tạo experiment Khám phá', () => {
     const html = render(<HomePage />, '/home', 'engineer', [[TODO_EXPERIMENTS_KEY, []]])
     expect(html).toContain('Không có việc cần làm')
